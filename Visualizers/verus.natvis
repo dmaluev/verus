@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+	<!-- GLM -->
+	<Type Name="glm::vec&lt;1,*&gt;">
+		<DisplayString>{{x={x}}}</DisplayString>
+		<Expand>
+			<Item Name="x">x</Item>
+		</Expand>
+	</Type>
+	<Type Name="glm::vec&lt;2,*&gt;">
+		<DisplayString>{{x={x} y={y}}}</DisplayString>
+		<Expand>
+			<Item Name="x">x</Item>
+			<Item Name="y">y</Item>
+		</Expand>
+	</Type>
+	<Type Name="glm::vec&lt;3,*&gt;">
+		<DisplayString>{{x={x} y={y} z={z}}}</DisplayString>
+		<Expand>
+			<Item Name="x">x</Item>
+			<Item Name="y">y</Item>
+			<Item Name="z">z</Item>
+		</Expand>
+	</Type>
+	<Type Name="glm::vec&lt;4,*&gt;">
+		<DisplayString>{{x={x} y={y} z={z} w={w}}}</DisplayString>
+		<Expand>
+			<Item Name="x">x</Item>
+			<Item Name="y">y</Item>
+			<Item Name="z">z</Item>
+			<Item Name="w">w</Item>
+		</Expand>
+	</Type>
+	<Type Name="glm::mat&lt;4,4,*&gt;">
+		<DisplayString>mat4 T={value[3]}</DisplayString>
+		<Expand>
+			<Item Name="[0]">value[0]</Item>
+			<Item Name="[1]">value[1]</Item>
+			<Item Name="[2]">value[2]</Item>
+			<Item Name="[3]">value[3]</Item>
+		</Expand>
+	</Type>
+	<Type Name="glm::qua&lt;*&gt;">
+		<DisplayString>{{(x={x} y={y} z={z}) w={w}}}</DisplayString>
+		<Expand>
+			<Item Name="x">x</Item>
+			<Item Name="y">y</Item>
+			<Item Name="z">z</Item>
+			<Item Name="w">w</Item>
+		</Expand>
+	</Type>
+	<!-- /GLM -->
+
+	<!-- VMath -->
+	<Type Name="verus::Vector3">
+		<AlternativeType Name="Vectormath::SSE::Vector3"/>
+		<DisplayString>{{x={mVec128.m128_f32[0]} y={mVec128.m128_f32[1]} z={mVec128.m128_f32[2]}}}</DisplayString>
+	</Type>
+	<Type Name="verus::Vector4">
+		<AlternativeType Name="Vectormath::SSE::Vector4"/>
+		<DisplayString>{{x={mVec128.m128_f32[0]} y={mVec128.m128_f32[1]} z={mVec128.m128_f32[2]} w={mVec128.m128_f32[3]}}}</DisplayString>
+	</Type>
+	<Type Name="verus::Point3">
+		<AlternativeType Name="Vectormath::SSE::Point3"/>
+		<DisplayString>{{x={mVec128.m128_f32[0]} y={mVec128.m128_f32[1]} z={mVec128.m128_f32[2]}}}</DisplayString>
+	</Type>
+	<Type Name="verus::Matrix3">
+		<AlternativeType Name="Vectormath::SSE::Matrix3"/>
+		<DisplayString>Matrix3</DisplayString>
+		<Expand>
+			<Item Name="[0]">mCol0</Item>
+			<Item Name="[1]">mCol1</Item>
+			<Item Name="[2]">mCol2</Item>
+		</Expand>
+	</Type>
+	<Type Name="verus::Matrix4">
+		<AlternativeType Name="Vectormath::SSE::Matrix4"/>
+		<DisplayString>Matrix4 T={mCol3}</DisplayString>
+		<Expand>
+			<Item Name="[0]">mCol0</Item>
+			<Item Name="[1]">mCol1</Item>
+			<Item Name="[2]">mCol2</Item>
+			<Item Name="[3]">mCol3</Item>
+		</Expand>
+	</Type>
+	<Type Name="verus::Transform3">
+		<AlternativeType Name="Vectormath::SSE::Transform3"/>
+		<DisplayString>Transform3 T={mCol3}</DisplayString>
+		<Expand>
+			<Item Name="[0]">mCol0</Item>
+			<Item Name="[1]">mCol1</Item>
+			<Item Name="[2]">mCol2</Item>
+			<Item Name="[3]">mCol3</Item>
+		</Expand>
+	</Type>
+	<Type Name="verus::Quat">
+		<AlternativeType Name="Vectormath::SSE::Quat"/>
+		<DisplayString>{{(x={mVec128.m128_f32[0]} y={mVec128.m128_f32[1]} z={mVec128.m128_f32[2]}) w={mVec128.m128_f32[3]}}}</DisplayString>
+	</Type>
+	<!-- /VMath -->
+
+	<!-- Verus -->
+	<Type Name="verus::Ptr&lt;*&gt;">
+		<DisplayString Condition="_p == 0">empty</DisplayString>
+		<DisplayString Condition="_p != 0">Ptr {*_p}</DisplayString>
+		<Expand>
+			<Item Name="[ptr]">_p</Item>
+		</Expand>
+	</Type>
+	<!-- /Verus -->
+</AutoVisualizer>

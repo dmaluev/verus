@@ -1,0 +1,549 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{6dd7f6ca-0929-4d46-9f6d-71ecf8c91abd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\CGI">
+      <UniqueIdentifier>{f756df7f-0ce7-4098-895a-2c1d03fe386b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\IO">
+      <UniqueIdentifier>{afbabad8-439c-4609-b622-a881c8d6d034}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\D">
+      <UniqueIdentifier>{9c9fdfe5-4d92-491c-bff1-7442a538ac24}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Security">
+      <UniqueIdentifier>{d5e876a9-20a7-460a-89e4-c6b1cd902307}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Global">
+      <UniqueIdentifier>{d44bf87b-c74b-42a1-9b54-dfe744447364}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Math">
+      <UniqueIdentifier>{ebb05836-e3a7-452d-8e05-a9007ffe1320}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Game">
+      <UniqueIdentifier>{5ece1220-9707-4688-9429-dcde547cb05f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Net">
+      <UniqueIdentifier>{bcb0dace-45fa-45b5-85d6-c80026a9577b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Audio">
+      <UniqueIdentifier>{b02345a2-66ea-4995-8a5b-b7b6df5e4470}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\ThirdParty">
+      <UniqueIdentifier>{779ebfcc-422d-4f9a-a3de-3d5d416612a0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\ThirdParty\utf8">
+      <UniqueIdentifier>{9026283b-bf5f-489c-9008-4093adeb4ce6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\ThirdParty\libb64">
+      <UniqueIdentifier>{2c793d5f-0a67-4166-8490-3ef154bdb4fc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Scene">
+      <UniqueIdentifier>{28848bdf-d48d-40a2-92a2-6946c609e14e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\AI">
+      <UniqueIdentifier>{6c75fda0-ca2a-4925-9260-1d069a48b1b7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Anim">
+      <UniqueIdentifier>{35c65d58-6412-4aa5-bb70-9f3ab9ee37a2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Input">
+      <UniqueIdentifier>{b10e474d-ad34-4fb3-9a41-875a17a54d36}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\App">
+      <UniqueIdentifier>{8487cc8d-90f6-4f48-83f8-433947c79c5c}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\CGI\BaseGeometry.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\BasePipeline.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\BaseShader.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\BaseTexture.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\CGI.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\IO\File.h">
+      <Filter>src\IO</Filter>
+    </ClInclude>
+    <ClInclude Include="src\IO\IO.h">
+      <Filter>src\IO</Filter>
+    </ClInclude>
+    <ClInclude Include="src\IO\Stream.h">
+      <Filter>src\IO</Filter>
+    </ClInclude>
+    <ClInclude Include="src\verus.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\D\AssertionCompileTime.h">
+      <Filter>src\D</Filter>
+    </ClInclude>
+    <ClInclude Include="src\D\AssertionRunTime.h">
+      <Filter>src\D</Filter>
+    </ClInclude>
+    <ClInclude Include="src\D\Log.h">
+      <Filter>src\D</Filter>
+    </ClInclude>
+    <ClInclude Include="src\D\Recoverable.h">
+      <Filter>src\D</Filter>
+    </ClInclude>
+    <ClInclude Include="src\D\RuntimeError.h">
+      <Filter>src\D</Filter>
+    </ClInclude>
+    <ClInclude Include="src\D\D.h">
+      <Filter>src\D</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Security\CipherRC4.h">
+      <Filter>src\Security</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Security\Security.h">
+      <Filter>src\Security</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\EnumClass.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Macros.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\STL.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\SyntaxHighlight.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Typedef.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Global.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Singleton.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Basic.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\AllocatorAware.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\AlignedAllocator.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\BaseAllocator.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Utils.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\QuickRefs.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Parallel.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Range.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Math\Math.h">
+      <Filter>src\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\Game.h">
+      <Filter>src\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\State.h">
+      <Filter>src\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\StateMachine.h">
+      <Filter>src\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Object.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Random.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Net\Addr.h">
+      <Filter>src\Net</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Net\Net.h">
+      <Filter>src\Net</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Net\Socket.h">
+      <Filter>src\Net</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Lockable.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Audio\OggCallbacks.h">
+      <Filter>src\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Audio\Sound.h">
+      <Filter>src\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Audio\Source.h">
+      <Filter>src\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Math\Matrix.h">
+      <Filter>src\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Math\Quat.h">
+      <Filter>src\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Math\Vector.h">
+      <Filter>src\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Store.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\IO\Async.h">
+      <Filter>src\IO</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Blob.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Audio\StreamPlayer.h">
+      <Filter>src\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Linear.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Audio\AudioSystem.h">
+      <Filter>src\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Str.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Audio\Audio.h">
+      <Filter>src\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\ThirdParty.h">
+      <Filter>src\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\utf8.h">
+      <Filter>src\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\utf8\checked.h">
+      <Filter>src\ThirdParty\utf8</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\utf8\core.h">
+      <Filter>src\ThirdParty\utf8</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\utf8\unchecked.h">
+      <Filter>src\ThirdParty\utf8</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Convert.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\libb64\cdecode.h">
+      <Filter>src\ThirdParty\libb64</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\libb64\cencode.h">
+      <Filter>src\ThirdParty\libb64</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\md5.h">
+      <Filter>src\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="src\IO\FileSystem.h">
+      <Filter>src\IO</Filter>
+    </ClInclude>
+    <ClInclude Include="src\IO\DDSHeader.h">
+      <Filter>src\IO</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Timer.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\Camera.h">
+      <Filter>src\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\Scene.h">
+      <Filter>src\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Math\Frustum.h">
+      <Filter>src\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Math\Plane.h">
+      <Filter>src\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Math\Sphere.h">
+      <Filter>src\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Math\Bounds.h">
+      <Filter>src\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="src\AI\AI.h">
+      <Filter>src\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\AI\TaskDriver.h">
+      <Filter>src\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\AI\Turret.h">
+      <Filter>src\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\BaseMesh.h">
+      <Filter>src\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\Mesh.h">
+      <Filter>src\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\IO\StreamPtr.h">
+      <Filter>src\IO</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Math\NormalComputer.h">
+      <Filter>src\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Anim\Anim.h">
+      <Filter>src\Anim</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Anim\Animation.h">
+      <Filter>src\Anim</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Anim\Motion.h">
+      <Filter>src\Anim</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Anim\Skeleton.h">
+      <Filter>src\Anim</Filter>
+    </ClInclude>
+    <ClInclude Include="src\IO\Xml.h">
+      <Filter>src\IO</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Net\HttpFile.h">
+      <Filter>src\Net</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\BaseGame.h">
+      <Filter>src\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\EngineInit.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Input\Input.h">
+      <Filter>src\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Input\KeyMapper.h">
+      <Filter>src\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="src\App\App.h">
+      <Filter>src\App</Filter>
+    </ClInclude>
+    <ClInclude Include="src\App\Settings.h">
+      <Filter>src\App</Filter>
+    </ClInclude>
+    <ClInclude Include="src\App\Window.h">
+      <Filter>src\App</Filter>
+    </ClInclude>
+    <ClInclude Include="src\IO\Json.h">
+      <Filter>src\IO</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\CGI\BaseGeometry.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\BasePipeline.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\BaseShader.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\BaseTexture.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\IO\File.cpp">
+      <Filter>src\IO</Filter>
+    </ClCompile>
+    <ClCompile Include="src\IO\IO.cpp">
+      <Filter>src\IO</Filter>
+    </ClCompile>
+    <ClCompile Include="src\verus.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\D\Log.cpp">
+      <Filter>src\D</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Global\AllocatorAware.cpp">
+      <Filter>src\Global</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Global\Utils.cpp">
+      <Filter>src\Global</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Global\Global.cpp">
+      <Filter>src\Global</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Math\Math.cpp">
+      <Filter>src\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\State.cpp">
+      <Filter>src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\StateMachine.cpp">
+      <Filter>src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Global\Object.cpp">
+      <Filter>src\Global</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Global\Random.cpp">
+      <Filter>src\Global</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Net\Addr.cpp">
+      <Filter>src\Net</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Net\Net.cpp">
+      <Filter>src\Net</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Net\Socket.cpp">
+      <Filter>src\Net</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Audio\OggCallbacks.cpp">
+      <Filter>src\Audio</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Audio\Sound.cpp">
+      <Filter>src\Audio</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Audio\Source.cpp">
+      <Filter>src\Audio</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Math\Matrix.cpp">
+      <Filter>src\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Math\Quat.cpp">
+      <Filter>src\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Math\Vector.cpp">
+      <Filter>src\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="src\IO\Async.cpp">
+      <Filter>src\IO</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Audio\StreamPlayer.cpp">
+      <Filter>src\Audio</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Audio\AudioSystem.cpp">
+      <Filter>src\Audio</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Global\Str.cpp">
+      <Filter>src\Global</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Audio\Audio.cpp">
+      <Filter>src\Audio</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Global\Convert.cpp">
+      <Filter>src\Global</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\libb64\cdecode.c">
+      <Filter>src\ThirdParty\libb64</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\libb64\cencode.c">
+      <Filter>src\ThirdParty\libb64</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\md5.cpp">
+      <Filter>src\ThirdParty</Filter>
+    </ClCompile>
+    <ClCompile Include="src\IO\FileSystem.cpp">
+      <Filter>src\IO</Filter>
+    </ClCompile>
+    <ClCompile Include="src\IO\DDSHeader.cpp">
+      <Filter>src\IO</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Global\Timer.cpp">
+      <Filter>src\Global</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\Camera.cpp">
+      <Filter>src\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\Scene.cpp">
+      <Filter>src\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Math\Frustum.cpp">
+      <Filter>src\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Math\Plane.cpp">
+      <Filter>src\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Math\Sphere.cpp">
+      <Filter>src\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Math\Bounds.cpp">
+      <Filter>src\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AI\AI.cpp">
+      <Filter>src\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AI\TaskDriver.cpp">
+      <Filter>src\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AI\Turret.cpp">
+      <Filter>src\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\BaseMesh.cpp">
+      <Filter>src\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\Mesh.cpp">
+      <Filter>src\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Math\NormalComputer.cpp">
+      <Filter>src\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Anim\Anim.cpp">
+      <Filter>src\Anim</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Anim\Animation.cpp">
+      <Filter>src\Anim</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Anim\Motion.cpp">
+      <Filter>src\Anim</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Anim\Skeleton.cpp">
+      <Filter>src\Anim</Filter>
+    </ClCompile>
+    <ClCompile Include="src\IO\Xml.cpp">
+      <Filter>src\IO</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Net\HttpFile.cpp">
+      <Filter>src\Net</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\BaseGame.cpp">
+      <Filter>src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Global\EngineInit.cpp">
+      <Filter>src\Global</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Input\Input.cpp">
+      <Filter>src\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Input\KeyMapper.cpp">
+      <Filter>src\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="src\App\App.cpp">
+      <Filter>src\App</Filter>
+    </ClCompile>
+    <ClCompile Include="src\App\Settings.cpp">
+      <Filter>src\App</Filter>
+    </ClCompile>
+    <ClCompile Include="src\App\Window.cpp">
+      <Filter>src\App</Filter>
+    </ClCompile>
+    <ClCompile Include="src\IO\Json.cpp">
+      <Filter>src\IO</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

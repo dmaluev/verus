@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{B154D670-E4B1-4D8A-885C-69546A5BD833}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>Verus</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="Verus.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="Verus.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeaderFile>verus.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeaderFile>verus.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="src\AI\AI.h" />
+    <ClInclude Include="src\AI\TaskDriver.h" />
+    <ClInclude Include="src\AI\Turret.h" />
+    <ClInclude Include="src\Anim\Anim.h" />
+    <ClInclude Include="src\Anim\Animation.h" />
+    <ClInclude Include="src\Anim\Motion.h" />
+    <ClInclude Include="src\Anim\Skeleton.h" />
+    <ClInclude Include="src\App\App.h" />
+    <ClInclude Include="src\App\Settings.h" />
+    <ClInclude Include="src\App\Window.h" />
+    <ClInclude Include="src\Audio\Audio.h" />
+    <ClInclude Include="src\Audio\AudioSystem.h" />
+    <ClInclude Include="src\Audio\OggCallbacks.h" />
+    <ClInclude Include="src\Audio\Sound.h" />
+    <ClInclude Include="src\Audio\Source.h" />
+    <ClInclude Include="src\Audio\StreamPlayer.h" />
+    <ClInclude Include="src\CGI\BaseGeometry.h" />
+    <ClInclude Include="src\CGI\BasePipeline.h" />
+    <ClInclude Include="src\CGI\BaseShader.h" />
+    <ClInclude Include="src\CGI\BaseTexture.h" />
+    <ClInclude Include="src\CGI\CGI.h" />
+    <ClInclude Include="src\D\AssertionCompileTime.h" />
+    <ClInclude Include="src\D\AssertionRunTime.h" />
+    <ClInclude Include="src\D\D.h" />
+    <ClInclude Include="src\D\Log.h" />
+    <ClInclude Include="src\D\Recoverable.h" />
+    <ClInclude Include="src\D\RuntimeError.h" />
+    <ClInclude Include="src\Game\BaseGame.h" />
+    <ClInclude Include="src\Game\Game.h" />
+    <ClInclude Include="src\Game\State.h" />
+    <ClInclude Include="src\Game\StateMachine.h" />
+    <ClInclude Include="src\Global\AlignedAllocator.h" />
+    <ClInclude Include="src\Global\AllocatorAware.h" />
+    <ClInclude Include="src\Global\BaseAllocator.h" />
+    <ClInclude Include="src\Global\Basic.h" />
+    <ClInclude Include="src\Global\Blob.h" />
+    <ClInclude Include="src\Global\Convert.h" />
+    <ClInclude Include="src\Global\EngineInit.h" />
+    <ClInclude Include="src\Global\Linear.h" />
+    <ClInclude Include="src\Global\Lockable.h" />
+    <ClInclude Include="src\Global\Object.h" />
+    <ClInclude Include="src\Global\Parallel.h" />
+    <ClInclude Include="src\Global\QuickRefs.h" />
+    <ClInclude Include="src\Global\Random.h" />
+    <ClInclude Include="src\Global\Range.h" />
+    <ClInclude Include="src\Global\Singleton.h" />
+    <ClInclude Include="src\Global\Store.h" />
+    <ClInclude Include="src\Global\Str.h" />
+    <ClInclude Include="src\Global\Timer.h" />
+    <ClInclude Include="src\Global\Utils.h" />
+    <ClInclude Include="src\Input\Input.h" />
+    <ClInclude Include="src\Input\KeyMapper.h" />
+    <ClInclude Include="src\IO\Async.h" />
+    <ClInclude Include="src\IO\DDSHeader.h" />
+    <ClInclude Include="src\IO\File.h" />
+    <ClInclude Include="src\IO\FileSystem.h" />
+    <ClInclude Include="src\IO\IO.h" />
+    <ClInclude Include="src\IO\Json.h" />
+    <ClInclude Include="src\IO\Stream.h" />
+    <ClInclude Include="src\Global\EnumClass.h" />
+    <ClInclude Include="src\Global\Macros.h" />
+    <ClInclude Include="src\Global\Global.h" />
+    <ClInclude Include="src\Global\STL.h" />
+    <ClInclude Include="src\Global\SyntaxHighlight.h" />
+    <ClInclude Include="src\Global\Typedef.h" />
+    <ClInclude Include="src\IO\StreamPtr.h" />
+    <ClInclude Include="src\IO\Xml.h" />
+    <ClInclude Include="src\Math\Bounds.h" />
+    <ClInclude Include="src\Math\Frustum.h" />
+    <ClInclude Include="src\Math\Math.h" />
+    <ClInclude Include="src\Math\Matrix.h" />
+    <ClInclude Include="src\Math\NormalComputer.h" />
+    <ClInclude Include="src\Math\Plane.h" />
+    <ClInclude Include="src\Math\Quat.h" />
+    <ClInclude Include="src\Math\Sphere.h" />
+    <ClInclude Include="src\Math\Vector.h" />
+    <ClInclude Include="src\Net\Addr.h" />
+    <ClInclude Include="src\Net\HttpFile.h" />
+    <ClInclude Include="src\Net\Net.h" />
+    <ClInclude Include="src\Net\Socket.h" />
+    <ClInclude Include="src\Scene\BaseMesh.h" />
+    <ClInclude Include="src\Scene\Camera.h" />
+    <ClInclude Include="src\Scene\Mesh.h" />
+    <ClInclude Include="src\Scene\Scene.h" />
+    <ClInclude Include="src\Security\CipherRC4.h" />
+    <ClInclude Include="src\Security\Security.h" />
+    <ClInclude Include="src\ThirdParty\libb64\cdecode.h" />
+    <ClInclude Include="src\ThirdParty\libb64\cencode.h" />
+    <ClInclude Include="src\ThirdParty\md5.h" />
+    <ClInclude Include="src\ThirdParty\ThirdParty.h" />
+    <ClInclude Include="src\ThirdParty\utf8.h" />
+    <ClInclude Include="src\ThirdParty\utf8\checked.h" />
+    <ClInclude Include="src\ThirdParty\utf8\core.h" />
+    <ClInclude Include="src\ThirdParty\utf8\unchecked.h" />
+    <ClInclude Include="src\verus.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\AI\AI.cpp" />
+    <ClCompile Include="src\AI\TaskDriver.cpp" />
+    <ClCompile Include="src\AI\Turret.cpp" />
+    <ClCompile Include="src\Anim\Anim.cpp" />
+    <ClCompile Include="src\Anim\Animation.cpp" />
+    <ClCompile Include="src\Anim\Motion.cpp" />
+    <ClCompile Include="src\Anim\Skeleton.cpp" />
+    <ClCompile Include="src\App\App.cpp" />
+    <ClCompile Include="src\App\Settings.cpp" />
+    <ClCompile Include="src\App\Window.cpp" />
+    <ClCompile Include="src\Audio\Audio.cpp" />
+    <ClCompile Include="src\Audio\AudioSystem.cpp" />
+    <ClCompile Include="src\Audio\OggCallbacks.cpp" />
+    <ClCompile Include="src\Audio\Sound.cpp" />
+    <ClCompile Include="src\Audio\Source.cpp" />
+    <ClCompile Include="src\Audio\StreamPlayer.cpp" />
+    <ClCompile Include="src\CGI\BaseGeometry.cpp" />
+    <ClCompile Include="src\CGI\BasePipeline.cpp" />
+    <ClCompile Include="src\CGI\BaseShader.cpp" />
+    <ClCompile Include="src\CGI\BaseTexture.cpp" />
+    <ClCompile Include="src\D\Log.cpp" />
+    <ClCompile Include="src\Game\BaseGame.cpp" />
+    <ClCompile Include="src\Game\State.cpp" />
+    <ClCompile Include="src\Game\StateMachine.cpp" />
+    <ClCompile Include="src\Global\AllocatorAware.cpp" />
+    <ClCompile Include="src\Global\Convert.cpp" />
+    <ClCompile Include="src\Global\EngineInit.cpp" />
+    <ClCompile Include="src\Global\Global.cpp" />
+    <ClCompile Include="src\Global\Object.cpp" />
+    <ClCompile Include="src\Global\Random.cpp" />
+    <ClCompile Include="src\Global\Str.cpp" />
+    <ClCompile Include="src\Global\Timer.cpp" />
+    <ClCompile Include="src\Global\Utils.cpp" />
+    <ClCompile Include="src\Input\Input.cpp" />
+    <ClCompile Include="src\Input\KeyMapper.cpp" />
+    <ClCompile Include="src\IO\Async.cpp" />
+    <ClCompile Include="src\IO\DDSHeader.cpp" />
+    <ClCompile Include="src\IO\File.cpp" />
+    <ClCompile Include="src\IO\FileSystem.cpp" />
+    <ClCompile Include="src\IO\IO.cpp" />
+    <ClCompile Include="src\IO\Json.cpp" />
+    <ClCompile Include="src\IO\Xml.cpp" />
+    <ClCompile Include="src\Math\Bounds.cpp" />
+    <ClCompile Include="src\Math\Frustum.cpp" />
+    <ClCompile Include="src\Math\Math.cpp" />
+    <ClCompile Include="src\Math\Matrix.cpp" />
+    <ClCompile Include="src\Math\NormalComputer.cpp" />
+    <ClCompile Include="src\Math\Plane.cpp" />
+    <ClCompile Include="src\Math\Quat.cpp" />
+    <ClCompile Include="src\Math\Sphere.cpp" />
+    <ClCompile Include="src\Math\Vector.cpp" />
+    <ClCompile Include="src\Net\Addr.cpp" />
+    <ClCompile Include="src\Net\HttpFile.cpp" />
+    <ClCompile Include="src\Net\Net.cpp" />
+    <ClCompile Include="src\Net\Socket.cpp" />
+    <ClCompile Include="src\Scene\BaseMesh.cpp" />
+    <ClCompile Include="src\Scene\Camera.cpp" />
+    <ClCompile Include="src\Scene\Mesh.cpp" />
+    <ClCompile Include="src\Scene\Scene.cpp" />
+    <ClCompile Include="src\ThirdParty\libb64\cdecode.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4244</DisableSpecificWarnings>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4244</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\libb64\cencode.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4244</DisableSpecificWarnings>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4244</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\md5.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4267</DisableSpecificWarnings>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4267</DisableSpecificWarnings>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ClCompile Include="src\verus.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
