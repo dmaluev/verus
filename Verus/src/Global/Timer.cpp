@@ -13,10 +13,10 @@ Timer::~Timer()
 void Timer::Init()
 {
 	const TTimePoint timeNow = std::chrono::high_resolution_clock::now();
-	VERUS_FOR(i, +Type::count)
+	for (auto& data : _data)
 	{
-		_data[i]._t = _data[i]._dt = 0;
-		_data[i]._timePrev = timeNow;
+		data._t = data._dt = 0;
+		data._timePrev = timeNow;
 	}
 }
 

@@ -13,24 +13,33 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{67b732c1-b652-4393-b74b-d4836b3df718}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\CGI">
+      <UniqueIdentifier>{8cd5524f-64b4-4674-ae77-6a7cf86b4449}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="stdafx.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="src\stdafx.h">
+      <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="targetver.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="src\CGI\CGI.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\RendererD3D12.h">
+      <Filter>src\CGI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="stdafx.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\main.cpp">
+      <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="RendererDirect3D12.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\stdafx.cpp">
+      <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="dllmain.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\CGI\RendererD3D12.cpp">
+      <Filter>src\CGI</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

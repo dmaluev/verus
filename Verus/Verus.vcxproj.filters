@@ -354,6 +354,15 @@
     <ClInclude Include="src\IO\Json.h">
       <Filter>src\IO</Filter>
     </ClInclude>
+    <ClInclude Include="src\Global\GlobalVarsClipboard.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\BaseRenderer.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\Renderer.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -544,6 +553,18 @@
     </ClCompile>
     <ClCompile Include="src\IO\Json.cpp">
       <Filter>src\IO</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Global\GlobalVarsClipboard.cpp">
+      <Filter>src\Global</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\BaseRenderer.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\Renderer.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\CGI.cpp">
+      <Filter>src\CGI</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

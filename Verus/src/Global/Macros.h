@@ -24,6 +24,7 @@
 #define _C(x) ((x).c_str())
 
 #define VERUS_P_FOR(i, to)                      Parallel::For(0, to, [&](int i)
+#define VERUS_U_FOR(i, to)                      for(UINT32 i = 0; i < to; ++i)
 #define VERUS_FOR(i, to)                        for(int i = 0; i < to; ++i)
 #define VERUS_FOREACH(T, v, it)                 for(T::iterator               it=(v).begin(),  itEnd=(v).end();  it!=itEnd; ++it)
 #define VERUS_FOREACH_CONST(T, v, it)           for(T::const_iterator         it=(v).begin(),  itEnd=(v).end();  it!=itEnd; ++it)
@@ -64,3 +65,11 @@
 #else
 #	define VERUS_SDL_CENTERED putenv("SDL_VIDEO_WINDOW_POS"); putenv("SDL_VIDEO_CENTERED=1")
 #endif
+
+#ifdef _WIN32
+#	define VERUS_DLL_EXPORT __declspec(dllexport)
+#else
+#	define VERUS_DLL_EXPORT __attribute__ ((visibility("default")))
+#endif
+
+#define VERUS_HR(hr) std::hex << std::uppercase << "0x" << hr

@@ -21,7 +21,7 @@ void Json::SetFilename(CSZ name)
 	CSZ pSlash = strchr(name, '/');
 	if (!pSlash)
 	{
-		//pathName = CUtils::I().GetWritablePath() + "/" + name;
+		//pathName = Utils::I().GetWritablePath() + "/" + name;
 		//name = _C(pathName);
 	}
 	_pathName = name;

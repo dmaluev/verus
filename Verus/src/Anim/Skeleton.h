@@ -31,7 +31,7 @@ namespace verus
 			};
 			VERUS_TYPEDEFS(AlphaMotion);
 
-			struct Bone : public AllocatorAware
+			struct Bone : AllocatorAware
 			{
 				Transform3         _matToBoneSpace = Transform3::identity();
 				Transform3         _matFromBoneSpace = Transform3::identity();

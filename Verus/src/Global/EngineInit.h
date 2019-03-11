@@ -8,7 +8,7 @@ namespace verus
 	}
 	namespace CGI
 	{
-		struct RenderDelegate;
+		struct RendererDelegate;
 	}
 }
 
@@ -17,12 +17,12 @@ namespace verus
 	class EngineInit
 	{
 	public:
-		bool _makeUtils = true;
+		bool _makeGlobal = true;
 		bool _makeNet = true;
 		bool _makeIO = true;
 		bool _makeInput = true;
 		bool _makeAudio = true;
-		bool _makeCGL = true;
+		bool _makeCGI = true;
 		bool _makePhysics = true;
 		bool _makeEffects = true;
 		bool _makeExtra = false;
@@ -32,7 +32,7 @@ namespace verus
 		void Make();
 		void Free();
 
-		void Init(Input::KeyMapperDelegate* pKeyMapperDelegate, CGI::RenderDelegate* pRenderDelegate, bool createWindow);
+		void Init(Input::KeyMapperDelegate* pKeyMapperDelegate, CGI::RendererDelegate* pRendererDelegate);
 	};
 	VERUS_TYPEDEFS(EngineInit);
 }

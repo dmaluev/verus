@@ -4,9 +4,8 @@ using namespace verus;
 
 void EngineInit::Make()
 {
-#if 0
-	if (_makeUtils)
-		Make_Utils();
+	if (_makeGlobal)
+		Make_Global();
 	if (_makeNet)
 		Make_Net();
 	if (_makeIO)
@@ -15,36 +14,34 @@ void EngineInit::Make()
 		Make_Input();
 	if (_makeAudio)
 		Make_Audio();
-	if (_makeCGL)
-		Make_CGL();
-	if (_makePhysics)
-		Make_Physics();
-	if (_makeEffects)
-		Make_Effects();
-	if (_makeExtra)
-		Make_Extra();
-	if (_makeScene)
-		Make_Scene();
-	if (_makeGUI)
-		Make_GUI();
-#endif
+	if (_makeCGI)
+		Make_CGI();
+	//if (_makePhysics)
+	//	Make_Physics();
+	//if (_makeEffects)
+	//	Make_Effects();
+	//if (_makeExtra)
+	//	Make_Extra();
+	//if (_makeScene)
+	//	Make_Scene();
+	//if (_makeGUI)
+	//	Make_GUI();
 }
 
 void EngineInit::Free()
 {
-#if 0
-	if (_makeGUI)
-		Free_GUI();
-	if (_makeScene)
-		Free_Scene();
-	if (_makeExtra)
-		Free_Extra();
-	if (_makeEffects)
-		Free_Effects();
-	if (_makePhysics)
-		Free_Physics();
-	if (_makeCGL)
-		Free_CGL();
+	//if (_makeGUI)
+	//	Free_GUI();
+	//if (_makeScene)
+	//	Free_Scene();
+	//if (_makeExtra)
+	//	Free_Extra();
+	//if (_makeEffects)
+	//	Free_Effects();
+	//if (_makePhysics)
+	//	Free_Physics();
+	if (_makeCGI)
+		Free_CGI();
 	if (_makeAudio)
 		Free_Audio();
 	if (_makeInput)
@@ -53,70 +50,63 @@ void EngineInit::Free()
 		Free_IO();
 	if (_makeNet)
 		Free_Net();
-	if (_makeUtils)
-		Free_Utils();
-#endif
+	if (_makeGlobal)
+		Free_Global();
 }
 
-void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::RenderDelegate* pRenderDelegate, bool createWindow)
+void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::RendererDelegate* pRendererDelegate)
 {
-#if 0
-	if (_makeUtils)
-		Utils::CTimer::I().Init();
+	Timer::I().Init();
 
 	if (_makeIO)
-		IO::CAsync::I().Init();
+		IO::Async::I().Init();
 
 	// "A.P.I.":
 	if (_makeAudio)
-		Audio::CAudio::I().Init();
-	if (_makePhysics)
-		Physics::CBullet::I().Init();
+		Audio::AudioSystem::I().Init();
+	//if (_makePhysics)
+	//	Physics::CBullet::I().Init();
 	if (_makeInput)
 	{
-		Input::CKeyMapper::I().Init();
-		Input::CKeyMapper::I().SetDelegate(pKeyMapperDelegate);
+		Input::KeyMapper::I().Init();
+		Input::KeyMapper::I().SetDelegate(pKeyMapperDelegate);
 	}
 
-	if (_makeCGL)
+	if (_makeCGI)
 	{
-		CGL::CRender::I().Init(pRenderDelegate, createWindow);
-#ifdef _WIN32
-		CGL::CRender::InitWin32(_C(CUtils::I().GetWritablePath()), 101);
-#endif
+		CGI::Renderer::I().Init(pRendererDelegate);
 	}
 
 	// Static init:
-	if (_makeEffects)
-		Effects::CParticles::InitStatic();
-	if (_makeGUI)
-		GUI::CFont::InitStatic();
-	if (_makeScene)
+	//if (_makeEffects)
+	//	Effects::CParticles::InitStatic();
+	//if (_makeGUI)
+	//	GUI::CFont::InitStatic();
+	//if (_makeScene)
 	{
-		Scene::CMesh::InitStatic();
-		Scene::CTerrain::InitStatic();
-		Scene::CForest::InitStatic();
+		//Scene::CMesh::InitStatic();
+		//Scene::CTerrain::InitStatic();
+		//Scene::CForest::InitStatic();
 	}
 
 	// Helpers:
-	if (_makeCGL)
-		CGL::CDebugRender::I().Init();
-	if (_makeScene)
-		Scene::CHelpers::I().Init();
+	//if (_makeCGI)
+	//	CGL::CDebugRender::I().Init();
+	//if (_makeScene)
+	//	Scene::CHelpers::I().Init();
 
 	// Effects:
-	if (_makeEffects)
-	{
-		Effects::CBlur::I().Init();
-		Effects::CBloom::I().Init();
-		Effects::CSsao::I().Init();
-	}
+	//if (_makeEffects)
+	//{
+	//	Effects::CBlur::I().Init();
+	//	Effects::CBloom::I().Init();
+	//	Effects::CSsao::I().Init();
+	//}
 
 	// Materials & textures:
-	if (_makeScene)
-		Scene::CMaterialManager::I().Init();
+	//if (_makeScene)
+	//	Scene::CMaterialManager::I().Init();
 
-	if (_makeGUI)
-		GUI::CGUI::I().Init();
-#endif
+	//if (_makeGUI)
+	//	GUI::CGUI::I().Init();
 }

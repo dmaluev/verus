@@ -3,38 +3,37 @@
 using namespace verus;
 using namespace verus::Game;
 
-#if 0
-struct MyRenderDelegate : CGL::CRenderDelegate
+struct MyRendererDelegate : CGI::RendererDelegate
 {
 	PBaseGame _p = nullptr;
 
-	MyRenderDelegate(PBaseGame p) : _p(p) {}
-	~MyRenderDelegate() {}
+	MyRendererDelegate(PBaseGame p) : _p(p) {}
+	~MyRendererDelegate() {}
 
-	virtual void Render_OnDraw() override
+	virtual void Renderer_OnDraw() override
 	{
-		VERUS_QREF_RENDER;
-		render.BindOffscreenRT();
+		VERUS_QREF_RENDERER;
+		renderer->PrepareDraw();
+		renderer->Clear(0);
 		_p->BaseGame_Draw();
 	}
 
-	virtual void Render_OnDrawOverlay() override
+	virtual void Renderer_OnDrawOverlay() override
 	{
 		_p->BaseGame_DrawOverlay();
 	}
 
-	virtual void Render_OnPresent() override
+	virtual void Renderer_OnPresent() override
 	{
-		VERUS_QREF_RENDER;
-		render->Present();
+		VERUS_QREF_RENDERER;
+		renderer->Present();
 	}
 
-	virtual void Render_OnDrawCubeMap() override
+	virtual void Renderer_OnDrawCubeMap() override
 	{
 	}
 };
-VERUS_TYPEDEFS(MyRenderDelegate);
-#endif
+VERUS_TYPEDEFS(MyRendererDelegate);
 
 struct BaseGame::Pimpl : AllocatorAware
 {
@@ -85,9 +84,9 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS)
 {
 	VERUS_SDL_CENTERED;
 
-	//Settings::Make();
-	//VERUS_QREF_SETTINGS;
-	//settings.ParseCommandLineArgs(argc, argv);
+	App::Settings::Make();
+	VERUS_QREF_SETTINGS;
+	settings.ParseCommandLineArgs(argc, argv);
 	//settings.LoadValidateSave();
 
 	const int ret = SDL_Init(SDL_INIT_EVERYTHING);
@@ -101,8 +100,8 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS)
 	//Utils::TestAll();
 #endif
 
-	// Initialization:
-	//_engineInit.Init(this, new MyRenderDelegate(this), true);
+	_window.Init();
+	_engineInit.Init(this, new MyRendererDelegate(this));
 
 	// Configure:
 	//VERUS_QREF_RENDER;
@@ -118,7 +117,7 @@ void BaseGame::Run()
 	VERUS_QREF_TIMER;
 	VERUS_QREF_KM;
 	//VERUS_QREF_BULLET;
-	//VERUS_QREF_RENDER;
+	VERUS_QREF_RENDERER;
 	VERUS_QREF_ASYNC;
 	VERUS_QREF_ASYS;
 
@@ -219,16 +218,9 @@ void BaseGame::Run()
 		asys.Update();
 
 		// Draw current frame:
-		//if (render.Draw())
-		{
-#ifdef VERUS_DEBUG
-			if (_p->_debugBullet)
-				bullet.DebugDraw();
-#endif
-			//render.DrawToScreen();
-		}
+		renderer.Draw();
 		km.ResetClickState();
-		//render.Present(); // This can take a while.
+		renderer.Present(); // This can take a while.
 
 		// Show FPS:
 		if (_p->_showFPS && timer.IsEventEvery(500))
@@ -259,10 +251,10 @@ void BaseGame::Exit()
 
 void BaseGame::KeyMapper_OnMouseMove(int x, int y)
 {
-	//VERUS_QREF_CONST_SETTINGS;
+	VERUS_QREF_CONST_SETTINGS;
 
-	//const float fx = x * 0.006f*settings.m_inputMouseSensitivity;
-	//const float fy = y * 0.006f*settings.m_inputMouseSensitivity;
+	const float fx = x * 0.006f*settings._inputMouseSensitivity;
+	const float fy = y * 0.006f*settings._inputMouseSensitivity;
 
 	if (_p->_defaultCameraMovement)
 	{
@@ -270,7 +262,7 @@ void BaseGame::KeyMapper_OnMouseMove(int x, int y)
 		//_p->_cameraCharacter.TurnYaw(fx);
 	}
 
-	//BaseGame_OnMouseMove(fx, fy);
+	BaseGame_OnMouseMove(fx, fy);
 }
 
 void BaseGame::KeyMapper_OnKey(int scancode)

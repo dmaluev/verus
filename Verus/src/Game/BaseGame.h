@@ -10,6 +10,7 @@ namespace verus
 			Pimpl*           _p = nullptr;
 			AlignedAllocator _alloc;
 			EngineInit       _engineInit;
+			App::Window      _window;
 
 		public:
 			BaseGame();

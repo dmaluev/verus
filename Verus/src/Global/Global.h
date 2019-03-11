@@ -18,6 +18,7 @@
 #include "Convert.h"
 #include "Timer.h"
 #include "EngineInit.h"
+#include "GlobalVarsClipboard.h"
 
 namespace verus
 {

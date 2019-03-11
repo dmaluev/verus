@@ -16,7 +16,7 @@ void Utils::MakeEx(PBaseAllocator pAlloc)
 {
 	const float mx = FLT_MAX;
 	const UINT32 imx = *(UINT32*)&mx;
-	VERUS_RT_ASSERT(imx == 0x7f7fffff);
+	VERUS_RT_ASSERT(imx == 0x7F7FFFFF);
 
 	Utils* p = static_cast<Utils*>(pAlloc->malloc(sizeof(Utils)));
 	p = new(p)Utils(pAlloc);
