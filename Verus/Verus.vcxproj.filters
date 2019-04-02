@@ -363,6 +363,9 @@
     <ClInclude Include="src\CGI\Renderer.h">
       <Filter>src\CGI</Filter>
     </ClInclude>
+    <ClInclude Include="src\CGI\BaseCommandBuffer.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -564,6 +567,9 @@
       <Filter>src\CGI</Filter>
     </ClCompile>
     <ClCompile Include="src\CGI\CGI.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\BaseCommandBuffer.cpp">
       <Filter>src\CGI</Filter>
     </ClCompile>
   </ItemGroup>

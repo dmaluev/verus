@@ -4,8 +4,16 @@ namespace verus
 {
 	namespace CGI
 	{
-		class BaseTexture
+		class BaseTexture : public Object
 		{
+		protected:
+			BaseTexture() = default;
+			virtual ~BaseTexture() = default;
+
+		public:
+			virtual void Init() {}
+			virtual void Done() {}
 		};
+		VERUS_TYPEDEFS(BaseTexture);
 	}
 }

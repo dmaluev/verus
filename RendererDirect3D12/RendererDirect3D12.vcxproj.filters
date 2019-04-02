@@ -30,6 +30,18 @@
     <ClInclude Include="src\CGI\RendererD3D12.h">
       <Filter>src\CGI</Filter>
     </ClInclude>
+    <ClInclude Include="src\CGI\CommandBufferD3D12.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\GeometryD3D12.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\PipelineD3D12.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\ShaderD3D12.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -39,6 +51,18 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\CGI\RendererD3D12.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\CommandBufferD3D12.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\GeometryD3D12.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\PipelineD3D12.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\ShaderD3D12.cpp">
       <Filter>src\CGI</Filter>
     </ClCompile>
   </ItemGroup>

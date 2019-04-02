@@ -27,6 +27,7 @@ Window::~Window()
 void Window::Init(RcDesc descConst)
 {
 	VERUS_INIT();
+	VERUS_QREF_SETTINGS;
 
 	Desc desc = descConst;
 	if (desc._useSettings)
@@ -35,6 +36,8 @@ void Window::Init(RcDesc descConst)
 	Uint32 flags = 0;
 	if (desc._fullscreen)
 		flags |= SDL_WINDOW_FULLSCREEN;
+	if (0 == settings._gapi)
+		flags |= SDL_WINDOW_VULKAN;
 
 	_pWnd = SDL_CreateWindow(
 		desc._title ? desc._title : "",

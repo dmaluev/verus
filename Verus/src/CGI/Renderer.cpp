@@ -26,14 +26,23 @@ bool Renderer::IsLoaded()
 void Renderer::Init(PRendererDelegate pDelegate)
 {
 	VERUS_INIT();
-
 	VERUS_QREF_SETTINGS;
 
 	_pRendererDelegate = pDelegate;
 
-	CSZ dll = "RendererDirect3D12.dll";
+	CSZ dll = "RendererVulkan.dll";
+	switch (settings._gapi)
+	{
+	case 12:
+	{
+		dll = "RendererDirect3D12.dll";
+		VERUS_LOG_INFO("Using Direct3D 12");
+	}
+	break;
+	default:
+		VERUS_LOG_INFO("Using Vulkan");
+	}
 	BaseRendererDesc desc;
-
 	_pBaseRenderer = BaseRenderer::Load(dll, desc);
 
 	_gapi = _pBaseRenderer->GetGapi();

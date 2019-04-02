@@ -16,10 +16,31 @@
     <Filter Include="src">
       <UniqueIdentifier>{836b7e96-dc7f-4278-832a-6305a03b69e4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\CGI">
+      <UniqueIdentifier>{4abdc4ba-6c11-4cdc-b578-2101f063b0c6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\stdafx.h">
       <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\CGI.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\RendererVulkan.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\CommandBufferVulkan.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\GeometryVulkan.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\PipelineVulkan.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\ShaderVulkan.h">
+      <Filter>src\CGI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -28,6 +49,21 @@
     </ClCompile>
     <ClCompile Include="src\stdafx.cpp">
       <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\RendererVulkan.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\CommandBufferVulkan.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\GeometryVulkan.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\PipelineVulkan.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\ShaderVulkan.cpp">
+      <Filter>src\CGI</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

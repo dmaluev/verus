@@ -91,9 +91,20 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\CGI\CGI.h" />
+    <ClInclude Include="src\CGI\CommandBufferVulkan.h" />
+    <ClInclude Include="src\CGI\GeometryVulkan.h" />
+    <ClInclude Include="src\CGI\PipelineVulkan.h" />
+    <ClInclude Include="src\CGI\RendererVulkan.h" />
+    <ClInclude Include="src\CGI\ShaderVulkan.h" />
     <ClInclude Include="src\stdafx.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\CGI\CommandBufferVulkan.cpp" />
+    <ClCompile Include="src\CGI\GeometryVulkan.cpp" />
+    <ClCompile Include="src\CGI\PipelineVulkan.cpp" />
+    <ClCompile Include="src\CGI\RendererVulkan.cpp" />
+    <ClCompile Include="src\CGI\ShaderVulkan.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

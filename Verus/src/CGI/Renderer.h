@@ -15,6 +15,8 @@ namespace verus
 
 		class Renderer : public Singleton<Renderer>, public Object
 		{
+			Vector4           _clearColor = Vector4(0);
+			App::PWindow      _pMainWindow = nullptr;
 			PBaseRenderer     _pBaseRenderer = nullptr;
 			PRendererDelegate _pRendererDelegate = nullptr;
 			UINT64            _numFrames = 0;
@@ -33,6 +35,12 @@ namespace verus
 
 			void Draw();
 			void Present();
+
+			App::PWindow GetMainWindow() const { return _pMainWindow; }
+			App::PWindow SetMainWindow(App::PWindow p) { return Utils::Swap(_pMainWindow, p); }
+
+			RcVector4 GetClearColor() const { return _clearColor; }
+			void SetClearColor(RcVector4 color) { _clearColor = color; }
 		};
 		VERUS_TYPEDEFS(Renderer);
 	}

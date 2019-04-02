@@ -26,6 +26,9 @@ namespace verus
 
 			void Init(RcDesc desc = Desc());
 			void Done();
+
+			SDL_Window* GetSDL() { return _pWnd; }
 		};
+		VERUS_TYPEDEFS(Window);
 	}
 }

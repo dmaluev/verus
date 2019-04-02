@@ -13,7 +13,10 @@ struct MyRendererDelegate : CGI::RendererDelegate
 	virtual void Renderer_OnDraw() override
 	{
 		VERUS_QREF_RENDERER;
-		renderer->PrepareDraw();
+		VERUS_QREF_TIMER;
+		const float x = fmod(timer.GetTime(), 1.f);
+		renderer.SetClearColor(Vector4(x, 0.5f, 0.25f, 1.f));
+		renderer->BeginFrame();
 		renderer->Clear(0);
 		_p->BaseGame_Draw();
 	}
@@ -26,6 +29,7 @@ struct MyRendererDelegate : CGI::RendererDelegate
 	virtual void Renderer_OnPresent() override
 	{
 		VERUS_QREF_RENDERER;
+		renderer->EndFrame();
 		renderer->Present();
 	}
 
@@ -101,6 +105,7 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS)
 #endif
 
 	_window.Init();
+	CGI::Renderer::I().SetMainWindow(&_window);
 	_engineInit.Init(this, new MyRendererDelegate(this));
 
 	// Configure:

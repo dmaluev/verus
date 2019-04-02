@@ -29,7 +29,7 @@ void Settings::Load()
 	Json::Load();
 
 	_quality = static_cast<Quality>(GetI("quality", +_quality));
-	_direct3D = GetI("direct3D", _direct3D);
+	_gapi = GetI("gapi", _gapi);
 	_gpuAnisotropyLevel = GetI("gpuAnisotropyLevel", _gpuAnisotropyLevel);
 	_gpuAntialiasingLevel = GetI("gpuAntialiasingLevel", _gpuAntialiasingLevel);
 	_gpuDepthTexture = GetI("gpuDepthTexture", _gpuDepthTexture);
@@ -58,7 +58,7 @@ void Settings::Load()
 void Settings::Save()
 {
 	Set("quality", +_quality);
-	Set("direct3D", _direct3D);
+	Set("gapi", _gapi);
 	Set("gpuAnisotropyLevel", _gpuAnisotropyLevel);
 	Set("gpuAntialiasingLevel", _gpuAntialiasingLevel);
 	Set("gpuDepthTexture", _gpuDepthTexture);
@@ -183,7 +183,6 @@ void Settings::ParseCommandLineArgs(int argc, char* argv[])
 void Settings::SetQuality(Quality q)
 {
 	_quality = q;
-	_direct3D = 9;
 	_gpuAnisotropyLevel = 0;
 	_gpuAntialiasingLevel = 0;
 	_gpuDepthTexture = 0;
@@ -221,7 +220,6 @@ void Settings::SetQuality(Quality q)
 		_screenSizeWidth = 1024;
 		break;
 	case Quality::high:
-		_direct3D = 11;
 		_gpuAnisotropyLevel = 8;
 		_gpuTrilinearFilter = true;
 		_postProcessBloom = true;
@@ -234,7 +232,6 @@ void Settings::SetQuality(Quality q)
 		_screenSizeWidth = 1280;
 		break;
 	case Quality::ultra:
-		_direct3D = 11;
 		_gpuAnisotropyLevel = 16;
 		_gpuDepthTexture = 1;
 		_gpuTrilinearFilter = true;
@@ -257,7 +254,7 @@ void Settings::SetQuality(Quality q)
 	_screenWindowed = false;
 #	endif
 #else // Linux?
-	_direct3D = 0;
+	_gapi = 0;
 	_gpuForcedProfile = "arb1";
 #endif
 }

@@ -18,32 +18,24 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
 
 extern "C"
 {
-	VERUS_DLL_EXPORT void* VerusCreateRenderer(UINT32 version, void* pDesc)
+	VERUS_DLL_EXPORT verus::CGI::PBaseRenderer VerusCreateRenderer(UINT32 version, verus::CGI::PBaseRendererDesc pDesc)
 	{
-		return nullptr;
-#if 0
 		using namespace verus;
 
 		if (VERUS_SDK_VERSION != version)
 		{
-			VERUS_RT_FAIL("FAIL: wrong version");
+			VERUS_RT_FAIL("VerusCreateRenderer(), Wrong version");
 			return nullptr;
 		}
 
-		pDesc->_pack.Paste();
+		pDesc->_gvc.Paste();
 
 		CGI::RendererVulkan::Make();
-
 		VERUS_QREF_RENDERER_VULKAN;
 
 		pRendererVulkan->SetDesc(*pDesc);
-
-		if (pDesc->m_createWindow)
-			pRendererVulkan->InitWindow();
-
 		pRendererVulkan->Init();
 
 		return pRendererVulkan;
-#endif
 	}
 }

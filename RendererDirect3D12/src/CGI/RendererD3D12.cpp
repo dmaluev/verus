@@ -27,20 +27,38 @@ void RendererD3D12::Init()
 
 void RendererD3D12::Done()
 {
+	if (_pCommandQueue)
+		QueueWaitIdle();
+	if (_hFence != INVALID_HANDLE_VALUE)
+	{
+		CloseHandle(_hFence);
+		_hFence = INVALID_HANDLE_VALUE;
+	}
+	_pFence.Reset();
+	VERUS_FOR(i, ringBufferSize)
+		_pCommandLists[i].Reset();
+	VERUS_FOR(i, ringBufferSize)
+		_mapCommandAllocators[i].clear();
+	_dSwapChainBuffersRTVs.Reset();
+	_vSwapChainBuffers.clear();
+	_pSwapChain.Reset();
+	_pCommandQueue.Reset();
+	_pDevice.Reset();
+
 	VERUS_DONE(RendererD3D12);
 }
 
 void RendererD3D12::EnableDebugLayer()
 {
-	CComPtr<ID3D12Debug> pDebug;
+	ComPtr<ID3D12Debug> pDebug;
 	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&pDebug))))
 		pDebug->EnableDebugLayer();
 }
 
-CComPtr<IDXGIFactory7> RendererD3D12::CreateDXGIFactory()
+ComPtr<IDXGIFactory6> RendererD3D12::CreateDXGIFactory()
 {
 	HRESULT hr = 0;
-	CComPtr<IDXGIFactory7> pFactory;
+	ComPtr<IDXGIFactory6> pFactory;
 	UINT flags = 0;
 #if defined(_DEBUG) || defined(VERUS_DEBUG)
 	flags = DXGI_CREATE_FACTORY_DEBUG;
@@ -50,16 +68,16 @@ CComPtr<IDXGIFactory7> RendererD3D12::CreateDXGIFactory()
 	return pFactory;
 }
 
-CComPtr<IDXGIAdapter4> RendererD3D12::GetAdapter(CComPtr<IDXGIFactory7> pFactory)
+ComPtr<IDXGIAdapter4> RendererD3D12::GetAdapter(ComPtr<IDXGIFactory6> pFactory)
 {
 	HRESULT hr = 0;
-	CComPtr<IDXGIAdapter4> pAdapter;
+	ComPtr<IDXGIAdapter4> pAdapter;
 	if (FAILED(hr = pFactory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&pAdapter))))
 		throw VERUS_RUNTIME_ERROR << "EnumAdapterByGpuPreference(), hr=" << VERUS_HR(hr);
 	return pAdapter;
 }
 
-bool RendererD3D12::CheckFeatureSupportAllowTearing(CComPtr<IDXGIFactory7> pFactory)
+bool RendererD3D12::CheckFeatureSupportAllowTearing(ComPtr<IDXGIFactory6> pFactory)
 {
 	BOOL data = FALSE;
 	if (FAILED(pFactory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &data, sizeof(data))))
@@ -70,15 +88,15 @@ bool RendererD3D12::CheckFeatureSupportAllowTearing(CComPtr<IDXGIFactory7> pFact
 void RendererD3D12::CreateSwapChainBuffersRTVs()
 {
 	HRESULT hr = 0;
-	_swapChainBuffersRTVs = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, _swapChainDesc.BufferCount);
-	_vSwapChainBuffers.resize(_swapChainDesc.BufferCount);
-	auto dh = _swapChainBuffersRTVs->GetCPUDescriptorHandleForHeapStart();
-	VERUS_U_FOR(i, _swapChainDesc.BufferCount)
+	_vSwapChainBuffers.resize(_numSwapChainBuffers);
+	_dSwapChainBuffersRTVs = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, _numSwapChainBuffers);
+	auto dh = _dSwapChainBuffersRTVs->GetCPUDescriptorHandleForHeapStart();
+	VERUS_U_FOR(i, _numSwapChainBuffers)
 	{
-		CComPtr<ID3D12Resource> pBuffer;
+		ComPtr<ID3D12Resource> pBuffer;
 		if (FAILED(hr = _pSwapChain->GetBuffer(i, IID_PPV_ARGS(&pBuffer))))
 			throw VERUS_RUNTIME_ERROR << "GetBuffer(), hr=" << VERUS_HR(hr);
-		_pDevice->CreateRenderTargetView(pBuffer, nullptr, dh);
+		_pDevice->CreateRenderTargetView(pBuffer.Get(), nullptr, dh);
 		_vSwapChainBuffers[i] = pBuffer;
 		dh.ptr += _descHandleIncSizeRTV;
 	}
@@ -86,6 +104,7 @@ void RendererD3D12::CreateSwapChainBuffersRTVs()
 
 void RendererD3D12::InitD3D()
 {
+	VERUS_QREF_RENDERER;
 	VERUS_QREF_SETTINGS;
 
 	HRESULT hr = 0;
@@ -94,14 +113,16 @@ void RendererD3D12::InitD3D()
 	EnableDebugLayer();
 #endif
 
-	CComPtr<IDXGIFactory7> pFactory = CreateDXGIFactory();
+	ComPtr<IDXGIFactory6> pFactory = CreateDXGIFactory();
 
-	CComPtr<IDXGIAdapter4> pAdapter = GetAdapter(pFactory);
+	ComPtr<IDXGIAdapter4> pAdapter = GetAdapter(pFactory);
 
-	if (FAILED(hr = D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&_pDevice))))
+	if (FAILED(hr = D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&_pDevice))))
 		throw VERUS_RUNTIME_ERROR << "D3D12CreateDevice(), hr=" << VERUS_HR(hr);
 
 	_pCommandQueue = CreateCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+
+	_numSwapChainBuffers = settings._screenVSync ? 3 : 2;
 
 	_swapChainDesc.Width = settings._screenSizeWidth;
 	_swapChainDesc.Height = settings._screenSizeHeight;
@@ -110,39 +131,45 @@ void RendererD3D12::InitD3D()
 	_swapChainDesc.SampleDesc.Count = 1;
 	_swapChainDesc.SampleDesc.Quality = 0;
 	_swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	_swapChainDesc.BufferCount = 2;
+	_swapChainDesc.BufferCount = _numSwapChainBuffers;
 	_swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
 	_swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	_swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 	_swapChainDesc.Flags = CheckFeatureSupportAllowTearing(pFactory) ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 
-	CComPtr<IDXGISwapChain1> pSwapChain1;
-	if (FAILED(hr = pFactory->CreateSwapChainForHwnd(_pCommandQueue, GetActiveWindow(), &_swapChainDesc, nullptr, nullptr, &pSwapChain1)))
+	SDL_Window* pWnd = renderer.GetMainWindow()->GetSDL();
+	VERUS_RT_ASSERT(pWnd);
+	SDL_SysWMinfo wmInfo;
+	SDL_VERSION(&wmInfo.version);
+	SDL_GetWindowWMInfo(pWnd, &wmInfo);
+	HWND hWnd = wmInfo.info.win.window;
+
+	ComPtr<IDXGISwapChain1> pSwapChain1;
+	if (FAILED(hr = pFactory->CreateSwapChainForHwnd(_pCommandQueue.Get(), hWnd, &_swapChainDesc, nullptr, nullptr, &pSwapChain1)))
 		throw VERUS_RUNTIME_ERROR << "CreateSwapChainForHwnd(), hr=" << VERUS_HR(hr);
-	if (FAILED(hr = pSwapChain1.QueryInterface(&_pSwapChain)))
+	if (FAILED(hr = pSwapChain1.As(&_pSwapChain)))
 		throw VERUS_RUNTIME_ERROR << "QueryInterface(), hr=" << VERUS_HR(hr);
 
 	_descHandleIncSizeRTV = _pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-	_currentBackBufferIndex = _pSwapChain->GetCurrentBackBufferIndex();
+	_swapChainBufferIndex = _pSwapChain->GetCurrentBackBufferIndex();
 
 	CreateSwapChainBuffersRTVs();
 
-	_vCommandAllocators.resize(_swapChainDesc.BufferCount);
-	VERUS_U_FOR(i, _swapChainDesc.BufferCount)
-		_vCommandAllocators[i] = CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	VERUS_FOR(i, ringBufferSize)
+		_mapCommandAllocators[i][std::this_thread::get_id()] = CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-	_pCommandList = CreateCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, _vCommandAllocators[_currentBackBufferIndex]);
+	VERUS_FOR(i, ringBufferSize)
+		_pCommandLists[i] = CreateCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, _mapCommandAllocators[i][std::this_thread::get_id()]);
 
 	_pFence = CreateFence();
 	_hFence = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-	_vFenceValues.resize(_swapChainDesc.BufferCount);
 }
 
-CComPtr<ID3D12CommandQueue> RendererD3D12::CreateCommandQueue(D3D12_COMMAND_LIST_TYPE type)
+ComPtr<ID3D12CommandQueue> RendererD3D12::CreateCommandQueue(D3D12_COMMAND_LIST_TYPE type)
 {
 	HRESULT hr = 0;
-	CComPtr<ID3D12CommandQueue> pCommandQueue;
+	ComPtr<ID3D12CommandQueue> pCommandQueue;
 	D3D12_COMMAND_QUEUE_DESC desc = {};
 	desc.Type = type;
 	desc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
@@ -152,30 +179,30 @@ CComPtr<ID3D12CommandQueue> RendererD3D12::CreateCommandQueue(D3D12_COMMAND_LIST
 	return pCommandQueue;
 }
 
-CComPtr<ID3D12CommandAllocator> RendererD3D12::CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE type)
+ComPtr<ID3D12CommandAllocator> RendererD3D12::CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE type)
 {
 	HRESULT hr = 0;
-	CComPtr<ID3D12CommandAllocator> pCommandAllocator;
+	ComPtr<ID3D12CommandAllocator> pCommandAllocator;
 	if (FAILED(hr = _pDevice->CreateCommandAllocator(type, IID_PPV_ARGS(&pCommandAllocator))))
 		throw VERUS_RUNTIME_ERROR << "CreateCommandAllocator(), hr=" << VERUS_HR(hr);
 	return pCommandAllocator;
 }
 
-CComPtr<ID3D12GraphicsCommandList> RendererD3D12::CreateCommandList(D3D12_COMMAND_LIST_TYPE type, CComPtr<ID3D12CommandAllocator> pCommandAllocator)
+ComPtr<ID3D12GraphicsCommandList> RendererD3D12::CreateCommandList(D3D12_COMMAND_LIST_TYPE type, ComPtr<ID3D12CommandAllocator> pCommandAllocator)
 {
 	HRESULT hr = 0;
-	CComPtr<ID3D12GraphicsCommandList> pGraphicsCommandList;
-	if (FAILED(hr = _pDevice->CreateCommandList(0, type, pCommandAllocator, nullptr, IID_PPV_ARGS(&pGraphicsCommandList))))
+	ComPtr<ID3D12GraphicsCommandList> pGraphicsCommandList;
+	if (FAILED(hr = _pDevice->CreateCommandList(0, type, pCommandAllocator.Get(), nullptr, IID_PPV_ARGS(&pGraphicsCommandList))))
 		throw VERUS_RUNTIME_ERROR << "CreateCommandList(), hr=" << VERUS_HR(hr);
 	if (FAILED(hr = pGraphicsCommandList->Close()))
 		throw VERUS_RUNTIME_ERROR << "Close(), hr=" << VERUS_HR(hr);
 	return pGraphicsCommandList;
 }
 
-CComPtr<ID3D12DescriptorHeap> RendererD3D12::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num)
+ComPtr<ID3D12DescriptorHeap> RendererD3D12::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num)
 {
 	HRESULT hr = 0;
-	CComPtr<ID3D12DescriptorHeap> pDescriptorHeap;
+	ComPtr<ID3D12DescriptorHeap> pDescriptorHeap;
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 	desc.Type = type;
 	desc.NumDescriptors = num;
@@ -184,20 +211,20 @@ CComPtr<ID3D12DescriptorHeap> RendererD3D12::CreateDescriptorHeap(D3D12_DESCRIPT
 	return pDescriptorHeap;
 }
 
-CComPtr<ID3D12Fence> RendererD3D12::CreateFence()
+ComPtr<ID3D12Fence> RendererD3D12::CreateFence()
 {
 	HRESULT hr = 0;
-	CComPtr<ID3D12Fence> pFence;
+	ComPtr<ID3D12Fence> pFence;
 	if (FAILED(hr = _pDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pFence))))
 		throw VERUS_RUNTIME_ERROR << "CreateFence(), hr=" << VERUS_HR(hr);
 	return pFence;
 }
 
-UINT64 RendererD3D12::Signal()
+UINT64 RendererD3D12::QueueSignal()
 {
 	HRESULT hr = 0;
-	const UINT64 value = ++_fenceValue;
-	if (FAILED(hr = _pCommandQueue->Signal(_pFence, value)))
+	const UINT64 value = _nextFenceValue++;
+	if (FAILED(hr = _pCommandQueue->Signal(_pFence.Get(), value)))
 		throw VERUS_RUNTIME_ERROR << "Signal(), hr=" << VERUS_HR(hr);
 	return value;
 }
@@ -213,9 +240,9 @@ void RendererD3D12::WaitForFenceValue(UINT64 value)
 	}
 }
 
-void RendererD3D12::Flush()
+void RendererD3D12::QueueWaitIdle()
 {
-	const UINT64 value = Signal();
+	const UINT64 value = QueueSignal();
 	WaitForFenceValue(value);
 }
 
@@ -231,29 +258,39 @@ D3D12_RESOURCE_BARRIER RendererD3D12::MakeResourceBarrierTransition(ID3D12Resour
 	return rb;
 }
 
-void RendererD3D12::PrepareDraw()
+void RendererD3D12::BeginFrame()
 {
-	auto pBackBuffer = _vSwapChainBuffers[_currentBackBufferIndex];
-	auto pCommandAllocator = _vCommandAllocators[_currentBackBufferIndex];
+	HRESULT hr = 0;
 
-	pCommandAllocator->Reset();
-	_pCommandList->Reset(pCommandAllocator, nullptr);
+	WaitForFenceValue(_fenceValues[_ringBufferIndex]);
 
-	const auto rb = MakeResourceBarrierTransition(pBackBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	_pCommandList->ResourceBarrier(1, &rb);
+	_swapChainBufferIndex = _pSwapChain->GetCurrentBackBufferIndex();
+
+	auto pCommandAllocator = _mapCommandAllocators[_ringBufferIndex][std::this_thread::get_id()];
+	if (FAILED(hr = pCommandAllocator->Reset()))
+		throw VERUS_RUNTIME_ERROR << "Reset(), hr=" << VERUS_HR(hr);
+
+	if (FAILED(hr = _pCommandLists[_ringBufferIndex]->Reset(pCommandAllocator.Get(), nullptr)))
+		throw VERUS_RUNTIME_ERROR << "Reset(), hr=" << VERUS_HR(hr);
+	auto pBackBuffer = _vSwapChainBuffers[_swapChainBufferIndex];
+	const auto rb = MakeResourceBarrierTransition(pBackBuffer.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	_pCommandLists[_ringBufferIndex]->ResourceBarrier(1, &rb);
 }
 
-void RendererD3D12::Clear(UINT32 flags)
+void RendererD3D12::EndFrame()
 {
-	static float x = 0;
-	x += 0.0001f;
-	x = fmod(x, 1.f);
-	FLOAT clearColor[] = { x, 0.5f, 0.25f, 1.0f };
+	HRESULT hr = 0;
 
-	auto dh = _swapChainBuffersRTVs->GetCPUDescriptorHandleForHeapStart();
-	dh.ptr += _currentBackBufferIndex * _descHandleIncSizeRTV;
+	auto pBackBuffer = _vSwapChainBuffers[_swapChainBufferIndex];
+	const auto rb = MakeResourceBarrierTransition(pBackBuffer.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	_pCommandLists[_ringBufferIndex]->ResourceBarrier(1, &rb);
 
-	_pCommandList->ClearRenderTargetView(dh, clearColor, 0, nullptr);
+	if (FAILED(hr = _pCommandLists[_ringBufferIndex]->Close()))
+		throw VERUS_RUNTIME_ERROR << "Close(), hr=" << VERUS_HR(hr);
+	ID3D12CommandList* ppCommandLists[] = { _pCommandLists[_ringBufferIndex].Get() };
+	_pCommandQueue->ExecuteCommandLists(VERUS_ARRAY_LENGTH(ppCommandLists), ppCommandLists);
+
+	_fenceValues[_ringBufferIndex] = QueueSignal();
 }
 
 void RendererD3D12::Present()
@@ -263,23 +300,20 @@ void RendererD3D12::Present()
 	bool g_VSync = false;
 	bool g_TearingSupported = false;
 
-	auto pBackBuffer = _vSwapChainBuffers[_currentBackBufferIndex];
-
-	const auto rb = MakeResourceBarrierTransition(pBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-	_pCommandList->ResourceBarrier(1, &rb);
-
-	if (FAILED(hr = _pCommandList->Close()))
-		throw VERUS_RUNTIME_ERROR << "Close(), hr=" << VERUS_HR(hr);
-
-	ID3D12CommandList* ppCommandLists[] = { _pCommandList };
-	_pCommandQueue->ExecuteCommandLists(VERUS_ARRAY_LENGTH(ppCommandLists), ppCommandLists);
-
-	_vFenceValues[_currentBackBufferIndex] = Signal();
-	UINT syncInterval = g_VSync ? 1 : 0;
-	UINT flags = g_TearingSupported && !g_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
+	const UINT syncInterval = g_VSync ? 1 : 0;
+	const UINT flags = g_TearingSupported && !g_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
 	if (FAILED(hr = _pSwapChain->Present(syncInterval, flags)))
 		throw VERUS_RUNTIME_ERROR << "Present(), hr=" << VERUS_HR(hr);
 
-	_currentBackBufferIndex = _pSwapChain->GetCurrentBackBufferIndex();
-	WaitForFenceValue(_vFenceValues[_currentBackBufferIndex]);
+	_ringBufferIndex = (_ringBufferIndex + 1) % ringBufferSize;
+}
+
+void RendererD3D12::Clear(UINT32 flags)
+{
+	VERUS_QREF_RENDERER;
+
+	auto dh = _dSwapChainBuffersRTVs->GetCPUDescriptorHandleForHeapStart();
+	dh.ptr += _swapChainBufferIndex * _descHandleIncSizeRTV;
+
+	_pCommandLists[_ringBufferIndex]->ClearRenderTargetView(dh, renderer.GetClearColor().ToPointer(), 0, nullptr);
 }

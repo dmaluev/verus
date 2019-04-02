@@ -3,8 +3,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>C:\Home\Projects\Verus\verus\Verus\src;C:\Home\Middleware\bullet3-2.88\src;C:\Home\Middleware\bullet3-2.88\Extras;C:\Home\Middleware\glm-0.9.9.3\glm;C:\Home\Middleware\json-3.5.0;C:\Home\Middleware\libogg-1.3.3\include;C:\Home\Middleware\libvorbis-1.3.6\include;C:\Home\Middleware\SDL2-2.0.9\include;C:\Home\Middleware\tinyxml2-7.0.1;C:\Home\Middleware\vectormath;C:\Home\Middleware\zlib-1.2.11;C:\Program Files %28x86%29\OpenAL 1.1 SDK\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Home\Middleware\bullet3-2.88\lib\Debug;C:\Home\Middleware\libogg-1.3.3\lib;C:\Home\Middleware\libvorbis-1.3.6\lib2;C:\Home\Middleware\SDL2-2.0.9\lib\x64;C:\Home\Middleware\tinyxml2-7.0.1;C:\Home\Middleware\zlib-1.2.11;C:\Program Files %28x86%29\OpenAL 1.1 SDK\libs\Win64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Home\Projects\Verus\verus\Verus\src;C:\Home\Middleware\bullet3-2.88\src;C:\Home\Middleware\bullet3-2.88\Extras;C:\Home\Middleware\glm-0.9.9.3\glm;C:\Home\Middleware\json-3.5.0;C:\Home\Middleware\libogg-1.3.3\include;C:\Home\Middleware\libvorbis-1.3.6\include;C:\Home\Middleware\SDL2-2.0.9\include;C:\Home\Middleware\tinyxml2-7.0.1;C:\Home\Middleware\vectormath;C:\Home\Middleware\zlib-1.2.11;C:\Program Files %28x86%29\OpenAL 1.1 SDK\include;C:\VulkanSDK\1.1.101.0\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Home\Middleware\bullet3-2.88\lib\Debug;C:\Home\Middleware\libogg-1.3.3\lib;C:\Home\Middleware\libvorbis-1.3.6\lib2;C:\Home\Middleware\SDL2-2.0.9\lib\x64;C:\Home\Middleware\tinyxml2-7.0.1;C:\Home\Middleware\zlib-1.2.11;C:\Program Files %28x86%29\OpenAL 1.1 SDK\libs\Win64;C:\VulkanSDK\1.1.101.0\Lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup />
   <ItemGroup />

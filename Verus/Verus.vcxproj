@@ -104,6 +104,7 @@
     <ClInclude Include="src\Audio\Sound.h" />
     <ClInclude Include="src\Audio\Source.h" />
     <ClInclude Include="src\Audio\StreamPlayer.h" />
+    <ClInclude Include="src\CGI\BaseCommandBuffer.h" />
     <ClInclude Include="src\CGI\BaseGeometry.h" />
     <ClInclude Include="src\CGI\BasePipeline.h" />
     <ClInclude Include="src\CGI\BaseRenderer.h" />
@@ -204,6 +205,7 @@
     <ClCompile Include="src\Audio\Sound.cpp" />
     <ClCompile Include="src\Audio\Source.cpp" />
     <ClCompile Include="src\Audio\StreamPlayer.cpp" />
+    <ClCompile Include="src\CGI\BaseCommandBuffer.cpp" />
     <ClCompile Include="src\CGI\BaseGeometry.cpp" />
     <ClCompile Include="src\CGI\BasePipeline.cpp" />
     <ClCompile Include="src\CGI\BaseRenderer.cpp" />
