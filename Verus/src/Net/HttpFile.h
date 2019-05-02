@@ -7,9 +7,11 @@ namespace verus
 		//! Provides ability to read files from the internet using HTTP.
 		class HttpFile : public IO::Stream
 		{
-			typedef Map<String, String> TMapHeader;
+			static const int s_httpPort = 80;
+			static const int s_schemeLength = 7;
+			static const int s_maxContentLength = 1024 * 1024;
 
-			enum { httpPort = 80, schemeLength = 7, maxContentLength = 1024 * 1024 };
+			typedef Map<String, String> TMapHeader;
 
 			String            _url;
 			Vector<BYTE>      _vData;

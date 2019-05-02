@@ -11,6 +11,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RendererDirect3D12", "Rende
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RendererVulkan", "RendererVulkan\RendererVulkan.vcxproj", "{C9195A1C-9224-4B40-BBBC-AA90EF3BE3E0}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VulkanShaderCompiler", "VulkanShaderCompiler\VulkanShaderCompiler.vcxproj", "{1EA5F5D1-9138-406D-871B-3CD75343E14C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -33,6 +35,10 @@ Global
 		{C9195A1C-9224-4B40-BBBC-AA90EF3BE3E0}.Debug|x64.Build.0 = Debug|x64
 		{C9195A1C-9224-4B40-BBBC-AA90EF3BE3E0}.Release|x64.ActiveCfg = Release|x64
 		{C9195A1C-9224-4B40-BBBC-AA90EF3BE3E0}.Release|x64.Build.0 = Release|x64
+		{1EA5F5D1-9138-406D-871B-3CD75343E14C}.Debug|x64.ActiveCfg = Debug|x64
+		{1EA5F5D1-9138-406D-871B-3CD75343E14C}.Debug|x64.Build.0 = Debug|x64
+		{1EA5F5D1-9138-406D-871B-3CD75343E14C}.Release|x64.ActiveCfg = Release|x64
+		{1EA5F5D1-9138-406D-871B-3CD75343E14C}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

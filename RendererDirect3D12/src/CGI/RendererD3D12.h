@@ -13,12 +13,12 @@ namespace verus
 			ComPtr<IDXGISwapChain4>           _pSwapChain;
 			Vector<ComPtr<ID3D12Resource>>    _vSwapChainBuffers;
 			ComPtr<ID3D12DescriptorHeap>      _dSwapChainBuffersRTVs;
-			TMapCommandAllocators             _mapCommandAllocators[ringBufferSize];
-			ComPtr<ID3D12GraphicsCommandList> _pCommandLists[ringBufferSize];
+			TMapCommandAllocators             _mapCommandAllocators[s_ringBufferSize];
+			ComPtr<ID3D12GraphicsCommandList> _pCommandLists[s_ringBufferSize];
 			ComPtr<ID3D12Fence>               _pFence;
 			HANDLE                            _hFence = INVALID_HANDLE_VALUE;
 			UINT64                            _nextFenceValue = 1;
-			UINT64                            _fenceValues[ringBufferSize];
+			UINT64                            _fenceValues[s_ringBufferSize];
 			UINT                              _descHandleIncSizeRTV = 0;
 			DXGI_SWAP_CHAIN_DESC1             _swapChainDesc = {};
 
@@ -50,6 +50,8 @@ namespace verus
 			void QueueWaitIdle();
 
 			static D3D12_RESOURCE_BARRIER MakeResourceBarrierTransition(ID3D12Resource* pResource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
+
+			const ComPtr<ID3D12Device3>& GetDevice() const { return _pDevice; }
 
 			// Which graphics API?
 			virtual Gapi GetGapi() override { return Gapi::direct3D12; }

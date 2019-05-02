@@ -34,7 +34,7 @@ namespace verus
 			virtual ~BaseRenderer();
 
 		public:
-			enum { ringBufferSize = 3 };
+			static const int s_ringBufferSize = 3;
 
 			static BaseRenderer* Load(CSZ dll, RBaseRendererDesc desc);
 
@@ -70,9 +70,9 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(BaseRenderer);
 	}
-}
 
-extern "C"
-{
-	typedef verus::CGI::PBaseRenderer(*PFNVERUSCREATERENDERER)(UINT32 version, verus::CGI::BaseRendererDesc* pDesc);
+	extern "C"
+	{
+		typedef CGI::PBaseRenderer(*PFNVERUSCREATERENDERER)(UINT32 version, CGI::BaseRendererDesc* pDesc);
+	}
 }

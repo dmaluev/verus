@@ -42,6 +42,12 @@
     <ClInclude Include="src\CGI\ShaderVulkan.h">
       <Filter>src\CGI</Filter>
     </ClInclude>
+    <ClInclude Include="src\CGI\Native.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\TextureVulkan.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -63,6 +69,12 @@
       <Filter>src\CGI</Filter>
     </ClCompile>
     <ClCompile Include="src\CGI\ShaderVulkan.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\Native.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\TextureVulkan.cpp">
       <Filter>src\CGI</Filter>
     </ClCompile>
   </ItemGroup>

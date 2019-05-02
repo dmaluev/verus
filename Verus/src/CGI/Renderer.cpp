@@ -72,4 +72,17 @@ void Renderer::Present()
 	if (_pRendererDelegate)
 		_pRendererDelegate->Renderer_OnPresent();
 	_numFrames++;
+
+	VERUS_QREF_TIMER;
+	_fps = _fps * 0.75f + timer.GetDeltaTimeInv()*0.25f;
+}
+
+void Renderer::OnShaderError(CSZ s)
+{
+	throw VERUS_RUNTIME_ERROR << "Shader Error:\n" << s;
+}
+
+void Renderer::OnShaderWarning(CSZ s)
+{
+	VERUS_LOG_WARN("Shader Warning:\n" << s);
 }

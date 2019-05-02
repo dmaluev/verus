@@ -47,7 +47,7 @@ void Async::Load(CSZ url, PAsyncCallback pCallback, RcTaskDesc desc)
 
 			for (auto& kv : _mapTasks)
 			{
-				if (!strcmp(url, _C(kv.first) + orderLength))
+				if (!strcmp(url, _C(kv.first) + s_orderLength))
 				{
 					// This resource is already scheduled.
 					// Just add a new owner, if it's not already there.
@@ -127,7 +127,7 @@ void Async::Update()
 			if (!task._v.empty())
 			{
 				for (const auto& pOwner : task._vOwners)
-					pOwner->Async_Run(_C(itTask->first) + orderLength, Blob(task._v.data(), task._v.size()));
+					pOwner->Async_Run(_C(itTask->first) + s_orderLength, Blob(task._v.data(), task._v.size()));
 			}
 			itTask = _mapTasks.erase(itTask);
 			// Task complete.
@@ -199,11 +199,11 @@ void Async::ThreadProc()
 				}
 			}
 
-			if (key && (!pTask->_desc._checkExist || FileSystem::FileExist(key + orderLength)))
+			if (key && (!pTask->_desc._checkExist || FileSystem::FileExist(key + s_orderLength)))
 			{
 				try
 				{
-					FileSystem::LoadResource(key + orderLength, pTask->_v,
+					FileSystem::LoadResource(key + s_orderLength, pTask->_v,
 						FileSystem::LoadDesc(pTask->_desc._nullTerm, pTask->_desc._texturePart));
 				}
 				catch (D::RcRuntimeError)
@@ -230,7 +230,7 @@ void Async::ThreadProc()
 					if (!pTask->_v.empty())
 					{
 						for (const auto& pOwner : pTask->_vOwners)
-							pOwner->Async_Run(key + orderLength, Blob(pTask->_v.data(), pTask->_v.size()));
+							pOwner->Async_Run(key + s_orderLength, Blob(pTask->_v.data(), pTask->_v.size()));
 					}
 					_mapTasks.erase(itTask);
 					// Task complete.

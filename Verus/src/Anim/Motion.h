@@ -160,7 +160,10 @@ namespace verus
 			VERUS_TYPEDEFS(Bone);
 
 		private:
-			enum { xanVersion = 0x0101, maxFps = 10000, maxNumBones = 10000, maxNumFrames = 32 * 1024 * 1024 };
+			static const int s_xanVersion = 0x0101;
+			static const int s_maxFps = 10000;
+			static const int s_maxNumBones = 10000;
+			static const int s_maxNumFrames = 32 * 1024 * 1024;
 
 			typedef Map<String, Bone> TMapBones;
 

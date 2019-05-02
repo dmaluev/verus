@@ -47,7 +47,7 @@ struct BaseGame::Pimpl : AllocatorAware
 	bool              _defaultCameraMovement = true;
 	bool              _showFPS = true;
 	bool              _debugBullet = false;
-	bool              _exitOnEscape = true;
+	bool              _escapeKeyExitGame = true;
 
 	Pimpl(PBaseGame p) : _p(p)
 	{
@@ -135,7 +135,7 @@ void BaseGame::Run()
 
 	do // The Game Loop.
 	{
-		if (_p->_exitOnEscape && km.IsKeyPressed(SDL_SCANCODE_ESCAPE))
+		if (_p->_escapeKeyExitGame && km.IsKeyDownEvent(SDL_SCANCODE_ESCAPE))
 			Exit();
 
 		while (SDL_PollEvent(&event))
@@ -230,17 +230,15 @@ void BaseGame::Run()
 		// Show FPS:
 		if (_p->_showFPS && timer.IsEventEvery(500))
 		{
-			char title[64];
-			CSZ renderer = "";
-			//switch (render.GetRenderer())
+			char title[40];
+			CSZ gapi = "";
+			switch (renderer->GetGapi())
 			{
-				//case CGL::RENDERER_OPENGL:		renderer = "OpenGL"; break;
-				//case CGL::RENDERER_DIRECT3D9:	renderer = "Direct3D 9"; break;
-				//case CGL::RENDERER_DIRECT3D11:	renderer = "Direct3D 11"; break;
-				//case CGL::RENDERER_DIRECT3D12:	renderer = "Direct3D 12"; break;
+			case CGI::Gapi::vulkan:     gapi = "Vulkan"; break;
+			case CGI::Gapi::direct3D12: gapi = "Direct3D 12"; break;
 			}
-			//sprintf_s(title, "[%s] - %.1f FPS", renderer, render.GetFps());
-			//SDL_SetWindowTitle(render.GetWindow(), title);
+			sprintf_s(title, "[%s] - %.1f FPS", gapi, renderer.GetFps());
+			SDL_SetWindowTitle(renderer.GetMainWindow()->GetSDL(), title);
 		}
 	} while (!done); // The Game Loop.
 

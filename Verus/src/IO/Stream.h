@@ -7,7 +7,7 @@ namespace verus
 		class Stream
 		{
 		public:
-			enum { bufferSize = UCHAR_MAX + 1 };
+			static const int s_bufferSize = UCHAR_MAX + 1;
 
 			Stream() {}
 			virtual ~Stream() {}

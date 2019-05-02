@@ -57,6 +57,19 @@ void RendererVulkan::Init()
 {
 	VERUS_INIT();
 
+	VerusCompilerInit();
+
+	const char* defines[] =
+	{
+		"Foo", "1",
+		"Bar", "2",
+		nullptr
+	};
+	UINT32* pCode;
+	UINT32 size;
+	const char* pErrorMsg;
+	VerusCompile("float4 mainVS() : POSITION {return float4(0, 0, 0, 1);}", defines, "mainVS", "vs", 0, &pCode, &size, &pErrorMsg);
+
 	CreateInstance();
 #if defined(_DEBUG) || defined(VERUS_DEBUG)
 	CreateDebugUtilsMessenger();
@@ -69,71 +82,77 @@ void RendererVulkan::Init()
 	CreateCommandPools();
 	CreateCommandBuffers();
 	CreateSyncObjects();
+
+
+	CreateRenderPass("Master", { RP::Attachment("RT", Format::unormR8G8B8A8).LoadOpClear().FinalLayout(ImageLayout::presentSrc) }, { RP::Subpass("SP") }, {});
 }
 
 void RendererVulkan::Done()
 {
 	if (_device)
 		vkDeviceWaitIdle(_device);
-	VERUS_FOR(i, ringBufferSize)
+	VERUS_FOR(i, s_ringBufferSize)
 	{
-		if (VK_NULL_HANDLE != _acquireNextImageSemaphores[i])
-		{
-			vkDestroySemaphore(_device, _acquireNextImageSemaphores[i], nullptr);
-			_acquireNextImageSemaphores[i] = VK_NULL_HANDLE;
-		}
-		if (VK_NULL_HANDLE != _queueSubmitSemaphores[i])
-		{
-			vkDestroySemaphore(_device, _queueSubmitSemaphores[i], nullptr);
-			_queueSubmitSemaphores[i] = VK_NULL_HANDLE;
-		}
-		if (VK_NULL_HANDLE != _queueSubmitFences[i])
-		{
-			vkDestroyFence(_device, _queueSubmitFences[i], nullptr);
-			_queueSubmitFences[i] = VK_NULL_HANDLE;
-		}
+		VERUS_VULKAN_DESTROY(_acquireNextImageSemaphores[i], vkDestroySemaphore(_device, _acquireNextImageSemaphores[i], GetAllocator()));
+		VERUS_VULKAN_DESTROY(_queueSubmitSemaphores[i], vkDestroySemaphore(_device, _queueSubmitSemaphores[i], GetAllocator()));
+		VERUS_VULKAN_DESTROY(_queueSubmitFences[i], vkDestroyFence(_device, _queueSubmitFences[i], GetAllocator()));
 	}
-	VERUS_FOR(i, ringBufferSize)
-	{
-		if (VK_NULL_HANDLE != _commandPools[i])
-		{
-			vkDestroyCommandPool(_device, _commandPools[i], nullptr);
-			_commandPools[i] = VK_NULL_HANDLE;
-		}
-	}
+	VERUS_FOR(i, s_ringBufferSize)
+		VERUS_VULKAN_DESTROY(_commandPools[i], vkDestroyCommandPool(_device, _commandPools[i], GetAllocator()));
 	for (auto swapChainImageViews : _vSwapChainImageViews)
-		vkDestroyImageView(_device, swapChainImageViews, nullptr);
+		vkDestroyImageView(_device, swapChainImageViews, GetAllocator());
 	_vSwapChainImageViews.clear();
 	_vSwapChainImages.clear();
-	if (VK_NULL_HANDLE != _swapChain)
-	{
-		vkDestroySwapchainKHR(_device, _swapChain, nullptr);
-		_swapChain = VK_NULL_HANDLE;
-	}
-	if (VK_NULL_HANDLE != _device)
-	{
-		vkDestroyDevice(_device, nullptr);
-		_device = VK_NULL_HANDLE;
-	}
-	if (VK_NULL_HANDLE != _surface)
-	{
-		vkDestroySurfaceKHR(_instance, _surface, nullptr);
-		_surface = VK_NULL_HANDLE;
-	}
+	VERUS_VULKAN_DESTROY(_swapChain, vkDestroySwapchainKHR(_device, _swapChain, GetAllocator()));
+	VERUS_VULKAN_DESTROY(_device, vkDestroyDevice(_device, GetAllocator()));
+	VERUS_VULKAN_DESTROY(_surface, vkDestroySurfaceKHR(_instance, _surface, GetAllocator()));
 #if defined(_DEBUG) || defined(VERUS_DEBUG)
-	if (VK_NULL_HANDLE != _debugUtilsMessenger)
-	{
-		DestroyDebugUtilsMessengerEXT(_instance, _debugUtilsMessenger, nullptr);
-		_debugUtilsMessenger = VK_NULL_HANDLE;
-	}
+	VERUS_VULKAN_DESTROY(_debugUtilsMessenger, DestroyDebugUtilsMessengerEXT(_instance, _debugUtilsMessenger, GetAllocator()));
 #endif
-	if (VK_NULL_HANDLE != _instance)
-	{
-		vkDestroyInstance(_instance, nullptr);
-		_instance = VK_NULL_HANDLE;
-	}
+	VERUS_VULKAN_DESTROY(_instance, vkDestroyInstance(_instance, GetAllocator()));
+
+	VerusCompilerDone();
 
 	VERUS_DONE(RendererVulkan);
+}
+
+void RendererVulkan::VerusCompilerInit()
+{
+#ifdef _WIN32
+	PFNVERUSCOMPILERINIT VerusCompilerInit = reinterpret_cast<PFNVERUSCOMPILERINIT>(
+		GetProcAddress(LoadLibraryA("VulkanShaderCompiler.dll"), "VerusCompilerInit"));
+	VerusCompilerInit();
+#else
+	PFNVERUSCOMPILERINIT VerusCompilerInit = reinterpret_cast<PFNVERUSCOMPILERINIT>(
+		dlsym(dlopen("./libVulkanShaderCompiler.so", RTLD_LAZY), "VerusCompilerInit"));
+	VerusCompilerInit();
+#endif
+}
+
+void RendererVulkan::VerusCompilerDone()
+{
+#ifdef _WIN32
+	PFNVERUSCOMPILERDONE VerusCompilerDone = reinterpret_cast<PFNVERUSCOMPILERDONE>(
+		GetProcAddress(LoadLibraryA("VulkanShaderCompiler.dll"), "VerusCompilerDone"));
+	VerusCompilerDone();
+#else
+	PFNVERUSCOMPILERDONE VerusCompilerDone = reinterpret_cast<PFNVERUSCOMPILERDONE>(
+		dlsym(dlopen("./libVulkanShaderCompiler.so", RTLD_LAZY), "VerusCompilerDone"));
+	VerusCompilerDone();
+#endif
+}
+
+bool RendererVulkan::VerusCompile(CSZ source, CSZ* defines, CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs)
+{
+#ifdef _WIN32
+	PFNVERUSCOMPILE VerusCompile = reinterpret_cast<PFNVERUSCOMPILE>(
+		GetProcAddress(LoadLibraryA("VulkanShaderCompiler.dll"), "VerusCompile"));
+	return VerusCompile(source, defines, entryPoint, target, flags, ppCode, pSize, ppErrorMsgs);
+#else
+	PFNVERUSCOMPILE VerusCompile = reinterpret_cast<VerusCompile>(
+		dlsym(dlopen("./libVulkanShaderCompiler.so", RTLD_LAZY), "VerusCompile"));
+	return VerusCompile(source, defines, entryPoint, target, flags, ppCode, pSize, ppErrorMsgs);
+#endif
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL RendererVulkan::DebugUtilsMessengerCallback(
@@ -471,7 +490,7 @@ void RendererVulkan::CreateImageViews()
 void RendererVulkan::CreateCommandPools()
 {
 	VkResult res = VK_SUCCESS;
-	VERUS_FOR(i, ringBufferSize)
+	VERUS_FOR(i, s_ringBufferSize)
 	{
 		VkCommandPoolCreateInfo vkcpci = {};
 		vkcpci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -484,7 +503,7 @@ void RendererVulkan::CreateCommandPools()
 void RendererVulkan::CreateCommandBuffers()
 {
 	VkResult res = VK_SUCCESS;
-	VERUS_FOR(i, ringBufferSize)
+	VERUS_FOR(i, s_ringBufferSize)
 	{
 		VkCommandBufferAllocateInfo vkcbai = {};
 		vkcbai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -504,7 +523,7 @@ void RendererVulkan::CreateSyncObjects()
 	VkFenceCreateInfo vkfci = {};
 	vkfci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	vkfci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-	VERUS_U_FOR(i, ringBufferSize)
+	VERUS_U_FOR(i, s_ringBufferSize)
 	{
 		if (VK_SUCCESS != (res = vkCreateSemaphore(_device, &vksci, nullptr, &_acquireNextImageSemaphores[i])))
 			throw VERUS_RUNTIME_ERROR << "vkCreateSemaphore(), res=" << res;
@@ -598,7 +617,7 @@ void RendererVulkan::Present()
 	if (VK_SUCCESS != (res = vkQueuePresentKHR(_presentQueue, &vkpi)))
 		throw VERUS_RUNTIME_ERROR << "vkQueuePresentKHR(), res=" << res;
 
-	_ringBufferIndex = (_ringBufferIndex + 1) % ringBufferSize;
+	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
 }
 
 void RendererVulkan::Clear(UINT32 flags)
@@ -628,4 +647,32 @@ void RendererVulkan::Clear(UINT32 flags)
 	vkisr.baseArrayLayer = 0;
 	vkisr.layerCount = 1;
 	vkCmdClearColorImage(_commandBuffers[_ringBufferIndex], _vSwapChainImages[_swapChainBufferIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValue, 1, &vkisr);
+}
+
+void RendererVulkan::CreateRenderPass(CSZ name, std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD)
+{
+	Vector<VkAttachmentDescription> vAttachmentDescription;
+	vAttachmentDescription.reserve(ilA.size());
+	for (auto attachment : ilA)
+	{
+		VkAttachmentDescription vkad = {};
+		vkad.format = ToNativeFormat(attachment._format);
+		vkad.samples = ToNativeSampleCount(attachment._sampleCount);
+		switch (attachment._loadOp)
+		{
+		case RP::Attachment::LoadOp::load: vkad.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD; break;
+		case RP::Attachment::LoadOp::clear: vkad.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR; break;
+		case RP::Attachment::LoadOp::dontCare: vkad.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE; break;
+		default: throw VERUS_RECOVERABLE << "CreateRenderPass(), LoadOp";
+		};
+		switch (attachment._storeOp)
+		{
+		case RP::Attachment::StoreOp::store: vkad.storeOp = VK_ATTACHMENT_STORE_OP_STORE; break;
+		case RP::Attachment::StoreOp::dontCare: vkad.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; break;
+		default: throw VERUS_RECOVERABLE << "CreateRenderPass(), StoreOp";
+		}
+		vkad.initialLayout = ToNativeImageLayout(attachment._initialLayout);
+		vkad.finalLayout = ToNativeImageLayout(attachment._finalLayout);
+		vAttachmentDescription.push_back(vkad);
+	}
 }

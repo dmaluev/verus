@@ -3,7 +3,7 @@
 using namespace verus;
 using namespace verus::CGI;
 
-ID3D12GraphicsCommandList* CommandBufferD3D12::GetGraphicsCommandList() const
+ID3D12GraphicsCommandList4* CommandBufferD3D12::GetGraphicsCommandList() const
 {
 	VERUS_QREF_RENDERER;
 	return _pCommandLists[renderer->GetRingBufferIndex()].Get();
@@ -42,6 +42,18 @@ void CommandBufferD3D12::End()
 		throw VERUS_RUNTIME_ERROR << "Close(), hr=" << VERUS_HR(hr);
 }
 
+void CommandBufferD3D12::BeginRenderPass()
+{
+	D3D12_RENDER_PASS_RENDER_TARGET_DESC rtDesc = {};
+	D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsDesc = {};
+	GetGraphicsCommandList()->BeginRenderPass(0, &rtDesc, &dsDesc, D3D12_RENDER_PASS_FLAG_NONE);
+}
+
+void CommandBufferD3D12::EndRenderPass()
+{
+	GetGraphicsCommandList()->EndRenderPass();
+}
+
 void CommandBufferD3D12::BindVertexBuffers()
 {
 	GetGraphicsCommandList()->IASetVertexBuffers(0, 1, nullptr);
@@ -65,6 +77,19 @@ void CommandBufferD3D12::SetViewport()
 void CommandBufferD3D12::BindPipeline()
 {
 	GetGraphicsCommandList()->SetPipelineState(nullptr);
+}
+
+void CommandBufferD3D12::PipelineBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout)
+{
+	PTextureD3D12 pTex = static_cast<PTextureD3D12>(&(*tex));
+	D3D12_RESOURCE_BARRIER rb = {};
+	rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	rb.Transition.pResource = pTex->GetID3D12Resource();
+	rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	rb.Transition.StateBefore = ToNativeImageLayout(oldLayout);
+	rb.Transition.StateAfter = ToNativeImageLayout(newLayout);
+	GetGraphicsCommandList()->ResourceBarrier(1, &rb);
 }
 
 void CommandBufferD3D12::Clear(ClearFlags clearFlags)

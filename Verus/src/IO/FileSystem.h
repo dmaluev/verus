@@ -23,7 +23,8 @@ namespace verus
 			};
 			VERUS_TYPEDEFS(LoadDesc);
 
-			enum { querySize = 240, entrySize = 256 };
+			static const int s_querySize = 240;
+			static const int s_entrySize = 256;
 
 			FileSystem();
 			~FileSystem();

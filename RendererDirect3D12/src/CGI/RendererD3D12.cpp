@@ -35,9 +35,9 @@ void RendererD3D12::Done()
 		_hFence = INVALID_HANDLE_VALUE;
 	}
 	_pFence.Reset();
-	VERUS_FOR(i, ringBufferSize)
+	VERUS_FOR(i, s_ringBufferSize)
 		_pCommandLists[i].Reset();
-	VERUS_FOR(i, ringBufferSize)
+	VERUS_FOR(i, s_ringBufferSize)
 		_mapCommandAllocators[i].clear();
 	_dSwapChainBuffersRTVs.Reset();
 	_vSwapChainBuffers.clear();
@@ -156,10 +156,10 @@ void RendererD3D12::InitD3D()
 
 	CreateSwapChainBuffersRTVs();
 
-	VERUS_FOR(i, ringBufferSize)
+	VERUS_FOR(i, s_ringBufferSize)
 		_mapCommandAllocators[i][std::this_thread::get_id()] = CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-	VERUS_FOR(i, ringBufferSize)
+	VERUS_FOR(i, s_ringBufferSize)
 		_pCommandLists[i] = CreateCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, _mapCommandAllocators[i][std::this_thread::get_id()]);
 
 	_pFence = CreateFence();
@@ -305,7 +305,7 @@ void RendererD3D12::Present()
 	if (FAILED(hr = _pSwapChain->Present(syncInterval, flags)))
 		throw VERUS_RUNTIME_ERROR << "Present(), hr=" << VERUS_HR(hr);
 
-	_ringBufferIndex = (_ringBufferIndex + 1) % ringBufferSize;
+	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
 }
 
 void RendererD3D12::Clear(UINT32 flags)

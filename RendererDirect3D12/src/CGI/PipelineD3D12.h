@@ -12,8 +12,9 @@ namespace verus
 			PipelineD3D12();
 			virtual ~PipelineD3D12() override;
 
-			virtual void Init() override;
+			virtual void Init(RcPipelineDesc desc) override;
 			virtual void Done() override;
 		};
+		VERUS_TYPEDEFS(PipelineD3D12);
 	}
 }

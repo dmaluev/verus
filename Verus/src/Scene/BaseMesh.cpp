@@ -87,7 +87,7 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 	UINT32 temp;
 	UINT32 blockType = 0;
 	INT64 blockSize = 0;
-	char buffer[IO::Stream::bufferSize] = {};
+	char buffer[IO::Stream::s_bufferSize] = {};
 	sp.Read(buffer, 5);
 	sp >> temp;
 	sp >> temp;

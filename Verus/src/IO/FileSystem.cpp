@@ -30,7 +30,7 @@ void FileSystem::ReadHeaderPAK(RFile file, UINT32& magic, INT64& entriesOffset, 
 
 	file >> entriesOffset;
 	file >> entriesSize;
-	if (entriesSize%entrySize)
+	if (entriesSize%s_entrySize)
 		throw VERUS_RUNTIME_ERROR << "ReadHeaderPAK(), Invalid size of entries in PAK";
 }
 
@@ -46,7 +46,7 @@ void FileSystem::PreloadCache(CSZ pak, CSZ types[])
 	INT64 entriesOffset, entriesSize;
 	ReadHeaderPAK(file, magic, entriesOffset, entriesSize);
 
-	char value[querySize];
+	char value[s_querySize];
 
 	auto LoadThisFile = [types](CSZ value)
 	{
@@ -60,8 +60,8 @@ void FileSystem::PreloadCache(CSZ pak, CSZ types[])
 		return false;
 	};
 
-	char fileEntry[entrySize] = {};
-	INT64 numEntries = entriesSize / entrySize;
+	char fileEntry[s_entrySize] = {};
+	INT64 numEntries = entriesSize / s_entrySize;
 	INT64 dataOffset, dataSize;
 	file.Seek(entriesOffset, SEEK_SET);
 	while (numEntries)
@@ -73,8 +73,8 @@ void FileSystem::PreloadCache(CSZ pak, CSZ types[])
 
 		if (LoadThisFile(value))
 		{
-			memcpy(&dataOffset, fileEntry + querySize, sizeof(INT64));
-			memcpy(&dataSize, fileEntry + querySize + sizeof(INT64), sizeof(INT64));
+			memcpy(&dataOffset, fileEntry + s_querySize, sizeof(INT64));
+			memcpy(&dataSize, fileEntry + s_querySize + sizeof(INT64), sizeof(INT64));
 
 			const String password = ConvertFilenameToPassword(fileEntry);
 
@@ -196,14 +196,14 @@ void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc de
 	INT64 entriesOffset, entriesSize;
 	ReadHeaderPAK(file, magic, entriesOffset, entriesSize);
 
-	char query[querySize];
-	char value[querySize];
+	char query[s_querySize];
+	char value[s_querySize];
 	strcpy(query, pakEntry);
 	Str::CyrillicToUppercase(query);
 
 	bool found = false;
-	char fileEntry[entrySize] = {};
-	INT64 numEntries = entriesSize / entrySize;
+	char fileEntry[s_entrySize] = {};
+	INT64 numEntries = entriesSize / s_entrySize;
 	INT64 dataOffset, dataSize;
 	file.Seek(entriesOffset, SEEK_SET);
 	while (numEntries)
@@ -215,8 +215,8 @@ void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc de
 
 		if (!_stricmp(query, value))
 		{
-			memcpy(&dataOffset, fileEntry + querySize, sizeof(INT64));
-			memcpy(&dataSize, fileEntry + querySize + sizeof(INT64), sizeof(INT64));
+			memcpy(&dataOffset, fileEntry + s_querySize, sizeof(INT64));
+			memcpy(&dataSize, fileEntry + s_querySize + sizeof(INT64), sizeof(INT64));
 			found = true;
 			break;
 		}

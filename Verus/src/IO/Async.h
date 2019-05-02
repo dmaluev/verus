@@ -42,9 +42,9 @@ namespace verus
 			};
 			VERUS_TYPEDEFS(Task);
 
-			typedef Map<String, Task> TMapTasks;
+			static const int s_orderLength = 8;
 
-			enum { orderLength = 8 };
+			typedef Map<String, Task> TMapTasks;
 
 			TMapTasks               _mapTasks;
 			std::thread             _thread;

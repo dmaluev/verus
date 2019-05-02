@@ -13,5 +13,6 @@ namespace verus
 			virtual void Init(RcGeometryDesc desc) override;
 			virtual void Done() override;
 		};
+		VERUS_TYPEDEFS(GeometryVulkan);
 	}
 }

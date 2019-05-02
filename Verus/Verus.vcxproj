@@ -111,7 +111,10 @@
     <ClInclude Include="src\CGI\BaseShader.h" />
     <ClInclude Include="src\CGI\BaseTexture.h" />
     <ClInclude Include="src\CGI\CGI.h" />
+    <ClInclude Include="src\CGI\Types.h" />
+    <ClInclude Include="src\CGI\Formats.h" />
     <ClInclude Include="src\CGI\Renderer.h" />
+    <ClInclude Include="src\CGI\RenderPass.h" />
     <ClInclude Include="src\D\AssertionCompileTime.h" />
     <ClInclude Include="src\D\AssertionRunTime.h" />
     <ClInclude Include="src\D\D.h" />
@@ -213,6 +216,7 @@
     <ClCompile Include="src\CGI\BaseTexture.cpp" />
     <ClCompile Include="src\CGI\CGI.cpp" />
     <ClCompile Include="src\CGI\Renderer.cpp" />
+    <ClCompile Include="src\CGI\RenderPass.cpp" />
     <ClCompile Include="src\D\Log.cpp" />
     <ClCompile Include="src\Game\BaseGame.cpp" />
     <ClCompile Include="src\Game\State.cpp" />

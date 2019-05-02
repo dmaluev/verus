@@ -21,6 +21,9 @@ namespace verus
 			PRendererDelegate _pRendererDelegate = nullptr;
 			UINT64            _numFrames = 0;
 			Gapi              _gapi = Gapi::unknown;
+			float             _fps = 30;
+
+			ShaderPwn         _sTest;
 
 		public:
 			Renderer();
@@ -33,14 +36,22 @@ namespace verus
 			void Init(PRendererDelegate pDelegate);
 			void Done();
 
+			// Frame cycle:
 			void Draw();
 			void Present();
+
+			void OnShaderError(CSZ s);
+			void OnShaderWarning(CSZ s);
 
 			App::PWindow GetMainWindow() const { return _pMainWindow; }
 			App::PWindow SetMainWindow(App::PWindow p) { return Utils::Swap(_pMainWindow, p); }
 
 			RcVector4 GetClearColor() const { return _clearColor; }
 			void SetClearColor(RcVector4 color) { _clearColor = color; }
+
+			// Frame rate:
+			float GetFps() const { return _fps; }
+			UINT64 GetNumFrames() const { return _numFrames; }
 		};
 		VERUS_TYPEDEFS(Renderer);
 	}

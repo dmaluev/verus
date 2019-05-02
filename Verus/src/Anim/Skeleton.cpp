@@ -335,7 +335,7 @@ void Skeleton::AdjustPrimaryBones(const Vector<String>& vPrimaryBones)
 	typedef Map<int, String> TMapSort;
 	TMapSort mapSort;
 
-	enum { secondaryOffset = 1000000 };
+	static const int secondaryOffset = 1000000;
 
 	const bool inverse = (vPrimaryBones.end() != std::find(vPrimaryBones.begin(), vPrimaryBones.end(), "-"));
 	int addPri = 0;

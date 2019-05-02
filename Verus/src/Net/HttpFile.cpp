@@ -18,14 +18,14 @@ bool HttpFile::Open(CSZ url)
 {
 	try
 	{
-		if (strncmp(url, "http://", schemeLength))
+		if (strncmp(url, "http://", s_schemeLength))
 			return false;
-		int port = httpPort;
+		int port = s_httpPort;
 
 		// Key points:
-		CSZ colon = strchr(url + schemeLength, ':');
-		CSZ slash = strchr(url + schemeLength, '/');
-		CSZ q = strchr(url + schemeLength, '?');
+		CSZ colon = strchr(url + s_schemeLength, ':');
+		CSZ slash = strchr(url + s_schemeLength, '/');
+		CSZ q = strchr(url + s_schemeLength, '?');
 
 		if (colon)
 			port = atoi(colon + 1);
@@ -38,7 +38,7 @@ bool HttpFile::Open(CSZ url)
 			end = slash;
 		if (colon)
 			end = colon;
-		String host(url + schemeLength, end);
+		String host(url + s_schemeLength, end);
 
 		_socket.Connect(Addr(_C(host), port));
 
@@ -172,7 +172,7 @@ void HttpFile::ThreadProc()
 	if (Open(_C(_url)))
 	{
 		const INT64 size = GetSize();
-		if (size <= maxContentLength)
+		if (size <= s_maxContentLength)
 		{
 			_vData.resize(size_t(_nullTerm ? size + 1 : size));
 			Read(_vData.data(), size);

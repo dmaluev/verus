@@ -366,6 +366,15 @@
     <ClInclude Include="src\CGI\BaseCommandBuffer.h">
       <Filter>src\CGI</Filter>
     </ClInclude>
+    <ClInclude Include="src\CGI\Formats.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\RenderPass.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\Types.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -570,6 +579,9 @@
       <Filter>src\CGI</Filter>
     </ClCompile>
     <ClCompile Include="src\CGI\BaseCommandBuffer.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\RenderPass.cpp">
       <Filter>src\CGI</Filter>
     </ClCompile>
   </ItemGroup>

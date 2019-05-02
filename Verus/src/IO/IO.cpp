@@ -2,7 +2,7 @@
 
 namespace verus
 {
-	VERUS_CT_ASSERT(IO::Stream::bufferSize == 256);
+	VERUS_CT_ASSERT(IO::Stream::s_bufferSize == 256);
 
 	void Make_IO()
 	{

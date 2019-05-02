@@ -1,0 +1,104 @@
+#include "stdafx.h"
+
+using namespace verus;
+
+VkFormat CGI::ToNativeFormat(Format format)
+{
+	switch (format)
+	{
+	case Format::unormB4G4R4A4:     return VK_FORMAT_B4G4R4A4_UNORM_PACK16;
+	case Format::unormB5G6R5:       return VK_FORMAT_B5G6R5_UNORM_PACK16;
+
+	case Format::unormR8:           return VK_FORMAT_R8_UNORM;
+	case Format::unormR8G8:         return VK_FORMAT_R8G8_UNORM;
+	case Format::unormR8G8B8A8:     return VK_FORMAT_R8G8B8A8_UNORM;
+	case Format::unormB8G8R8A8:     return VK_FORMAT_B8G8R8A8_UNORM;
+
+	case Format::floatR16:          return VK_FORMAT_R16_SFLOAT;
+	case Format::floatR16G16:       return VK_FORMAT_R16G16_SFLOAT;
+	case Format::floatR16G16B16A16: return VK_FORMAT_R16G16B16A16_SFLOAT;
+
+	case Format::floatR32:          return VK_FORMAT_R32_SFLOAT;
+	case Format::floatR32G32:       return VK_FORMAT_R32G32_SFLOAT;
+	case Format::floatR32G32B32A32: return VK_FORMAT_R32G32B32A32_SFLOAT;
+
+	case Format::unormD16:          return VK_FORMAT_D16_UNORM;
+	case Format::unormD24uintS8:    return VK_FORMAT_D24_UNORM_S8_UINT;
+	case Format::floatD32:          return VK_FORMAT_D32_SFLOAT;
+
+	case Format::unormBC1:          return VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
+	case Format::srgbBC1:           return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
+	case Format::unormBC2:          return VK_FORMAT_BC2_UNORM_BLOCK;
+	case Format::srgbBC2:           return VK_FORMAT_BC2_SRGB_BLOCK;
+	case Format::unormBC3:          return VK_FORMAT_BC3_UNORM_BLOCK;
+	case Format::srgbBC3:           return VK_FORMAT_BC3_SRGB_BLOCK;
+
+	default: throw VERUS_RECOVERABLE << "ToNativeFormat()";
+	}
+}
+
+VkCullModeFlagBits CGI::ToNativeCullMode(CullMode cullMode)
+{
+	switch (cullMode)
+	{
+	case CullMode::none:  return VK_CULL_MODE_NONE;
+	case CullMode::front: return VK_CULL_MODE_FRONT_BIT;
+	case CullMode::back:  return VK_CULL_MODE_BACK_BIT;
+	default: throw VERUS_RECOVERABLE << "ToNativeCullMode()";
+	}
+}
+
+VkImageLayout CGI::ToNativeImageLayout(ImageLayout layout)
+{
+	switch (layout)
+	{
+	case ImageLayout::undefined:                     return VK_IMAGE_LAYOUT_UNDEFINED;
+	case ImageLayout::general:                       return VK_IMAGE_LAYOUT_GENERAL;
+	case ImageLayout::colorAttachmentOptimal:        return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	case ImageLayout::depthStencilAttachmentOptimal: return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	case ImageLayout::depthStencilReadOnlyOptimal:   return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+	case ImageLayout::shaderReadOnlyOptimal:         return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	case ImageLayout::transferSrcOptimal:            return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	case ImageLayout::transferDstOptimal:            return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	case ImageLayout::presentSrc:                    return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	default: throw VERUS_RECOVERABLE << "ToNativeImageLayout()";
+	}
+}
+
+VkPolygonMode CGI::ToNativePolygonMode(PolygonMode polygonMode)
+{
+	switch (polygonMode)
+	{
+	case PolygonMode::fill: return VK_POLYGON_MODE_FILL;
+	case PolygonMode::line: return VK_POLYGON_MODE_LINE;
+	default: throw VERUS_RECOVERABLE << "ToNativePolygonMode()";
+	}
+}
+
+VkPrimitiveTopology CGI::ToNativePrimitiveTopology(PrimitiveTopology primitiveTopology)
+{
+	switch (primitiveTopology)
+	{
+	case PrimitiveTopology::pointList:     return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+	case PrimitiveTopology::lineList:      return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+	case PrimitiveTopology::lineStrip:     return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+	case PrimitiveTopology::triangleList:  return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	case PrimitiveTopology::triangleStrip: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+	default: throw VERUS_RECOVERABLE << "ToNativePrimitiveTopology()";
+	}
+}
+
+VkSampleCountFlagBits CGI::ToNativeSampleCount(int sampleCount)
+{
+	switch (sampleCount)
+	{
+	case 1:  return VK_SAMPLE_COUNT_1_BIT;
+	case 2:  return VK_SAMPLE_COUNT_2_BIT;
+	case 4:  return VK_SAMPLE_COUNT_4_BIT;
+	case 8:  return VK_SAMPLE_COUNT_8_BIT;
+	case 16: return VK_SAMPLE_COUNT_16_BIT;
+	case 32: return VK_SAMPLE_COUNT_32_BIT;
+	case 64: return VK_SAMPLE_COUNT_64_BIT;
+	default: throw VERUS_RECOVERABLE << "ToNativeSampleCount()";
+	}
+}

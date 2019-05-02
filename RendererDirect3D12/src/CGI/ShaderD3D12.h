@@ -21,11 +21,7 @@ namespace verus
 		{
 			struct Compiled
 			{
-				ComPtr<ID3DBlob> _pVS;
-				ComPtr<ID3DBlob> _pHS;
-				ComPtr<ID3DBlob> _pDS;
-				ComPtr<ID3DBlob> _pGS;
-				ComPtr<ID3DBlob> _pPS;
+				ComPtr<ID3DBlob> _pBlobs[+Stage::count];
 			};
 			VERUS_TYPEDEFS(Compiled);
 			typedef Map<String, Compiled> TMapCompiled;
@@ -36,8 +32,16 @@ namespace verus
 			ShaderD3D12();
 			virtual ~ShaderD3D12() override;
 
-			virtual void Init(CSZ source, CSZ* list) override;
+			virtual void Init(CSZ source, CSZ* branches) override;
 			virtual void Done() override;
+
+			//
+			// D3D12
+			//
+
+			const ComPtr<ID3DBlob>& GetID3DBlob(CSZ branch, Stage stage) const { return _mapCompiled.at(branch)._pBlobs[+stage]; }
+
+			void OnError(CSZ s);
 		};
 		VERUS_TYPEDEFS(ShaderD3D12);
 	}
