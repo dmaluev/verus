@@ -3,7 +3,7 @@
 using namespace verus;
 using namespace verus::CGI;
 
-DXGI_FORMAT ToNativeFormat(Format format)
+DXGI_FORMAT CGI::ToNativeFormat(Format format)
 {
 	switch (format)
 	{
@@ -99,5 +99,93 @@ D3D12_PRIMITIVE_TOPOLOGY_TYPE CGI::ToNativePrimitiveTopologyType(PrimitiveTopolo
 	case PrimitiveTopology::triangleList:  return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	case PrimitiveTopology::triangleStrip: return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	default: throw VERUS_RECOVERABLE << "ToNativePrimitiveTopologyType()";
+	}
+}
+
+CSZ CGI::ToNativeSemanticName(IeUsage usage)
+{
+	static const CSZ names[] =
+	{
+		"POSITION",     // IeUsage::position
+		"BLENDWEIGHT",  // IeUsage::blendWeight
+		"BLENDINDICES", // IeUsage::blendIndices
+		"NORMAL",       // IeUsage::normal
+		"PSIZE",        // IeUsage::psize
+		"TEXCOORD",     // IeUsage::texCoord
+		"TEXCOORD",     // IeUsage::tangent
+		"TEXCOORD",     // IeUsage::binormal
+		"COLOR"         // IeUsage::color
+	};
+	return names[+usage];
+}
+
+DXGI_FORMAT CGI::ToNativeFormat(IeUsage usage, IeType type, int components)
+{
+	VERUS_RT_ASSERT(components >= 1 && components <= 4);
+	int index = components - 1;
+	static const DXGI_FORMAT floats[] =
+	{
+		DXGI_FORMAT_R32_FLOAT,
+		DXGI_FORMAT_R32G32_FLOAT,
+		DXGI_FORMAT_R32G32B32_FLOAT,
+		DXGI_FORMAT_R32G32B32A32_FLOAT
+	};
+	static const DXGI_FORMAT bytes[] =
+	{
+		DXGI_FORMAT_R8G8B8A8_UINT,
+		DXGI_FORMAT_R8G8B8A8_UINT,
+		DXGI_FORMAT_R8G8B8A8_UINT,
+		DXGI_FORMAT_R8G8B8A8_UINT,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R8G8B8A8_SNORM,
+		DXGI_FORMAT_R8G8B8A8_SNORM,
+		DXGI_FORMAT_R8G8B8A8_SNORM,
+		DXGI_FORMAT_R8G8B8A8_SNORM
+	};
+	static const DXGI_FORMAT shorts[] =
+	{
+		DXGI_FORMAT_R16G16_SINT,
+		DXGI_FORMAT_R16G16_SINT,
+		DXGI_FORMAT_R16G16B16A16_SINT,
+		DXGI_FORMAT_R16G16B16A16_SINT,
+		DXGI_FORMAT_R16G16_SNORM,
+		DXGI_FORMAT_R16G16_SNORM,
+		DXGI_FORMAT_R16G16B16A16_SNORM,
+		DXGI_FORMAT_R16G16B16A16_SNORM
+	};
+	switch (type)
+	{
+	case IeType::_float:
+	{
+		return floats[index];
+	}
+	break;
+	case IeType::_ubyte:
+	{
+		VERUS_RT_ASSERT(4 == components);
+		switch (usage)
+		{
+		case IeUsage::normal: index += 8; break; // SNORM.
+		case IeUsage::color: index += 4; break; // UNORM.
+		}
+		return bytes[index];
+	}
+	break;
+	case IeType::_short:
+	{
+		VERUS_RT_ASSERT(2 == components || 4 == components);
+		switch (usage)
+		{
+		case IeUsage::tangent:
+		case IeUsage::binormal:
+			index += 4; break; // SNORM.
+		}
+		return shorts[index];
+	}
+	break;
+	default: throw VERUS_RECOVERABLE << "ToNativeFormat(), IeType=?";
 	}
 }

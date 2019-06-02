@@ -134,7 +134,7 @@ void Camera::LoadState(int slot)
 void MainCamera::operator=(RcMainCamera that)
 {
 	Camera::operator=(that);
-	_currentFrame = -1;
+	_currentFrame = UINT64_MAX;
 }
 
 void MainCamera::Update()
@@ -149,11 +149,11 @@ void MainCamera::Update()
 
 void MainCamera::UpdateVP()
 {
-	//VERUS_QREF_RENDER;
-	//if (m_currentFrame != render.GetNumFrames())
+	VERUS_QREF_RENDERER;
+	if (_currentFrame != renderer.GetNumFrames())
 	{
 		_matPrevVP = GetMatrixVP();
-		//m_currentFrame = render.GetNumFrames();
+		_currentFrame = renderer.GetNumFrames();
 	}
 	Camera::UpdateVP();
 }

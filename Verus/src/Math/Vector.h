@@ -168,16 +168,4 @@ namespace verus
 		Point3& FromString(CSZ sz);
 	};
 	VERUS_TYPEDEFS(Point3);
-
-	class float4 : public glm::vec4
-	{
-	public:
-		float4() {}
-		float4(float s) : glm::vec4(s, 0, 0, 0) {}
-		float4(const glm::vec4& v) : glm::vec4(v) {}
-		float4(const glm::vec3& v) : glm::vec4(v, 0) {}
-		float4(RcVector3 v) : glm::vec4(v.GLM(), 0) {}
-		float4(RcVector4 v) : glm::vec4(v.GLM()) {}
-		float4(RcPoint3 v) : glm::vec4(v.GLM(), 0) {}
-	};
 }

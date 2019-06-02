@@ -21,6 +21,14 @@ void StateMachine::Update()
 	_changed = (_pCurrentState != pCheck);
 }
 
+void StateMachine::Draw()
+{
+	PcState pCheck = _pCurrentState;
+	_pCurrentState->_pStateMachine = this;
+	_pCurrentState->Draw();
+	_changed = (_pCurrentState != pCheck);
+}
+
 PState StateMachine::GetCurrentState() const
 {
 	return _pCurrentState;
@@ -45,7 +53,7 @@ bool StateMachine::EnterState(RState state, bool allowSameState)
 	if (!CanEnterState(state, allowSameState))
 		return false;
 
-	const UINT32 frame = /*CGL::CRender::I().GetNumFrames();*/ 0;
+	const UINT64 frame = CGI::Renderer::I().GetNumFrames();
 	VERUS_RT_ASSERT(frame != _prevFrame); // Don't change state multiple times per frame!
 	_prevFrame = frame;
 

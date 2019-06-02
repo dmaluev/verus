@@ -49,7 +49,7 @@ void KeyMapper::Done()
 bool KeyMapper::HandleSdlEvent(SDL_Event& event)
 {
 	VERUS_RT_ASSERT(IsInitialized());
-	//VERUS_QREF_CONST_SETTINGS;
+	VERUS_QREF_CONST_SETTINGS;
 
 	static bool firstTime = true;
 
@@ -58,7 +58,7 @@ bool KeyMapper::HandleSdlEvent(SDL_Event& event)
 		// Keyboard:
 	case SDL_KEYDOWN:
 	{
-		//if (settings.m_screenWindowed && SDL_SCANCODE_KP_ENTER == event.key.keysym.scancode)
+		if (settings._screenWindowed && SDL_SCANCODE_KP_ENTER == event.key.keysym.scancode)
 		{
 			const SDL_bool rel = SDL_GetRelativeMouseMode();
 			SDL_SetRelativeMouseMode(rel ? SDL_FALSE : SDL_TRUE);

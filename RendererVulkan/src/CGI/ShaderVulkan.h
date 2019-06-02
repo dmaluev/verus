@@ -8,7 +8,8 @@ namespace verus
 		{
 			struct Compiled
 			{
-				VkShaderModule _shaderModules[+Stage::count] = { VK_NULL_HANDLE };
+				VkShaderModule _shaderModules[+Stage::count] = {};
+				int            _numStages = 0;
 			};
 			VERUS_TYPEDEFS(Compiled);
 			typedef Map<String, Compiled> TMapCompiled;
@@ -27,6 +28,7 @@ namespace verus
 			//
 
 			VkShaderModule GetVkShaderModule(CSZ branch, Stage stage) const { return _mapCompiled.at(branch)._shaderModules[+stage]; }
+			int GetNumStages(CSZ branch) const { return _mapCompiled.at(branch)._numStages; }
 
 			void OnError(CSZ s);
 		};

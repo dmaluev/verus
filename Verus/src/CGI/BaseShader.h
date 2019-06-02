@@ -16,6 +16,8 @@ namespace verus
 
 		class BaseShader : public Object
 		{
+			static CSZ s_branchCommentMarker;
+
 		public:
 			enum class Stage : int
 			{

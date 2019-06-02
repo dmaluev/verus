@@ -102,3 +102,91 @@ VkSampleCountFlagBits CGI::ToNativeSampleCount(int sampleCount)
 	default: throw VERUS_RECOVERABLE << "ToNativeSampleCount()";
 	}
 }
+
+int CGI::ToNativeLocation(IeUsage usage, int usageIndex)
+{
+	switch (usage)
+	{
+	case IeUsage::position: return 0;
+	case IeUsage::blendWeight: return 1;
+	case IeUsage::blendIndices: return 6;
+	case IeUsage::normal: return 2;
+	case IeUsage::psize: return 7;
+	case IeUsage::texCoord: return 8 + usageIndex;
+	case IeUsage::tangent: return 14;
+	case IeUsage::binormal: return 15;
+	case IeUsage::color: return 3 + usageIndex;
+	default: throw VERUS_RECOVERABLE << "ToNativeLocation()";
+	}
+}
+
+VkFormat CGI::ToNativeFormat(IeUsage usage, IeType type, int components)
+{
+	VERUS_RT_ASSERT(components >= 1 && components <= 4);
+	int index = components - 1;
+	static const VkFormat floats[] =
+	{
+		VK_FORMAT_R32_SFLOAT,
+		VK_FORMAT_R32G32_SFLOAT,
+		VK_FORMAT_R32G32B32_SFLOAT,
+		VK_FORMAT_R32G32B32A32_SFLOAT
+	};
+	static const VkFormat bytes[] =
+	{
+		VK_FORMAT_R8G8B8A8_UINT,
+		VK_FORMAT_R8G8B8A8_UINT,
+		VK_FORMAT_R8G8B8A8_UINT,
+		VK_FORMAT_R8G8B8A8_UINT,
+		VK_FORMAT_R8G8B8A8_UNORM,
+		VK_FORMAT_R8G8B8A8_UNORM,
+		VK_FORMAT_R8G8B8A8_UNORM,
+		VK_FORMAT_R8G8B8A8_UNORM,
+		VK_FORMAT_R8G8B8A8_SNORM,
+		VK_FORMAT_R8G8B8A8_SNORM,
+		VK_FORMAT_R8G8B8A8_SNORM,
+		VK_FORMAT_R8G8B8A8_SNORM
+	};
+	static const VkFormat shorts[] =
+	{
+		VK_FORMAT_R16G16_SINT,
+		VK_FORMAT_R16G16_SINT,
+		VK_FORMAT_R16G16B16A16_SINT,
+		VK_FORMAT_R16G16B16A16_SINT,
+		VK_FORMAT_R16G16_SNORM,
+		VK_FORMAT_R16G16_SNORM,
+		VK_FORMAT_R16G16B16A16_SNORM,
+		VK_FORMAT_R16G16B16A16_SNORM
+	};
+	switch (type)
+	{
+	case IeType::_float:
+	{
+		return floats[index];
+	}
+	break;
+	case IeType::_ubyte:
+	{
+		VERUS_RT_ASSERT(4 == components);
+		switch (usage)
+		{
+		case IeUsage::normal: index += 8; break; // SNORM.
+		case IeUsage::color: index += 4; break; // UNORM.
+		}
+		return bytes[index];
+	}
+	break;
+	case IeType::_short:
+	{
+		VERUS_RT_ASSERT(2 == components || 4 == components);
+		switch (usage)
+		{
+		case IeUsage::tangent:
+		case IeUsage::binormal:
+			index += 4; break; // SNORM.
+		}
+		return shorts[index];
+	}
+	break;
+	default: throw VERUS_RECOVERABLE << "ToNativeFormat(), IeType=?";
+	}
+}

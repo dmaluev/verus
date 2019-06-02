@@ -22,6 +22,7 @@ namespace verus
 			struct Compiled
 			{
 				ComPtr<ID3DBlob> _pBlobs[+Stage::count];
+				int              _numStages = 0;
 			};
 			VERUS_TYPEDEFS(Compiled);
 			typedef Map<String, Compiled> TMapCompiled;
@@ -39,7 +40,8 @@ namespace verus
 			// D3D12
 			//
 
-			const ComPtr<ID3DBlob>& GetID3DBlob(CSZ branch, Stage stage) const { return _mapCompiled.at(branch)._pBlobs[+stage]; }
+			ID3DBlob* GetD3DBlob(CSZ branch, Stage stage) const { return _mapCompiled.at(branch)._pBlobs[+stage].Get(); }
+			int GetNumStages(CSZ branch) const { return _mapCompiled.at(branch)._numStages; }
 
 			void OnError(CSZ s);
 		};

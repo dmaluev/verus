@@ -46,12 +46,6 @@ namespace verus
 			triangleStrip
 		};
 
-		struct PipelineInputAssemblyState
-		{
-			PrimitiveTopology _topology = PrimitiveTopology::triangleList;
-			bool              _primitiveRestartEnable = false;
-		};
-
 		struct PipelineRasterizationState
 		{
 			PolygonMode _polygonMode = PolygonMode::fill;
@@ -60,9 +54,44 @@ namespace verus
 			float       _depthBiasClamp = 0;
 			float       _depthBiasSlopeFactor = 0;
 			float       _lineWidth = 1;
-			bool        _depthClampEnable = true;
+			bool        _depthClampEnable = false;
 			bool        _depthBiasEnable = false;
 			bool        _rasterizerDiscardEnable = false;
 		};
+
+		enum class IeType : int
+		{
+			_float,
+			_ubyte,
+			_short
+		};
+
+		// See: https://docs.microsoft.com/en-us/windows/desktop/direct3d9/d3ddeclusage
+		enum class IeUsage : int
+		{
+			position,
+			blendWeight,
+			blendIndices,
+			normal,
+			psize,
+			texCoord,
+			tangent,
+			binormal,
+			color
+		};
+
+		// See: https://docs.microsoft.com/en-us/windows/desktop/direct3d9/d3dvertexelement9
+		struct InputElementDesc
+		{
+			int     _binding;
+			int     _offset;
+			IeType  _type;
+			int     _components;
+			IeUsage _usage;
+			int     _usageIndex;
+
+			static constexpr InputElementDesc End() { return { -1, -1, IeType::_float, 0, IeUsage::position, 0 }; }
+		};
+		VERUS_TYPEDEFS(InputElementDesc);
 	}
 }

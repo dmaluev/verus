@@ -20,6 +20,8 @@ void Utils::MakeEx(PBaseAllocator pAlloc)
 
 	Utils* p = static_cast<Utils*>(pAlloc->malloc(sizeof(Utils)));
 	p = new(p)Utils(pAlloc);
+
+	p->InitPaths();
 }
 
 void Utils::FreeEx(PBaseAllocator pAlloc)
@@ -32,6 +34,23 @@ void Utils::FreeEx(PBaseAllocator pAlloc)
 		Assign(nullptr);
 	}
 	TestAllocCount();
+}
+
+void Utils::InitPaths()
+{
+	wchar_t pathName[MAX_PATH] = {};
+	GetModuleFileName(nullptr, pathName, MAX_PATH);
+	PathRemoveFileSpec(pathName);
+	_modulePath = Str::WideToUtf8(pathName);
+
+	_shaderPath = _modulePath + "/Data/Shaders";
+
+	SHGetSpecialFolderPath(0, pathName, CSIDL_LOCAL_APPDATA, TRUE);
+	_writablePath = Str::WideToUtf8(pathName);
+	_writablePath += "\\";
+	_writablePath += Str::WideToUtf8(L"Testing");
+	_writablePath += "\\";
+	CreateDirectory(_C(Str::Utf8ToWide(_writablePath)), nullptr);
 }
 
 void Utils::ExitSdlLoop()

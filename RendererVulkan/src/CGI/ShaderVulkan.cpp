@@ -3,6 +3,27 @@
 using namespace verus;
 using namespace verus::CGI;
 
+struct ShaderInclude : BaseShaderInclude
+{
+	virtual void Open(CSZ filename, void** ppData, UINT32* pBytes) override
+	{
+		const String url = String("[Shaders]:") + filename;
+		Vector<BYTE> vData;
+		IO::FileSystem::LoadResource(_C(url), vData);
+		char* p = new char[vData.size()];
+		memcpy(p, vData.data(), vData.size());
+		*pBytes = Utils::Cast32(vData.size());
+		*ppData = p;
+	}
+
+	virtual void Close(void* pData) override
+	{
+		delete[] pData;
+	}
+};
+
+// ShaderVulkan:
+
 ShaderVulkan::ShaderVulkan()
 {
 }
@@ -17,6 +38,12 @@ void ShaderVulkan::Init(CSZ source, CSZ* branches)
 	VERUS_INIT();
 	VERUS_QREF_CONST_SETTINGS;
 
+	ShaderInclude inc;
+#ifdef _DEBUG
+	const UINT32 flags = 1;
+#else
+	const UINT32 flags = 0;
+#endif
 	UINT32* pCode = nullptr;
 	UINT32 size = 0;
 	CSZ pErrorMsgs = nullptr;
@@ -29,13 +56,15 @@ void ShaderVulkan::Init(CSZ source, CSZ* branches)
 
 	auto CreateShaderModule = [](const UINT32* pCode, UINT32 size, VkShaderModule& shaderModule)
 	{
+		if (!pCode || !size)
+			return;
 		VERUS_QREF_RENDERER_VULKAN;
 		VkResult res = VK_SUCCESS;
 		VkShaderModuleCreateInfo vksmci = {};
 		vksmci.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 		vksmci.codeSize = size;
 		vksmci.pCode = pCode;
-		if (VK_SUCCESS != (res = vkCreateShaderModule(pRendererVulkan->GetDevice(), &vksmci, pRendererVulkan->GetAllocator(), &shaderModule)))
+		if (VK_SUCCESS != (res = vkCreateShaderModule(pRendererVulkan->GetVkDevice(), &vksmci, pRendererVulkan->GetAllocator(), &shaderModule)))
 			throw VERUS_RUNTIME_ERROR << "vkCreateShaderModule(), res=" << res;
 	};
 
@@ -92,30 +121,50 @@ void ShaderVulkan::Init(CSZ source, CSZ* branches)
 
 		Compiled compiled;
 
-		vDefines[typeIndex] = "_VS";
-		if (!RendererVulkan::VerusCompile(source, vDefines.data(), _C(entryVS), "vs", 0, &pCode, &size, &pErrorMsgs))
-			CheckErrorMsgs(pErrorMsgs);
-		CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::vs]);
+		if (strstr(source, " mainVS("))
+		{
+			compiled._numStages++;
+			vDefines[typeIndex] = "_VS";
+			if (!RendererVulkan::VerusCompile(source, vDefines.data(), &inc, _C(entryVS), "vs", flags, &pCode, &size, &pErrorMsgs))
+				CheckErrorMsgs(pErrorMsgs);
+			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::vs]);
+		}
 
-		vDefines[typeIndex] = "_HS";
-		if (!RendererVulkan::VerusCompile(source, vDefines.data(), _C(entryHS), "hs", 0, &pCode, &size, &pErrorMsgs))
-			CheckErrorMsgs(pErrorMsgs);
-		CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::hs]);
+		if (strstr(source, " mainHS("))
+		{
+			compiled._numStages++;
+			vDefines[typeIndex] = "_HS";
+			if (!RendererVulkan::VerusCompile(source, vDefines.data(), &inc, _C(entryHS), "hs", flags, &pCode, &size, &pErrorMsgs))
+				CheckErrorMsgs(pErrorMsgs);
+			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::hs]);
+		}
 
-		vDefines[typeIndex] = "_DS";
-		if (!RendererVulkan::VerusCompile(source, vDefines.data(), _C(entryDS), "ds", 0, &pCode, &size, &pErrorMsgs))
-			CheckErrorMsgs(pErrorMsgs);
-		CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::ds]);
+		if (strstr(source, " mainDS("))
+		{
+			compiled._numStages++;
+			vDefines[typeIndex] = "_DS";
+			if (!RendererVulkan::VerusCompile(source, vDefines.data(), &inc, _C(entryDS), "ds", flags, &pCode, &size, &pErrorMsgs))
+				CheckErrorMsgs(pErrorMsgs);
+			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::ds]);
+		}
 
-		vDefines[typeIndex] = "_GS";
-		if (!RendererVulkan::VerusCompile(source, vDefines.data(), _C(entryGS), "gs", 0, &pCode, &size, &pErrorMsgs))
-			CheckErrorMsgs(pErrorMsgs);
-		CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::gs]);
+		if (strstr(source, " mainGS("))
+		{
+			compiled._numStages++;
+			vDefines[typeIndex] = "_GS";
+			if (!RendererVulkan::VerusCompile(source, vDefines.data(), &inc, _C(entryGS), "gs", flags, &pCode, &size, &pErrorMsgs))
+				CheckErrorMsgs(pErrorMsgs);
+			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::gs]);
+		}
 
-		vDefines[typeIndex] = "_FS";
-		if (!RendererVulkan::VerusCompile(source, vDefines.data(), _C(entryFS), "fs", 0, &pCode, &size, &pErrorMsgs))
-			CheckErrorMsgs(pErrorMsgs);
-		CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::fs]);
+		if (strstr(source, " mainFS("))
+		{
+			compiled._numStages++;
+			vDefines[typeIndex] = "_FS";
+			if (!RendererVulkan::VerusCompile(source, vDefines.data(), &inc, _C(entryFS), "fs", flags, &pCode, &size, &pErrorMsgs))
+				CheckErrorMsgs(pErrorMsgs);
+			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::fs]);
+		}
 
 		_mapCompiled[entry] = compiled;
 

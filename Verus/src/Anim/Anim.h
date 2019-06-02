@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Damping.h"
 #include "Motion.h"
 #include "Skeleton.h"
 #include "Animation.h"

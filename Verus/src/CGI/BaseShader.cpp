@@ -3,6 +3,8 @@
 using namespace verus;
 using namespace verus::CGI;
 
+CSZ BaseShader::s_branchCommentMarker = "//@";
+
 void BaseShader::Load(CSZ url)
 {
 	Vector<BYTE> vData;
@@ -10,13 +12,14 @@ void BaseShader::Load(CSZ url)
 
 	Vector<String> vBranches;
 	CSZ pSource = reinterpret_cast<CSZ>(vData.data());
-	CSZ p = strstr(pSource, "//@");
+	CSZ p = strstr(pSource, s_branchCommentMarker);
+	const size_t branchCommentMarkerLen = strlen(s_branchCommentMarker);
 	while (p)
 	{
 		const size_t span = strcspn(p, VERUS_CRNL);
-		const String value(p + 3, span - 3);
+		const String value(p + branchCommentMarkerLen, span - branchCommentMarkerLen);
 		vBranches.push_back(value);
-		p = strstr(p + span, "//@");
+		p = strstr(p + span, s_branchCommentMarker);
 	}
 
 	Vector<CSZ> vBranchPtrs;
@@ -145,7 +148,7 @@ void ShaderPtr::Init(RcShaderDesc desc)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_RT_ASSERT(!_p);
-	//_p = render->InsertShader();
+	_p = renderer->InsertShader();
 	_p->SetIgnoreList(desc._ignoreList);
 	_p->SetSaveCompiled(desc._saveCompiled);
 	if (desc._url)
@@ -159,7 +162,7 @@ void ShaderPwn::Done()
 	if (_p)
 	{
 		VERUS_QREF_RENDERER;
-		//render->DeleteShader(_p);
+		renderer->DeleteShader(_p);
 		_p = nullptr;
 	}
 }

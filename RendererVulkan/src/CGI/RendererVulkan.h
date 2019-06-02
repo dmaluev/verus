@@ -4,7 +4,19 @@ namespace verus
 {
 	namespace CGI
 	{
-		class RendererVulkan : public Singleton<RendererVulkan>, public BaseRenderer
+		struct BaseShaderInclude
+		{
+			virtual void Open(CSZ filename, void** ppData, UINT32* pBytes) = 0;
+			virtual void Close(void* pData) = 0;
+		};
+
+		typedef Store<CommandBufferVulkan> TStoreCommandBuffers;
+		typedef Store<GeometryVulkan>      TStoreGeometry;
+		typedef Store<PipelineVulkan>      TStorePipelines;
+		typedef Store<ShaderVulkan>        TStoreShaders;
+		typedef Store<TextureVulkan>       TStoreTextures;
+		class RendererVulkan : public Singleton<RendererVulkan>, public BaseRenderer,
+			private TStoreCommandBuffers, private TStoreGeometry, private TStorePipelines, private TStoreShaders, private TStoreTextures
 		{
 			struct QueueFamilyIndices
 			{
@@ -44,13 +56,15 @@ namespace verus
 			VkSwapchainKHR           _swapChain = VK_NULL_HANDLE;
 			Vector<VkImage>          _vSwapChainImages;
 			Vector<VkImageView>      _vSwapChainImageViews;
-			VkCommandPool            _commandPools[s_ringBufferSize] = { VK_NULL_HANDLE };
-			VkCommandBuffer          _commandBuffers[s_ringBufferSize] = { VK_NULL_HANDLE };
-			VkSemaphore              _acquireNextImageSemaphores[s_ringBufferSize] = { VK_NULL_HANDLE };
-			VkSemaphore              _queueSubmitSemaphores[s_ringBufferSize] = { VK_NULL_HANDLE };
-			VkFence                  _queueSubmitFences[s_ringBufferSize] = { VK_NULL_HANDLE };
+			VkCommandPool            _commandPools[s_ringBufferSize] = {};
+			VkSemaphore              _acquireNextImageSemaphores[s_ringBufferSize] = {};
+			VkSemaphore              _queueSubmitSemaphores[s_ringBufferSize] = {};
+			VkSemaphore              _acquireNextImageSemaphore = VK_NULL_HANDLE;
+			VkSemaphore              _queueSubmitSemaphore = VK_NULL_HANDLE;
+			VkFence                  _queueSubmitFences[s_ringBufferSize] = {};
 			QueueFamilyIndices       _queueFamilyIndices;
-			TMapRenderPasses         _mapRenderPasses;
+			Vector<VkRenderPass>     _vRenderPasses;
+			Vector<VkFramebuffer>    _vFramebuffers;
 
 		public:
 			RendererVulkan();
@@ -63,7 +77,8 @@ namespace verus
 
 			static void VerusCompilerInit();
 			static void VerusCompilerDone();
-			static bool VerusCompile(CSZ source, CSZ* defines, CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs);
+			static bool VerusCompile(CSZ source, CSZ* defines, BaseShaderInclude* pInclude,
+				CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs);
 
 		private:
 			static VKAPI_ATTR VkBool32 VKAPI_CALL DebugUtilsMessengerCallback(
@@ -85,36 +100,49 @@ namespace verus
 			void CreateSwapChain();
 			void CreateImageViews();
 			void CreateCommandPools();
-			void CreateCommandBuffers();
 			void CreateSyncObjects();
 
 		public:
-			VkDevice GetDevice() const { return _device; }
+			VkCommandBuffer CreateCommandBuffer(VkCommandPool commandPool);
+
+			VkDevice GetVkDevice() const { return _device; }
 			const VkAllocationCallbacks* GetAllocator() const { return nullptr; }
+			VkCommandPool GetVkCommandPool(int ringBufferIndex) const { return _commandPools[ringBufferIndex]; }
 
 			// Which graphics API?
 			virtual Gapi GetGapi() override { return Gapi::vulkan; }
 
 			// Frame cycle:
-			virtual void BeginFrame() override;
-			virtual void EndFrame() override;
+			virtual void BeginFrame(bool present) override;
+			virtual void EndFrame(bool present) override;
 			virtual void Present() override;
 			virtual void Clear(UINT32 flags) override;
 
+			virtual void WaitIdle() override;
+
 			// Resources:
-			virtual PBaseCommandBuffer InsertCommandBuffer() override { return nullptr; }
-			virtual PBaseGeometry      InsertGeometry() override { return nullptr; }
-			virtual PBasePipeline      InsertPipeline() override { return nullptr; }
-			virtual PBaseShader        InsertShader() override { return nullptr; }
-			virtual PBaseTexture       InsertTexture() override { return nullptr; }
+			virtual PBaseCommandBuffer InsertCommandBuffer() override;
+			virtual PBaseGeometry      InsertGeometry() override;
+			virtual PBasePipeline      InsertPipeline() override;
+			virtual PBaseShader        InsertShader() override;
+			virtual PBaseTexture       InsertTexture() override;
 
-			virtual void DeleteCommandBuffer(PBaseCommandBuffer p) override {}
-			virtual void DeleteGeometry(PBaseGeometry p) override {}
-			virtual void DeletePipeline(PBasePipeline p) override {}
-			virtual void DeleteShader(PBaseShader p) override {}
-			virtual void DeleteTexture(PBaseTexture p) override {}
+			virtual void DeleteCommandBuffer(PBaseCommandBuffer p) override;
+			virtual void DeleteGeometry(PBaseGeometry p) override;
+			virtual void DeletePipeline(PBasePipeline p) override;
+			virtual void DeleteShader(PBaseShader p) override;
+			virtual void DeleteTexture(PBaseTexture p) override;
 
-			void CreateRenderPass(CSZ name, std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD);
+			virtual int CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) override;
+			virtual int CreateFramebuffer(int renderPassID, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex) override;
+			virtual void DeleteRenderPass(int id) override;
+			virtual void DeleteFramebuffer(int id) override;
+			int GetNextRenderPassID() const;
+			int GetNextFramebufferID() const;
+			VkRenderPass GetRenderPassByID(int id) const;
+			VkFramebuffer GetFramebufferByID(int id) const;
+
+			uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 		};
 		VERUS_TYPEDEFS(RendererVulkan);
 	}
@@ -123,7 +151,8 @@ namespace verus
 	{
 		typedef void(*PFNVERUSCOMPILERINIT)();
 		typedef void(*PFNVERUSCOMPILERDONE)();
-		typedef bool(*PFNVERUSCOMPILE)(CSZ source, CSZ* defines, CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs);
+		typedef bool(*PFNVERUSCOMPILE)(CSZ source, CSZ* defines, CGI::BaseShaderInclude* pInclude,
+			CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs);
 	}
 }
 

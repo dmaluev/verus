@@ -14,5 +14,8 @@ namespace verus
 
 		D3D_PRIMITIVE_TOPOLOGY ToNativePrimitiveTopology(PrimitiveTopology primitiveTopology);
 		D3D12_PRIMITIVE_TOPOLOGY_TYPE ToNativePrimitiveTopologyType(PrimitiveTopology primitiveTopology);
+
+		CSZ ToNativeSemanticName(IeUsage usage);
+		DXGI_FORMAT ToNativeFormat(IeUsage usage, IeType type, int components);
 	}
 }

@@ -15,5 +15,8 @@ namespace verus
 		VkPrimitiveTopology ToNativePrimitiveTopology(PrimitiveTopology primitiveTopology);
 
 		VkSampleCountFlagBits ToNativeSampleCount(int sampleCount);
+
+		int ToNativeLocation(IeUsage usage, int usageIndex);
+		VkFormat ToNativeFormat(IeUsage usage, IeType type, int components);
 	}
 }

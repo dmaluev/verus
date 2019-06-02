@@ -57,18 +57,10 @@ void RendererVulkan::Init()
 {
 	VERUS_INIT();
 
-	VerusCompilerInit();
+	_vRenderPasses.reserve(20);
+	_vFramebuffers.reserve(40);
 
-	const char* defines[] =
-	{
-		"Foo", "1",
-		"Bar", "2",
-		nullptr
-	};
-	UINT32* pCode;
-	UINT32 size;
-	const char* pErrorMsg;
-	VerusCompile("float4 mainVS() : POSITION {return float4(0, 0, 0, 1);}", defines, "mainVS", "vs", 0, &pCode, &size, &pErrorMsg);
+	VerusCompilerInit();
 
 	CreateInstance();
 #if defined(_DEBUG) || defined(VERUS_DEBUG)
@@ -80,17 +72,14 @@ void RendererVulkan::Init()
 	CreateSwapChain();
 	CreateImageViews();
 	CreateCommandPools();
-	CreateCommandBuffers();
 	CreateSyncObjects();
-
-
-	CreateRenderPass("Master", { RP::Attachment("RT", Format::unormR8G8B8A8).LoadOpClear().FinalLayout(ImageLayout::presentSrc) }, { RP::Subpass("SP") }, {});
 }
 
 void RendererVulkan::Done()
 {
-	if (_device)
-		vkDeviceWaitIdle(_device);
+	WaitIdle();
+	DeleteFramebuffer(-1);
+	DeleteRenderPass(-1);
 	VERUS_FOR(i, s_ringBufferSize)
 	{
 		VERUS_VULKAN_DESTROY(_acquireNextImageSemaphores[i], vkDestroySemaphore(_device, _acquireNextImageSemaphores[i], GetAllocator()));
@@ -142,16 +131,17 @@ void RendererVulkan::VerusCompilerDone()
 #endif
 }
 
-bool RendererVulkan::VerusCompile(CSZ source, CSZ* defines, CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs)
+bool RendererVulkan::VerusCompile(CSZ source, CSZ* defines, BaseShaderInclude* pInclude,
+	CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs)
 {
 #ifdef _WIN32
 	PFNVERUSCOMPILE VerusCompile = reinterpret_cast<PFNVERUSCOMPILE>(
 		GetProcAddress(LoadLibraryA("VulkanShaderCompiler.dll"), "VerusCompile"));
-	return VerusCompile(source, defines, entryPoint, target, flags, ppCode, pSize, ppErrorMsgs);
+	return VerusCompile(source, defines, pInclude, entryPoint, target, flags, ppCode, pSize, ppErrorMsgs);
 #else
 	PFNVERUSCOMPILE VerusCompile = reinterpret_cast<VerusCompile>(
 		dlsym(dlopen("./libVulkanShaderCompiler.so", RTLD_LAZY), "VerusCompile"));
-	return VerusCompile(source, defines, entryPoint, target, flags, ppCode, pSize, ppErrorMsgs);
+	return VerusCompile(source, defines, pInclude, entryPoint, target, flags, ppCode, pSize, ppErrorMsgs);
 #endif
 }
 
@@ -500,21 +490,6 @@ void RendererVulkan::CreateCommandPools()
 	}
 }
 
-void RendererVulkan::CreateCommandBuffers()
-{
-	VkResult res = VK_SUCCESS;
-	VERUS_FOR(i, s_ringBufferSize)
-	{
-		VkCommandBufferAllocateInfo vkcbai = {};
-		vkcbai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		vkcbai.commandPool = _commandPools[i];
-		vkcbai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		vkcbai.commandBufferCount = 1;
-		if (VK_SUCCESS != (res = vkAllocateCommandBuffers(_device, &vkcbai, &_commandBuffers[i])))
-			throw VERUS_RUNTIME_ERROR << "vkAllocateCommandBuffers(), res=" << res;
-	}
-}
-
 void RendererVulkan::CreateSyncObjects()
 {
 	VkResult res = VK_SUCCESS;
@@ -534,8 +509,23 @@ void RendererVulkan::CreateSyncObjects()
 	}
 }
 
-void RendererVulkan::BeginFrame()
+VkCommandBuffer RendererVulkan::CreateCommandBuffer(VkCommandPool commandPool)
 {
+	VkResult res = VK_SUCCESS;
+	VkCommandBufferAllocateInfo vkcbai = {};
+	vkcbai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	vkcbai.commandPool = commandPool;
+	vkcbai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	vkcbai.commandBufferCount = 1;
+	VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
+	if (VK_SUCCESS != (res = vkAllocateCommandBuffers(_device, &vkcbai, &commandBuffer)))
+		throw VERUS_RUNTIME_ERROR << "vkAllocateCommandBuffers(), res=" << res;
+	return commandBuffer;
+}
+
+void RendererVulkan::BeginFrame(bool present)
+{
+	VERUS_QREF_RENDERER;
 	VkResult res = VK_SUCCESS;
 
 	if (VK_SUCCESS != (res = vkWaitForFences(_device, 1, &_queueSubmitFences[_ringBufferIndex], VK_TRUE, UINT64_MAX)))
@@ -543,81 +533,69 @@ void RendererVulkan::BeginFrame()
 	if (VK_SUCCESS != (res = vkResetFences(_device, 1, &_queueSubmitFences[_ringBufferIndex])))
 		throw VERUS_RUNTIME_ERROR << "vkResetFences(), res=" << res;
 
-	if (VK_SUCCESS != (res = vkAcquireNextImageKHR(_device, _swapChain, UINT64_MAX, _acquireNextImageSemaphores[_ringBufferIndex], VK_NULL_HANDLE, &_swapChainBufferIndex)))
-		throw VERUS_RUNTIME_ERROR << "vkAcquireNextImageKHR(), res=" << res;
+	if (present)
+	{
+		if (VK_SUCCESS != (res = vkAcquireNextImageKHR(_device, _swapChain, UINT64_MAX, _acquireNextImageSemaphores[_ringBufferIndex], VK_NULL_HANDLE, &_swapChainBufferIndex)))
+			throw VERUS_RUNTIME_ERROR << "vkAcquireNextImageKHR(), res=" << res;
+	}
 
 	if (VK_SUCCESS != (res = vkResetCommandPool(_device, _commandPools[_ringBufferIndex], VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT)))
 		throw VERUS_RUNTIME_ERROR << "vkResetCommandPool(), res=" << res;
 
-	VkCommandBufferBeginInfo vkcbbi = {};
-	vkcbbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	vkcbbi.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-	if (VK_SUCCESS != (res = vkBeginCommandBuffer(_commandBuffers[_ringBufferIndex], &vkcbbi)))
-		throw VERUS_RUNTIME_ERROR << "vkBeginCommandBuffer(), res=" << res;
+	renderer.GetCommandBuffer()->Begin();
 }
 
-void RendererVulkan::EndFrame()
+void RendererVulkan::EndFrame(bool present)
 {
+	VERUS_QREF_RENDERER;
 	VkResult res = VK_SUCCESS;
 
-	VkImageMemoryBarrier vkimb = {};
-	vkimb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	vkimb.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	vkimb.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	vkimb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	vkimb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	vkimb.image = _vSwapChainImages[_swapChainBufferIndex];
-	vkimb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	vkimb.subresourceRange.baseMipLevel = 0;
-	vkimb.subresourceRange.levelCount = 1;
-	vkimb.subresourceRange.baseArrayLayer = 0;
-	vkimb.subresourceRange.layerCount = 1;
-	vkCmdPipelineBarrier(_commandBuffers[_ringBufferIndex], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &vkimb);
-
-	if (VK_SUCCESS != (res = vkEndCommandBuffer(_commandBuffers[_ringBufferIndex])))
-		throw VERUS_RUNTIME_ERROR << "vkEndCommandBuffer(), res=" << res;
+	renderer.GetCommandBuffer()->End();
 
 	const VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	const VkSemaphore waitSemaphores[] = { _acquireNextImageSemaphores[_ringBufferIndex] };
-	const VkSemaphore signalSemaphores[] = { _queueSubmitSemaphores[_ringBufferIndex] };
+	_acquireNextImageSemaphore = _acquireNextImageSemaphores[_ringBufferIndex];
+	_queueSubmitSemaphore = _queueSubmitSemaphores[_ringBufferIndex];
 
+	VkCommandBuffer commandBuffer = static_cast<CommandBufferVulkan*>(&(*renderer.GetCommandBuffer()))->GetVkCommandBuffer();
 	VkSubmitInfo vksi = {};
 	vksi.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	vksi.waitSemaphoreCount = VERUS_ARRAY_LENGTH(waitSemaphores);
-	vksi.pWaitSemaphores = waitSemaphores;
-	vksi.pWaitDstStageMask = waitStages;
+	if (present)
+	{
+		vksi.waitSemaphoreCount = 1;
+		vksi.pWaitSemaphores = &_acquireNextImageSemaphore;
+		vksi.pWaitDstStageMask = waitStages;
+	}
 	vksi.commandBufferCount = 1;
-	vksi.pCommandBuffers = &_commandBuffers[_ringBufferIndex];
+	vksi.pCommandBuffers = &commandBuffer;
 	if (!_queueFamilyIndices.IsSameQueue())
 	{
-		vksi.signalSemaphoreCount = VERUS_ARRAY_LENGTH(signalSemaphores);
-		vksi.pSignalSemaphores = signalSemaphores;
+		vksi.signalSemaphoreCount = 1;
+		vksi.pSignalSemaphores = &_queueSubmitSemaphore;
 	}
 	if (VK_SUCCESS != (res = vkQueueSubmit(_graphicsQueue, 1, &vksi, _queueSubmitFences[_ringBufferIndex])))
 		throw VERUS_RUNTIME_ERROR << "vkQueueSubmit(), res=" << res;
+
+	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
 }
 
 void RendererVulkan::Present()
 {
 	VkResult res = VK_SUCCESS;
 
-	const VkSemaphore waitSemaphores[] = { _queueSubmitSemaphores[_ringBufferIndex] };
 	const VkSwapchainKHR swapChains[] = { _swapChain };
 
 	VkPresentInfoKHR vkpi = {};
 	vkpi.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	if (!_queueFamilyIndices.IsSameQueue())
 	{
-		vkpi.waitSemaphoreCount = VERUS_ARRAY_LENGTH(waitSemaphores);
-		vkpi.pWaitSemaphores = waitSemaphores;
+		vkpi.waitSemaphoreCount = 1;
+		vkpi.pWaitSemaphores = &_queueSubmitSemaphore;
 	}
 	vkpi.swapchainCount = VERUS_ARRAY_LENGTH(swapChains);
 	vkpi.pSwapchains = swapChains;
 	vkpi.pImageIndices = &_swapChainBufferIndex;
 	if (VK_SUCCESS != (res = vkQueuePresentKHR(_presentQueue, &vkpi)))
 		throw VERUS_RUNTIME_ERROR << "vkQueuePresentKHR(), res=" << res;
-
-	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
 }
 
 void RendererVulkan::Clear(UINT32 flags)
@@ -636,7 +614,8 @@ void RendererVulkan::Clear(UINT32 flags)
 	vkimb.subresourceRange.levelCount = 1;
 	vkimb.subresourceRange.baseArrayLayer = 0;
 	vkimb.subresourceRange.layerCount = 1;
-	vkCmdPipelineBarrier(_commandBuffers[_ringBufferIndex], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &vkimb);
+	vkCmdPipelineBarrier(static_cast<CommandBufferVulkan*>(&(*renderer.GetCommandBuffer()))->GetVkCommandBuffer(),
+		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &vkimb);
 
 	VkClearColorValue clearColorValue;
 	memcpy(&clearColorValue, renderer.GetClearColor().ToPointer(), sizeof(clearColorValue));
@@ -646,33 +625,352 @@ void RendererVulkan::Clear(UINT32 flags)
 	vkisr.levelCount = 1;
 	vkisr.baseArrayLayer = 0;
 	vkisr.layerCount = 1;
-	vkCmdClearColorImage(_commandBuffers[_ringBufferIndex], _vSwapChainImages[_swapChainBufferIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValue, 1, &vkisr);
+	vkCmdClearColorImage(static_cast<CommandBufferVulkan*>(&(*renderer.GetCommandBuffer()))->GetVkCommandBuffer(),
+		_vSwapChainImages[_swapChainBufferIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValue, 1, &vkisr);
 }
 
-void RendererVulkan::CreateRenderPass(CSZ name, std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD)
+void RendererVulkan::WaitIdle()
 {
-	Vector<VkAttachmentDescription> vAttachmentDescription;
-	vAttachmentDescription.reserve(ilA.size());
-	for (auto attachment : ilA)
+	if (_device)
+		vkDeviceWaitIdle(_device);
+}
+
+// Resources:
+
+PBaseCommandBuffer RendererVulkan::InsertCommandBuffer()
+{
+	return TStoreCommandBuffers::Insert();
+}
+
+PBaseGeometry RendererVulkan::InsertGeometry()
+{
+	return TStoreGeometry::Insert();
+}
+
+PBasePipeline RendererVulkan::InsertPipeline()
+{
+	return TStorePipelines::Insert();
+}
+
+PBaseShader RendererVulkan::InsertShader()
+{
+	return TStoreShaders::Insert();
+}
+
+PBaseTexture RendererVulkan::InsertTexture()
+{
+	return TStoreTextures::Insert();
+}
+
+void RendererVulkan::DeleteCommandBuffer(PBaseCommandBuffer p)
+{
+	TStoreCommandBuffers::Delete(static_cast<PCommandBufferVulkan>(p));
+}
+
+void RendererVulkan::DeleteGeometry(PBaseGeometry p)
+{
+	TStoreGeometry::Delete(static_cast<PGeometryVulkan>(p));
+}
+
+void RendererVulkan::DeletePipeline(PBasePipeline p)
+{
+	TStorePipelines::Delete(static_cast<PPipelineVulkan>(p));
+}
+
+void RendererVulkan::DeleteShader(PBaseShader p)
+{
+	TStoreShaders::Delete(static_cast<PShaderVulkan>(p));
+}
+
+void RendererVulkan::DeleteTexture(PBaseTexture p)
+{
+	TStoreTextures::Delete(static_cast<PTextureVulkan>(p));
+}
+
+int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD)
+{
+	VkResult res = VK_SUCCESS;
+
+	auto ToNativeLoadOp = [](RP::Attachment::LoadOp op)
+	{
+		switch (op)
+		{
+		case RP::Attachment::LoadOp::load:     return VK_ATTACHMENT_LOAD_OP_LOAD;
+		case RP::Attachment::LoadOp::clear:    return VK_ATTACHMENT_LOAD_OP_CLEAR;
+		case RP::Attachment::LoadOp::dontCare: return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		default: throw VERUS_RECOVERABLE << "CreateRenderPass(), LoadOp";
+		};
+	};
+	auto ToNativeStoreOp = [](RP::Attachment::StoreOp op)
+	{
+		switch (op)
+		{
+		case RP::Attachment::StoreOp::store:    return VK_ATTACHMENT_STORE_OP_STORE;
+		case RP::Attachment::StoreOp::dontCare: return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		default: throw VERUS_RECOVERABLE << "CreateRenderPass(), StoreOp";
+		}
+	};
+
+	Vector<VkAttachmentDescription> vAttachmentDesc;
+	vAttachmentDesc.reserve(ilA.size());
+	for (auto& attachment : ilA)
 	{
 		VkAttachmentDescription vkad = {};
 		vkad.format = ToNativeFormat(attachment._format);
 		vkad.samples = ToNativeSampleCount(attachment._sampleCount);
-		switch (attachment._loadOp)
-		{
-		case RP::Attachment::LoadOp::load: vkad.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD; break;
-		case RP::Attachment::LoadOp::clear: vkad.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR; break;
-		case RP::Attachment::LoadOp::dontCare: vkad.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE; break;
-		default: throw VERUS_RECOVERABLE << "CreateRenderPass(), LoadOp";
-		};
-		switch (attachment._storeOp)
-		{
-		case RP::Attachment::StoreOp::store: vkad.storeOp = VK_ATTACHMENT_STORE_OP_STORE; break;
-		case RP::Attachment::StoreOp::dontCare: vkad.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; break;
-		default: throw VERUS_RECOVERABLE << "CreateRenderPass(), StoreOp";
-		}
+		vkad.loadOp = ToNativeLoadOp(attachment._loadOp);
+		vkad.storeOp = ToNativeStoreOp(attachment._storeOp);
+		vkad.stencilLoadOp = ToNativeLoadOp(attachment._stencilLoadOp);
+		vkad.stencilStoreOp = ToNativeStoreOp(attachment._stencilStoreOp);
 		vkad.initialLayout = ToNativeImageLayout(attachment._initialLayout);
 		vkad.finalLayout = ToNativeImageLayout(attachment._finalLayout);
-		vAttachmentDescription.push_back(vkad);
+		vAttachmentDesc.push_back(vkad);
 	}
+
+	auto GetAttachmentIndexByName = [&ilA](CSZ name) -> uint32_t
+	{
+		if (!name)
+			return VK_ATTACHMENT_UNUSED;
+		uint32_t index = 0;
+		for (auto& attachment : ilA)
+		{
+			if (!strcmp(attachment._name, name))
+				return index;
+			index++;
+		}
+		throw VERUS_RECOVERABLE << "CreateRenderPass(), Attachment not found";
+	};
+
+	struct SubpassMetadata
+	{
+		int inputRefIndex = -1;
+		int colorRefIndex = -1;
+		int resolveRefIndex = -1;
+		int depthStencilRefIndex = -1;
+		int preserveIndex = -1;
+	};
+
+	Vector<VkAttachmentReference> vAttachmentRef;
+	vAttachmentRef.reserve(20);
+	Vector<uint32_t> vAttachmentIndex;
+	vAttachmentIndex.reserve(20);
+
+	Vector<SubpassMetadata> vSubpassMetadata;
+	vSubpassMetadata.reserve(ilS.size());
+	Vector<VkSubpassDescription> vSubpassDesc;
+	vSubpassDesc.reserve(ilS.size());
+	for (auto& subpass : ilS)
+	{
+		SubpassMetadata subpassMetadata;
+		VkSubpassDescription vksd = {};
+		vksd.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+		vksd.inputAttachmentCount = Utils::Cast32(subpass._ilInput.size());
+		subpassMetadata.inputRefIndex = Utils::Cast32(vAttachmentRef.size());
+		for (auto& input : subpass._ilInput)
+		{
+			VkAttachmentReference vkar = {};
+			vkar.attachment = GetAttachmentIndexByName(input._name);
+			vkar.layout = ToNativeImageLayout(input._layout);
+			vAttachmentRef.push_back(vkar);
+		}
+
+		vksd.colorAttachmentCount = Utils::Cast32(subpass._ilColor.size());
+		subpassMetadata.colorRefIndex = Utils::Cast32(vAttachmentRef.size());
+		for (auto& color : subpass._ilColor)
+		{
+			VkAttachmentReference vkar = {};
+			vkar.attachment = GetAttachmentIndexByName(color._name);
+			vkar.layout = ToNativeImageLayout(color._layout);
+			vAttachmentRef.push_back(vkar);
+		}
+
+		if (subpass._depthStencil._name)
+		{
+			subpassMetadata.depthStencilRefIndex = Utils::Cast32(vAttachmentRef.size());
+			VkAttachmentReference vkar = {};
+			vkar.attachment = GetAttachmentIndexByName(subpass._depthStencil._name);
+			vkar.layout = ToNativeImageLayout(subpass._depthStencil._layout);
+			vAttachmentRef.push_back(vkar);
+		}
+
+		vksd.preserveAttachmentCount = Utils::Cast32(subpass._ilPreserve.size());
+		subpassMetadata.preserveIndex = Utils::Cast32(vAttachmentIndex.size());
+		for (auto& preserve : subpass._ilPreserve)
+		{
+			const uint32_t index = GetAttachmentIndexByName(preserve._name);
+			vAttachmentIndex.push_back(index);
+		}
+
+		vSubpassDesc.push_back(vksd);
+		vSubpassMetadata.push_back(subpassMetadata);
+	}
+
+	// vAttachmentRef is ready, convert indices to actual pointers:
+	if (vAttachmentRef.empty())
+		throw VERUS_RECOVERABLE << "CreateRenderPass(), No attachment references";
+	int index = 0;
+	for (auto& sd : vSubpassDesc)
+	{
+		const SubpassMetadata& sm = vSubpassMetadata[index];
+		if (sd.inputAttachmentCount)
+			sd.pInputAttachments = &vAttachmentRef[sm.inputRefIndex];
+		if (sd.colorAttachmentCount)
+			sd.pColorAttachments = &vAttachmentRef[sm.colorRefIndex];
+		if (sm.depthStencilRefIndex >= 0)
+			sd.pDepthStencilAttachment = &vAttachmentRef[sm.depthStencilRefIndex];
+		if (sd.preserveAttachmentCount)
+			sd.pPreserveAttachments = &vAttachmentIndex[sm.preserveIndex];
+		index++;
+	}
+
+	Vector<VkSubpassDependency> vSubpassDependency;
+	vSubpassDependency.reserve(ilD.size());
+	for (auto& dependency : ilD)
+	{
+		VkSubpassDependency vksd = {};
+
+		vSubpassDependency.push_back(vksd);
+	}
+
+	VkSubpassDependency dependency = {};
+	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	dependency.dstSubpass = 0;
+	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.srcAccessMask = 0;
+	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	vSubpassDependency.push_back(dependency);
+
+	VkRenderPass renderPass = VK_NULL_HANDLE;
+	VkRenderPassCreateInfo vkrpci = {};
+	vkrpci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	vkrpci.attachmentCount = Utils::Cast32(vAttachmentDesc.size());
+	vkrpci.pAttachments = vAttachmentDesc.data();
+	vkrpci.subpassCount = Utils::Cast32(vSubpassDesc.size());
+	vkrpci.pSubpasses = vSubpassDesc.data();
+	vkrpci.dependencyCount = Utils::Cast32(vSubpassDependency.size());
+	vkrpci.pDependencies = vSubpassDependency.data();
+	if (VK_SUCCESS != (res = vkCreateRenderPass(_device, &vkrpci, GetAllocator(), &renderPass)))
+		throw VERUS_RUNTIME_ERROR << "vkCreateRenderPass(), res=" << res;
+
+	const int id = GetNextRenderPassID();
+	if (id >= _vRenderPasses.size())
+		_vRenderPasses.push_back(renderPass);
+	else
+		_vRenderPasses[id] = renderPass;
+
+	return id;
+}
+
+int RendererVulkan::CreateFramebuffer(int renderPassID, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex)
+{
+	VkResult res = VK_SUCCESS;
+
+	VkImageView imageViews[VERUS_CGI_MAX_RT] = {};
+	VkFramebuffer framebuffer = VK_NULL_HANDLE;
+	VkFramebufferCreateInfo vkfci = {};
+	vkfci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	vkfci.renderPass = GetRenderPassByID(renderPassID);
+	int num = 0;
+	if (swapChainBufferIndex >= 0)
+	{
+		imageViews[num] = _vSwapChainImageViews[swapChainBufferIndex];
+		num++;
+	}
+	for (const auto& x : il)
+	{
+		auto& texVulkan = static_cast<RTextureVulkan>(*x);
+		imageViews[num] = texVulkan.GetVkImageView();
+		num++;
+	}
+	vkfci.attachmentCount = num;
+	vkfci.pAttachments = imageViews;
+	vkfci.width = w;
+	vkfci.height = h;
+	vkfci.layers = 1;
+	if (VK_SUCCESS != (res = vkCreateFramebuffer(_device, &vkfci, GetAllocator(), &framebuffer)))
+		throw VERUS_RUNTIME_ERROR << "vkCreateFramebuffer(), res=" << res;
+
+	const int id = GetNextFramebufferID();
+	if (id >= _vFramebuffers.size())
+		_vFramebuffers.push_back(framebuffer);
+	else
+		_vFramebuffers[id] = framebuffer;
+
+	return id;
+}
+
+void RendererVulkan::DeleteRenderPass(int id)
+{
+	if (id >= 0)
+	{
+		vkDestroyRenderPass(_device, _vRenderPasses[id], GetAllocator());
+		_vRenderPasses[id] = VK_NULL_HANDLE;
+	}
+	else
+	{
+		for (auto renderPass : _vRenderPasses)
+			vkDestroyRenderPass(_device, renderPass, GetAllocator());
+		_vRenderPasses.clear();
+	}
+}
+
+void RendererVulkan::DeleteFramebuffer(int id)
+{
+	if (id >= 0)
+	{
+		vkDestroyFramebuffer(_device, _vFramebuffers[id], GetAllocator());
+		_vFramebuffers[id] = VK_NULL_HANDLE;
+	}
+	else
+	{
+		for (auto framebuffer : _vFramebuffers)
+			vkDestroyFramebuffer(_device, framebuffer, GetAllocator());
+		_vFramebuffers.clear();
+	}
+}
+
+int RendererVulkan::GetNextRenderPassID() const
+{
+	const int num = Utils::Cast32(_vRenderPasses.size());
+	VERUS_FOR(i, num)
+	{
+		if (VK_NULL_HANDLE == _vRenderPasses[i])
+			return i;
+	}
+	return num;
+}
+
+int RendererVulkan::GetNextFramebufferID() const
+{
+	const int num = Utils::Cast32(_vFramebuffers.size());
+	VERUS_FOR(i, num)
+	{
+		if (VK_NULL_HANDLE == _vFramebuffers[i])
+			return i;
+	}
+	return num;
+}
+
+VkRenderPass RendererVulkan::GetRenderPassByID(int id) const
+{
+	return _vRenderPasses[id];
+}
+
+VkFramebuffer RendererVulkan::GetFramebufferByID(int id) const
+{
+	return _vFramebuffers[id];
+}
+
+uint32_t RendererVulkan::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+{
+	VkPhysicalDeviceMemoryProperties vkpdmp = {};
+	vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &vkpdmp);
+	for (uint32_t i = 0; i < vkpdmp.memoryTypeCount; i++)
+	{
+		if ((typeFilter & (1 << i)) && (vkpdmp.memoryTypes[i].propertyFlags & properties) == properties)
+			return i;
+	}
+	throw VERUS_RECOVERABLE << "FindMemoryType(), Memory type not found";
 }

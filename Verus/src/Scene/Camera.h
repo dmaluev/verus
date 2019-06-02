@@ -101,7 +101,7 @@ namespace verus
 		{
 			Matrix4            _matPrevVP = Matrix4::identity(); // For motion blur.
 			PCursorPosProvider _pCpp = nullptr;
-			UINT32             _currentFrame = -1;
+			UINT64             _currentFrame = UINT64_MAX;
 
 		public:
 			void operator=(const MainCamera& that);

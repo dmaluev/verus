@@ -6,14 +6,17 @@ namespace verus
 	{
 		struct PipelineDesc
 		{
-			Vector4                    _viewport;
-			Vector4                    _scissor;
-			RcBaseShader               _shader;
+			GeometryPtr                _geometry;
+			ShaderPtr                  _shader;
 			CSZ                        _shaderBranch = nullptr;
 			PipelineRasterizationState _rasterizationState;
 			PrimitiveTopology          _topology = PrimitiveTopology::triangleList;
 			int                        _sampleCount = 1;
 			bool                       _primitiveRestartEnable = false;
+			int                        _renderPassID = -1;
+
+			PipelineDesc(GeometryPtr geo, ShaderPtr shader, CSZ branch, int renderPassID) :
+				_geometry(geo), _shader(shader), _shaderBranch(branch), _renderPassID(renderPassID) {}
 		};
 		VERUS_TYPEDEFS(PipelineDesc);
 

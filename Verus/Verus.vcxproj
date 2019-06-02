@@ -93,6 +93,7 @@
     <ClInclude Include="src\AI\Turret.h" />
     <ClInclude Include="src\Anim\Anim.h" />
     <ClInclude Include="src\Anim\Animation.h" />
+    <ClInclude Include="src\Anim\Damping.h" />
     <ClInclude Include="src\Anim\Motion.h" />
     <ClInclude Include="src\Anim\Skeleton.h" />
     <ClInclude Include="src\App\App.h" />
@@ -122,6 +123,7 @@
     <ClInclude Include="src\D\Recoverable.h" />
     <ClInclude Include="src\D\RuntimeError.h" />
     <ClInclude Include="src\Game\BaseGame.h" />
+    <ClInclude Include="src\Game\Spirit.h" />
     <ClInclude Include="src\Game\Game.h" />
     <ClInclude Include="src\Game\State.h" />
     <ClInclude Include="src\Game\StateMachine.h" />
@@ -219,6 +221,7 @@
     <ClCompile Include="src\CGI\RenderPass.cpp" />
     <ClCompile Include="src\D\Log.cpp" />
     <ClCompile Include="src\Game\BaseGame.cpp" />
+    <ClCompile Include="src\Game\Spirit.cpp" />
     <ClCompile Include="src\Game\State.cpp" />
     <ClCompile Include="src\Game\StateMachine.cpp" />
     <ClCompile Include="src\Global\AllocatorAware.cpp" />

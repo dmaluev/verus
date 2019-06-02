@@ -38,7 +38,7 @@ namespace verus
 
 			// Internal objects:
 			Scene::RCamera GetCamera();
-			//RCharacter GetCameraCharacter();
+			RSpirit GetCameraSpirit();
 
 			// Configurations:
 			void ActivateDefaultCameraMovement(bool b);

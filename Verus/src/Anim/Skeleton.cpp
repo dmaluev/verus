@@ -753,13 +753,13 @@ void Skeleton::BakeMotion(RMotion motion, int frame, bool kinect)
 		Quat q(mat.getUpper3x3());
 		Vector3 pos = mat.getTranslation();
 
-		if (glm::epsilonEqual<float>(q.getX(), 0, 1e-4f)) q.setX(0);
-		if (glm::epsilonEqual<float>(q.getY(), 0, 1e-4f)) q.setY(0);
-		if (glm::epsilonEqual<float>(q.getZ(), 0, 1e-4f)) q.setZ(0);
-		if (glm::epsilonEqual<float>(q.getW(), 1, 1e-4f)) q.setW(1);
-		if (glm::epsilonEqual<float>(pos.getX(), 0, 1e-4f)) pos.setX(0);
-		if (glm::epsilonEqual<float>(pos.getY(), 0, 1e-4f)) pos.setY(0);
-		if (glm::epsilonEqual<float>(pos.getZ(), 0, 1e-4f)) pos.setZ(0);
+		if (glm::epsilonEqual<float>(q.getX(), 0, VERUS_FLOAT_THRESHOLD)) q.setX(0);
+		if (glm::epsilonEqual<float>(q.getY(), 0, VERUS_FLOAT_THRESHOLD)) q.setY(0);
+		if (glm::epsilonEqual<float>(q.getZ(), 0, VERUS_FLOAT_THRESHOLD)) q.setZ(0);
+		if (glm::epsilonEqual<float>(q.getW(), 1, VERUS_FLOAT_THRESHOLD)) q.setW(1);
+		if (glm::epsilonEqual<float>(pos.getX(), 0, VERUS_FLOAT_THRESHOLD)) pos.setX(0);
+		if (glm::epsilonEqual<float>(pos.getY(), 0, VERUS_FLOAT_THRESHOLD)) pos.setY(0);
+		if (glm::epsilonEqual<float>(pos.getZ(), 0, VERUS_FLOAT_THRESHOLD)) pos.setZ(0);
 
 		if (!Math::IsNaN(q.getX()) &&
 			!Math::IsNaN(q.getY()) &&

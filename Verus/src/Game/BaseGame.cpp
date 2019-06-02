@@ -16,7 +16,6 @@ struct MyRendererDelegate : CGI::RendererDelegate
 		VERUS_QREF_TIMER;
 		const float x = fmod(timer.GetTime(), 1.f);
 		renderer.SetClearColor(Vector4(x, 0.5f, 0.25f, 1.f));
-		renderer->BeginFrame();
 		renderer->Clear(0);
 		_p->BaseGame_Draw();
 	}
@@ -29,7 +28,6 @@ struct MyRendererDelegate : CGI::RendererDelegate
 	virtual void Renderer_OnPresent() override
 	{
 		VERUS_QREF_RENDERER;
-		renderer->EndFrame();
 		renderer->Present();
 	}
 
@@ -43,7 +41,7 @@ struct BaseGame::Pimpl : AllocatorAware
 {
 	PBaseGame         _p = nullptr;
 	Scene::MainCamera _camera;
-	//CCharacter      _cameraCharacter;
+	Spirit            _cameraSpirit;
 	bool              _defaultCameraMovement = true;
 	bool              _showFPS = true;
 	bool              _debugBullet = false;
@@ -109,12 +107,14 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS)
 	_engineInit.Init(this, new MyRendererDelegate(this));
 
 	// Configure:
-	//VERUS_QREF_RENDER;
+	VERUS_QREF_RENDERER;
 	//VERUS_QREF_SM;
-	//_p->_camera.SetAspectRatio(render.GetWindowAspectRatio());
+	_p->_camera.SetAspectRatio(renderer.GetWindowAspectRatio());
 	//sm.SetCamera(&_p->_camera);
 
+	renderer->BeginFrame(false); // Begin recording a command buffer.
 	BaseGame_LoadContent();
+	renderer->EndFrame(false); // End recording a command buffer.
 }
 
 void BaseGame::Run()
@@ -180,36 +180,36 @@ void BaseGame::Run()
 
 		//
 		// UPDATE
-		// At this point the user sees a frame drawn some time ago.
 		//
+
+		renderer->BeginFrame();
 
 		async.Update();
 
-		timer.Update(); // Now we know how much time has passed. Maybe 1 hour!
+		timer.Update();
 
-		// Process input for simulation:
 		if (_p->_defaultCameraMovement)
 		{
 			const float speed = km.IsKeyPressed(SDL_SCANCODE_SPACE) ? 20.f : 2.f;
-			//if (km.IsKeyPressed(SDL_SCANCODE_W))
-			//	_p->_cameraCharacter.MoveFront(speed);
-			//if (km.IsKeyPressed(SDL_SCANCODE_S))
-			//	_p->_cameraCharacter.MoveFront(-speed);
-			//if (km.IsKeyPressed(SDL_SCANCODE_A))
-			//	_p->_cameraCharacter.MoveSide(-speed);
-			//if (km.IsKeyPressed(SDL_SCANCODE_D))
-			//	_p->_cameraCharacter.MoveSide(speed);
+			if (km.IsKeyPressed(SDL_SCANCODE_W))
+				_p->_cameraSpirit.MoveFront(speed);
+			if (km.IsKeyPressed(SDL_SCANCODE_S))
+				_p->_cameraSpirit.MoveFront(-speed);
+			if (km.IsKeyPressed(SDL_SCANCODE_A))
+				_p->_cameraSpirit.MoveSide(-speed);
+			if (km.IsKeyPressed(SDL_SCANCODE_D))
+				_p->_cameraSpirit.MoveSide(speed);
 		}
 		BaseGame_HandleInput();
 
-		//bullet.Simulate(); // x += v*dt.
+		//bullet.Simulate();
 
-		// Update game state after simulation:
 		if (_p->_defaultCameraMovement)
 		{
-			//_p->_cameraCharacter.Update(); // Get position from Bullet.
-			//_p->_camera.MoveEyeTo(_p->_cameraCharacter.GetPosition());
-			//_p->_camera.MoveAtTo(_p->_cameraCharacter.GetPosition() + _p->_cameraCharacter.GetDirectionFront());
+			_p->_cameraSpirit.HandleInput();
+			_p->_cameraSpirit.Update();
+			_p->_camera.MoveEyeTo(_p->_cameraSpirit.GetPosition());
+			_p->_camera.MoveAtTo(_p->_cameraSpirit.GetPosition() + _p->_cameraSpirit.GetDirectionFront());
 			//if (Scene::CWater::IsValidSingleton())
 			{
 				//	VERUS_QREF_WATER;
@@ -218,6 +218,7 @@ void BaseGame::Run()
 			}
 			_p->_camera.Update();
 		}
+
 		BaseGame_Update();
 
 		asys.Update();
@@ -225,7 +226,8 @@ void BaseGame::Run()
 		// Draw current frame:
 		renderer.Draw();
 		km.ResetClickState();
-		renderer.Present(); // This can take a while.
+		renderer->EndFrame();
+		renderer.Present();
 
 		// Show FPS:
 		if (_p->_showFPS && timer.IsEventEvery(500))
@@ -256,13 +258,15 @@ void BaseGame::KeyMapper_OnMouseMove(int x, int y)
 {
 	VERUS_QREF_CONST_SETTINGS;
 
-	const float fx = x * 0.006f*settings._inputMouseSensitivity;
-	const float fy = y * 0.006f*settings._inputMouseSensitivity;
+	const float rad = (VERUS_2PI / 360.f) / 3.f; // 3 pixels = 1 degree.
+	const float scale = rad * settings._inputMouseSensitivity;
+	const float fx = x * scale;
+	const float fy = y * scale;
 
 	if (_p->_defaultCameraMovement)
 	{
-		//_p->_cameraCharacter.TurnPitch(fy);
-		//_p->_cameraCharacter.TurnYaw(fx);
+		_p->_cameraSpirit.TurnPitch(fy);
+		_p->_cameraSpirit.TurnYaw(fx);
 	}
 
 	BaseGame_OnMouseMove(fx, fy);
@@ -284,9 +288,9 @@ Scene::RCamera BaseGame::GetCamera()
 }
 
 #if 0
-RCharacter BaseGame::GetCameraCharacter()
+RSpirit BaseGame::GetCameraSpirit()
 {
-	return _p->_cameraCharacter;
+	return _p->_cameraSpirit;
 }
 #endif
 

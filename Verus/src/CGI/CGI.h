@@ -1,8 +1,11 @@
 #pragma once
 
+#define VERUS_CGI_MAX_RT 8
+
 #include "Types.h"
 #include "Formats.h"
 #include "RenderPass.h"
+
 #include "BaseGeometry.h"
 #include "BaseShader.h"
 #include "BasePipeline.h"

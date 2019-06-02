@@ -3,6 +3,9 @@
 using namespace verus;
 using namespace verus::IO;
 
+CSZ FileSystem::s_dataFolder = "/Data/";
+CSZ FileSystem::s_shaderPAK = "[Shaders]:";
+
 FileSystem::FileSystem()
 {
 }
@@ -11,14 +14,16 @@ FileSystem::~FileSystem()
 {
 }
 
-size_t FileSystem::FindColonForPAK(CSZ url)
+size_t FileSystem::FindPosForPAK(CSZ url)
 {
-	const char* pColon = strchr(url, ':');
-	if (!pColon)
+	if (!url)
 		return String::npos;
-	const size_t at = pColon - url;
-	if (at < 2) // "C:\..."
+	if (*url != '[')
 		return String::npos;
+	const char* pEnd = strstr(url, "]:");
+	if (!pEnd)
+		return String::npos;
+	const size_t at = pEnd - url;
 	return at;
 }
 
@@ -37,7 +42,7 @@ void FileSystem::ReadHeaderPAK(RFile file, UINT32& magic, INT64& entriesOffset, 
 void FileSystem::PreloadCache(CSZ pak, CSZ types[])
 {
 	StringStream ss;
-	//ss << Utils::I().GetModulePath() << "/Data/" << pak;
+	//ss << Utils::I().GetModulePath() << s_dataFolder << pak;
 	File file;
 	if (!file.Open(_C(ss.str())))
 		return;
@@ -109,49 +114,48 @@ void FileSystem::PreloadCache(CSZ pak, CSZ types[])
 void FileSystem::LoadResource(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc)
 {
 	String pathNamePAK, pakEntry;
-	const size_t colon = FindColonForPAK(url);
-	if (colon != String::npos) // "Foo:Bar.ext" format -> in PAK file:
+	const size_t pakPos = FindPosForPAK(url);
+	if (pakPos != String::npos) // "[Foo]:Bar.ext" format -> in PAK file:
 	{
 		String strUrl(url);
 		StringStream ss;
-		//ss << Utils::I().GetModulePath() << "/Data/";
-		ss << strUrl.substr(0, colon) << ".pak";
-		const String name = strUrl.substr(colon + 1);
+		ss << _C(Utils::I().GetModulePath()) << s_dataFolder;
+		ss << strUrl.substr(1, pakPos - 1) << ".pak";
+		const String name = strUrl.substr(pakPos + 2);
 		const WideString wide = Str::Utf8ToWide(name);
 		pathNamePAK = ss.str();
 		pakEntry = Str::CyrillicWideToAnsi(_C(wide));
 	}
 
-	File arPAK;
+	File filePAK;
 	if (pathNamePAK.empty() || pakEntry.empty()) // System file name?
 		return LoadResourceFromFile(url, vData, desc);
-	if (!arPAK.Open(_C(pathNamePAK))) // PAK not found? Try system file.
+	if (!filePAK.Open(_C(pathNamePAK))) // PAK not found? Try system file.
 		return LoadResourceFromFile(url, vData, desc);
 
-	LoadResourceFromPAK(url, vData, desc, arPAK, _C(pakEntry));
+	LoadResourceFromPAK(url, vData, desc, filePAK, _C(pakEntry));
 }
 
 void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc)
 {
 	String strUrl(url), pathNameProject(url);
-	const bool shader = strUrl.find("Shaders:") != String::npos;
-	const size_t colon = FindColonForPAK(url);
-	if (colon != String::npos)
+	const bool shader = Str::StartsWith(url, s_shaderPAK);
+	const size_t pakPos = FindPosForPAK(url);
+	if (pakPos != String::npos)
 	{
-		if (shader/* && !Utils::I().GetForcedCgPath().empty()*/)
+		if (shader)
 		{
-			strUrl.replace(0, 8, "/");
+			strUrl.replace(0, strlen(s_shaderPAK), "/");
 			StringStream ss;
-			//ss << Utils::I().GetForcedCgPath() << strUrl;
-			//pathNameProject = String(_C(Utils::I().GetProjectPath())) + "/" + strUrl;
+			ss << _C(Utils::I().GetShaderPath()) << strUrl;
 			strUrl = ss.str();
 		}
 		else
 		{
-			strUrl.replace(colon, 1, "/");
+			String folder = strUrl.substr(1, pakPos - 1);
+			strUrl.replace(pakPos, 1, "/");
 			StringStream ss;
-			//ss << Utils::I().GetModulePath() << "/Data/" << strUrl;
-			//pathNameProject = String(_C(Utils::I().GetProjectPath())) + "/" + strUrl;
+			ss << _C(Utils::I().GetModulePath()) << s_dataFolder << folder << strUrl;
 			strUrl = ss.str();
 		}
 	}
@@ -346,18 +350,18 @@ String FileSystem::ConvertFilenameToPassword(CSZ fileEntry)
 bool FileSystem::FileExist(CSZ url)
 {
 	String path(url), pak, project;
-	const size_t colon = FindColonForPAK(url);
-	if (colon != String::npos)
+	const size_t pakPos = FindPosForPAK(url);
+	if (pakPos != String::npos)
 	{
 		StringStream ssPak;
-		//ssPak << Utils::I().GetModulePath() << "/Data/" << path.substr(0, colon) << ".pak";
+		//ssPak << Utils::I().GetModulePath() << s_dataFolder << path.substr(0, pakPos) << ".pak";
 		pak = ssPak.str();
 
-		path.replace(colon, 1, "/");
+		path.replace(pakPos, 1, "/");
 		//project = String(_C(Utils::I().GetProjectPath())) + "/" + path;
 
 		StringStream ss;
-		//ss << Utils::I().GetModulePath() << "/Data/" << path;
+		//ss << Utils::I().GetModulePath() << s_dataFolder << path;
 		path = ss.str();
 	}
 	File file;
@@ -411,7 +415,7 @@ String FileSystem::ConvertRelativePathToAbsolute(RcString path, bool useProjectD
 	//if (useProjectDir && *_C(utils.GetProjectPath()))
 	//	systemPath = String(_C(utils.GetProjectPath())) + "/" + systemPath;
 	//else
-	//	systemPath = utils.GetModulePath() + "/Data/" + systemPath;
+	//	systemPath = utils.GetModulePath() + s_dataFolder + systemPath;
 	return systemPath;
 }
 

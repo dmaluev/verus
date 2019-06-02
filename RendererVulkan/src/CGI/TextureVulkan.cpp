@@ -19,5 +19,9 @@ void TextureVulkan::Init(RcTextureDesc desc)
 
 void TextureVulkan::Done()
 {
+	VERUS_QREF_RENDERER_VULKAN;
+
+	VERUS_VULKAN_DESTROY(_imageView, vkDestroyImageView(pRendererVulkan->GetVkDevice(), _imageView, pRendererVulkan->GetAllocator()));
+
 	VERUS_DONE(TextureVulkan);
 }

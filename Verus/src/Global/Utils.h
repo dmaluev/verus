@@ -5,6 +5,9 @@ namespace verus
 	class Utils : public Singleton<Utils>
 	{
 		Random         _random;
+		String         _modulePath;
+		String         _shaderPath;
+		String         _writablePath;
 		PBaseAllocator _pAllocator;
 
 	public:
@@ -15,6 +18,14 @@ namespace verus
 		static void MakeEx(PBaseAllocator pAlloc);
 		//! Destruct Utils using the provided allocator:
 		static void FreeEx(PBaseAllocator pAlloc);
+
+		void InitPaths();
+		Str  GetModulePath() const { return _C(_modulePath); }
+		void SetModulePath(CSZ path) { _modulePath = path; }
+		Str  GetShaderPath() const { return _C(_shaderPath); }
+		void SetShaderPath(CSZ path) { _shaderPath = path; }
+		Str  GetWritablePath() const { return _C(_writablePath); }
+		void SetWritablePath(CSZ path) { _writablePath = path; }
 
 		RRandom GetRandom() { return _random; }
 

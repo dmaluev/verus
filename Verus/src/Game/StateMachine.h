@@ -8,14 +8,17 @@ namespace verus
 		{
 			PState _pCurrentState = nullptr;
 			PState _pRequestedState = nullptr;
-			UINT32 _prevFrame = -1;
+			UINT64 _prevFrame = UINT64_MAX;
 			bool   _changed = false;
 
 		public:
 			void HandleInput();
 			void Update();
+			void Draw();
+
 			PState GetCurrentState() const;
 			PState GetRequestedState() const;
+
 			bool CanEnterState(RState state, bool allowSameState = false);
 			bool EnterState(RState state, bool allowSameState = false);
 			bool EnterRequestedState();

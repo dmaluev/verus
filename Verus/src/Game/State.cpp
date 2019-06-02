@@ -20,6 +20,10 @@ void State::Update()
 {
 }
 
+void State::Draw()
+{
+}
+
 void State::OnExit(PState pNext)
 {
 }

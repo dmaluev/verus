@@ -6,7 +6,8 @@ namespace verus
 	{
 		class TextureVulkan : public BaseTexture
 		{
-			VkImage _image = VK_NULL_HANDLE;
+			VkImage     _image = VK_NULL_HANDLE;
+			VkImageView _imageView = VK_NULL_HANDLE;
 
 		public:
 			TextureVulkan();
@@ -20,6 +21,7 @@ namespace verus
 			//
 
 			VkImage GetVkImage() const { return _image; }
+			VkImageView GetVkImageView() const { return _imageView; }
 		};
 		VERUS_TYPEDEFS(TextureVulkan);
 	}

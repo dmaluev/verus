@@ -14,6 +14,7 @@ namespace verus
 			virtual void OnEnter(State* pPrev);
 			virtual void HandleInput();
 			virtual void Update();
+			virtual void Draw();
 			virtual void OnExit(State* pNext);
 		};
 		VERUS_TYPEDEFS(State);

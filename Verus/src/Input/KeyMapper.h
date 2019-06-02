@@ -108,24 +108,25 @@ namespace verus
 
 			void ResetClickState();
 
-			VERUS_P(void OnKeyDown(int id));
-			VERUS_P(void OnKeyUp(int id));
-			VERUS_P(void OnChar(wchar_t c));
-
-			VERUS_P(void OnMouseMove(int x, int y));
-			VERUS_P(void OnMouseDown(int id));
-			VERUS_P(void OnMouseUp(int id));
-			VERUS_P(void OnMouseDoubleClick(int id));
-
-			VERUS_P(void OnJoyAxis(int id, int value));
-			VERUS_P(void OnJoyDown(int id));
-			VERUS_P(void OnJoyUp(int id));
-			VERUS_P(void TranslateJoy(int id, bool up));
-			VERUS_P(bool TranslateJoyPress(int id, bool mouse) const);
-
 			PKeyMapperDelegate SetDelegate(PKeyMapperDelegate p) { return Utils::Swap(_pKeyMapperDelegate, p); }
 
 			static CSZ GetSingletonFailMessage() { return "Make_Input(); // FAIL.\r\n"; }
+
+		private:
+			void OnKeyDown(int id);
+			void OnKeyUp(int id);
+			void OnChar(wchar_t c);
+
+			void OnMouseMove(int x, int y);
+			void OnMouseDown(int id);
+			void OnMouseUp(int id);
+			void OnMouseDoubleClick(int id);
+
+			void OnJoyAxis(int id, int value);
+			void OnJoyDown(int id);
+			void OnJoyUp(int id);
+			void TranslateJoy(int id, bool up);
+			bool TranslateJoyPress(int id, bool mouse) const;
 		};
 		VERUS_TYPEDEFS(KeyMapper);
 	}

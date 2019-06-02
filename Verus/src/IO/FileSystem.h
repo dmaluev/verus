@@ -8,6 +8,9 @@ namespace verus
 		{
 			typedef Map<String, Vector<BYTE>> TMapCache;
 
+			static CSZ s_dataFolder;
+			static CSZ s_shaderPAK;
+
 			TMapCache _mapCache;
 			INT64     _cacheSize = 0;
 
@@ -29,7 +32,7 @@ namespace verus
 			FileSystem();
 			~FileSystem();
 
-			static size_t FindColonForPAK(CSZ url);
+			static size_t FindPosForPAK(CSZ url);
 			static void ReadHeaderPAK(RFile file, UINT32& magic, INT64& entriesOffset, INT64& entriesSize);
 
 			void PreloadCache(CSZ pak, CSZ types[]);

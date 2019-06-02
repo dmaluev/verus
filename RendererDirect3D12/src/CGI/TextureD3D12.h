@@ -19,7 +19,7 @@ namespace verus
 			// D3D12
 			//
 
-			ID3D12Resource* GetID3D12Resource() const { return _pResource.Get(); }
+			ID3D12Resource* GetD3DResource() const { return _pResource.Get(); }
 		};
 		VERUS_TYPEDEFS(TextureD3D12);
 	}

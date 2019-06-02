@@ -8,7 +8,6 @@ namespace verus
 		{
 			VkPipeline       _pipeline = VK_NULL_HANDLE;
 			VkPipelineLayout _pipelineLayout = VK_NULL_HANDLE;
-			VkRenderPass     _renderPass = VK_NULL_HANDLE;
 
 		public:
 			PipelineVulkan();
@@ -17,9 +16,15 @@ namespace verus
 			virtual void Init(RcPipelineDesc desc) override;
 			virtual void Done() override;
 
+			//
+			// Vulkan
+			//
+
+			VkPipeline GetVkPipeline() const { return _pipeline; }
+			VkPipelineLayout GetVkPipelineLayout() const { return _pipelineLayout; }
+
 		private:
 			void CreatePipelineLayout();
-			void CreateRenderPass();
 		};
 		VERUS_TYPEDEFS(PipelineVulkan);
 	}

@@ -27,6 +27,8 @@ namespace verus
 				int         _sampleCount = 1;
 				LoadOp      _loadOp = LoadOp::load;
 				StoreOp     _storeOp = StoreOp::store;
+				LoadOp      _stencilLoadOp = LoadOp::dontCare;
+				StoreOp     _stencilStoreOp = StoreOp::dontCare;
 				ImageLayout _initialLayout = ImageLayout::undefined;
 				ImageLayout _finalLayout = ImageLayout::undefined;
 
@@ -40,17 +42,20 @@ namespace verus
 			};
 			VERUS_TYPEDEFS(Attachment);
 
+			class Ref
+			{
+			public:
+				CSZ         _name = nullptr;
+				ImageLayout _layout = ImageLayout::undefined;
+
+				Ref() = default;
+				Ref(CSZ name, ImageLayout layout) : _name(name), _layout(layout) {}
+			};
+			VERUS_TYPEDEFS(Ref);
+
 			class Subpass
 			{
 			public:
-				struct Ref
-				{
-					CSZ         _name = nullptr;
-					ImageLayout _layout = ImageLayout::undefined;
-
-					Ref() {}
-				};
-
 				CSZ                        _name = nullptr;
 				std::initializer_list<Ref> _ilInput;
 				std::initializer_list<Ref> _ilColor;

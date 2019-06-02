@@ -27,16 +27,13 @@ void RendererD3D12::Init()
 
 void RendererD3D12::Done()
 {
-	if (_pCommandQueue)
-		QueueWaitIdle();
+	WaitIdle();
 	if (_hFence != INVALID_HANDLE_VALUE)
 	{
 		CloseHandle(_hFence);
 		_hFence = INVALID_HANDLE_VALUE;
 	}
 	_pFence.Reset();
-	VERUS_FOR(i, s_ringBufferSize)
-		_pCommandLists[i].Reset();
 	VERUS_FOR(i, s_ringBufferSize)
 		_mapCommandAllocators[i].clear();
 	_dSwapChainBuffersRTVs.Reset();
@@ -79,10 +76,10 @@ ComPtr<IDXGIAdapter4> RendererD3D12::GetAdapter(ComPtr<IDXGIFactory6> pFactory)
 
 bool RendererD3D12::CheckFeatureSupportAllowTearing(ComPtr<IDXGIFactory6> pFactory)
 {
-	BOOL data = FALSE;
-	if (FAILED(pFactory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &data, sizeof(data))))
-		data = FALSE;
-	return data == TRUE;
+	BOOL featureSupportData = FALSE;
+	if (FAILED(pFactory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &featureSupportData, sizeof(featureSupportData))))
+		featureSupportData = FALSE;
+	return featureSupportData == TRUE;
 }
 
 void RendererD3D12::CreateSwapChainBuffersRTVs()
@@ -159,9 +156,6 @@ void RendererD3D12::InitD3D()
 	VERUS_FOR(i, s_ringBufferSize)
 		_mapCommandAllocators[i][std::this_thread::get_id()] = CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-	VERUS_FOR(i, s_ringBufferSize)
-		_pCommandLists[i] = CreateCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, _mapCommandAllocators[i][std::this_thread::get_id()]);
-
 	_pFence = CreateFence();
 	_hFence = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 }
@@ -188,10 +182,10 @@ ComPtr<ID3D12CommandAllocator> RendererD3D12::CreateCommandAllocator(D3D12_COMMA
 	return pCommandAllocator;
 }
 
-ComPtr<ID3D12GraphicsCommandList> RendererD3D12::CreateCommandList(D3D12_COMMAND_LIST_TYPE type, ComPtr<ID3D12CommandAllocator> pCommandAllocator)
+ComPtr<ID3D12GraphicsCommandList4> RendererD3D12::CreateCommandList(D3D12_COMMAND_LIST_TYPE type, ComPtr<ID3D12CommandAllocator> pCommandAllocator)
 {
 	HRESULT hr = 0;
-	ComPtr<ID3D12GraphicsCommandList> pGraphicsCommandList;
+	ComPtr<ID3D12GraphicsCommandList4> pGraphicsCommandList;
 	if (FAILED(hr = _pDevice->CreateCommandList(0, type, pCommandAllocator.Get(), nullptr, IID_PPV_ARGS(&pGraphicsCommandList))))
 		throw VERUS_RUNTIME_ERROR << "CreateCommandList(), hr=" << VERUS_HR(hr);
 	if (FAILED(hr = pGraphicsCommandList->Close()))
@@ -242,8 +236,11 @@ void RendererD3D12::WaitForFenceValue(UINT64 value)
 
 void RendererD3D12::QueueWaitIdle()
 {
-	const UINT64 value = QueueSignal();
-	WaitForFenceValue(value);
+	if (_pCommandQueue)
+	{
+		const UINT64 value = QueueSignal();
+		WaitForFenceValue(value);
+	}
 }
 
 D3D12_RESOURCE_BARRIER RendererD3D12::MakeResourceBarrierTransition(ID3D12Resource* pResource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after)
@@ -258,39 +255,49 @@ D3D12_RESOURCE_BARRIER RendererD3D12::MakeResourceBarrierTransition(ID3D12Resour
 	return rb;
 }
 
-void RendererD3D12::BeginFrame()
+void RendererD3D12::BeginFrame(bool present)
 {
+	VERUS_QREF_RENDERER;
 	HRESULT hr = 0;
 
 	WaitForFenceValue(_fenceValues[_ringBufferIndex]);
 
-	_swapChainBufferIndex = _pSwapChain->GetCurrentBackBufferIndex();
+	if (present)
+		_swapChainBufferIndex = _pSwapChain->GetCurrentBackBufferIndex();
 
 	auto pCommandAllocator = _mapCommandAllocators[_ringBufferIndex][std::this_thread::get_id()];
 	if (FAILED(hr = pCommandAllocator->Reset()))
 		throw VERUS_RUNTIME_ERROR << "Reset(), hr=" << VERUS_HR(hr);
 
-	if (FAILED(hr = _pCommandLists[_ringBufferIndex]->Reset(pCommandAllocator.Get(), nullptr)))
-		throw VERUS_RUNTIME_ERROR << "Reset(), hr=" << VERUS_HR(hr);
-	auto pBackBuffer = _vSwapChainBuffers[_swapChainBufferIndex];
-	const auto rb = MakeResourceBarrierTransition(pBackBuffer.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	_pCommandLists[_ringBufferIndex]->ResourceBarrier(1, &rb);
+	renderer.GetCommandBuffer()->Begin();
+
+	if (present)
+	{
+		auto pBackBuffer = _vSwapChainBuffers[_swapChainBufferIndex];
+		const auto rb = MakeResourceBarrierTransition(pBackBuffer.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->ResourceBarrier(1, &rb);
+	}
 }
 
-void RendererD3D12::EndFrame()
+void RendererD3D12::EndFrame(bool present)
 {
+	VERUS_QREF_RENDERER;
 	HRESULT hr = 0;
 
-	auto pBackBuffer = _vSwapChainBuffers[_swapChainBufferIndex];
-	const auto rb = MakeResourceBarrierTransition(pBackBuffer.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-	_pCommandLists[_ringBufferIndex]->ResourceBarrier(1, &rb);
+	if (present)
+	{
+		auto pBackBuffer = _vSwapChainBuffers[_swapChainBufferIndex];
+		const auto rb = MakeResourceBarrierTransition(pBackBuffer.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+		static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->ResourceBarrier(1, &rb);
+	}
 
-	if (FAILED(hr = _pCommandLists[_ringBufferIndex]->Close()))
-		throw VERUS_RUNTIME_ERROR << "Close(), hr=" << VERUS_HR(hr);
-	ID3D12CommandList* ppCommandLists[] = { _pCommandLists[_ringBufferIndex].Get() };
+	renderer.GetCommandBuffer()->End();
+
+	ID3D12CommandList* ppCommandLists[] = { static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList() };
 	_pCommandQueue->ExecuteCommandLists(VERUS_ARRAY_LENGTH(ppCommandLists), ppCommandLists);
 
 	_fenceValues[_ringBufferIndex] = QueueSignal();
+	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
 }
 
 void RendererD3D12::Present()
@@ -304,8 +311,6 @@ void RendererD3D12::Present()
 	const UINT flags = g_TearingSupported && !g_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
 	if (FAILED(hr = _pSwapChain->Present(syncInterval, flags)))
 		throw VERUS_RUNTIME_ERROR << "Present(), hr=" << VERUS_HR(hr);
-
-	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
 }
 
 void RendererD3D12::Clear(UINT32 flags)
@@ -314,6 +319,65 @@ void RendererD3D12::Clear(UINT32 flags)
 
 	auto dh = _dSwapChainBuffersRTVs->GetCPUDescriptorHandleForHeapStart();
 	dh.ptr += _swapChainBufferIndex * _descHandleIncSizeRTV;
+	static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->ClearRenderTargetView(dh, renderer.GetClearColor().ToPointer(), 0, nullptr);
 
-	_pCommandLists[_ringBufferIndex]->ClearRenderTargetView(dh, renderer.GetClearColor().ToPointer(), 0, nullptr);
+
+	static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->OMSetRenderTargets(1, &dh, FALSE, nullptr);
+}
+
+void RendererD3D12::WaitIdle()
+{
+	QueueWaitIdle();
+}
+
+// Resources:
+
+PBaseCommandBuffer RendererD3D12::InsertCommandBuffer()
+{
+	return TStoreCommandBuffers::Insert();
+}
+
+PBaseGeometry RendererD3D12::InsertGeometry()
+{
+	return TStoreGeometry::Insert();
+}
+
+PBasePipeline RendererD3D12::InsertPipeline()
+{
+	return TStorePipelines::Insert();
+}
+
+PBaseShader RendererD3D12::InsertShader()
+{
+	return TStoreShaders::Insert();
+}
+
+PBaseTexture RendererD3D12::InsertTexture()
+{
+	return TStoreTextures::Insert();
+}
+
+void RendererD3D12::DeleteCommandBuffer(PBaseCommandBuffer p)
+{
+	TStoreCommandBuffers::Delete(static_cast<PCommandBufferD3D12>(p));
+}
+
+void RendererD3D12::DeleteGeometry(PBaseGeometry p)
+{
+	TStoreGeometry::Delete(static_cast<PGeometryD3D12>(p));
+}
+
+void RendererD3D12::DeletePipeline(PBasePipeline p)
+{
+	TStorePipelines::Delete(static_cast<PPipelineD3D12>(p));
+}
+
+void RendererD3D12::DeleteShader(PBaseShader p)
+{
+	TStoreShaders::Delete(static_cast<PShaderD3D12>(p));
+}
+
+void RendererD3D12::DeleteTexture(PBaseTexture p)
+{
+	TStoreTextures::Delete(static_cast<PTextureD3D12>(p));
 }
