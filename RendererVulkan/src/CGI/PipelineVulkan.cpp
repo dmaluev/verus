@@ -18,7 +18,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
-	CreatePipelineLayout();
+	_vertexInputBindingsFilter = desc._vertexInputBindingsFilter;
 
 	RcGeometryVulkan geo = static_cast<RcGeometryVulkan>(*desc._geometry);
 	RcShaderVulkan shader = static_cast<RcShaderVulkan>(*desc._shader);
@@ -45,7 +45,10 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	PushShaderStage("mainGS", BaseShader::Stage::gs, VK_SHADER_STAGE_GEOMETRY_BIT);
 	PushShaderStage("mainFS", BaseShader::Stage::fs, VK_SHADER_STAGE_FRAGMENT_BIT);
 
-	VkPipelineVertexInputStateCreateInfo vertexInputState = geo.GetVkPipelineVertexInputStateCreateInfo();
+	Vector<VkVertexInputBindingDescription> vVertexInputBindingDesc;
+	Vector<VkVertexInputAttributeDescription> vVertexInputAttributeDesc;
+	VkPipelineVertexInputStateCreateInfo vertexInputState = geo.GetVkPipelineVertexInputStateCreateInfo(_vertexInputBindingsFilter,
+		vVertexInputBindingDesc, vVertexInputAttributeDesc);
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {};
 	inputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -63,7 +66,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	rasterizationState.rasterizerDiscardEnable = desc._rasterizationState._rasterizerDiscardEnable;
 	rasterizationState.polygonMode = ToNativePolygonMode(desc._rasterizationState._polygonMode);
 	rasterizationState.cullMode = ToNativeCullMode(desc._rasterizationState._cullMode);
-	rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizationState.depthBiasEnable = desc._rasterizationState._depthBiasEnable;
 	rasterizationState.depthBiasConstantFactor = desc._rasterizationState._depthBiasConstantFactor;
 	rasterizationState.depthBiasClamp = desc._rasterizationState._depthBiasClamp;
@@ -84,12 +87,12 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	colorBlendState.logicOp = VK_LOGIC_OP_COPY;
 	colorBlendState.attachmentCount = 1;
 	colorBlendState.pAttachments = &vkpcbas;
-	colorBlendState.blendConstants[0] = 0;
-	colorBlendState.blendConstants[1] = 0;
-	colorBlendState.blendConstants[2] = 0;
-	colorBlendState.blendConstants[3] = 0;
+	colorBlendState.blendConstants[0] = 1;
+	colorBlendState.blendConstants[1] = 1;
+	colorBlendState.blendConstants[2] = 1;
+	colorBlendState.blendConstants[3] = 1;
 
-	VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+	VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_BLEND_CONSTANTS };
 	VkPipelineDynamicStateCreateInfo dynamicState = {};
 	dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 	dynamicState.dynamicStateCount = VERUS_ARRAY_LENGTH(dynamicStates);
@@ -106,9 +109,9 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	vkgpci.pMultisampleState = &multisampleState;
 	vkgpci.pColorBlendState = &colorBlendState;
 	vkgpci.pDynamicState = &dynamicState;
-	vkgpci.layout = _pipelineLayout;
+	vkgpci.layout = shader.GetVkPipelineLayout();
 	vkgpci.renderPass = pRendererVulkan->GetRenderPassByID(desc._renderPassID);
-	vkgpci.subpass = 0;
+	vkgpci.subpass = desc._subpass;
 	vkgpci.basePipelineHandle = VK_NULL_HANDLE;
 	if (VK_SUCCESS != (res = vkCreateGraphicsPipelines(pRendererVulkan->GetVkDevice(), VK_NULL_HANDLE, 1, &vkgpci, pRendererVulkan->GetAllocator(), &_pipeline)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateGraphicsPipelines(), res=" << res;
@@ -119,26 +122,6 @@ void PipelineVulkan::Done()
 	VERUS_QREF_RENDERER_VULKAN;
 
 	VERUS_VULKAN_DESTROY(_pipeline, vkDestroyPipeline(pRendererVulkan->GetVkDevice(), _pipeline, pRendererVulkan->GetAllocator()));
-	VERUS_VULKAN_DESTROY(_pipelineLayout, vkDestroyPipelineLayout(pRendererVulkan->GetVkDevice(), _pipelineLayout, pRendererVulkan->GetAllocator()));
 
 	VERUS_DONE(PipelineVulkan);
-}
-
-void PipelineVulkan::CreatePipelineLayout()
-{
-	VERUS_QREF_RENDERER_VULKAN;
-	VkResult res = VK_SUCCESS;
-
-	VkPushConstantRange vkpcr = {};
-	vkpcr.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-	vkpcr.offset = 0;
-	vkpcr.size = sizeof(matrix);
-
-	VkPipelineLayoutCreateInfo vkplci = {};
-	vkplci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	vkplci.setLayoutCount = 0;
-	vkplci.pushConstantRangeCount = 1;
-	vkplci.pPushConstantRanges = &vkpcr;
-	if (VK_SUCCESS != (res = vkCreatePipelineLayout(pRendererVulkan->GetVkDevice(), &vkplci, pRendererVulkan->GetAllocator(), &_pipelineLayout)))
-		throw VERUS_RUNTIME_ERROR << "vkCreatePipelineLayout(), res=" << res;
 }

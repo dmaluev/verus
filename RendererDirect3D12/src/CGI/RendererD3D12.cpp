@@ -28,18 +28,28 @@ void RendererD3D12::Init()
 void RendererD3D12::Done()
 {
 	WaitIdle();
+
+	_dhSampler.Reset();
+	_dhCbvSrvUav.Reset();
+
 	if (_hFence != INVALID_HANDLE_VALUE)
 	{
 		CloseHandle(_hFence);
 		_hFence = INVALID_HANDLE_VALUE;
 	}
+	VERUS_COM_RELEASE_CHECK(_pFence.Get());
 	_pFence.Reset();
+
 	VERUS_FOR(i, s_ringBufferSize)
 		_mapCommandAllocators[i].clear();
-	_dSwapChainBuffersRTVs.Reset();
+	_dhDepthStencilBufferView.Reset();
+	_dhSwapChainBuffersRTVs.Reset();
 	_vSwapChainBuffers.clear();
+	VERUS_COM_RELEASE_CHECK(_pSwapChain.Get());
 	_pSwapChain.Reset();
+	VERUS_COM_RELEASE_CHECK(_pCommandQueue.Get());
 	_pCommandQueue.Reset();
+	VERUS_COM_RELEASE_CHECK(_pDevice.Get());
 	_pDevice.Reset();
 
 	VERUS_DONE(RendererD3D12);
@@ -86,23 +96,21 @@ void RendererD3D12::CreateSwapChainBuffersRTVs()
 {
 	HRESULT hr = 0;
 	_vSwapChainBuffers.resize(_numSwapChainBuffers);
-	_dSwapChainBuffersRTVs = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, _numSwapChainBuffers);
-	auto dh = _dSwapChainBuffersRTVs->GetCPUDescriptorHandleForHeapStart();
+	_dhSwapChainBuffersRTVs.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, _numSwapChainBuffers);
 	VERUS_U_FOR(i, _numSwapChainBuffers)
 	{
 		ComPtr<ID3D12Resource> pBuffer;
 		if (FAILED(hr = _pSwapChain->GetBuffer(i, IID_PPV_ARGS(&pBuffer))))
 			throw VERUS_RUNTIME_ERROR << "GetBuffer(), hr=" << VERUS_HR(hr);
-		_pDevice->CreateRenderTargetView(pBuffer.Get(), nullptr, dh);
+		_pDevice->CreateRenderTargetView(pBuffer.Get(), nullptr, _dhSwapChainBuffersRTVs.AtCPU(i));
 		_vSwapChainBuffers[i] = pBuffer;
-		dh.ptr += _descHandleIncSizeRTV;
 	}
 }
 
 void RendererD3D12::InitD3D()
 {
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_SETTINGS;
+	VERUS_QREF_CONST_SETTINGS;
 
 	HRESULT hr = 0;
 
@@ -147,8 +155,6 @@ void RendererD3D12::InitD3D()
 	if (FAILED(hr = pSwapChain1.As(&_pSwapChain)))
 		throw VERUS_RUNTIME_ERROR << "QueryInterface(), hr=" << VERUS_HR(hr);
 
-	_descHandleIncSizeRTV = _pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
 	_swapChainBufferIndex = _pSwapChain->GetCurrentBackBufferIndex();
 
 	CreateSwapChainBuffersRTVs();
@@ -158,6 +164,9 @@ void RendererD3D12::InitD3D()
 
 	_pFence = CreateFence();
 	_hFence = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+
+	_dhCbvSrvUav.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5000, true);
+	_dhSampler.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 500, true);
 }
 
 ComPtr<ID3D12CommandQueue> RendererD3D12::CreateCommandQueue(D3D12_COMMAND_LIST_TYPE type)
@@ -182,10 +191,10 @@ ComPtr<ID3D12CommandAllocator> RendererD3D12::CreateCommandAllocator(D3D12_COMMA
 	return pCommandAllocator;
 }
 
-ComPtr<ID3D12GraphicsCommandList4> RendererD3D12::CreateCommandList(D3D12_COMMAND_LIST_TYPE type, ComPtr<ID3D12CommandAllocator> pCommandAllocator)
+ComPtr<ID3D12GraphicsCommandList3> RendererD3D12::CreateCommandList(D3D12_COMMAND_LIST_TYPE type, ComPtr<ID3D12CommandAllocator> pCommandAllocator)
 {
 	HRESULT hr = 0;
-	ComPtr<ID3D12GraphicsCommandList4> pGraphicsCommandList;
+	ComPtr<ID3D12GraphicsCommandList3> pGraphicsCommandList;
 	if (FAILED(hr = _pDevice->CreateCommandList(0, type, pCommandAllocator.Get(), nullptr, IID_PPV_ARGS(&pGraphicsCommandList))))
 		throw VERUS_RUNTIME_ERROR << "CreateCommandList(), hr=" << VERUS_HR(hr);
 	if (FAILED(hr = pGraphicsCommandList->Close()))
@@ -271,6 +280,9 @@ void RendererD3D12::BeginFrame(bool present)
 
 	renderer.GetCommandBuffer()->Begin();
 
+	ID3D12DescriptorHeap* ppHeaps[] = { _dhCbvSrvUav.GetD3DDescriptorHeap(), _dhSampler.GetD3DDescriptorHeap() };
+	static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->SetDescriptorHeaps(2, ppHeaps);
+
 	if (present)
 	{
 		auto pBackBuffer = _vSwapChainBuffers[_swapChainBufferIndex];
@@ -302,13 +314,12 @@ void RendererD3D12::EndFrame(bool present)
 
 void RendererD3D12::Present()
 {
+	VERUS_QREF_CONST_SETTINGS;
 	HRESULT hr = 0;
 
-	bool g_VSync = false;
-	bool g_TearingSupported = false;
-
-	const UINT syncInterval = g_VSync ? 1 : 0;
-	const UINT flags = g_TearingSupported && !g_VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
+	const bool allowTearing = !!(_swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING);
+	const UINT syncInterval = settings._screenVSync ? 1 : 0;
+	const UINT flags = (allowTearing && !settings._screenVSync) ? DXGI_PRESENT_ALLOW_TEARING : 0;
 	if (FAILED(hr = _pSwapChain->Present(syncInterval, flags)))
 		throw VERUS_RUNTIME_ERROR << "Present(), hr=" << VERUS_HR(hr);
 }
@@ -317,12 +328,9 @@ void RendererD3D12::Clear(UINT32 flags)
 {
 	VERUS_QREF_RENDERER;
 
-	auto dh = _dSwapChainBuffersRTVs->GetCPUDescriptorHandleForHeapStart();
-	dh.ptr += _swapChainBufferIndex * _descHandleIncSizeRTV;
-	static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->ClearRenderTargetView(dh, renderer.GetClearColor().ToPointer(), 0, nullptr);
-
-
-	static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->OMSetRenderTargets(1, &dh, FALSE, nullptr);
+	auto handle = _dhSwapChainBuffersRTVs.AtCPU(_swapChainBufferIndex);
+	static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->ClearRenderTargetView(handle, renderer.GetClearColor().ToPointer(), 0, nullptr);
+	static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->OMSetRenderTargets(1, &handle, FALSE, nullptr);
 }
 
 void RendererD3D12::WaitIdle()

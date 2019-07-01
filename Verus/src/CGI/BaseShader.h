@@ -37,7 +37,7 @@ namespace verus
 			virtual ~BaseShader() = default;
 
 		public:
-			virtual void Init(CSZ source, CSZ* branches) = 0;
+			virtual void Init(CSZ source, CSZ sourceName, CSZ* branches) = 0;
 			virtual void Done() = 0;
 
 			void Load(CSZ url);
@@ -52,6 +52,13 @@ namespace verus
 				Vector<String>& vMacroValue,
 				CSZ prefix);
 			static void TestParse();
+
+			virtual void BindUniformBufferSource(int descSet, const void* pSrc, int size,
+				int capacity = 1, ShaderStageFlags stageFlags = ShaderStageFlags::vs_fs) = 0;
+			virtual void CreatePipelineLayout() = 0;
+
+			virtual void BeginBindDescriptors() = 0;
+			virtual void EndBindDescriptors() = 0;
 
 			void SetIgnoreList(CSZ* list) { _ignoreList = list; }
 			bool IsInIgnoreList(CSZ name) const;

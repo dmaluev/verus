@@ -69,13 +69,15 @@ namespace verus
 			float GetAspectRatio() const { return _aspectRatio; }
 			float GetZNear() const { return _zNear; }
 			float GetZFar() const { return _zFar; }
-			float GetWidth() const { return _w; }
-			float GetHeight() const { return _h; }
 			void SetFOVH(float x);
 			void SetFOV(float x) { _update |= Update::p; _fovY = x; }
 			void SetAspectRatio(float x) { _update |= Update::p; _aspectRatio = x; }
 			void SetZNear(float x) { _update |= Update::p; _zNear = x; }
 			void SetZFar(float x) { _update |= Update::p; _zFar = x; }
+
+			// Ortho:
+			float GetWidth() const { return _w; }
+			float GetHeight() const { return _h; }
 			void SetWidth(float x) { _update |= Update::p; _w = (0 == x) ? _aspectRatio * _h : x; }
 			void SetHeight(float x) { _update |= Update::p; _h = x; }
 

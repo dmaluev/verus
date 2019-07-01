@@ -287,12 +287,10 @@ Scene::RCamera BaseGame::GetCamera()
 	return _p->_camera;
 }
 
-#if 0
 RSpirit BaseGame::GetCameraSpirit()
 {
 	return _p->_cameraSpirit;
 }
-#endif
 
 void BaseGame::ActivateDefaultCameraMovement(bool b)
 {

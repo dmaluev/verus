@@ -21,14 +21,17 @@ namespace verus
 			virtual void BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, PcVector4 pRenderArea) override;
 			virtual void EndRenderPass() override;
 
-			virtual void BindVertexBuffers(GeometryPtr geo) override;
+			virtual void BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilter) override;
 			virtual void BindIndexBuffer(GeometryPtr geo) override;
 
-			virtual void SetScissor(std::initializer_list<Vector4> il) override;
-			virtual void SetViewport(std::initializer_list<Vector4> il, float minDepth, float maxDepth) override;
-
 			virtual void BindPipeline(PipelinePtr pipe) override;
-			virtual void PushConstant(PipelinePtr pipe, int offset, int size, const void* p) override;
+			virtual void SetViewport(std::initializer_list<Vector4> il, float minDepth, float maxDepth) override;
+			virtual void SetScissor(std::initializer_list<Vector4> il) override;
+			virtual void SetBlendConstants(const float* p) override;
+
+			virtual bool BindDescriptors(ShaderPtr shader, int descSet) override;
+			virtual void PushConstants(ShaderPtr shader, int offset, int size, const void* p, ShaderStageFlags stageFlags) override;
+
 			virtual void PipelineBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout) override;
 			virtual void Clear(ClearFlags clearFlags) override;
 

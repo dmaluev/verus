@@ -27,14 +27,36 @@ namespace verus
 			VERUS_TYPEDEFS(Compiled);
 			typedef Map<String, Compiled> TMapCompiled;
 
-			TMapCompiled _mapCompiled;
+			struct UniformBuffer
+			{
+				ComPtr<ID3D12Resource> _pConstantBuffer;
+				BYTE*                  _pMappedData = nullptr;
+				const void*            _pSrc = nullptr;
+				int                    _size = 0;
+				int                    _sizeAligned = 0;
+				int                    _capacity = 1;
+				int                    _capacityInBytes = 0;
+				int                    _offset = 0;
+				ShaderStageFlags       _stageFlags = ShaderStageFlags::vs_fs;
+			};
+
+			TMapCompiled                _mapCompiled;
+			Vector<UniformBuffer>       _vUniformBuffers;
+			ComPtr<ID3D12RootSignature> _pRootSignature;
+			UINT64                      _currentFrame = UINT64_MAX;
 
 		public:
 			ShaderD3D12();
 			virtual ~ShaderD3D12() override;
 
-			virtual void Init(CSZ source, CSZ* branches) override;
+			virtual void Init(CSZ source, CSZ sourceName, CSZ* branches) override;
 			virtual void Done() override;
+
+			virtual void BindUniformBufferSource(int descSet, const void* pSrc, int size, int capacity, ShaderStageFlags stageFlags) override;
+			virtual void CreatePipelineLayout() override;
+
+			virtual void BeginBindDescriptors() override;
+			virtual void EndBindDescriptors() override;
 
 			//
 			// D3D12
@@ -42,6 +64,12 @@ namespace verus
 
 			ID3DBlob* GetD3DBlob(CSZ branch, Stage stage) const { return _mapCompiled.at(branch)._pBlobs[+stage].Get(); }
 			int GetNumStages(CSZ branch) const { return _mapCompiled.at(branch)._numStages; }
+
+			ID3D12RootSignature* GetD3DRootSignature() const { return _pRootSignature.Get(); }
+
+			UINT ToRootParameterIndex(int descSet) const;
+			bool TryRootConstants(int descSet, RBaseCommandBuffer cb);
+			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateUniformBuffer(int descSet);
 
 			void OnError(CSZ s);
 		};

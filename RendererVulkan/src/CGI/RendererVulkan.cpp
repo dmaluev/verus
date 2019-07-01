@@ -69,6 +69,14 @@ void RendererVulkan::Init()
 	CreateSurface();
 	PickPhysicalDevice();
 	CreateDevice();
+
+	VmaAllocatorCreateInfo vmaaci = {};
+	vmaaci.physicalDevice = _physicalDevice;
+	vmaaci.device = _device;
+	vmaaci.pAllocationCallbacks = GetAllocator();
+	vmaaci.frameInUseCount = s_ringBufferSize;
+	vmaCreateAllocator(&vmaaci, &_vmaAllocator);
+
 	CreateSwapChain();
 	CreateImageViews();
 	CreateCommandPools();
@@ -93,6 +101,8 @@ void RendererVulkan::Done()
 	_vSwapChainImageViews.clear();
 	_vSwapChainImages.clear();
 	VERUS_VULKAN_DESTROY(_swapChain, vkDestroySwapchainKHR(_device, _swapChain, GetAllocator()));
+
+	VERUS_VULKAN_DESTROY(_vmaAllocator, vmaDestroyAllocator(_vmaAllocator));
 	VERUS_VULKAN_DESTROY(_device, vkDestroyDevice(_device, GetAllocator()));
 	VERUS_VULKAN_DESTROY(_surface, vkDestroySurfaceKHR(_instance, _surface, GetAllocator()));
 #if defined(_DEBUG) || defined(VERUS_DEBUG)
@@ -131,17 +141,17 @@ void RendererVulkan::VerusCompilerDone()
 #endif
 }
 
-bool RendererVulkan::VerusCompile(CSZ source, CSZ* defines, BaseShaderInclude* pInclude,
+bool RendererVulkan::VerusCompile(CSZ source, CSZ sourceName, CSZ* defines, BaseShaderInclude* pInclude,
 	CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs)
 {
 #ifdef _WIN32
 	PFNVERUSCOMPILE VerusCompile = reinterpret_cast<PFNVERUSCOMPILE>(
 		GetProcAddress(LoadLibraryA("VulkanShaderCompiler.dll"), "VerusCompile"));
-	return VerusCompile(source, defines, pInclude, entryPoint, target, flags, ppCode, pSize, ppErrorMsgs);
+	return VerusCompile(source, sourceName, defines, pInclude, entryPoint, target, flags, ppCode, pSize, ppErrorMsgs);
 #else
 	PFNVERUSCOMPILE VerusCompile = reinterpret_cast<VerusCompile>(
 		dlsym(dlopen("./libVulkanShaderCompiler.so", RTLD_LAZY), "VerusCompile"));
-	return VerusCompile(source, defines, pInclude, entryPoint, target, flags, ppCode, pSize, ppErrorMsgs);
+	return VerusCompile(source, sourceName, defines, pInclude, entryPoint, target, flags, ppCode, pSize, ppErrorMsgs);
 #endif
 }
 
@@ -233,7 +243,7 @@ void RendererVulkan::CreateInstance()
 #endif
 	vkici.enabledExtensionCount = Utils::Cast32(vExtensions.size());
 	vkici.ppEnabledExtensionNames = vExtensions.data();
-	if (VK_SUCCESS != (res = vkCreateInstance(&vkici, nullptr, &_instance)))
+	if (VK_SUCCESS != (res = vkCreateInstance(&vkici, GetAllocator(), &_instance)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateInstance(), res=" << res;
 }
 
@@ -252,7 +262,7 @@ void RendererVulkan::CreateDebugUtilsMessenger()
 		VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
 		VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 	vkdumci.pfnUserCallback = DebugUtilsMessengerCallback;
-	if (VK_SUCCESS != (res = CreateDebugUtilsMessengerEXT(_instance, &vkdumci, nullptr, &_debugUtilsMessenger)))
+	if (VK_SUCCESS != (res = CreateDebugUtilsMessengerEXT(_instance, &vkdumci, GetAllocator(), &_debugUtilsMessenger)))
 		throw VERUS_RUNTIME_ERROR << "CreateDebugUtilsMessengerEXT(), res=" << res;
 }
 
@@ -372,7 +382,7 @@ void RendererVulkan::CreateDevice()
 	vkdci.enabledExtensionCount = VERUS_ARRAY_LENGTH(s_requiredDeviceExtensions);
 	vkdci.ppEnabledExtensionNames = s_requiredDeviceExtensions;
 	vkdci.pEnabledFeatures = &physicalDeviceFeatures;
-	if (VK_SUCCESS != (res = vkCreateDevice(_physicalDevice, &vkdci, nullptr, &_device)))
+	if (VK_SUCCESS != (res = vkCreateDevice(_physicalDevice, &vkdci, GetAllocator(), &_device)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateDevice(), res=" << res;
 
 	vkGetDeviceQueue(_device, _queueFamilyIndices._graphicsFamilyIndex, 0, &_graphicsQueue);
@@ -406,7 +416,7 @@ RendererVulkan::SwapChainInfo RendererVulkan::GetSwapChainInfo(VkPhysicalDevice 
 
 void RendererVulkan::CreateSwapChain()
 {
-	VERUS_QREF_SETTINGS;
+	VERUS_QREF_CONST_SETTINGS;
 
 	VkResult res = VK_SUCCESS;
 
@@ -444,7 +454,7 @@ void RendererVulkan::CreateSwapChain()
 		vksci.queueFamilyIndexCount = VERUS_ARRAY_LENGTH(queueFamilyIndicesArray);
 		vksci.pQueueFamilyIndices = queueFamilyIndicesArray;
 	}
-	if (VK_SUCCESS != (res = vkCreateSwapchainKHR(_device, &vksci, nullptr, &_swapChain)))
+	if (VK_SUCCESS != (res = vkCreateSwapchainKHR(_device, &vksci, GetAllocator(), &_swapChain)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateSwapchainKHR(), res=" << res;
 
 	vkGetSwapchainImagesKHR(_device, _swapChain, &_numSwapChainBuffers, nullptr);
@@ -472,7 +482,7 @@ void RendererVulkan::CreateImageViews()
 		vkivci.subresourceRange.levelCount = 1;
 		vkivci.subresourceRange.baseArrayLayer = 0;
 		vkivci.subresourceRange.layerCount = 1;
-		if (VK_SUCCESS != (res = vkCreateImageView(_device, &vkivci, nullptr, &_vSwapChainImageViews[i])))
+		if (VK_SUCCESS != (res = vkCreateImageView(_device, &vkivci, GetAllocator(), &_vSwapChainImageViews[i])))
 			throw VERUS_RUNTIME_ERROR << "vkCreateImageView(), res=" << res;
 	}
 }
@@ -485,7 +495,7 @@ void RendererVulkan::CreateCommandPools()
 		VkCommandPoolCreateInfo vkcpci = {};
 		vkcpci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		vkcpci.queueFamilyIndex = _queueFamilyIndices._graphicsFamilyIndex;
-		if (VK_SUCCESS != (res = vkCreateCommandPool(_device, &vkcpci, nullptr, &_commandPools[i])))
+		if (VK_SUCCESS != (res = vkCreateCommandPool(_device, &vkcpci, GetAllocator(), &_commandPools[i])))
 			throw VERUS_RUNTIME_ERROR << "vkCreateCommandPool(), res=" << res;
 	}
 }
@@ -500,11 +510,11 @@ void RendererVulkan::CreateSyncObjects()
 	vkfci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 	VERUS_U_FOR(i, s_ringBufferSize)
 	{
-		if (VK_SUCCESS != (res = vkCreateSemaphore(_device, &vksci, nullptr, &_acquireNextImageSemaphores[i])))
+		if (VK_SUCCESS != (res = vkCreateSemaphore(_device, &vksci, GetAllocator(), &_acquireNextImageSemaphores[i])))
 			throw VERUS_RUNTIME_ERROR << "vkCreateSemaphore(), res=" << res;
-		if (VK_SUCCESS != (res = vkCreateSemaphore(_device, &vksci, nullptr, &_queueSubmitSemaphores[i])))
+		if (VK_SUCCESS != (res = vkCreateSemaphore(_device, &vksci, GetAllocator(), &_queueSubmitSemaphores[i])))
 			throw VERUS_RUNTIME_ERROR << "vkCreateSemaphore(), res=" << res;
-		if (VK_SUCCESS != (res = vkCreateFence(_device, &vkfci, nullptr, &_queueSubmitFences[i])))
+		if (VK_SUCCESS != (res = vkCreateFence(_device, &vkfci, GetAllocator(), &_queueSubmitFences[i])))
 			throw VERUS_RUNTIME_ERROR << "vkCreateFence(), res=" << res;
 	}
 }
@@ -532,6 +542,8 @@ void RendererVulkan::BeginFrame(bool present)
 		throw VERUS_RUNTIME_ERROR << "vkWaitForFences(), res=" << res;
 	if (VK_SUCCESS != (res = vkResetFences(_device, 1, &_queueSubmitFences[_ringBufferIndex])))
 		throw VERUS_RUNTIME_ERROR << "vkResetFences(), res=" << res;
+
+	vmaSetCurrentFrameIndex(_vmaAllocator, static_cast<uint32_t>(renderer.GetNumFrames()));
 
 	if (present)
 	{
@@ -963,14 +975,28 @@ VkFramebuffer RendererVulkan::GetFramebufferByID(int id) const
 	return _vFramebuffers[id];
 }
 
-uint32_t RendererVulkan::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+void RendererVulkan::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage vmaUsage, VkBuffer& buffer, VmaAllocation& vmaAllocation)
 {
-	VkPhysicalDeviceMemoryProperties vkpdmp = {};
-	vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &vkpdmp);
-	for (uint32_t i = 0; i < vkpdmp.memoryTypeCount; i++)
-	{
-		if ((typeFilter & (1 << i)) && (vkpdmp.memoryTypes[i].propertyFlags & properties) == properties)
-			return i;
-	}
-	throw VERUS_RECOVERABLE << "FindMemoryType(), Memory type not found";
+	VkResult res = VK_SUCCESS;
+
+	VkBufferCreateInfo vkbci = {};
+	vkbci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	vkbci.size = size;
+	vkbci.usage = usage;
+	VmaAllocationCreateInfo vmaaci = {};
+	vmaaci.usage = vmaUsage;
+	if (VK_SUCCESS != (res = vmaCreateBuffer(_vmaAllocator, &vkbci, &vmaaci, &buffer, &vmaAllocation, nullptr)))
+		throw VERUS_RECOVERABLE << "vmaCreateBuffer(), res=" << res;
+}
+
+void RendererVulkan::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, PBaseCommandBuffer pCB)
+{
+	VERUS_QREF_RENDERER;
+
+	if (!pCB)
+		pCB = &(*renderer.GetCommandBuffer());
+	auto commandBuffer = static_cast<PCommandBufferVulkan>(pCB)->GetVkCommandBuffer();
+	VkBufferCopy copyRegion = {};
+	copyRegion.size = size;
+	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 }

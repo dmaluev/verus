@@ -7,7 +7,7 @@ using namespace verus::App;
 
 void Window::Desc::ApplySettings()
 {
-	VERUS_QREF_SETTINGS;
+	VERUS_QREF_CONST_SETTINGS;
 	_width = settings._screenSizeWidth;
 	_height = settings._screenSizeHeight;
 	_fullscreen = !settings._screenWindowed;
@@ -35,7 +35,7 @@ void Window::Init(RcDesc descConst)
 
 	Uint32 flags = 0;
 	if (desc._fullscreen)
-		flags |= SDL_WINDOW_FULLSCREEN;
+		flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 	if (0 == settings._gapi)
 		flags |= SDL_WINDOW_VULKAN;
 
@@ -48,6 +48,9 @@ void Window::Init(RcDesc descConst)
 		flags);
 	if (!_pWnd)
 		throw VERUS_RECOVERABLE << "SDL_CreateWindow(), " << SDL_GetError();
+
+	if (desc._fullscreen)
+		SDL_GetWindowSize(_pWnd, &settings._screenSizeWidth, &settings._screenSizeHeight);
 }
 
 void Window::Done()

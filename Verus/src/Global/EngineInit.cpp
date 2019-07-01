@@ -22,8 +22,8 @@ void EngineInit::Make()
 	//	Make_Effects();
 	//if (_makeExtra)
 	//	Make_Extra();
-	//if (_makeScene)
-	//	Make_Scene();
+	if (_makeScene)
+		Make_Scene();
 	//if (_makeGUI)
 	//	Make_GUI();
 }
@@ -32,8 +32,8 @@ void EngineInit::Free()
 {
 	//if (_makeGUI)
 	//	Free_GUI();
-	//if (_makeScene)
-	//	Free_Scene();
+	if (_makeScene)
+		Free_Scene();
 	//if (_makeExtra)
 	//	Free_Extra();
 	//if (_makeEffects)
@@ -82,9 +82,9 @@ void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::Rendere
 	//	Effects::CParticles::InitStatic();
 	//if (_makeGUI)
 	//	GUI::CFont::InitStatic();
-	//if (_makeScene)
+	if (_makeScene)
 	{
-		//Scene::CMesh::InitStatic();
+		Scene::Mesh::InitStatic();
 		//Scene::CTerrain::InitStatic();
 		//Scene::CForest::InitStatic();
 	}

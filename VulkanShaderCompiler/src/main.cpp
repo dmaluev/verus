@@ -88,7 +88,8 @@ extern "C"
 		}
 	}
 
-	VERUS_DLL_EXPORT bool VerusCompile(CSZ source, CSZ* defines, ShaderInclude* pInclude, CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs)
+	VERUS_DLL_EXPORT bool VerusCompile(CSZ source, CSZ sourceName, CSZ* defines, ShaderInclude* pInclude,
+		CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs)
 	{
 		if (!g_init)
 		{
@@ -145,7 +146,7 @@ extern "C"
 		const int defaultVersion = 110;
 
 		glslang::TShader shader(stage);
-		shader.setStrings(&source, 1);
+		shader.setStringsWithLengthsAndNames(&source, nullptr, &sourceName, 1);
 		shader.setPreamble(preamble.c_str());
 		shader.setEntryPoint(entryPoint);
 		shader.setEnvInput(glslang::EShSourceHlsl, stage, glslang::EShClientVulkan, clientInputSemanticsVersion);

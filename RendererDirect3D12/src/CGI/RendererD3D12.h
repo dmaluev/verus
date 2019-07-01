@@ -18,15 +18,16 @@ namespace verus
 			ComPtr<ID3D12CommandQueue>        _pCommandQueue;
 			ComPtr<IDXGISwapChain4>           _pSwapChain;
 			Vector<ComPtr<ID3D12Resource>>    _vSwapChainBuffers;
-			ComPtr<ID3D12DescriptorHeap>      _dSwapChainBuffersRTVs;
 			ComPtr<ID3D12Resource>            _depthStencilBuffer;
-			ComPtr<ID3D12DescriptorHeap>      _depthStencilBufferView;
+			DescriptorHeap                    _dhSwapChainBuffersRTVs;
+			DescriptorHeap                    _dhDepthStencilBufferView;
+			DynamicDescriptorHeap             _dhCbvSrvUav;
+			DynamicDescriptorHeap             _dhSampler;
 			TMapCommandAllocators             _mapCommandAllocators[s_ringBufferSize];
 			ComPtr<ID3D12Fence>               _pFence;
 			HANDLE                            _hFence = INVALID_HANDLE_VALUE;
 			UINT64                            _nextFenceValue = 1;
 			UINT64                            _fenceValues[s_ringBufferSize];
-			UINT                              _descHandleIncSizeRTV = 0;
 			DXGI_SWAP_CHAIN_DESC1             _swapChainDesc = {};
 
 		public:
@@ -49,7 +50,7 @@ namespace verus
 		public:
 			ComPtr<ID3D12CommandQueue>         CreateCommandQueue(D3D12_COMMAND_LIST_TYPE type);
 			ComPtr<ID3D12CommandAllocator>     CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE type);
-			ComPtr<ID3D12GraphicsCommandList4> CreateCommandList(D3D12_COMMAND_LIST_TYPE type, ComPtr<ID3D12CommandAllocator> pCommandAllocator);
+			ComPtr<ID3D12GraphicsCommandList3> CreateCommandList(D3D12_COMMAND_LIST_TYPE type, ComPtr<ID3D12CommandAllocator> pCommandAllocator);
 			ComPtr<ID3D12DescriptorHeap>       CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num);
 			ComPtr<ID3D12Fence>                CreateFence();
 			UINT64 QueueSignal();
@@ -84,6 +85,9 @@ namespace verus
 			virtual void DeletePipeline(PBasePipeline p) override;
 			virtual void DeleteShader(PBaseShader p) override;
 			virtual void DeleteTexture(PBaseTexture p) override;
+
+			RDynamicDescriptorHeap GetHeapCbvSrvUav() { return _dhCbvSrvUav; }
+			RDynamicDescriptorHeap GetHeapSampler() { return _dhSampler; }
 		};
 		VERUS_TYPEDEFS(RendererD3D12);
 	}

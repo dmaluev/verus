@@ -6,8 +6,7 @@ namespace verus
 	{
 		class PipelineVulkan : public BasePipeline
 		{
-			VkPipeline       _pipeline = VK_NULL_HANDLE;
-			VkPipelineLayout _pipelineLayout = VK_NULL_HANDLE;
+			VkPipeline _pipeline = VK_NULL_HANDLE;
 
 		public:
 			PipelineVulkan();
@@ -21,10 +20,6 @@ namespace verus
 			//
 
 			VkPipeline GetVkPipeline() const { return _pipeline; }
-			VkPipelineLayout GetVkPipelineLayout() const { return _pipelineLayout; }
-
-		private:
-			void CreatePipelineLayout();
 		};
 		VERUS_TYPEDEFS(PipelineVulkan);
 	}

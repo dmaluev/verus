@@ -4,6 +4,8 @@ namespace verus
 {
 	namespace CGI
 	{
+		class BaseCommandBuffer;
+
 		struct GeometryDesc
 		{
 			PcInputElementDesc _pInputElementDesc;
@@ -25,8 +27,11 @@ namespace verus
 			virtual void Init(RcGeometryDesc desc) = 0;
 			virtual void Done() = 0;
 
-			virtual void BufferDataVB(const void* p, int num, int binding) = 0;
-			virtual void BufferDataIB(const void* p, int num) = 0;
+			virtual void CreateVertexBuffer(int num, int binding) = 0;
+			virtual void UpdateVertexBuffer(const void* p, int binding, BaseCommandBuffer* pCB = nullptr) = 0;
+
+			virtual void CreateIndexBuffer(int num) = 0;
+			virtual void UpdateIndexBuffer(const void* p, BaseCommandBuffer* pCB = nullptr) = 0;
 
 			static int GetNumInputElementDesc(PcInputElementDesc p);
 			static int GetNumBindings(PcInputElementDesc p);

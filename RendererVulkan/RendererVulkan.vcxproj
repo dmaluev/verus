@@ -100,6 +100,7 @@
     <ClInclude Include="src\CGI\ShaderVulkan.h" />
     <ClInclude Include="src\CGI\TextureVulkan.h" />
     <ClInclude Include="src\stdafx.h" />
+    <ClInclude Include="src\ThirdParty\vk_mem_alloc.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\CommandBufferVulkan.cpp" />
@@ -114,6 +115,10 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="src\ThirdParty\vk_mem_alloc.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="src\ThirdParty\vk_mem_alloc.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

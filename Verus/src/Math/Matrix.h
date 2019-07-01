@@ -43,8 +43,8 @@ namespace verus
 		Matrix4(const glm::mat4& that);
 		glm::mat4 GLM() const;
 
-		matrix ConstBufferFormat() const;
-		static matrix ConstBufferFormatIdentity();
+		matrix UniformBufferFormat() const;
+		static matrix UniformBufferFormatIdentity();
 		void InstFormat(VMath::Vector4* p) const;
 
 		const float* ToPointer() const { return reinterpret_cast<const float*>(this); }
@@ -75,8 +75,8 @@ namespace verus
 		Transform3(const glm::mat4& that);
 		glm::mat4 GLM() const;
 
-		mataff ConstBufferFormat() const;
-		static mataff ConstBufferFormatIdentity();
+		mataff UniformBufferFormat() const;
+		static mataff UniformBufferFormatIdentity();
 		void InstFormat(VMath::Vector4* p) const;
 
 		const float* ToPointer() const { return reinterpret_cast<const float*>(this); }

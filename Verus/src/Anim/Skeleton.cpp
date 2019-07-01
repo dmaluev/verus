@@ -201,7 +201,7 @@ void Skeleton::FillMatrixArray(mataff* p) const
 	{
 		RcBone bone = kv.second;
 		if (bone._shaderIndex >= 0 && bone._shaderIndex < render.GetMaxNumBones())
-			p[bone._shaderIndex] = bone._matFinal.ConstBufferFormat();
+			p[bone._shaderIndex] = bone._matFinal.UniformBufferFormat();
 	}
 #endif
 }

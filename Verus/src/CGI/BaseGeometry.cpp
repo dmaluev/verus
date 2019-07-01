@@ -19,13 +19,14 @@ int BaseGeometry::GetNumBindings(PcInputElementDesc p)
 	{
 		bool found = false;
 		int j = 0;
-		while (j < i)
+		while (j < i) // Check all previous for this binding.
 		{
 			if (p[j]._binding == p[i]._binding)
 			{
 				found = true;
 				break;
 			}
+			j++;
 		}
 		if (!found)
 			num++;

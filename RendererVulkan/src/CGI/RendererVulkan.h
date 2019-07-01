@@ -53,6 +53,7 @@ namespace verus
 			VkDevice                 _device = VK_NULL_HANDLE;
 			VkQueue                  _graphicsQueue = VK_NULL_HANDLE;
 			VkQueue                  _presentQueue = VK_NULL_HANDLE;
+			VmaAllocator             _vmaAllocator = VK_NULL_HANDLE;
 			VkSwapchainKHR           _swapChain = VK_NULL_HANDLE;
 			Vector<VkImage>          _vSwapChainImages;
 			Vector<VkImageView>      _vSwapChainImageViews;
@@ -77,7 +78,7 @@ namespace verus
 
 			static void VerusCompilerInit();
 			static void VerusCompilerDone();
-			static bool VerusCompile(CSZ source, CSZ* defines, BaseShaderInclude* pInclude,
+			static bool VerusCompile(CSZ source, CSZ sourceName, CSZ* defines, BaseShaderInclude* pInclude,
 				CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs);
 
 		private:
@@ -107,6 +108,7 @@ namespace verus
 
 			VkDevice GetVkDevice() const { return _device; }
 			const VkAllocationCallbacks* GetAllocator() const { return nullptr; }
+			VmaAllocator GetVmaAllocator() const { return _vmaAllocator; }
 			VkCommandPool GetVkCommandPool(int ringBufferIndex) const { return _commandPools[ringBufferIndex]; }
 
 			// Which graphics API?
@@ -142,7 +144,8 @@ namespace verus
 			VkRenderPass GetRenderPassByID(int id) const;
 			VkFramebuffer GetFramebufferByID(int id) const;
 
-			uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+			void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage vmaUsage, VkBuffer& buffer, VmaAllocation& vmaAllocation);
+			void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, PBaseCommandBuffer pCB = nullptr);
 		};
 		VERUS_TYPEDEFS(RendererVulkan);
 	}
@@ -151,7 +154,7 @@ namespace verus
 	{
 		typedef void(*PFNVERUSCOMPILERINIT)();
 		typedef void(*PFNVERUSCOMPILERDONE)();
-		typedef bool(*PFNVERUSCOMPILE)(CSZ source, CSZ* defines, CGI::BaseShaderInclude* pInclude,
+		typedef bool(*PFNVERUSCOMPILE)(CSZ source, CSZ sourceName, CSZ* defines, CGI::BaseShaderInclude* pInclude,
 			CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs);
 	}
 }

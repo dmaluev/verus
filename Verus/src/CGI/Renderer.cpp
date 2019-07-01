@@ -26,7 +26,7 @@ bool Renderer::IsLoaded()
 void Renderer::Init(PRendererDelegate pDelegate)
 {
 	VERUS_INIT();
-	VERUS_QREF_SETTINGS;
+	VERUS_QREF_CONST_SETTINGS;
 
 	_pRendererDelegate = pDelegate;
 
@@ -84,6 +84,9 @@ void Renderer::Done()
 	{
 		_pBaseRenderer->WaitIdle();
 		_commandBuffer.Done();
+
+		Scene::Mesh::DoneStatic();
+
 		_pBaseRenderer->ReleaseMe();
 		_pBaseRenderer = nullptr;
 	}
@@ -121,6 +124,6 @@ void Renderer::OnShaderWarning(CSZ s)
 
 float Renderer::GetWindowAspectRatio() const
 {
-	VERUS_QREF_SETTINGS;
+	VERUS_QREF_CONST_SETTINGS;
 	return static_cast<float>(settings._screenSizeWidth) / static_cast<float>(settings._screenSizeHeight);
 }

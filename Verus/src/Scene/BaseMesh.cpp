@@ -8,10 +8,10 @@ BaseMesh::BaseMesh()
 	VERUS_ZERO_MEM(_posDeq);
 	VERUS_ZERO_MEM(_tc0Deq);
 	VERUS_ZERO_MEM(_tc1Deq);
-	VERUS_CT_ASSERT(16 == sizeof(VertexStream0));
-	VERUS_CT_ASSERT(16 == sizeof(VertexStream1));
-	VERUS_CT_ASSERT(16 == sizeof(VertexStream2));
-	VERUS_CT_ASSERT(8 == sizeof(VertexStream3));
+	VERUS_CT_ASSERT(16 == sizeof(VertexInputBinding0));
+	VERUS_CT_ASSERT(16 == sizeof(VertexInputBinding1));
+	VERUS_CT_ASSERT(16 == sizeof(VertexInputBinding2));
+	VERUS_CT_ASSERT(8 == sizeof(VertexInputBinding3));
 }
 
 BaseMesh::~BaseMesh()
@@ -40,21 +40,6 @@ void BaseMesh::Async_Run(CSZ url, RcBlob blob)
 		LoadPrimaryBones();
 		LoadRig();
 		LoadMimic();
-		if (_loadKinectBindPose)
-			LoadKinectBindPose();
-		return;
-	}
-
-	if (Str::EndsWith(url, ".bullet"))
-	{
-		btBvhTriangleMeshShape* pShape = nullptr;
-		btBulletWorldImporter bwi(0);
-		if (bwi.loadFileFromMemory((char*)blob._p, Utils::Cast32(blob._size)))
-		{
-			const int numShapes = bwi.getNumCollisionShapes();
-			if (numShapes)
-				pShape = static_cast<btBvhTriangleMeshShape*>(bwi.getCollisionShapeByIndex(0));
-		}
 		return;
 	}
 }
@@ -147,9 +132,9 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 #endif
 			sp.Read(&_posDeq[0], 12);
 			sp.Read(&_posDeq[3], 12);
-			VERUS_RT_ASSERT(_vStream0.empty());
-			_vStream0.resize(_numVerts);
-			VertexStream0* pVB = _vStream0.data();
+			VERUS_RT_ASSERT(_vBinding0.empty());
+			_vBinding0.resize(_numVerts);
+			VertexInputBinding0* pVB = _vBinding0.data();
 			short mn = 0, mx = 0;
 			VERUS_FOR(i, _numVerts)
 			{
@@ -170,7 +155,7 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 		case '>LN<':
 		{
 			hasNormals = true;
-			VertexStream0* pVB = _vStream0.data();
+			VertexInputBinding0* pVB = _vBinding0.data();
 			VERUS_FOR(i, _numVerts)
 			{
 				sp.Read(pVB[i]._nrm, 3);
@@ -188,9 +173,9 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 		case '>ST<':
 		{
 			hasTBN = true;
-			VERUS_RT_ASSERT(_vStream2.empty());
-			_vStream2.resize(_numVerts);
-			VertexStream2* pVB = _vStream2.data();
+			VERUS_RT_ASSERT(_vBinding2.empty());
+			_vBinding2.resize(_numVerts);
+			VertexInputBinding2* pVB = _vBinding2.data();
 			char temp[3];
 			VERUS_FOR(i, _numVerts)
 			{
@@ -217,7 +202,7 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 		{
 			sp.Read(&_tc0Deq[0], 8);
 			sp.Read(&_tc0Deq[2], 8);
-			VertexStream0* pVB = _vStream0.data();
+			VertexInputBinding0* pVB = _vBinding0.data();
 			short mn = 0, mx = 0;
 			VERUS_FOR(i, _numVerts)
 			{
@@ -239,9 +224,9 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 		{
 			sp.Read(&_tc1Deq[0], 8);
 			sp.Read(&_tc1Deq[2], 8);
-			VERUS_RT_ASSERT(_vStream3.empty());
-			_vStream3.resize(_numVerts);
-			VertexStream3* pVB = _vStream3.data();
+			VERUS_RT_ASSERT(_vBinding3.empty());
+			_vBinding3.resize(_numVerts);
+			VertexInputBinding3* pVB = _vBinding3.data();
 			VERUS_FOR(i, _numVerts)
 				sp.Read(&pVB[i]._tc1, 4);
 		}
@@ -270,9 +255,9 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 		break;
 		case '>SS<':
 		{
-			VERUS_RT_ASSERT(_vStream1.empty());
-			_vStream1.resize(_numVerts);
-			VertexStream1* pVB = _vStream1.data();
+			VERUS_RT_ASSERT(_vBinding1.empty());
+			_vBinding1.resize(_numVerts);
+			VertexInputBinding1* pVB = _vBinding1.data();
 			bool abnormal = false;
 			VERUS_FOR(i, _numVerts)
 			{
@@ -299,7 +284,7 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 		break;
 		case '>RS<':
 		{
-			VertexStream0* pVB = _vStream0.data();
+			VertexInputBinding0* pVB = _vBinding0.data();
 			BYTE index = 0;
 			VERUS_FOR(i, _numVerts)
 			{
@@ -319,7 +304,7 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 
 	if (!hasTBN)
 	{
-		_vStream2.resize(_numVerts);
+		_vBinding2.resize(_numVerts);
 		ComputeTangentSpace();
 	}
 
@@ -343,12 +328,12 @@ void BaseMesh::LoadPrimaryBones()
 	if (!vPrimaryBones.empty())
 	{
 		_skeleton.AdjustPrimaryBones(vPrimaryBones);
-		VERUS_FOREACH(Vector<VertexStream1>, _vStream1, it)
+		VERUS_FOREACH(Vector<VertexInputBinding1>, _vBinding1, it)
 		{
 			VERUS_FOR(i, 4)
 				it->bi[i] = _skeleton.RemapBoneIndex(it->bi[i]);
 		}
-		BufferDataVB(_vStream1.data(), 1);
+		BufferDataVB(_vBinding1.data(), 1);
 	}
 #endif
 }
@@ -379,19 +364,19 @@ void BaseMesh::LoadMimic()
 	IO::FileSystem::I().LoadResourceFromCache(_C(m_mimicUrl), vData, false);
 	if (vData.size() > 1)
 	{
-		VERUS_RT_ASSERT(!(_vStream0.empty() || _vStream2.empty()));
+		VERUS_RT_ASSERT(!(_vBinding0.empty() || _vBinding2.empty()));
 		VERUS_RT_ASSERT(vData.size() - 1 == _numVerts * 6);
 		CSZ ps = reinterpret_cast<CSZ>(vData.data());
 		VERUS_FOR(i, _numVerts)
 		{
 			int r, g, b;
 			sscanf(ps + i * 6, "%d %d %d", &r, &g, &b);
-			_vStream0[i]._pos[3] = r * SHRT_MAX / 9;
-			_vStream2[i]._tan[3] = g * SHRT_MAX / 9;
-			_vStream2[i]._bin[3] = b * SHRT_MAX / 9;
+			_vBinding0[i]._pos[3] = r * SHRT_MAX / 9;
+			_vBinding2[i]._tan[3] = g * SHRT_MAX / 9;
+			_vBinding2[i]._bin[3] = b * SHRT_MAX / 9;
 		}
-		BufferDataVB(_vStream0.data(), 0);
-		BufferDataVB(_vStream2.data(), 2);
+		BufferDataVB(_vBinding0.data(), 0);
+		BufferDataVB(_vBinding2.data(), 2);
 	}
 
 	vData.clear();
@@ -403,16 +388,6 @@ void BaseMesh::LoadMimic()
 		_mimic.Init();
 		_mimic.LoadFromPtr(vData.data());
 	}
-#endif
-}
-
-void BaseMesh::LoadKinectBindPose()
-{
-#if 0
-	Vector<BYTE> vData;
-	IO::FileSystem::I().LoadResourceFromCache("Misc:KinectBindPose.xml", vData, false);
-	if (vData.size() > 1)
-		_skeleton.LoadKinectBindPose(reinterpret_cast<CSZ>(vData.data()));
 #endif
 }
 
@@ -492,102 +467,23 @@ void BaseMesh::ComputeTangentSpace()
 
 	VERUS_FOR(i, _numVerts)
 	{
-		DequantizeUsingDeq3D(_vStream0[i]._pos, _posDeq, vV[i]);
-		DequantizeUsingDeq2D(_vStream0[i]._tc0, _tc0Deq, vTex[i]);
+		DequantizeUsingDeq3D(_vBinding0[i]._pos, _posDeq, vV[i]);
+		DequantizeUsingDeq2D(_vBinding0[i]._tc0, _tc0Deq, vTex[i]);
 	}
 
 	Math::NormalComputer::ComputeNormals(_vIndices, vV, vN, 1);
 	VERUS_FOR(i, _numVerts)
-		Convert::SnormToSint8(&vN[i].x, _vStream0[i]._nrm, 3);
+		Convert::SnormToSint8(&vN[i].x, _vBinding0[i]._nrm, 3);
 
-	if (!_vStream2.empty())
+	if (!_vBinding2.empty())
 	{
 		Math::NormalComputer::ComputeTangentSpace(_vIndices, vV, vN, vTex, vTan, vBin);
 		VERUS_FOR(i, _numVerts)
 		{
-			Convert::SnormToSint16(&vTan[i].x, _vStream2[i]._tan, 3);
-			Convert::SnormToSint16(&vBin[i].x, _vStream2[i]._bin, 3);
+			Convert::SnormToSint16(&vTan[i].x, _vBinding2[i]._tan, 3);
+			Convert::SnormToSint16(&vBin[i].x, _vBinding2[i]._bin, 3);
 		}
 	}
-}
-
-btBvhTriangleMeshShape* BaseMesh::InitShape(RcTransform3 tr, CSZ url)
-{
-	if (!_numVerts)
-		return nullptr;
-
-	DoneShape();
-
-	String finalUrl = url ? url : _url;
-	String cacheFilename;
-	if (!finalUrl.empty())
-	{
-		String filename = finalUrl;
-		Str::ReplaceAll(filename, ":", "-");
-		Str::ReplaceAll(filename, "/", ".");
-		if (url)
-			filename += ".INST";
-		filename = "Models:Bullet_Cache/" + filename + ".bullet";
-		cacheFilename = IO::FileSystem::ConvertRelativePathToAbsolute(filename, true);
-		if (IO::FileSystem::FileExist(_C(filename)))
-		{
-			Vector<BYTE> vMesh;
-			IO::FileSystem::LoadResource(_C(filename), vMesh);
-
-			btBulletWorldImporter bwi(0);
-			if (!vMesh.empty() &&
-				bwi.loadFileFromMemory(reinterpret_cast<char*>(vMesh.data()), Utils::Cast32(vMesh.size())))
-			{
-				const int numShapes = bwi.getNumCollisionShapes();
-				if (numShapes)
-					_pShape = static_cast<btBvhTriangleMeshShape*>(bwi.getCollisionShapeByIndex(0));
-			}
-
-			return _pShape;
-		}
-	}
-
-	Vector<Point3> vVert;
-	vVert.resize(_numVerts);
-	VERUS_FOR(i, _numVerts)
-	{
-		DequantizeUsingDeq3D(_vStream0[i]._pos, _posDeq, vVert[i]);
-		vVert[i] = tr * vVert[i];
-	}
-
-	btTriangleMesh mesh(_vIndices.empty());
-	VERUS_FOR(i, _numFaces)
-	{
-		const int i0 = _vIndices.empty() ? _vIndices32[i * 3 + 0] : _vIndices[i * 3 + 0];
-		const int i1 = _vIndices.empty() ? _vIndices32[i * 3 + 1] : _vIndices[i * 3 + 1];
-		const int i2 = _vIndices.empty() ? _vIndices32[i * 3 + 2] : _vIndices[i * 3 + 2];
-
-		const btVector3 v0 = vVert[i0].Bullet();
-		const btVector3 v1 = vVert[i1].Bullet();
-		const btVector3 v2 = vVert[i2].Bullet();
-
-		mesh.addTriangle(v0, v1, v2, true);
-	}
-
-	_pShape = new btBvhTriangleMeshShape(&mesh, true);
-
-	if (!cacheFilename.empty())
-	{
-		btDefaultSerializer s;
-		s.startSerialization();
-		_pShape->serializeSingleShape(&s);
-		s.finishSerialization();
-		IO::File file;
-		if (file.Open(_C(cacheFilename), "wb"))
-			file.Write(s.getBufferPointer(), s.getCurrentBufferSize());
-	}
-
-	return _pShape;
-}
-
-void BaseMesh::DoneShape()
-{
-	VERUS_SMART_DELETE(_pShape);
 }
 
 void BaseMesh::GetBounds(RPoint3 mn, RPoint3 mx) const
@@ -610,8 +506,8 @@ void BaseMesh::VisitVertices(std::function<Continue(RcPoint3, int)> fn)
 	VERUS_FOR(i, _numVerts)
 	{
 		Point3 pos;
-		DequantizeUsingDeq3D(_vStream0[i]._pos, _posDeq, pos);
-		if (_vStream1.empty())
+		DequantizeUsingDeq3D(_vBinding0[i]._pos, _posDeq, pos);
+		if (_vBinding1.empty())
 		{
 			if (Continue::no == fn(pos, -1))
 				break;
@@ -621,9 +517,9 @@ void BaseMesh::VisitVertices(std::function<Continue(RcPoint3, int)> fn)
 			bool done = false;
 			VERUS_FOR(j, 4)
 			{
-				if (_vStream1[i]._bw[j] > 0)
+				if (_vBinding1[i]._bw[j] > 0)
 				{
-					if (Continue::no == fn(pos, _vStream1[i]._bi[j]))
+					if (Continue::no == fn(pos, _vBinding1[i]._bi[j]))
 					{
 						done = true;
 						break;
@@ -674,7 +570,7 @@ String BaseMesh::ToXmlString() const
 	VERUS_FOR(i, _numVerts)
 	{
 		Point3 pos;
-		DequantizeUsingDeq3D(_vStream0[i]._pos, _posDeq, pos);
+		DequantizeUsingDeq3D(_vBinding0[i]._pos, _posDeq, pos);
 		if (i)
 			ss << ' ';
 		ss << pos.ToString();
@@ -686,7 +582,7 @@ String BaseMesh::ToXmlString() const
 	VERUS_FOR(i, _numVerts)
 	{
 		Vector3 norm;
-		DequantizeNrm(_vStream0[i]._nrm, norm);
+		DequantizeNrm(_vBinding0[i]._nrm, norm);
 		if (i)
 			ss << ' ';
 		ss << norm.ToString();
@@ -698,7 +594,7 @@ String BaseMesh::ToXmlString() const
 	VERUS_FOR(i, _numVerts)
 	{
 		Point3 tc;
-		DequantizeUsingDeq2D(_vStream0[i]._tc0, _tc0Deq, tc);
+		DequantizeUsingDeq2D(_vBinding0[i]._tc0, _tc0Deq, tc);
 		if (i)
 			ss << ' ';
 		ss << tc.ToString2();
@@ -712,7 +608,7 @@ String BaseMesh::ToXmlString() const
 		VERUS_FOR(i, _numVerts)
 		{
 			Point3 tc;
-			DequantizeUsingDeq2D(_vStream3[i]._tc1, _tc1Deq, tc);
+			DequantizeUsingDeq2D(_vBinding3[i]._tc1, _tc1Deq, tc);
 			if (i)
 				ss << ' ';
 			ss << tc.ToString2();
@@ -732,7 +628,7 @@ String BaseMesh::ToObjString() const
 	VERUS_FOR(i, _numVerts)
 	{
 		Point3 pos;
-		DequantizeUsingDeq3D(_vStream0[i]._pos, _posDeq, pos);
+		DequantizeUsingDeq3D(_vBinding0[i]._pos, _posDeq, pos);
 		ss << "v " << Point3(VMath::scale(pos, 100)).ToString() << VERUS_CRNL;
 	}
 

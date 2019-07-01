@@ -24,7 +24,10 @@ void CommandBufferD3D12::Init()
 void CommandBufferD3D12::Done()
 {
 	VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
+	{
+		VERUS_COM_RELEASE_CHECK(_pCommandLists[i].Get());
 		_pCommandLists[i].Reset();
+	}
 	VERUS_DONE(CommandBufferD3D12);
 }
 
@@ -47,24 +50,53 @@ void CommandBufferD3D12::BeginRenderPass(int renderPassID, int framebufferID, st
 {
 	D3D12_RENDER_PASS_RENDER_TARGET_DESC rtDesc = {};
 	D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsDesc = {};
-	GetD3DGraphicsCommandList()->BeginRenderPass(0, &rtDesc, &dsDesc, D3D12_RENDER_PASS_FLAG_NONE);
+	//GetD3DGraphicsCommandList()->BeginRenderPass(0, &rtDesc, &dsDesc, D3D12_RENDER_PASS_FLAG_NONE);
 }
 
 void CommandBufferD3D12::EndRenderPass()
 {
-	GetD3DGraphicsCommandList()->EndRenderPass();
+	//GetD3DGraphicsCommandList()->EndRenderPass();
 }
 
-void CommandBufferD3D12::BindVertexBuffers(GeometryPtr geo)
+void CommandBufferD3D12::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilter)
 {
 	auto& geoD3D12 = static_cast<RGeometryD3D12>(*geo);
-	GetD3DGraphicsCommandList()->IASetVertexBuffers(0, 1, geoD3D12.GetD3DVertexBufferView());
+	geoD3D12.DestroyStagingBuffers();
+	D3D12_VERTEX_BUFFER_VIEW views[VERUS_CGI_MAX_VB];
+	const int num = geoD3D12.GetNumVertexBuffers();
+	int at = 0;
+	VERUS_FOR(i, num)
+	{
+		if ((bindingsFilter >> i) & 0x1)
+		{
+			views[at] = *geoD3D12.GetD3DVertexBufferView(i);
+			at++;
+		}
+	}
+	GetD3DGraphicsCommandList()->IASetVertexBuffers(0, at, views);
 }
 
 void CommandBufferD3D12::BindIndexBuffer(GeometryPtr geo)
 {
 	auto& geoD3D12 = static_cast<RGeometryD3D12>(*geo);
 	GetD3DGraphicsCommandList()->IASetIndexBuffer(geoD3D12.GetD3DIndexBufferView());
+}
+
+void CommandBufferD3D12::BindPipeline(PipelinePtr pipe)
+{
+	auto& pipeD3D12 = static_cast<RPipelineD3D12>(*pipe);
+	GetD3DGraphicsCommandList()->SetPipelineState(pipeD3D12.GetD3DPipelineState());
+	GetD3DGraphicsCommandList()->SetGraphicsRootSignature(pipeD3D12.GetD3DRootSignature()); // Must set root signature.
+	GetD3DGraphicsCommandList()->IASetPrimitiveTopology(pipeD3D12.GetPrimitiveTopology());
+}
+
+void CommandBufferD3D12::SetViewport(std::initializer_list<Vector4> il, float minDepth, float maxDepth)
+{
+	CD3DX12_VIEWPORT vpD3D12[VERUS_CGI_MAX_RT];
+	int num = 0;
+	for (auto& rc : il)
+		vpD3D12[num++] = CD3DX12_VIEWPORT(rc.getX(), rc.getY(), rc.Width(), rc.Height(), minDepth, maxDepth);
+	GetD3DGraphicsCommandList()->RSSetViewports(num, vpD3D12);
 }
 
 void CommandBufferD3D12::SetScissor(std::initializer_list<Vector4> il)
@@ -80,24 +112,26 @@ void CommandBufferD3D12::SetScissor(std::initializer_list<Vector4> il)
 	GetD3DGraphicsCommandList()->RSSetScissorRects(num, rcD3D12);
 }
 
-void CommandBufferD3D12::SetViewport(std::initializer_list<Vector4> il, float minDepth, float maxDepth)
+void CommandBufferD3D12::SetBlendConstants(const float* p)
 {
-	CD3DX12_VIEWPORT vpD3D12[VERUS_CGI_MAX_RT];
-	int num = 0;
-	for (auto& rc : il)
-		vpD3D12[num++] = CD3DX12_VIEWPORT(rc.getX(), rc.getY(), rc.Width(), rc.Height(), minDepth, maxDepth);
-	GetD3DGraphicsCommandList()->RSSetViewports(num, vpD3D12);
+	GetD3DGraphicsCommandList()->OMSetBlendFactor(p);
 }
 
-void CommandBufferD3D12::BindPipeline(PipelinePtr pipe)
+bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int descSet)
 {
-	auto& pipeD3D12 = static_cast<RPipelineD3D12>(*pipe);
-	GetD3DGraphicsCommandList()->SetPipelineState(pipeD3D12.GetD3DPipelineState());
-	GetD3DGraphicsCommandList()->SetGraphicsRootSignature(pipeD3D12.GetD3DRootSignature());
-	GetD3DGraphicsCommandList()->IASetPrimitiveTopology(pipeD3D12.GetPrimitiveTopology());
+	auto& shaderD3D12 = static_cast<RShaderD3D12>(*shader);
+	if (shaderD3D12.TryRootConstants(descSet, *this))
+		return true;
+	const D3D12_GPU_DESCRIPTOR_HANDLE handle = shaderD3D12.UpdateUniformBuffer(descSet);
+	if (!handle.ptr)
+		return false;
+
+	const UINT rootParameterIndex = shaderD3D12.ToRootParameterIndex(descSet);
+	GetD3DGraphicsCommandList()->SetGraphicsRootDescriptorTable(rootParameterIndex, handle);
+	return true;
 }
 
-void CommandBufferD3D12::PushConstant(PipelinePtr pipe, int offset, int size, const void* p)
+void CommandBufferD3D12::PushConstants(ShaderPtr shader, int offset, int size, const void* p, ShaderStageFlags stageFlags)
 {
 	GetD3DGraphicsCommandList()->SetGraphicsRoot32BitConstants(0, size, p, offset);
 }
@@ -139,7 +173,7 @@ void CommandBufferD3D12::DrawIndexed(int indexCount, int instanceCount, int firs
 	GetD3DGraphicsCommandList()->DrawIndexedInstanced(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
-ID3D12GraphicsCommandList4* CommandBufferD3D12::GetD3DGraphicsCommandList() const
+ID3D12GraphicsCommandList3* CommandBufferD3D12::GetD3DGraphicsCommandList() const
 {
 	VERUS_QREF_RENDERER;
 	return _pCommandLists[renderer->GetRingBufferIndex()].Get();

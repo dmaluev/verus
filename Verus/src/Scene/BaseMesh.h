@@ -7,49 +7,46 @@ namespace verus
 		class BaseMesh : public Object, public IO::AsyncCallback, public AllocatorAware
 		{
 		protected:
-			struct VertexStream0 // 16 bytes, common.
+			struct VertexInputBinding0 // 16 bytes, common.
 			{
 				short _pos[4];
 				short _tc0[2];
 				char  _nrm[4];
 			};
 
-			struct VertexStream1 // 16 bytes, skinned mesh.
+			struct VertexInputBinding1 // 16 bytes, skinned mesh.
 			{
 				short _bw[4];
 				short _bi[4];
 			};
 
-			struct VertexStream2 // 16 bytes, per-pixel lighting / normal maps.
+			struct VertexInputBinding2 // 16 bytes, per-pixel lighting / normal maps.
 			{
 				short _tan[4];
 				short _bin[4];
 			};
 
-			struct VertexStream3 // 8 bytes, static light maps / extra color.
+			struct VertexInputBinding3 // 8 bytes, static light maps / extra color.
 			{
 				short _tc1[2];
 				BYTE  _clr[4];
 			};
 
-			Vector<UINT16>          _vIndices;
-			Vector<UINT32>          _vIndices32;
-			Vector<VertexStream0>   _vStream0;
-			Vector<VertexStream1>   _vStream1;
-			Vector<VertexStream2>   _vStream2;
-			Vector<VertexStream3>   _vStream3;
-			String                  _url;
-			btBvhTriangleMeshShape* _pShape = nullptr;
-			int                     _numVerts = 0;
-			int                     _numFaces = 0;
-			int                     _numBones = 0;
-			float                   _posDeq[6];
-			float                   _tc0Deq[4];
-			float                   _tc1Deq[4];
-			bool                    _loadKinectBindPose = false;
-			bool                    _loadOnly = false;
-			bool                    _rigidSkeleton = false;
-			bool                    _async_initShape = false;
+			Vector<UINT16>              _vIndices;
+			Vector<UINT32>              _vIndices32;
+			Vector<VertexInputBinding0> _vBinding0;
+			Vector<VertexInputBinding1> _vBinding1;
+			Vector<VertexInputBinding2> _vBinding2;
+			Vector<VertexInputBinding3> _vBinding3;
+			String                      _url;
+			int                         _numVerts = 0;
+			int                         _numFaces = 0;
+			int                         _numBones = 0;
+			float                       _posDeq[6];
+			float                       _tc0Deq[4];
+			float                       _tc1Deq[4];
+			bool                        _loadOnly = false;
+			bool                        _rigidSkeleton = false;
 
 		public:
 			BaseMesh();
@@ -74,7 +71,6 @@ namespace verus
 			VERUS_P(void LoadPrimaryBones());
 			VERUS_P(void LoadRig());
 			VERUS_P(void LoadMimic());
-			VERUS_P(void LoadKinectBindPose());
 
 			// Quantization / dequantization:
 			static void ComputeDeq(glm::vec3& scale, glm::vec3& bias, const glm::vec3& extents, const glm::vec3& minPos);
@@ -91,12 +87,7 @@ namespace verus
 
 			// GPU:
 			virtual void CreateDeviceBuffers() {}
-			virtual void BufferDataVB(const void* p, int streamID) {}
-
-			// Physics:
-			btBvhTriangleMeshShape* GetShape() const { return _pShape; }
-			btBvhTriangleMeshShape* InitShape(RcTransform3 tr, CSZ url = nullptr);
-			void DoneShape();
+			virtual void BufferDataVB(const void* p, int binding) {}
 
 			// Bounds:
 			void GetBounds(RPoint3 mn, RPoint3 mx) const;

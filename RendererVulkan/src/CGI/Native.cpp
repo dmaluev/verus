@@ -103,6 +103,24 @@ VkSampleCountFlagBits CGI::ToNativeSampleCount(int sampleCount)
 	}
 }
 
+VkShaderStageFlags CGI::ToNativeStageFlags(ShaderStageFlags stageFlags)
+{
+	VkShaderStageFlags ret = 0;
+	if (stageFlags & ShaderStageFlags::vs)
+		ret |= VK_SHADER_STAGE_VERTEX_BIT;
+	if (stageFlags & ShaderStageFlags::hs)
+		ret |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+	if (stageFlags & ShaderStageFlags::ds)
+		ret |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+	if (stageFlags & ShaderStageFlags::gs)
+		ret |= VK_SHADER_STAGE_GEOMETRY_BIT;
+	if (stageFlags & ShaderStageFlags::fs)
+		ret |= VK_SHADER_STAGE_FRAGMENT_BIT;
+	if (stageFlags & ShaderStageFlags::cs)
+		ret |= VK_SHADER_STAGE_COMPUTE_BIT;
+	return ret;
+}
+
 int CGI::ToNativeLocation(IeUsage usage, int usageIndex)
 {
 	switch (usage)

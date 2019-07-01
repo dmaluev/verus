@@ -19,6 +19,9 @@
     <Filter Include="src\CGI">
       <UniqueIdentifier>{8cd5524f-64b4-4674-ae77-6a7cf86b4449}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\ThirdParty">
+      <UniqueIdentifier>{b963f27d-7c2e-4f6a-b947-d51591cf483a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\stdafx.h">
@@ -48,6 +51,12 @@
     <ClInclude Include="src\CGI\TextureD3D12.h">
       <Filter>src\CGI</Filter>
     </ClInclude>
+    <ClInclude Include="src\ThirdParty\d3dx12.h">
+      <Filter>src\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\DescriptorHeap.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -75,6 +84,9 @@
       <Filter>src\CGI</Filter>
     </ClCompile>
     <ClCompile Include="src\CGI\TextureD3D12.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\DescriptorHeap.cpp">
       <Filter>src\CGI</Filter>
     </ClCompile>
   </ItemGroup>

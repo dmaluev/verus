@@ -46,6 +46,7 @@ void CommandBufferVulkan::End()
 void CommandBufferVulkan::BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, PcVector4 pRenderArea)
 {
 	VERUS_QREF_RENDERER_VULKAN;
+	VERUS_QREF_CONST_SETTINGS;
 	VkRenderPassBeginInfo vkrpbi = {};
 	vkrpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	vkrpbi.renderPass = pRendererVulkan->GetRenderPassByID(renderPassID);
@@ -56,6 +57,11 @@ void CommandBufferVulkan::BeginRenderPass(int renderPassID, int framebufferID, s
 		vkrpbi.renderArea.offset.y = static_cast<int32_t>(pRenderArea->getY());
 		vkrpbi.renderArea.extent.width = static_cast<uint32_t>(pRenderArea->Width());
 		vkrpbi.renderArea.extent.height = static_cast<uint32_t>(pRenderArea->Height());
+	}
+	else
+	{
+		vkrpbi.renderArea.extent.width = settings._screenSizeWidth;
+		vkrpbi.renderArea.extent.height = settings._screenSizeHeight;
 	}
 	VkClearValue clearValue[VERUS_CGI_MAX_RT] = {};
 	int num = 0;
@@ -74,12 +80,24 @@ void CommandBufferVulkan::EndRenderPass()
 	vkCmdEndRenderPass(GetVkCommandBuffer());
 }
 
-void CommandBufferVulkan::BindVertexBuffers(GeometryPtr geo)
+void CommandBufferVulkan::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilter)
 {
 	auto& geoVulkan = static_cast<RGeometryVulkan>(*geo);
-	VkBuffer buffers[] = { geoVulkan.GetVkVertexBuffer() };
-	VkDeviceSize offsets[] = { 0 };
-	vkCmdBindVertexBuffers(GetVkCommandBuffer(), 0, VERUS_ARRAY_LENGTH(buffers), buffers, offsets);
+	geoVulkan.DestroyStagingBuffers();
+	VkBuffer buffers[VERUS_CGI_MAX_VB];
+	VkDeviceSize offsets[VERUS_CGI_MAX_VB];
+	const int num = geoVulkan.GetNumVertexBuffers();
+	int at = 0;
+	VERUS_FOR(i, num)
+	{
+		if ((bindingsFilter >> i) & 0x1)
+		{
+			buffers[at] = geoVulkan.GetVkVertexBuffer(i);
+			offsets[at] = 0;
+			at++;
+		}
+	}
+	vkCmdBindVertexBuffers(GetVkCommandBuffer(), 0, at, buffers, offsets);
 }
 
 void CommandBufferVulkan::BindIndexBuffer(GeometryPtr geo)
@@ -90,19 +108,10 @@ void CommandBufferVulkan::BindIndexBuffer(GeometryPtr geo)
 	vkCmdBindIndexBuffer(GetVkCommandBuffer(), buffer, offset, geoVulkan.Has32bitIndices() ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16);
 }
 
-void CommandBufferVulkan::SetScissor(std::initializer_list<Vector4> il)
+void CommandBufferVulkan::BindPipeline(PipelinePtr pipe)
 {
-	VkRect2D rcVulkan[VERUS_CGI_MAX_RT];
-	int num = 0;
-	for (auto& rc : il)
-	{
-		rcVulkan[num].offset.x = static_cast<int32_t>(rc.getX());
-		rcVulkan[num].offset.y = static_cast<int32_t>(rc.getY());
-		rcVulkan[num].extent.width = static_cast<uint32_t>(rc.Width());
-		rcVulkan[num].extent.height = static_cast<uint32_t>(rc.Height());
-		num++;
-	}
-	vkCmdSetScissor(GetVkCommandBuffer(), 0, num, rcVulkan);
+	auto& pipeVulkan = static_cast<RPipelineVulkan>(*pipe);
+	vkCmdBindPipeline(GetVkCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeVulkan.GetVkPipeline());
 }
 
 void CommandBufferVulkan::SetViewport(std::initializer_list<Vector4> il, float minDepth, float maxDepth)
@@ -122,16 +131,48 @@ void CommandBufferVulkan::SetViewport(std::initializer_list<Vector4> il, float m
 	vkCmdSetViewport(GetVkCommandBuffer(), 0, num, vpVulkan);
 }
 
-void CommandBufferVulkan::BindPipeline(PipelinePtr pipe)
+void CommandBufferVulkan::SetScissor(std::initializer_list<Vector4> il)
 {
-	auto& pipeVulkan = static_cast<RPipelineVulkan>(*pipe);
-	vkCmdBindPipeline(GetVkCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeVulkan.GetVkPipeline());
+	VkRect2D rcVulkan[VERUS_CGI_MAX_RT];
+	int num = 0;
+	for (auto& rc : il)
+	{
+		rcVulkan[num].offset.x = static_cast<int32_t>(rc.getX());
+		rcVulkan[num].offset.y = static_cast<int32_t>(rc.getY());
+		rcVulkan[num].extent.width = static_cast<uint32_t>(rc.Width());
+		rcVulkan[num].extent.height = static_cast<uint32_t>(rc.Height());
+		num++;
+	}
+	vkCmdSetScissor(GetVkCommandBuffer(), 0, num, rcVulkan);
 }
 
-void CommandBufferVulkan::PushConstant(PipelinePtr pipe, int offset, int size, const void* p)
+void CommandBufferVulkan::SetBlendConstants(const float* p)
 {
-	auto& pipeVulkan = static_cast<RPipelineVulkan>(*pipe);
-	vkCmdPushConstants(GetVkCommandBuffer(), pipeVulkan.GetVkPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, offset << 2, size << 2, p);
+	vkCmdSetBlendConstants(GetVkCommandBuffer(), p);
+}
+
+bool CommandBufferVulkan::BindDescriptors(ShaderPtr shader, int descSet)
+{
+	auto& shaderVulkan = static_cast<RShaderVulkan>(*shader);
+	if (shaderVulkan.TryPushConstants(descSet, *this))
+		return true;
+	const int offset = shaderVulkan.UpdateUniformBuffer(descSet);
+	if (offset < 0)
+		return false;
+
+	const VkDescriptorSet descriptorSet = shaderVulkan.GetVkDescriptorSet(descSet);
+	const uint32_t dynamicOffset = offset;
+	const uint32_t dynamicOffsetCount = 1;
+	vkCmdBindDescriptorSets(GetVkCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, shaderVulkan.GetVkPipelineLayout(),
+		descSet, 1, &descriptorSet, dynamicOffsetCount, &dynamicOffset);
+	return true;
+}
+
+void CommandBufferVulkan::PushConstants(ShaderPtr shader, int offset, int size, const void* p, ShaderStageFlags stageFlags)
+{
+	auto& shaderVulkan = static_cast<RShaderVulkan>(*shader);
+	const VkShaderStageFlags vkssf = ToNativeStageFlags(stageFlags);
+	vkCmdPushConstants(GetVkCommandBuffer(), shaderVulkan.GetVkPipelineLayout(), vkssf, offset << 2, size << 2, p);
 }
 
 void CommandBufferVulkan::PipelineBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout)

@@ -93,6 +93,7 @@
   <ItemGroup>
     <ClInclude Include="src\CGI\CGI.h" />
     <ClInclude Include="src\CGI\CommandBufferD3D12.h" />
+    <ClInclude Include="src\CGI\DescriptorHeap.h" />
     <ClInclude Include="src\CGI\GeometryD3D12.h" />
     <ClInclude Include="src\CGI\Native.h" />
     <ClInclude Include="src\CGI\PipelineD3D12.h" />
@@ -100,9 +101,11 @@
     <ClInclude Include="src\CGI\ShaderD3D12.h" />
     <ClInclude Include="src\CGI\TextureD3D12.h" />
     <ClInclude Include="src\stdafx.h" />
+    <ClInclude Include="src\ThirdParty\d3dx12.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\CommandBufferD3D12.cpp" />
+    <ClCompile Include="src\CGI\DescriptorHeap.cpp" />
     <ClCompile Include="src\CGI\GeometryD3D12.cpp" />
     <ClCompile Include="src\CGI\Native.cpp" />
     <ClCompile Include="src\CGI\PipelineD3D12.cpp" />

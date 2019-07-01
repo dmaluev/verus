@@ -86,5 +86,17 @@ namespace verus
 		{
 			return a > b ? a : b;
 		}
+
+		// Memory alignment:
+		template<typename T>
+		T AlignUp(T val, T align)
+		{
+			return (val + align - 1) / align * align;
+		}
+		template<typename T>
+		T AlignDown(T val, T align)
+		{
+			return val / align * align;
+		}
 	};
 }

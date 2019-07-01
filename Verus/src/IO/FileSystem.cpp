@@ -153,9 +153,9 @@ void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc d
 		else
 		{
 			String folder = strUrl.substr(1, pakPos - 1);
-			strUrl.replace(pakPos, 1, "/");
+			const String name = strUrl.substr(pakPos + 2);
 			StringStream ss;
-			ss << _C(Utils::I().GetModulePath()) << s_dataFolder << folder << strUrl;
+			ss << _C(Utils::I().GetModulePath()) << s_dataFolder << folder << "/" << name;
 			strUrl = ss.str();
 		}
 	}

@@ -126,7 +126,7 @@ glm::mat4 Matrix4::GLM() const
 	return m;
 }
 
-matrix Matrix4::ConstBufferFormat() const
+matrix Matrix4::UniformBufferFormat() const
 {
 	Matrix4 m2(*this);
 	m2 = VMath::transpose(m2);
@@ -135,7 +135,7 @@ matrix Matrix4::ConstBufferFormat() const
 	return matrix(m);
 }
 
-matrix Matrix4::ConstBufferFormatIdentity()
+matrix Matrix4::UniformBufferFormatIdentity()
 {
 	Matrix4 m2(Matrix4::identity());
 	glm::mat4 m;
@@ -154,11 +154,21 @@ Matrix4 Matrix4::MakePerspective(float fovY, float aspectRatio, float zNear, flo
 	VERUS_RT_ASSERT(fovY);
 	VERUS_RT_ASSERT(aspectRatio);
 	VERUS_RT_ASSERT(zNear < zFar);
-	//if (CGL::RENDERER_OPENGL == CGL::CRender::I()->GetRenderer())
+	if (CGI::Gapi::vulkan == CGI::Renderer::I()->GetGapi())
 	{
-		return Matrix4::perspective(fovY, aspectRatio, zNear, zFar);
+		Matrix4 m;
+		const float yScale = 1 / tan(fovY*0.5f);
+		const float xScale = yScale / aspectRatio;
+		const float zScale = zFar / (zNear - zFar);
+		memset(&m, 0, sizeof(m));
+		m.setElem(0, 0, xScale);
+		m.setElem(1, 1, -yScale);
+		m.setElem(2, 2, zScale);
+		m.setElem(3, 2, zNear*zScale);
+		m.setElem(2, 3, -1);
+		return m;
 	}
-	//else
+	else
 	{
 		Matrix4 m;
 		const float yScale = 1 / tan(fovY*0.5f);
@@ -179,11 +189,19 @@ Matrix4 Matrix4::MakeOrtho(float w, float h, float zNear, float zFar)
 	VERUS_RT_ASSERT(w);
 	VERUS_RT_ASSERT(h);
 	VERUS_RT_ASSERT(zNear < zFar);
-	//if (CGL::RENDERER_OPENGL == CGL::CRender::I()->GetRenderer())
+	if (CGI::Gapi::vulkan == CGI::Renderer::I()->GetGapi())
 	{
-		return Matrix4::orthographic(w*-0.5f, w*0.5f, h*-0.5f, h*0.5f, zNear, zFar);
+		Matrix4 m;
+		const float zScale = 1 / (zNear - zFar);
+		memset(&m, 0, sizeof(m));
+		m.setElem(0, 0, 2 / w);
+		m.setElem(1, 1, -2 / h);
+		m.setElem(2, 2, zScale);
+		m.setElem(3, 3, 1);
+		m.setElem(3, 2, zNear*zScale);
+		return m;
 	}
-	//else
+	else
 	{
 		Matrix4 m;
 		const float zScale = 1 / (zNear - zFar);
@@ -237,7 +255,7 @@ glm::mat4 Transform3::GLM() const
 	return m;
 }
 
-mataff Transform3::ConstBufferFormat() const
+mataff Transform3::UniformBufferFormat() const
 {
 	Matrix4 m2(*this);
 	m2 = VMath::transpose(m2);
@@ -246,7 +264,7 @@ mataff Transform3::ConstBufferFormat() const
 	return mataff(m);
 }
 
-mataff Transform3::ConstBufferFormatIdentity()
+mataff Transform3::UniformBufferFormatIdentity()
 {
 	Matrix4 m2(Matrix4::identity());
 	glm::mat4 m;

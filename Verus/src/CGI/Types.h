@@ -59,6 +59,17 @@ namespace verus
 			bool        _rasterizerDiscardEnable = false;
 		};
 
+		enum class ShaderStageFlags : UINT32
+		{
+			vs = (1 << 0),
+			hs = (1 << 1),
+			ds = (1 << 2),
+			gs = (1 << 3),
+			fs = (1 << 4),
+			cs = (1 << 5),
+			vs_fs = vs | fs
+		};
+
 		enum class IeType : int
 		{
 			_float,

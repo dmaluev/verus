@@ -1,6 +1,7 @@
 #pragma once
 
 #define VERUS_CGI_MAX_RT 8
+#define VERUS_CGI_MAX_VB 8
 
 #include "Types.h"
 #include "Formats.h"
@@ -14,6 +15,7 @@
 #include "BaseRenderer.h"
 
 #include "Renderer.h"
+#include "DestroyStaging.h"
 
 namespace verus
 {

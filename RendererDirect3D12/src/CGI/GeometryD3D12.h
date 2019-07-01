@@ -6,14 +6,22 @@ namespace verus
 	{
 		class GeometryD3D12 : public BaseGeometry
 		{
-			ComPtr<ID3D12Resource>           _pVertexBuffer;
+			struct BufferEx
+			{
+				ComPtr<ID3D12Resource>   _pBuffer;
+				UINT64                   _bufferSize = 0;
+				D3D12_VERTEX_BUFFER_VIEW _bufferView;
+			};
+
+			Vector<BufferEx>                 _vVertexBuffers;
 			ComPtr<ID3D12Resource>           _pIndexBuffer;
-			ComPtr<ID3D12Resource>           _pStagingVertexBuffer;
+			Vector<BufferEx>                 _vStagingVertexBuffers;
 			ComPtr<ID3D12Resource>           _pStagingIndexBuffer;
-			D3D12_VERTEX_BUFFER_VIEW         _vertexBufferView;
+			UINT64                           _indexBufferSize = 0;
 			D3D12_INDEX_BUFFER_VIEW          _indexBufferView;
 			Vector<D3D12_INPUT_ELEMENT_DESC> _vInputElementDesc;
 			Vector<int>                      _vStrides;
+			DestroyStaging                   _destroyStagingBuffers;
 
 		public:
 			GeometryD3D12();
@@ -22,24 +30,22 @@ namespace verus
 			virtual void Init(RcGeometryDesc desc) override;
 			virtual void Done() override;
 
-			virtual void BufferDataVB(const void* p, int num, int binding) override;
-			virtual void BufferDataIB(const void* p, int num) override;
+			virtual void CreateVertexBuffer(int num, int binding) override;
+			virtual void UpdateVertexBuffer(const void* p, int binding, PBaseCommandBuffer pCB) override;
+
+			virtual void CreateIndexBuffer(int num) override;
+			virtual void UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB) override;
 
 			//
 			// D3D12
 			//
 
-			void BufferData(
-				ID3D12Resource** ppDestRes,
-				ID3D12Resource** ppTempRes,
-				size_t numElements,
-				size_t elementSize,
-				const void* p,
-				D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
+			void DestroyStagingBuffers();
 
-			D3D12_INPUT_LAYOUT_DESC GetD3DInputLayoutDesc() const;
+			D3D12_INPUT_LAYOUT_DESC GetD3DInputLayoutDesc(UINT32 bindingsFilter, Vector<D3D12_INPUT_ELEMENT_DESC>& vInputElementDesc) const;
 
-			const D3D12_VERTEX_BUFFER_VIEW* GetD3DVertexBufferView() const;
+			int GetNumVertexBuffers() const { return Utils::Cast32(_vVertexBuffers.size()); }
+			const D3D12_VERTEX_BUFFER_VIEW* GetD3DVertexBufferView(int binding) const;
 			const D3D12_INDEX_BUFFER_VIEW* GetD3DIndexBufferView() const;
 		};
 		VERUS_TYPEDEFS(GeometryD3D12);

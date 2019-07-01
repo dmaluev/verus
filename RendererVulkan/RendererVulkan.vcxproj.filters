@@ -19,6 +19,9 @@
     <Filter Include="src\CGI">
       <UniqueIdentifier>{4abdc4ba-6c11-4cdc-b578-2101f063b0c6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\ThirdParty">
+      <UniqueIdentifier>{8e3978a6-661c-4255-af52-d49e598d7f91}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\stdafx.h">
@@ -47,6 +50,9 @@
     </ClInclude>
     <ClInclude Include="src\CGI\TextureVulkan.h">
       <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\vk_mem_alloc.h">
+      <Filter>src\ThirdParty</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -77,5 +83,13 @@
     <ClCompile Include="src\CGI\TextureVulkan.cpp">
       <Filter>src\CGI</Filter>
     </ClCompile>
+    <ClCompile Include="src\ThirdParty\vk_mem_alloc.cpp">
+      <Filter>src\ThirdParty</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="src\ThirdParty\vk_mem_alloc.natvis">
+      <Filter>src\ThirdParty</Filter>
+    </Natvis>
   </ItemGroup>
 </Project>

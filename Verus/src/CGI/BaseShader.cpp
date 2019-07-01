@@ -28,7 +28,10 @@ void BaseShader::Load(CSZ url)
 		vBranchPtrs.push_back(_C(*it));
 	vBranchPtrs.push_back(nullptr);
 
-	Init(reinterpret_cast<CSZ>(vData.data()), vBranchPtrs.data());
+	const size_t pakPos = IO::FileSystem::FindPosForPAK(url);
+	if (pakPos != String::npos)
+		url = url + pakPos + 2;
+	Init(reinterpret_cast<CSZ>(vData.data()), url, vBranchPtrs.data());
 }
 
 String BaseShader::Parse(
@@ -154,7 +157,7 @@ void ShaderPtr::Init(RcShaderDesc desc)
 	if (desc._url)
 		_p->Load(desc._url);
 	else
-		_p->Init(desc._source, desc._branches);
+		_p->Init(desc._source, "", desc._branches);
 }
 
 void ShaderPwn::Done()

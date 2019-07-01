@@ -12,8 +12,10 @@ namespace verus
 			PipelineRasterizationState _rasterizationState;
 			PrimitiveTopology          _topology = PrimitiveTopology::triangleList;
 			int                        _sampleCount = 1;
-			bool                       _primitiveRestartEnable = false;
 			int                        _renderPassID = -1;
+			int                        _subpass = 0;
+			UINT32                     _vertexInputBindingsFilter = UINT32_MAX;
+			bool                       _primitiveRestartEnable = false;
 
 			PipelineDesc(GeometryPtr geo, ShaderPtr shader, CSZ branch, int renderPassID) :
 				_geometry(geo), _shader(shader), _shaderBranch(branch), _renderPassID(renderPassID) {}
@@ -23,12 +25,16 @@ namespace verus
 		class BasePipeline : public Object
 		{
 		protected:
+			UINT32 _vertexInputBindingsFilter = UINT32_MAX;
+
 			BasePipeline() = default;
 			virtual ~BasePipeline() = default;
 
 		public:
 			virtual void Init(RcPipelineDesc desc) = 0;
 			virtual void Done() = 0;
+
+			UINT32 GetVertexInputBindingsFilter() const { return _vertexInputBindingsFilter; }
 		};
 		VERUS_TYPEDEFS(BasePipeline);
 

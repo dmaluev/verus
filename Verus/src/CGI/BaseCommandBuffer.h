@@ -20,14 +20,17 @@ namespace verus
 			virtual void BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, PcVector4 pRenderArea = nullptr) = 0;
 			virtual void EndRenderPass() = 0;
 
-			virtual void BindVertexBuffers(GeometryPtr geo) = 0;
+			virtual void BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilter = UINT32_MAX) = 0;
 			virtual void BindIndexBuffer(GeometryPtr geo) = 0;
 
-			virtual void SetScissor(std::initializer_list<Vector4> il) = 0;
-			virtual void SetViewport(std::initializer_list<Vector4> il, float minDepth = 0, float maxDepth = 1) = 0;
-
 			virtual void BindPipeline(PipelinePtr pipe) = 0;
-			virtual void PushConstant(PipelinePtr pipe, int offset, int size, const void* p) = 0;
+			virtual void SetViewport(std::initializer_list<Vector4> il, float minDepth = 0, float maxDepth = 1) = 0;
+			virtual void SetScissor(std::initializer_list<Vector4> il) = 0;
+			virtual void SetBlendConstants(const float* p) = 0;
+
+			virtual bool BindDescriptors(ShaderPtr shader, int descSet) = 0;
+			virtual void PushConstants(ShaderPtr shader, int offset, int size, const void* p, ShaderStageFlags stageFlags = ShaderStageFlags::vs_fs) = 0;
+
 			virtual void PipelineBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout) = 0;
 			virtual void Clear(ClearFlags clearFlags) = 0;
 
