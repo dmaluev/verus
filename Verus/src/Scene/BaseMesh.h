@@ -38,6 +38,7 @@ namespace verus
 			Vector<VertexInputBinding1> _vBinding1;
 			Vector<VertexInputBinding2> _vBinding2;
 			Vector<VertexInputBinding3> _vBinding3;
+			Anim::Skeleton              _skeleton;
 			String                      _url;
 			int                         _numVerts = 0;
 			int                         _numFaces = 0;
@@ -95,8 +96,11 @@ namespace verus
 
 			void VisitVertices(std::function<Continue(RcPoint3, int)> fn);
 
+			Anim::RSkeleton GetSkeleton() { return _skeleton; }
+
 			String ToXmlString() const;
 			String ToObjString() const;
 		};
+		VERUS_TYPEDEFS(BaseMesh);
 	}
 }

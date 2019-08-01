@@ -1,16 +1,16 @@
-struct UB_PerFrame
+VERUS_UBUFFER UB_PerFrame
 {
 	mataff _matV;
 	matrix _matP;
 	matrix _matVP;
 };
 
-struct UB_PerMaterial
+VERUS_UBUFFER UB_PerMaterial
 {
-	float4 lsb_gloss_lp;
+	float4 _lsb_gloss_lp;
 };
 
-struct UB_PerMesh
+VERUS_UBUFFER UB_PerMesh
 {
 	float4 _posDeqScale;
 	float4 _posDeqBias;
@@ -18,7 +18,12 @@ struct UB_PerMesh
 	float4 _tc1DeqScaleBias;
 };
 
-struct UB_PerObject
+VERUS_UBUFFER UB_Skinning
+{
+	mataff _vMatBones[VERUS_MAX_NUM_BONES];
+};
+
+VERUS_UBUFFER UB_PerObject
 {
 	mataff _matW;
 	float4 _userColor;

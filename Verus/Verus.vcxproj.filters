@@ -432,6 +432,12 @@
     <ClInclude Include="src\ThirdParty\json.hpp">
       <Filter>src\ThirdParty</Filter>
     </ClInclude>
+    <ClInclude Include="src\Scene\Terrain.h">
+      <Filter>src\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\Atmosphere.h">
+      <Filter>src\Scene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -692,6 +698,12 @@
     <ClCompile Include="src\ThirdParty\zlib-1.2.11\zutil.c">
       <Filter>src\ThirdParty\zlib-1.2.11</Filter>
     </ClCompile>
+    <ClCompile Include="src\Scene\Terrain.cpp">
+      <Filter>src\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\Atmosphere.cpp">
+      <Filter>src\Scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\Shaders\Lib.hlsl">
@@ -706,5 +718,16 @@
     <None Include="src\Shaders\DS_Mesh.inc.hlsl">
       <Filter>src\Shaders</Filter>
     </None>
+    <None Include="src\Shaders\LibColor.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="src\Shaders\DS_Terrain.hlsl">
+      <Filter>src\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="src\Shaders\DS_Terrain.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

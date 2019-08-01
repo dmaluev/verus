@@ -64,6 +64,11 @@ namespace verus
 		Vector3 TriangleNormal(RcPoint3 a, RcPoint3 b, RcPoint3 c);
 		float TriangleArea(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2);
 
+		// Geometry:
+		int GetNumStripGridIndices(int widthPoly, int heightPoly);
+		void BuildStripGrid(int widthPoly, int heightPoly, Vector<UINT16>& vIndices);
+		void BuildListGrid(int widthPoly, int heightPoly, Vector<UINT16>& vIndices);
+
 		// Clamp:
 		template<typename T>
 		T Clamp(T x, T mn, T mx)

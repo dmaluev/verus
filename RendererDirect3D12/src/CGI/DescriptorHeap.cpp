@@ -7,6 +7,8 @@ using namespace verus::CGI;
 
 void DescriptorHeap::Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num, bool shaderVisible)
 {
+	VERUS_CT_ASSERT(sizeof(*this) == 32);
+	VERUS_RT_ASSERT(num > 0);
 	HRESULT hr = 0;
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 	desc.Type = _type = type;
@@ -19,12 +21,12 @@ void DescriptorHeap::Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE ty
 	_handleIncrementSize = pDevice->GetDescriptorHandleIncrementSize(desc.Type);
 }
 
-CD3DX12_CPU_DESCRIPTOR_HANDLE DescriptorHeap::AtCPU(INT index)
+CD3DX12_CPU_DESCRIPTOR_HANDLE DescriptorHeap::AtCPU(INT index) const
 {
 	return CD3DX12_CPU_DESCRIPTOR_HANDLE(_hCPUHandleForHeapStart, index, _handleIncrementSize);
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE DescriptorHeap::AtGPU(INT index)
+CD3DX12_GPU_DESCRIPTOR_HANDLE DescriptorHeap::AtGPU(INT index) const
 {
 	VERUS_RT_ASSERT(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV == _type || D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER == _type);
 	return CD3DX12_GPU_DESCRIPTOR_HANDLE(_hGPUHandleForHeapStart, index, _handleIncrementSize);
@@ -34,12 +36,13 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE DescriptorHeap::AtGPU(INT index)
 
 void DynamicDescriptorHeap::Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num, bool shaderVisible)
 {
+	VERUS_CT_ASSERT(sizeof(*this) == 48);
 	_capacity = num;
 	_offset = 0;
 	DescriptorHeap::Create(pDevice, type, _capacity * BaseRenderer::s_ringBufferSize, shaderVisible);
 }
 
-std::pair<CD3DX12_CPU_DESCRIPTOR_HANDLE, CD3DX12_GPU_DESCRIPTOR_HANDLE> DynamicDescriptorHeap::GetNextHandle()
+HandlePair DynamicDescriptorHeap::GetNextHandlePair(int num)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_D3D12;
@@ -50,11 +53,11 @@ std::pair<CD3DX12_CPU_DESCRIPTOR_HANDLE, CD3DX12_GPU_DESCRIPTOR_HANDLE> DynamicD
 		_offset = 0;
 	}
 
-	if (_offset < _capacity)
+	if (_offset + num <= _capacity)
 	{
 		const INT index = _capacity * pRendererD3D12->GetRingBufferIndex() + _offset;
-		_offset++;
-		return std::make_pair(AtCPU(index), AtGPU(index));
+		_offset += num;
+		return HandlePair(AtCPU(index), AtGPU(index));
 	}
-	return std::make_pair(CD3DX12_CPU_DESCRIPTOR_HANDLE(), CD3DX12_GPU_DESCRIPTOR_HANDLE());
+	return HandlePair();
 }

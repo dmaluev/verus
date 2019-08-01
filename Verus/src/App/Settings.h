@@ -33,7 +33,7 @@ namespace verus
 			};
 
 			Quality       _quality = Quality::medium;
-			int           _gapi = 12;
+			int           _gapi = 0;
 			int           _gpuAnisotropyLevel = 4;
 			int           _gpuAntialiasingLevel = 0;
 			int           _gpuDepthTexture = 0;

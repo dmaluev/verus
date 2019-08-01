@@ -22,14 +22,21 @@ void RendererD3D12::Init()
 {
 	VERUS_INIT();
 
+	_vRenderPasses.reserve(20);
+	_vFramebuffers.reserve(40);
+
 	InitD3D();
 }
 
 void RendererD3D12::Done()
 {
 	WaitIdle();
+	DeleteFramebuffer(-1);
+	DeleteRenderPass(-1);
 
-	_dhSampler.Reset();
+	_vSamplers.clear();
+
+	_dhSamplers.Reset();
 	_dhCbvSrvUav.Reset();
 
 	if (_hFence != INVALID_HANDLE_VALUE)
@@ -42,7 +49,6 @@ void RendererD3D12::Done()
 
 	VERUS_FOR(i, s_ringBufferSize)
 		_mapCommandAllocators[i].clear();
-	_dhDepthStencilBufferView.Reset();
 	_dhSwapChainBuffersRTVs.Reset();
 	_vSwapChainBuffers.clear();
 	VERUS_COM_RELEASE_CHECK(_pSwapChain.Get());
@@ -102,7 +108,10 @@ void RendererD3D12::CreateSwapChainBuffersRTVs()
 		ComPtr<ID3D12Resource> pBuffer;
 		if (FAILED(hr = _pSwapChain->GetBuffer(i, IID_PPV_ARGS(&pBuffer))))
 			throw VERUS_RUNTIME_ERROR << "GetBuffer(), hr=" << VERUS_HR(hr);
-		_pDevice->CreateRenderTargetView(pBuffer.Get(), nullptr, _dhSwapChainBuffersRTVs.AtCPU(i));
+		D3D12_RENDER_TARGET_VIEW_DESC desc = {};
+		desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+		desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+		_pDevice->CreateRenderTargetView(pBuffer.Get(), &desc, _dhSwapChainBuffersRTVs.AtCPU(i));
 		_vSwapChainBuffers[i] = pBuffer;
 	}
 }
@@ -125,13 +134,23 @@ void RendererD3D12::InitD3D()
 	if (FAILED(hr = D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&_pDevice))))
 		throw VERUS_RUNTIME_ERROR << "D3D12CreateDevice(), hr=" << VERUS_HR(hr);
 
+#if defined(_DEBUG) || defined(VERUS_DEBUG)
+	ComPtr<ID3D12InfoQueue> pInfoQueue;
+	if (SUCCEEDED(_pDevice.As(&pInfoQueue)))
+	{
+		pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+		pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+		pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
+	}
+#endif
+
 	_pCommandQueue = CreateCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 	_numSwapChainBuffers = settings._screenVSync ? 3 : 2;
 
 	_swapChainDesc.Width = settings._screenSizeWidth;
 	_swapChainDesc.Height = settings._screenSizeHeight;
-	_swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	_swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 	_swapChainDesc.Stereo = FALSE;
 	_swapChainDesc.SampleDesc.Count = 1;
 	_swapChainDesc.SampleDesc.Quality = 0;
@@ -144,10 +163,10 @@ void RendererD3D12::InitD3D()
 
 	SDL_Window* pWnd = renderer.GetMainWindow()->GetSDL();
 	VERUS_RT_ASSERT(pWnd);
-	SDL_SysWMinfo wmInfo;
+	SDL_SysWMinfo wmInfo = {};
 	SDL_VERSION(&wmInfo.version);
 	SDL_GetWindowWMInfo(pWnd, &wmInfo);
-	HWND hWnd = wmInfo.info.win.window;
+	const HWND hWnd = wmInfo.info.win.window;
 
 	ComPtr<IDXGISwapChain1> pSwapChain1;
 	if (FAILED(hr = pFactory->CreateSwapChainForHwnd(_pCommandQueue.Get(), hWnd, &_swapChainDesc, nullptr, nullptr, &pSwapChain1)))
@@ -166,7 +185,9 @@ void RendererD3D12::InitD3D()
 	_hFence = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
 	_dhCbvSrvUav.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5000, true);
-	_dhSampler.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 500, true);
+	_dhSamplers.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 500, true);
+
+	CreateSamplers();
 }
 
 ComPtr<ID3D12CommandQueue> RendererD3D12::CreateCommandQueue(D3D12_COMMAND_LIST_TYPE type)
@@ -200,18 +221,6 @@ ComPtr<ID3D12GraphicsCommandList3> RendererD3D12::CreateCommandList(D3D12_COMMAN
 	if (FAILED(hr = pGraphicsCommandList->Close()))
 		throw VERUS_RUNTIME_ERROR << "Close(), hr=" << VERUS_HR(hr);
 	return pGraphicsCommandList;
-}
-
-ComPtr<ID3D12DescriptorHeap> RendererD3D12::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num)
-{
-	HRESULT hr = 0;
-	ComPtr<ID3D12DescriptorHeap> pDescriptorHeap;
-	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-	desc.Type = type;
-	desc.NumDescriptors = num;
-	if (FAILED(hr = _pDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&pDescriptorHeap))))
-		throw VERUS_RUNTIME_ERROR << "CreateDescriptorHeap(), hr=" << VERUS_HR(hr);
-	return pDescriptorHeap;
 }
 
 ComPtr<ID3D12Fence> RendererD3D12::CreateFence()
@@ -252,16 +261,41 @@ void RendererD3D12::QueueWaitIdle()
 	}
 }
 
-D3D12_RESOURCE_BARRIER RendererD3D12::MakeResourceBarrierTransition(ID3D12Resource* pResource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after)
+void RendererD3D12::CreateSamplers()
 {
-	D3D12_RESOURCE_BARRIER rb = {};
-	rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	rb.Transition.pResource = pResource;
-	rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	rb.Transition.StateBefore = before;
-	rb.Transition.StateAfter = after;
-	return rb;
+	VERUS_QREF_CONST_SETTINGS;
+
+	_vSamplers.resize(+Sampler::count);
+
+	D3D12_STATIC_SAMPLER_DESC desc = {};
+	D3D12_STATIC_SAMPLER_DESC init = {};
+	init.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	init.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	init.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	init.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	init.MipLODBias = 0;
+	init.MaxAnisotropy = 0;
+	init.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	init.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+	init.MinLOD = 0;
+	init.MaxLOD = D3D12_FLOAT32_MAX;
+
+	desc = init;
+	desc.Filter = D3D12_FILTER_ANISOTROPIC;
+	desc.MaxAnisotropy = settings._gpuAnisotropyLevel;
+	_vSamplers[+Sampler::aniso] = desc;
+
+	desc = init;
+	_vSamplers[+Sampler::linear3D] = desc;
+
+	desc = init;
+	desc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+	_vSamplers[+Sampler::nearest3D] = desc;
+}
+
+D3D12_STATIC_SAMPLER_DESC RendererD3D12::GetStaticSamplerDesc(Sampler s) const
+{
+	return _vSamplers[+s];
 }
 
 void RendererD3D12::BeginFrame(bool present)
@@ -280,15 +314,8 @@ void RendererD3D12::BeginFrame(bool present)
 
 	renderer.GetCommandBuffer()->Begin();
 
-	ID3D12DescriptorHeap* ppHeaps[] = { _dhCbvSrvUav.GetD3DDescriptorHeap(), _dhSampler.GetD3DDescriptorHeap() };
+	ID3D12DescriptorHeap* ppHeaps[] = { _dhCbvSrvUav.GetD3DDescriptorHeap(), _dhSamplers.GetD3DDescriptorHeap() };
 	static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->SetDescriptorHeaps(2, ppHeaps);
-
-	if (present)
-	{
-		auto pBackBuffer = _vSwapChainBuffers[_swapChainBufferIndex];
-		const auto rb = MakeResourceBarrierTransition(pBackBuffer.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->ResourceBarrier(1, &rb);
-	}
 }
 
 void RendererD3D12::EndFrame(bool present)
@@ -296,20 +323,16 @@ void RendererD3D12::EndFrame(bool present)
 	VERUS_QREF_RENDERER;
 	HRESULT hr = 0;
 
-	if (present)
-	{
-		auto pBackBuffer = _vSwapChainBuffers[_swapChainBufferIndex];
-		const auto rb = MakeResourceBarrierTransition(pBackBuffer.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-		static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->ResourceBarrier(1, &rb);
-	}
-
 	renderer.GetCommandBuffer()->End();
 
 	ID3D12CommandList* ppCommandLists[] = { static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList() };
 	_pCommandQueue->ExecuteCommandLists(VERUS_ARRAY_LENGTH(ppCommandLists), ppCommandLists);
 
-	_fenceValues[_ringBufferIndex] = QueueSignal();
-	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
+	if (!present)
+	{
+		_fenceValues[_ringBufferIndex] = QueueSignal();
+		_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
+	}
 }
 
 void RendererD3D12::Present()
@@ -322,15 +345,18 @@ void RendererD3D12::Present()
 	const UINT flags = (allowTearing && !settings._screenVSync) ? DXGI_PRESENT_ALLOW_TEARING : 0;
 	if (FAILED(hr = _pSwapChain->Present(syncInterval, flags)))
 		throw VERUS_RUNTIME_ERROR << "Present(), hr=" << VERUS_HR(hr);
+
+	_fenceValues[_ringBufferIndex] = QueueSignal();
+	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
 }
 
 void RendererD3D12::Clear(UINT32 flags)
 {
 	VERUS_QREF_RENDERER;
 
-	auto handle = _dhSwapChainBuffersRTVs.AtCPU(_swapChainBufferIndex);
-	static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->ClearRenderTargetView(handle, renderer.GetClearColor().ToPointer(), 0, nullptr);
-	static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->OMSetRenderTargets(1, &handle, FALSE, nullptr);
+	//auto handle = _dhSwapChainBuffersRTVs.AtCPU(_swapChainBufferIndex);
+	//static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->ClearRenderTargetView(handle, renderer.GetClearColor().ToPointer(), 0, nullptr);
+	//static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->OMSetRenderTargets(1, &handle, FALSE, nullptr);
 }
 
 void RendererD3D12::WaitIdle()
@@ -388,4 +414,244 @@ void RendererD3D12::DeleteShader(PBaseShader p)
 void RendererD3D12::DeleteTexture(PBaseTexture p)
 {
 	TStoreTextures::Delete(static_cast<PTextureD3D12>(p));
+}
+
+int RendererD3D12::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD)
+{
+	RP::D3DRenderPass renderPass;
+
+	renderPass._vAttachments.reserve(ilA.size());
+	for (const auto& attachment : ilA)
+	{
+		RP::D3DAttachment d3dAttach;
+		d3dAttach._format = attachment._format;
+		d3dAttach._sampleCount = attachment._sampleCount;
+		d3dAttach._loadOp = attachment._loadOp;
+		d3dAttach._storeOp = attachment._storeOp;
+		d3dAttach._stencilLoadOp = attachment._stencilLoadOp;
+		d3dAttach._stencilStoreOp = attachment._stencilStoreOp;
+		d3dAttach._initialState = ToNativeImageLayout(attachment._initialLayout);
+		d3dAttach._finalState = ToNativeImageLayout(attachment._finalLayout);
+		renderPass._vAttachments.push_back(std::move(d3dAttach));
+	}
+
+	auto GetAttachmentIndexByName = [&ilA](CSZ name) -> uint32_t
+	{
+		if (!name)
+			return -1;
+		int index = 0;
+		for (const auto& attachment : ilA)
+		{
+			if (!strcmp(attachment._name, name))
+				return index;
+			index++;
+		}
+		throw VERUS_RECOVERABLE << "CreateRenderPass(), Attachment not found";
+	};
+
+	renderPass._vSubpasses.reserve(ilS.size());
+	for (const auto& subpass : ilS)
+	{
+		RP::D3DSubpass d3dSubpass;
+
+		d3dSubpass._vInput.reserve(subpass._ilInput.size());
+		for (const auto& input : subpass._ilInput)
+		{
+			RP::D3DRef ref;
+			ref._index = GetAttachmentIndexByName(input._name);
+			ref._state = ToNativeImageLayout(input._layout);
+			d3dSubpass._vInput.push_back(ref);
+		}
+
+		d3dSubpass._vColor.reserve(subpass._ilColor.size());
+		for (const auto& color : subpass._ilColor)
+		{
+			RP::D3DRef ref;
+			ref._index = GetAttachmentIndexByName(color._name);
+			ref._state = ToNativeImageLayout(color._layout);
+			d3dSubpass._vColor.push_back(ref);
+
+			if (-1 == renderPass._vAttachments[ref._index]._clearSubpassIndex)
+				renderPass._vAttachments[ref._index]._clearSubpassIndex = Utils::Cast32(renderPass._vSubpasses.size());
+		}
+
+		if (subpass._depthStencil._name)
+		{
+			d3dSubpass._depthStencil._index = GetAttachmentIndexByName(subpass._depthStencil._name);
+			d3dSubpass._depthStencil._state = ToNativeImageLayout(subpass._depthStencil._layout);
+
+			if (-1 == renderPass._vAttachments[d3dSubpass._depthStencil._index]._clearSubpassIndex)
+				renderPass._vAttachments[d3dSubpass._depthStencil._index]._clearSubpassIndex = Utils::Cast32(renderPass._vSubpasses.size());
+		}
+
+		d3dSubpass._vPreserve.reserve(subpass._ilPreserve.size());
+		for (const auto& preserve : subpass._ilPreserve)
+			d3dSubpass._vPreserve.push_back(GetAttachmentIndexByName(preserve._name));
+
+		renderPass._vSubpasses.push_back(std::move(d3dSubpass));
+	}
+
+	const int id = GetNextRenderPassID();
+	if (id >= _vRenderPasses.size())
+		_vRenderPasses.push_back(std::move(renderPass));
+	else
+		_vRenderPasses[id] = renderPass;
+
+	return id;
+}
+
+int RendererD3D12::CreateFramebuffer(int renderPassID, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex)
+{
+	RP::RcD3DRenderPass renderPass = GetRenderPassByID(renderPassID);
+	RP::D3DFramebuffer framebuffer;
+
+	const Vector<TexturePtr> vTex(il);
+	auto GetResource = [this, &vTex, swapChainBufferIndex](int index)
+	{
+		if (swapChainBufferIndex >= 0)
+		{
+			if (index)
+			{
+				auto& texD3D12 = static_cast<RTextureD3D12>(*vTex[index - 1]);
+				return texD3D12.GetD3DResource();
+			}
+			else
+				return _vSwapChainBuffers[swapChainBufferIndex].Get();
+		}
+		else
+		{
+			auto& texD3D12 = static_cast<RTextureD3D12>(*vTex[index]);
+			return texD3D12.GetD3DResource();
+		}
+	};
+	auto GetRTV = [this, &vTex, swapChainBufferIndex](int index)
+	{
+		if (swapChainBufferIndex >= 0)
+		{
+			if (index)
+			{
+				auto& texD3D12 = static_cast<RTextureD3D12>(*vTex[index - 1]);
+				return texD3D12.GetDescriptorHeapRTV().AtCPU(0);
+			}
+			else
+				return _dhSwapChainBuffersRTVs.AtCPU(swapChainBufferIndex);
+		}
+		else
+		{
+			auto& texD3D12 = static_cast<RTextureD3D12>(*vTex[index]);
+			return texD3D12.GetDescriptorHeapRTV().AtCPU(0);
+		}
+	};
+	auto GetDSV = [this, &vTex, swapChainBufferIndex](int index)
+	{
+		if (swapChainBufferIndex >= 0)
+		{
+			if (index)
+			{
+				auto& texD3D12 = static_cast<RTextureD3D12>(*vTex[index - 1]);
+				return texD3D12.GetDescriptorHeapDSV().AtCPU(0);
+			}
+			else
+			{
+				VERUS_RT_ASSERT("Using swapChainBufferIndex for DSV");
+				return CD3DX12_CPU_DESCRIPTOR_HANDLE();
+			}
+		}
+		else
+		{
+			auto& texD3D12 = static_cast<RTextureD3D12>(*vTex[index]);
+			return texD3D12.GetDescriptorHeapDSV().AtCPU(0);
+		}
+	};
+
+	framebuffer._vResources.reserve(renderPass._vAttachments.size());
+	VERUS_FOR(i, renderPass._vAttachments.size())
+		framebuffer._vResources.push_back(GetResource(i));
+
+	framebuffer._vSubpasses.reserve(renderPass._vSubpasses.size());
+	for (const auto& subpass : renderPass._vSubpasses)
+	{
+		RP::D3DFramebufferSubpass fs;
+
+		int numRes = Utils::Cast32(subpass._vColor.size());
+		if (subpass._depthStencil._index >= 0)
+			numRes++;
+		fs._vResources.reserve(numRes);
+
+		if (!subpass._vColor.empty())
+		{
+			fs._dhRTVs.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, Utils::Cast32(subpass._vColor.size()));
+			int index = 0;
+			for (const auto& ref : subpass._vColor)
+			{
+				fs._vResources.push_back(GetResource(ref._index));
+				_pDevice->CopyDescriptorsSimple(1, fs._dhRTVs.AtCPU(index), GetRTV(ref._index), D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+				index++;
+			}
+		}
+		if (subpass._depthStencil._index >= 0)
+		{
+			fs._vResources.push_back(GetResource(subpass._depthStencil._index));
+			fs._dhDSV.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+			_pDevice->CopyDescriptorsSimple(1, fs._dhDSV.AtCPU(0), GetDSV(subpass._depthStencil._index), D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+		}
+
+		framebuffer._vSubpasses.push_back(std::move(fs));
+	}
+
+	const int id = GetNextFramebufferID();
+	if (id >= _vFramebuffers.size())
+		_vFramebuffers.push_back(std::move(framebuffer));
+	else
+		_vFramebuffers[id] = framebuffer;
+
+	return id;
+}
+
+void RendererD3D12::DeleteRenderPass(int id)
+{
+	if (id >= 0)
+		_vRenderPasses[id] = RP::D3DRenderPass();
+	else
+		_vRenderPasses.clear();
+}
+
+void RendererD3D12::DeleteFramebuffer(int id)
+{
+	if (id >= 0)
+		_vFramebuffers[id] = RP::D3DFramebuffer();
+	else
+		_vFramebuffers.clear();
+}
+
+int RendererD3D12::GetNextRenderPassID() const
+{
+	const int num = Utils::Cast32(_vRenderPasses.size());
+	VERUS_FOR(i, num)
+	{
+		if (_vRenderPasses[i]._vSubpasses.empty())
+			return i;
+	}
+	return num;
+}
+
+int RendererD3D12::GetNextFramebufferID() const
+{
+	const int num = Utils::Cast32(_vFramebuffers.size());
+	VERUS_FOR(i, num)
+	{
+		if (_vFramebuffers[i]._vSubpasses.empty())
+			return i;
+	}
+	return num;
+}
+
+RP::RcD3DRenderPass RendererD3D12::GetRenderPassByID(int id) const
+{
+	return _vRenderPasses[id];
+}
+
+RP::RcD3DFramebuffer RendererD3D12::GetFramebufferByID(int id) const
+{
+	return _vFramebuffers[id];
 }

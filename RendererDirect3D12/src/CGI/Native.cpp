@@ -14,6 +14,8 @@ DXGI_FORMAT CGI::ToNativeFormat(Format format)
 	case Format::unormR8G8:         return DXGI_FORMAT_R8G8_UNORM;
 	case Format::unormR8G8B8A8:     return DXGI_FORMAT_R8G8B8A8_UNORM;
 	case Format::unormB8G8R8A8:     return DXGI_FORMAT_B8G8R8A8_UNORM;
+	case Format::srgbR8G8B8A8:      return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	case Format::srgbB8G8R8A8:      return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
 
 	case Format::floatR16:          return DXGI_FORMAT_R16_FLOAT;
 	case Format::floatR16G16:       return DXGI_FORMAT_R16G16_FLOAT;
@@ -28,10 +30,10 @@ DXGI_FORMAT CGI::ToNativeFormat(Format format)
 	case Format::floatD32:          return DXGI_FORMAT_D32_FLOAT;
 
 	case Format::unormBC1:          return DXGI_FORMAT_BC1_UNORM;
-	case Format::srgbBC1:           return DXGI_FORMAT_BC1_UNORM_SRGB;
 	case Format::unormBC2:          return DXGI_FORMAT_BC2_UNORM;
-	case Format::srgbBC2:           return DXGI_FORMAT_BC2_UNORM_SRGB;
 	case Format::unormBC3:          return DXGI_FORMAT_BC3_UNORM;
+	case Format::srgbBC1:           return DXGI_FORMAT_BC1_UNORM_SRGB;
+	case Format::srgbBC2:           return DXGI_FORMAT_BC2_UNORM_SRGB;
 	case Format::srgbBC3:           return DXGI_FORMAT_BC3_UNORM_SRGB;
 
 	default: throw VERUS_RECOVERABLE << "ToNativeFormat()";
@@ -58,7 +60,7 @@ D3D12_RESOURCE_STATES CGI::ToNativeImageLayout(ImageLayout layout)
 	case ImageLayout::colorAttachmentOptimal:        return D3D12_RESOURCE_STATE_RENDER_TARGET;
 	case ImageLayout::depthStencilAttachmentOptimal: return D3D12_RESOURCE_STATE_DEPTH_WRITE;
 	case ImageLayout::depthStencilReadOnlyOptimal:   return D3D12_RESOURCE_STATE_DEPTH_READ;
-	case ImageLayout::shaderReadOnlyOptimal:         return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	case ImageLayout::shaderReadOnlyOptimal:         return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 	case ImageLayout::transferSrcOptimal:            return D3D12_RESOURCE_STATE_COPY_SOURCE;
 	case ImageLayout::transferDstOptimal:            return D3D12_RESOURCE_STATE_COPY_DEST;
 	case ImageLayout::presentSrc:                    return D3D12_RESOURCE_STATE_PRESENT;
@@ -99,6 +101,22 @@ D3D12_PRIMITIVE_TOPOLOGY_TYPE CGI::ToNativePrimitiveTopologyType(PrimitiveTopolo
 	case PrimitiveTopology::triangleList:  return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	case PrimitiveTopology::triangleStrip: return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	default: throw VERUS_RECOVERABLE << "ToNativePrimitiveTopologyType()";
+	}
+}
+
+D3D12_COMPARISON_FUNC CGI::ToNativeCompareOp(CompareOp compareOp)
+{
+	switch (compareOp)
+	{
+	case CompareOp::never:          return D3D12_COMPARISON_FUNC_NEVER;
+	case CompareOp::less:           return D3D12_COMPARISON_FUNC_LESS;
+	case CompareOp::equal:          return D3D12_COMPARISON_FUNC_EQUAL;
+	case CompareOp::lessOrEqual:    return D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	case CompareOp::greater:        return D3D12_COMPARISON_FUNC_GREATER;
+	case CompareOp::notEqual:       return D3D12_COMPARISON_FUNC_NOT_EQUAL;
+	case CompareOp::greaterOrEqual: return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+	case CompareOp::always:         return D3D12_COMPARISON_FUNC_ALWAYS;
+	default: throw VERUS_RECOVERABLE << "ToNativeCompareOp()";
 	}
 }
 

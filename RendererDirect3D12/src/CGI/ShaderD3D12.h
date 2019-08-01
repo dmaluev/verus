@@ -27,9 +27,11 @@ namespace verus
 			VERUS_TYPEDEFS(Compiled);
 			typedef Map<String, Compiled> TMapCompiled;
 
-			struct UniformBuffer
+			struct DescriptorSetDesc
 			{
+				Vector<Sampler>        _vSamplers;
 				ComPtr<ID3D12Resource> _pConstantBuffer;
+				DescriptorHeap         _dhDynamicOffsets;
 				BYTE*                  _pMappedData = nullptr;
 				const void*            _pSrc = nullptr;
 				int                    _size = 0;
@@ -37,11 +39,23 @@ namespace verus
 				int                    _capacity = 1;
 				int                    _capacityInBytes = 0;
 				int                    _offset = 0;
+				int                    _index = 0;
 				ShaderStageFlags       _stageFlags = ShaderStageFlags::vs_fs;
+				bool                   _staticSamplersOnly = true;
 			};
+			VERUS_TYPEDEFS(DescriptorSetDesc);
+
+			struct ComplexSet
+			{
+				Vector<TexturePtr> _vTextures;
+				DescriptorHeap     _dhSRVs;
+				DescriptorHeap     _dhSamplers;
+			};
+			VERUS_TYPEDEFS(ComplexSet);
 
 			TMapCompiled                _mapCompiled;
-			Vector<UniformBuffer>       _vUniformBuffers;
+			Vector<DescriptorSetDesc>   _vDescriptorSetDesc;
+			Vector<ComplexSet>          _vComplexSets;
 			ComPtr<ID3D12RootSignature> _pRootSignature;
 			UINT64                      _currentFrame = UINT64_MAX;
 
@@ -52,8 +66,9 @@ namespace verus
 			virtual void Init(CSZ source, CSZ sourceName, CSZ* branches) override;
 			virtual void Done() override;
 
-			virtual void BindUniformBufferSource(int descSet, const void* pSrc, int size, int capacity, ShaderStageFlags stageFlags) override;
+			virtual void CreateDescriptorSet(int setNumber, const void* pSrc, int size, int capacity, std::initializer_list<Sampler> il, ShaderStageFlags stageFlags) override;
 			virtual void CreatePipelineLayout() override;
+			virtual int BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il) override;
 
 			virtual void BeginBindDescriptors() override;
 			virtual void EndBindDescriptors() override;
@@ -67,9 +82,11 @@ namespace verus
 
 			ID3D12RootSignature* GetD3DRootSignature() const { return _pRootSignature.Get(); }
 
-			UINT ToRootParameterIndex(int descSet) const;
-			bool TryRootConstants(int descSet, RBaseCommandBuffer cb);
-			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateUniformBuffer(int descSet);
+			UINT ToRootParameterIndex(int setNumber) const;
+			bool TryRootConstants(int setNumber, RBaseCommandBuffer cb);
+			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateUniformBuffer(int setNumber, int complexSetID, bool copyDescOnly = false);
+			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateSamplers(int setNumber, int complexSetID);
+			int GetNumDescriptorSets() const { return static_cast<int>(_vDescriptorSetDesc.size()); }
 
 			void OnError(CSZ s);
 		};

@@ -178,10 +178,12 @@
     <ClInclude Include="src\Net\HttpFile.h" />
     <ClInclude Include="src\Net\Net.h" />
     <ClInclude Include="src\Net\Socket.h" />
+    <ClInclude Include="src\Scene\Atmosphere.h" />
     <ClInclude Include="src\Scene\BaseMesh.h" />
     <ClInclude Include="src\Scene\Camera.h" />
     <ClInclude Include="src\Scene\Mesh.h" />
     <ClInclude Include="src\Scene\Scene.h" />
+    <ClInclude Include="src\Scene\Terrain.h" />
     <ClInclude Include="src\Security\CipherRC4.h" />
     <ClInclude Include="src\Security\Security.h" />
     <ClInclude Include="src\ThirdParty\json.hpp" />
@@ -270,10 +272,12 @@
     <ClCompile Include="src\Net\HttpFile.cpp" />
     <ClCompile Include="src\Net\Net.cpp" />
     <ClCompile Include="src\Net\Socket.cpp" />
+    <ClCompile Include="src\Scene\Atmosphere.cpp" />
     <ClCompile Include="src\Scene\BaseMesh.cpp" />
     <ClCompile Include="src\Scene\Camera.cpp" />
     <ClCompile Include="src\Scene\Mesh.cpp" />
     <ClCompile Include="src\Scene\Scene.cpp" />
+    <ClCompile Include="src\Scene\Terrain.cpp" />
     <ClCompile Include="src\ThirdParty\libb64\cdecode.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
@@ -404,6 +408,19 @@
       <FileType>Document</FileType>
     </None>
     <None Include="src\Shaders\LibVertex.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\LibColor.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\DS_Terrain.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DS_Terrain.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

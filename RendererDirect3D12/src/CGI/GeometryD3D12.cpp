@@ -65,7 +65,7 @@ void GeometryD3D12::Done()
 	DestroyStagingBuffers();
 
 	VERUS_COM_RELEASE_CHECK(_pIndexBuffer.Get());
-	for (auto& x : _vVertexBuffers)
+	for (const auto& x : _vVertexBuffers)
 		VERUS_COM_RELEASE_CHECK(x._pBuffer.Get());
 
 	_pIndexBuffer.Reset();
@@ -86,17 +86,32 @@ void GeometryD3D12::CreateVertexBuffer(int num, int binding)
 	const int elementSize = _vStrides[binding];
 	vb._bufferSize = num * elementSize;
 
-	if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize),
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr,
-		IID_PPV_ARGS(&vb._pBuffer))))
-		throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
+	if ((_bindingInstMask >> binding) & 0x1)
+	{
+		if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize * BaseRenderer::s_ringBufferSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&vb._pBuffer))))
+			throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+		vb._bufferView.SizeInBytes = Utils::Cast32(vb._bufferSize * BaseRenderer::s_ringBufferSize);
+	}
+	else
+	{
+		if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize),
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			nullptr,
+			IID_PPV_ARGS(&vb._pBuffer))))
+			throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
+		vb._bufferView.SizeInBytes = Utils::Cast32(vb._bufferSize);
+	}
 
 	vb._bufferView.BufferLocation = vb._pBuffer->GetGPUVirtualAddress();
-	vb._bufferView.SizeInBytes = Utils::Cast32(vb._bufferSize);
 	vb._bufferView.StrideInBytes = elementSize;
 }
 
@@ -106,37 +121,50 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, BaseCommandBu
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
 
-	if (_vStagingVertexBuffers.size() <= binding)
-		_vStagingVertexBuffers.resize(binding + 1);
+	if ((_bindingInstMask >> binding) & 0x1)
+	{
+		auto& vb = _vVertexBuffers[binding];
+		CD3DX12_RANGE readRange(0, 0);
+		void* pData = nullptr;
+		if (FAILED(hr = vb._pBuffer->Map(0, &readRange, &pData)))
+			throw VERUS_RUNTIME_ERROR << "Map(), hr=" << VERUS_HR(hr);
+		BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererD3D12->GetRingBufferIndex() * vb._bufferSize;
+		memcpy(pMappedData, p, vb._bufferSize);
+		vb._pBuffer->Unmap(0, nullptr);
+	}
+	else
+	{
+		if (_vStagingVertexBuffers.size() <= binding)
+			_vStagingVertexBuffers.resize(binding + 1);
 
-	auto& vb = _vVertexBuffers[binding];
-	auto& svb = _vStagingVertexBuffers[binding];
-	if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(&svb._pBuffer))))
-		throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+		auto& vb = _vVertexBuffers[binding];
+		auto& svb = _vStagingVertexBuffers[binding];
+		if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&svb._pBuffer))))
+			throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
 
-	if (!pCB)
-		pCB = &(*renderer.GetCommandBuffer());
-	auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
-	D3D12_SUBRESOURCE_DATA sd = {};
-	sd.pData = p;
-	sd.RowPitch = vb._bufferSize;
-	sd.SlicePitch = sd.RowPitch;
-	UpdateSubresources(pCmdList,
-		vb._pBuffer.Get(),
-		svb._pBuffer.Get(),
-		0, 0, 1, &sd);
+		if (!pCB)
+			pCB = &(*renderer.GetCommandBuffer());
+		auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
+		D3D12_SUBRESOURCE_DATA sd = {};
+		sd.pData = p;
+		sd.RowPitch = vb._bufferSize;
+		sd.SlicePitch = sd.RowPitch;
+		UpdateSubresources(pCmdList,
+			vb._pBuffer.Get(),
+			svb._pBuffer.Get(),
+			0, 0, 1, &sd);
+		const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+			vb._pBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+		pCmdList->ResourceBarrier(1, &barrier);
 
-	const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-		vb._pBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-	pCmdList->ResourceBarrier(1, &barrier);
-
-	_destroyStagingBuffers.Schedule();
+		_destroyStagingBuffers.Schedule();
+	}
 }
 
 void GeometryD3D12::CreateIndexBuffer(int num)
@@ -187,7 +215,6 @@ void GeometryD3D12::UpdateIndexBuffer(const void* p, BaseCommandBuffer* pCB)
 		_pIndexBuffer.Get(),
 		_pStagingIndexBuffer.Get(),
 		0, 0, 1, &sd);
-
 	const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
 		_pIndexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER);
 	pCmdList->ResourceBarrier(1, &barrier);
@@ -201,9 +228,8 @@ void GeometryD3D12::DestroyStagingBuffers()
 		return;
 
 	VERUS_COM_RELEASE_CHECK(_pStagingIndexBuffer.Get());
-	for (auto& x : _vStagingVertexBuffers)
+	for (const auto& x : _vStagingVertexBuffers)
 		VERUS_COM_RELEASE_CHECK(x._pBuffer.Get());
-
 	_pStagingIndexBuffer.Reset();
 	_vStagingVertexBuffers.clear();
 }
@@ -213,9 +239,9 @@ D3D12_INPUT_LAYOUT_DESC GeometryD3D12::GetD3DInputLayoutDesc(UINT32 bindingsFilt
 	if (UINT32_MAX == bindingsFilter)
 		return { _vInputElementDesc.data(), Utils::Cast32(_vInputElementDesc.size()) };
 
-	uint32_t replaceBinding[VERUS_CGI_MAX_VB] = {}; // For bindings compaction.
+	uint32_t replaceBinding[VERUS_MAX_NUM_VB] = {}; // For bindings compaction.
 	int binding = 0;
-	VERUS_FOR(i, VERUS_CGI_MAX_VB)
+	VERUS_FOR(i, VERUS_MAX_NUM_VB)
 	{
 		replaceBinding[i] = binding;
 		if ((bindingsFilter >> i) & 0x1)
@@ -223,7 +249,7 @@ D3D12_INPUT_LAYOUT_DESC GeometryD3D12::GetD3DInputLayoutDesc(UINT32 bindingsFilt
 	}
 
 	vInputElementDesc.reserve(_vInputElementDesc.size());
-	for (auto& x : _vInputElementDesc)
+	for (const auto& x : _vInputElementDesc)
 	{
 		if ((bindingsFilter >> x.InputSlot) & 0x1)
 		{

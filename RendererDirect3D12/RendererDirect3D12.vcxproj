@@ -98,6 +98,7 @@
     <ClInclude Include="src\CGI\Native.h" />
     <ClInclude Include="src\CGI\PipelineD3D12.h" />
     <ClInclude Include="src\CGI\RendererD3D12.h" />
+    <ClInclude Include="src\CGI\RenderPass.h" />
     <ClInclude Include="src\CGI\ShaderD3D12.h" />
     <ClInclude Include="src\CGI\TextureD3D12.h" />
     <ClInclude Include="src\stdafx.h" />
@@ -110,6 +111,7 @@
     <ClCompile Include="src\CGI\Native.cpp" />
     <ClCompile Include="src\CGI\PipelineD3D12.cpp" />
     <ClCompile Include="src\CGI\RendererD3D12.cpp" />
+    <ClCompile Include="src\CGI\RenderPass.cpp" />
     <ClCompile Include="src\CGI\ShaderD3D12.cpp" />
     <ClCompile Include="src\CGI\TextureD3D12.cpp" />
     <ClCompile Include="src\main.cpp" />

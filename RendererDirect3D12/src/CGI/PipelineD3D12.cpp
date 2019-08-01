@@ -60,14 +60,31 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 	gpsDesc.RasterizerState.ForcedSampleCount = 0;
 	gpsDesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
-	gpsDesc.DepthStencilState = {};
+	gpsDesc.DepthStencilState.DepthEnable = desc._depthTestEnable;
+	gpsDesc.DepthStencilState.DepthWriteMask = desc._depthWriteEnable ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
+	gpsDesc.DepthStencilState.DepthFunc = ToNativeCompareOp(desc._depthCompareOp);
+	gpsDesc.DepthStencilState.StencilEnable = desc._stencilTestEnable;
+
 	Vector<D3D12_INPUT_ELEMENT_DESC> vInputElementDesc;
 	gpsDesc.InputLayout = geo.GetD3DInputLayoutDesc(_vertexInputBindingsFilter, vInputElementDesc);
 	gpsDesc.IBStripCutValue = desc._primitiveRestartEnable ? D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFF : D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
 	gpsDesc.PrimitiveTopologyType = ToNativePrimitiveTopologyType(desc._topology);
-	gpsDesc.NumRenderTargets = 1;
-	gpsDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	gpsDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+
+	RP::RcD3DRenderPass renderPass = pRendererD3D12->GetRenderPassByID(desc._renderPassID);
+	RP::RcD3DSubpass subpass = renderPass._vSubpasses[desc._subpass];
+	gpsDesc.NumRenderTargets = Utils::Cast32(subpass._vColor.size());
+	VERUS_U_FOR(i, gpsDesc.NumRenderTargets)
+	{
+		const int index = subpass._vColor[i]._index;
+		RP::RcD3DAttachment attachment = renderPass._vAttachments[index];
+		gpsDesc.RTVFormats[i] = ToNativeFormat(attachment._format);
+	}
+	if (subpass._depthStencil._index >= 0)
+	{
+		RP::RcD3DAttachment attachment = renderPass._vAttachments[subpass._depthStencil._index];
+		gpsDesc.DSVFormat = ToNativeFormat(attachment._format);
+	}
+
 	gpsDesc.SampleDesc.Count = desc._sampleCount;
 	gpsDesc.NodeMask = 0;
 	gpsDesc.CachedPSO = { nullptr, 0 };

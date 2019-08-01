@@ -49,9 +49,27 @@ void Renderer::Init(PRendererDelegate pDelegate)
 
 	_commandBuffer.Init();
 
+	TextureDesc td;
+	td._format = Format::unormD24uintS8;
+	td._width = settings._screenSizeWidth;
+	td._height = settings._screenSizeHeight;
+	_texDepthStencil.Init(td);
+
 	_rpSwapChain = _pBaseRenderer->CreateRenderPass(
-		{ RP::Attachment("Color", Format::unormB8G8R8A8).LoadOpClear().FinalLayout(ImageLayout::presentSrc) },
+		{ RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().FinalLayout(ImageLayout::presentSrc) },
 		{ RP::Subpass("Sp0").Color({RP::Ref("Color", ImageLayout::colorAttachmentOptimal)}) },
+		{});
+	_rpSwapChainDepth = _pBaseRenderer->CreateRenderPass(
+		{
+			RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().FinalLayout(ImageLayout::presentSrc),
+			RP::Attachment("Depth", Format::unormD24uintS8).LoadOpClear().Layout(ImageLayout::depthStencilAttachmentOptimal),
+		},
+		{
+			RP::Subpass("Sp0").Color(
+			{
+				RP::Ref("Color", ImageLayout::colorAttachmentOptimal)
+			}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachmentOptimal)),
+		},
 		{});
 	_rpDS = _pBaseRenderer->CreateRenderPass(
 		{
@@ -59,7 +77,7 @@ void Renderer::Init(PRendererDelegate pDelegate)
 			RP::Attachment("GBuffer1", Format::unormR8G8B8A8).LoadOpClear().FinalLayout(ImageLayout::presentSrc),
 			RP::Attachment("GBuffer2", Format::unormR8G8B8A8).LoadOpClear().FinalLayout(ImageLayout::presentSrc),
 			RP::Attachment("GBuffer3", Format::unormR8G8B8A8).LoadOpClear().FinalLayout(ImageLayout::presentSrc),
-			RP::Attachment("Depth", Format::unormD24uintS8).LoadOpClear().FinalLayout(ImageLayout::presentSrc),
+			RP::Attachment("Depth", Format::unormD24uintS8).LoadOpClear().Layout(ImageLayout::depthStencilAttachmentOptimal),
 		},
 		{
 			RP::Subpass("Sp0").Color(
@@ -70,12 +88,14 @@ void Renderer::Init(PRendererDelegate pDelegate)
 					RP::Ref("GBuffer3", ImageLayout::colorAttachmentOptimal)
 				}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachmentOptimal))
 		},
-		{
-		});
+		{});
 
 	_fbSwapChain.resize(_pBaseRenderer->GetNumSwapChainBuffers());
 	VERUS_FOR(i, _fbSwapChain.size())
 		_fbSwapChain[i] = _pBaseRenderer->CreateFramebuffer(_rpSwapChain, {}, settings._screenSizeWidth, settings._screenSizeHeight, i);
+	_fbSwapChainDepth.resize(_pBaseRenderer->GetNumSwapChainBuffers());
+	VERUS_FOR(i, _fbSwapChainDepth.size())
+		_fbSwapChainDepth[i] = _pBaseRenderer->CreateFramebuffer(_rpSwapChainDepth, { _texDepthStencil }, settings._screenSizeWidth, settings._screenSizeHeight, i);
 }
 
 void Renderer::Done()
@@ -83,8 +103,10 @@ void Renderer::Done()
 	if (_pBaseRenderer)
 	{
 		_pBaseRenderer->WaitIdle();
+		_texDepthStencil.Done();
 		_commandBuffer.Done();
 
+		Scene::Terrain::DoneStatic();
 		Scene::Mesh::DoneStatic();
 
 		_pBaseRenderer->ReleaseMe();

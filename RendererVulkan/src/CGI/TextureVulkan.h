@@ -6,8 +6,18 @@ namespace verus
 	{
 		class TextureVulkan : public BaseTexture
 		{
-			VkImage     _image = VK_NULL_HANDLE;
-			VkImageView _imageView = VK_NULL_HANDLE;
+			struct VkBufferEx
+			{
+				VkBuffer      _buffer = VK_NULL_HANDLE;
+				VmaAllocation _vmaAllocation = VK_NULL_HANDLE;
+			};
+
+			VkImage            _image = VK_NULL_HANDLE;
+			VmaAllocation      _vmaAllocation = VK_NULL_HANDLE;
+			VkImageView        _imageView = VK_NULL_HANDLE;
+			VkSampler          _sampler = VK_NULL_HANDLE;
+			Vector<VkBufferEx> _vStagingBuffers;
+			DestroyStaging     _destroyStagingBuffers;
 
 		public:
 			TextureVulkan();
@@ -16,12 +26,17 @@ namespace verus
 			virtual void Init(RcTextureDesc desc) override;
 			virtual void Done() override;
 
+			virtual void UpdateImage(int mipLevel, const void* p, int arrayLayer, BaseCommandBuffer* pCB) override;
+
 			//
 			// Vulkan
 			//
 
+			void DestroyStagingBuffers();
+
 			VkImage GetVkImage() const { return _image; }
 			VkImageView GetVkImageView() const { return _imageView; }
+			VkSampler GetVkSampler() const { return _sampler; }
 		};
 		VERUS_TYPEDEFS(TextureVulkan);
 	}

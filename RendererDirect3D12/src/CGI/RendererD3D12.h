@@ -18,16 +18,17 @@ namespace verus
 			ComPtr<ID3D12CommandQueue>        _pCommandQueue;
 			ComPtr<IDXGISwapChain4>           _pSwapChain;
 			Vector<ComPtr<ID3D12Resource>>    _vSwapChainBuffers;
-			ComPtr<ID3D12Resource>            _depthStencilBuffer;
 			DescriptorHeap                    _dhSwapChainBuffersRTVs;
-			DescriptorHeap                    _dhDepthStencilBufferView;
 			DynamicDescriptorHeap             _dhCbvSrvUav;
-			DynamicDescriptorHeap             _dhSampler;
+			DynamicDescriptorHeap             _dhSamplers;
 			TMapCommandAllocators             _mapCommandAllocators[s_ringBufferSize];
 			ComPtr<ID3D12Fence>               _pFence;
 			HANDLE                            _hFence = INVALID_HANDLE_VALUE;
 			UINT64                            _nextFenceValue = 1;
-			UINT64                            _fenceValues[s_ringBufferSize];
+			UINT64                            _fenceValues[s_ringBufferSize] = {};
+			Vector<D3D12_STATIC_SAMPLER_DESC> _vSamplers;
+			Vector<RP::D3DRenderPass>         _vRenderPasses;
+			Vector<RP::D3DFramebuffer>        _vFramebuffers;
 			DXGI_SWAP_CHAIN_DESC1             _swapChainDesc = {};
 
 		public:
@@ -51,16 +52,15 @@ namespace verus
 			ComPtr<ID3D12CommandQueue>         CreateCommandQueue(D3D12_COMMAND_LIST_TYPE type);
 			ComPtr<ID3D12CommandAllocator>     CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE type);
 			ComPtr<ID3D12GraphicsCommandList3> CreateCommandList(D3D12_COMMAND_LIST_TYPE type, ComPtr<ID3D12CommandAllocator> pCommandAllocator);
-			ComPtr<ID3D12DescriptorHeap>       CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num);
 			ComPtr<ID3D12Fence>                CreateFence();
 			UINT64 QueueSignal();
 			void WaitForFenceValue(UINT64 value);
 			void QueueWaitIdle();
-
-			static D3D12_RESOURCE_BARRIER MakeResourceBarrierTransition(ID3D12Resource* pResource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
+			void CreateSamplers();
 
 			ID3D12Device3* GetD3DDevice() const { return _pDevice.Get(); }
 			ID3D12CommandAllocator* GetD3DCommandAllocator(int ringBufferIndex) const { return _mapCommandAllocators[ringBufferIndex].at(std::this_thread::get_id()).Get(); }
+			D3D12_STATIC_SAMPLER_DESC GetStaticSamplerDesc(Sampler s) const;
 
 			// Which graphics API?
 			virtual Gapi GetGapi() override { return Gapi::direct3D12; }
@@ -86,8 +86,17 @@ namespace verus
 			virtual void DeleteShader(PBaseShader p) override;
 			virtual void DeleteTexture(PBaseTexture p) override;
 
+			virtual int CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) override;
+			virtual int CreateFramebuffer(int renderPassID, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex = -1) override;
+			virtual void DeleteRenderPass(int id) override;
+			virtual void DeleteFramebuffer(int id) override;
+			int GetNextRenderPassID() const;
+			int GetNextFramebufferID() const;
+			RP::RcD3DRenderPass GetRenderPassByID(int id) const;
+			RP::RcD3DFramebuffer GetFramebufferByID(int id) const;
+
 			RDynamicDescriptorHeap GetHeapCbvSrvUav() { return _dhCbvSrvUav; }
-			RDynamicDescriptorHeap GetHeapSampler() { return _dhSampler; }
+			RDynamicDescriptorHeap GetHeapSampler() { return _dhSamplers; }
 		};
 		VERUS_TYPEDEFS(RendererD3D12);
 	}

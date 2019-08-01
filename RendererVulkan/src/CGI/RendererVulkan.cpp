@@ -81,6 +81,7 @@ void RendererVulkan::Init()
 	CreateImageViews();
 	CreateCommandPools();
 	CreateSyncObjects();
+	CreateSamplers();
 }
 
 void RendererVulkan::Done()
@@ -88,6 +89,10 @@ void RendererVulkan::Done()
 	WaitIdle();
 	DeleteFramebuffer(-1);
 	DeleteRenderPass(-1);
+
+	for (auto sampler : _vSamplers)
+		VERUS_VULKAN_DESTROY(sampler, vkDestroySampler(_device, sampler, GetAllocator()));
+	_vSamplers.clear();
 	VERUS_FOR(i, s_ringBufferSize)
 	{
 		VERUS_VULKAN_DESTROY(_acquireNextImageSemaphores[i], vkDestroySemaphore(_device, _acquireNextImageSemaphores[i], GetAllocator()));
@@ -227,13 +232,17 @@ void RendererVulkan::CreateInstance()
 
 	const auto vExtensions = GetRequiredExtensions();
 
+	const int major = (VERUS_SDK_VERSION >> 24) & 0xFF;
+	const int minor = (VERUS_SDK_VERSION >> 16) & 0xFF;
+	const int patch = (VERUS_SDK_VERSION) & 0xFFFF;
+
 	VkApplicationInfo vkai = {};
 	vkai.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	vkai.pApplicationName = "Game";
 	vkai.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 	vkai.pEngineName = "Verus";
-	vkai.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-	vkai.apiVersion = VK_API_VERSION_1_0;
+	vkai.engineVersion = VK_MAKE_VERSION(major, minor, patch);
+	vkai.apiVersion = VK_API_VERSION_1_1;
 	VkInstanceCreateInfo vkici = {};
 	vkici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	vkici.pApplicationInfo = &vkai;
@@ -253,8 +262,10 @@ void RendererVulkan::CreateDebugUtilsMessenger()
 	VkDebugUtilsMessengerCreateInfoEXT vkdumci = {};
 	vkdumci.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 	vkdumci.messageSeverity =
+#if defined(_DEBUG) || defined(VERUS_DEBUG)
 		VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
 		VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+#endif
 		VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
 		VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 	vkdumci.messageType =
@@ -371,6 +382,7 @@ void RendererVulkan::CreateDevice()
 		vDeviceQueueCreateInfos.push_back(vkdqci);
 	}
 	VkPhysicalDeviceFeatures physicalDeviceFeatures = {};
+	physicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
 	VkDeviceCreateInfo vkdci = {};
 	vkdci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	vkdci.queueCreateInfoCount = Utils::Cast32(vDeviceQueueCreateInfos.size());
@@ -428,7 +440,7 @@ void RendererVulkan::CreateSwapChain()
 	vksci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	vksci.surface = _surface;
 	vksci.minImageCount = _numSwapChainBuffers;
-	vksci.imageFormat = VK_FORMAT_B8G8R8A8_UNORM;
+	vksci.imageFormat = VK_FORMAT_B8G8R8A8_SRGB;
 	vksci.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 	vksci.imageExtent.width = settings._screenSizeWidth;
 	vksci.imageExtent.height = settings._screenSizeHeight;
@@ -472,7 +484,7 @@ void RendererVulkan::CreateImageViews()
 		vkivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		vkivci.image = _vSwapChainImages[i];
 		vkivci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		vkivci.format = VK_FORMAT_B8G8R8A8_UNORM;
+		vkivci.format = VK_FORMAT_B8G8R8A8_SRGB;
 		vkivci.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
 		vkivci.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
 		vkivci.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -519,6 +531,54 @@ void RendererVulkan::CreateSyncObjects()
 	}
 }
 
+void RendererVulkan::CreateSamplers()
+{
+	VERUS_QREF_CONST_SETTINGS;
+
+	_vSamplers.resize(+Sampler::count);
+
+	VkSamplerCreateInfo vksci = {};
+	VkSamplerCreateInfo init = {};
+	init.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	init.magFilter = VK_FILTER_LINEAR;
+	init.minFilter = VK_FILTER_LINEAR;
+	init.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	init.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	init.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	init.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	init.mipLodBias = 0;
+	init.anisotropyEnable = VK_FALSE;
+	init.maxAnisotropy = 0;
+	init.compareEnable = VK_FALSE;
+	init.compareOp = VK_COMPARE_OP_ALWAYS;
+	init.minLod = 0;
+	init.maxLod = FLT_MAX;
+	init.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+
+	auto Create = [this](const VkSamplerCreateInfo& vksci)
+	{
+		VkResult res = VK_SUCCESS;
+		VkSampler sampler = VK_NULL_HANDLE;
+		if (VK_SUCCESS != (res = vkCreateSampler(_device, &vksci, GetAllocator(), &sampler)))
+			throw VERUS_RUNTIME_ERROR << "vkCreateSampler(), res=" << res;
+		return sampler;
+	};
+
+	vksci = init;
+	vksci.anisotropyEnable = VK_TRUE;
+	vksci.maxAnisotropy = static_cast<float>(settings._gpuAnisotropyLevel);
+	_vSamplers[+Sampler::aniso] = Create(vksci);
+
+	vksci = init;
+	_vSamplers[+Sampler::linear3D] = Create(vksci);
+
+	vksci = init;
+	vksci.magFilter = VK_FILTER_NEAREST;
+	vksci.minFilter = VK_FILTER_NEAREST;
+	vksci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	_vSamplers[+Sampler::nearest3D] = Create(vksci);
+}
+
 VkCommandBuffer RendererVulkan::CreateCommandBuffer(VkCommandPool commandPool)
 {
 	VkResult res = VK_SUCCESS;
@@ -531,6 +591,11 @@ VkCommandBuffer RendererVulkan::CreateCommandBuffer(VkCommandPool commandPool)
 	if (VK_SUCCESS != (res = vkAllocateCommandBuffers(_device, &vkcbai, &commandBuffer)))
 		throw VERUS_RUNTIME_ERROR << "vkAllocateCommandBuffers(), res=" << res;
 	return commandBuffer;
+}
+
+const VkSampler* RendererVulkan::GetImmutableSampler(Sampler s) const
+{
+	return &_vSamplers[+s];
 }
 
 void RendererVulkan::BeginFrame(bool present)
@@ -725,7 +790,7 @@ int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, 
 
 	Vector<VkAttachmentDescription> vAttachmentDesc;
 	vAttachmentDesc.reserve(ilA.size());
-	for (auto& attachment : ilA)
+	for (const auto& attachment : ilA)
 	{
 		VkAttachmentDescription vkad = {};
 		vkad.format = ToNativeFormat(attachment._format);
@@ -744,7 +809,7 @@ int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, 
 		if (!name)
 			return VK_ATTACHMENT_UNUSED;
 		uint32_t index = 0;
-		for (auto& attachment : ilA)
+		for (const auto& attachment : ilA)
 		{
 			if (!strcmp(attachment._name, name))
 				return index;
@@ -771,7 +836,7 @@ int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, 
 	vSubpassMetadata.reserve(ilS.size());
 	Vector<VkSubpassDescription> vSubpassDesc;
 	vSubpassDesc.reserve(ilS.size());
-	for (auto& subpass : ilS)
+	for (const auto& subpass : ilS)
 	{
 		SubpassMetadata subpassMetadata;
 		VkSubpassDescription vksd = {};
@@ -779,7 +844,7 @@ int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, 
 
 		vksd.inputAttachmentCount = Utils::Cast32(subpass._ilInput.size());
 		subpassMetadata.inputRefIndex = Utils::Cast32(vAttachmentRef.size());
-		for (auto& input : subpass._ilInput)
+		for (const auto& input : subpass._ilInput)
 		{
 			VkAttachmentReference vkar = {};
 			vkar.attachment = GetAttachmentIndexByName(input._name);
@@ -789,7 +854,7 @@ int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, 
 
 		vksd.colorAttachmentCount = Utils::Cast32(subpass._ilColor.size());
 		subpassMetadata.colorRefIndex = Utils::Cast32(vAttachmentRef.size());
-		for (auto& color : subpass._ilColor)
+		for (const auto& color : subpass._ilColor)
 		{
 			VkAttachmentReference vkar = {};
 			vkar.attachment = GetAttachmentIndexByName(color._name);
@@ -808,7 +873,7 @@ int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, 
 
 		vksd.preserveAttachmentCount = Utils::Cast32(subpass._ilPreserve.size());
 		subpassMetadata.preserveIndex = Utils::Cast32(vAttachmentIndex.size());
-		for (auto& preserve : subpass._ilPreserve)
+		for (const auto& preserve : subpass._ilPreserve)
 		{
 			const uint32_t index = GetAttachmentIndexByName(preserve._name);
 			vAttachmentIndex.push_back(index);
@@ -838,21 +903,12 @@ int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, 
 
 	Vector<VkSubpassDependency> vSubpassDependency;
 	vSubpassDependency.reserve(ilD.size());
-	for (auto& dependency : ilD)
+	for (const auto& dependency : ilD)
 	{
 		VkSubpassDependency vksd = {};
 
 		vSubpassDependency.push_back(vksd);
 	}
-
-	VkSubpassDependency dependency = {};
-	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	dependency.dstSubpass = 0;
-	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.srcAccessMask = 0;
-	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	vSubpassDependency.push_back(dependency);
 
 	VkRenderPass renderPass = VK_NULL_HANDLE;
 	VkRenderPassCreateInfo vkrpci = {};
@@ -879,7 +935,7 @@ int RendererVulkan::CreateFramebuffer(int renderPassID, std::initializer_list<Te
 {
 	VkResult res = VK_SUCCESS;
 
-	VkImageView imageViews[VERUS_CGI_MAX_RT] = {};
+	VkImageView imageViews[VERUS_MAX_NUM_RT] = {};
 	VkFramebuffer framebuffer = VK_NULL_HANDLE;
 	VkFramebufferCreateInfo vkfci = {};
 	vkfci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -996,7 +1052,40 @@ void RendererVulkan::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDevice
 	if (!pCB)
 		pCB = &(*renderer.GetCommandBuffer());
 	auto commandBuffer = static_cast<PCommandBufferVulkan>(pCB)->GetVkCommandBuffer();
-	VkBufferCopy copyRegion = {};
-	copyRegion.size = size;
-	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+	VkBufferCopy region = {};
+	region.size = size;
+	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &region);
+}
+
+void RendererVulkan::CreateImage(const VkImageCreateInfo* pImageCreateInfo, VmaMemoryUsage vmaUsage, VkImage& image, VmaAllocation& vmaAllocation)
+{
+	VkResult res = VK_SUCCESS;
+
+	VmaAllocationCreateInfo vmaaci = {};
+	vmaaci.usage = vmaUsage;
+	if (VK_SUCCESS != (res = vmaCreateImage(_vmaAllocator, pImageCreateInfo, &vmaaci, &image, &vmaAllocation, nullptr)))
+		throw VERUS_RECOVERABLE << "vmaCreateImage(), res=" << res;
+}
+
+void RendererVulkan::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t mipLevel, PBaseCommandBuffer pCB)
+{
+	VERUS_QREF_RENDERER;
+
+	if (!pCB)
+		pCB = &(*renderer.GetCommandBuffer());
+	auto commandBuffer = static_cast<PCommandBufferVulkan>(pCB)->GetVkCommandBuffer();
+
+	VkBufferImageCopy region = {};
+	region.bufferOffset = 0;
+	region.bufferRowLength = 0;
+	region.bufferImageHeight = 0;
+	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	region.imageSubresource.mipLevel = mipLevel;
+	region.imageSubresource.baseArrayLayer = 0;
+	region.imageSubresource.layerCount = 1;
+	region.imageOffset = { 0, 0, 0 };
+	region.imageExtent = { width, height, 1 };
+
+	vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }

@@ -64,6 +64,7 @@ namespace verus
 			VkSemaphore              _queueSubmitSemaphore = VK_NULL_HANDLE;
 			VkFence                  _queueSubmitFences[s_ringBufferSize] = {};
 			QueueFamilyIndices       _queueFamilyIndices;
+			Vector<VkSampler>        _vSamplers;
 			Vector<VkRenderPass>     _vRenderPasses;
 			Vector<VkFramebuffer>    _vFramebuffers;
 
@@ -102,14 +103,17 @@ namespace verus
 			void CreateImageViews();
 			void CreateCommandPools();
 			void CreateSyncObjects();
+			void CreateSamplers();
 
 		public:
 			VkCommandBuffer CreateCommandBuffer(VkCommandPool commandPool);
 
 			VkDevice GetVkDevice() const { return _device; }
+			VkQueue GetVkGraphicsQueue() const { return _graphicsQueue; }
 			const VkAllocationCallbacks* GetAllocator() const { return nullptr; }
 			VmaAllocator GetVmaAllocator() const { return _vmaAllocator; }
 			VkCommandPool GetVkCommandPool(int ringBufferIndex) const { return _commandPools[ringBufferIndex]; }
+			const VkSampler* GetImmutableSampler(Sampler s) const;
 
 			// Which graphics API?
 			virtual Gapi GetGapi() override { return Gapi::vulkan; }
@@ -146,6 +150,8 @@ namespace verus
 
 			void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage vmaUsage, VkBuffer& buffer, VmaAllocation& vmaAllocation);
 			void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, PBaseCommandBuffer pCB = nullptr);
+			void CreateImage(const VkImageCreateInfo* pImageCreateInfo, VmaMemoryUsage vmaUsage, VkImage& image, VmaAllocation& vmaAllocation);
+			void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t mipLevel, PBaseCommandBuffer pCB = nullptr);
 		};
 		VERUS_TYPEDEFS(RendererVulkan);
 	}

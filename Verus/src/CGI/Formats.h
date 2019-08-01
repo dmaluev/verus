@@ -4,7 +4,7 @@ namespace verus
 {
 	namespace CGI
 	{
-		enum class Format : UINT16
+		enum class Format : int
 		{
 			unormB4G4R4A4,
 			unormB5G6R5,
@@ -14,6 +14,8 @@ namespace verus
 			unormR8G8,
 			unormR8G8B8A8,
 			unormB8G8R8A8,
+			srgbR8G8B8A8,
+			srgbB8G8R8A8,
 
 			// Floating-Point Formats:
 			floatR16,
@@ -32,10 +34,10 @@ namespace verus
 
 			// Compressed Texture Formats:
 			unormBC1,
-			srgbBC1,
 			unormBC2,
-			srgbBC2,
 			unormBC3,
+			srgbBC1,
+			srgbBC2,
 			srgbBC3
 		};
 	}

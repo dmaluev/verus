@@ -57,6 +57,9 @@
     <ClInclude Include="src\CGI\DescriptorHeap.h">
       <Filter>src\CGI</Filter>
     </ClInclude>
+    <ClInclude Include="src\CGI\RenderPass.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -87,6 +90,9 @@
       <Filter>src\CGI</Filter>
     </ClCompile>
     <ClCompile Include="src\CGI\DescriptorHeap.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\RenderPass.cpp">
       <Filter>src\CGI</Filter>
     </ClCompile>
   </ItemGroup>

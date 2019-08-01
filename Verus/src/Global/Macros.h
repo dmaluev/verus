@@ -73,3 +73,9 @@
 #endif
 
 #define VERUS_HR(hr) std::hex << std::uppercase << "0x" << hr
+
+#define VERUS_UBUFFER struct alignas(VERUS_MEMORY_ALIGNMENT)
+
+#define VERUS_MAX_NUM_BONES 128
+#define VERUS_MAX_NUM_RT 8
+#define VERUS_MAX_NUM_VB 8

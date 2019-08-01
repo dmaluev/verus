@@ -9,6 +9,7 @@ CGI::PipelinePwns<1> Mesh::s_pipe;
 Mesh::UB_PerFrame    Mesh::s_ubPerFrame;
 Mesh::UB_PerMaterial Mesh::s_ubPerMaterial;
 Mesh::UB_PerMesh     Mesh::s_ubPerMesh;
+Mesh::UB_Skinning    Mesh::s_ubSkinning;
 Mesh::UB_PerObject   Mesh::s_ubPerObject;
 
 // Mesh:
@@ -27,10 +28,11 @@ void Mesh::InitStatic()
 	CGI::ShaderDesc shaderDesc;
 	shaderDesc._url = "[Shaders]:DS_Mesh.hlsl";
 	s_shader.Init(shaderDesc);
-	s_shader->BindUniformBufferSource(0, &s_ubPerFrame, sizeof(s_ubPerFrame));
-	s_shader->BindUniformBufferSource(1, &s_ubPerMaterial, sizeof(s_ubPerMaterial), 1000);
-	s_shader->BindUniformBufferSource(2, &s_ubPerMesh, sizeof(s_ubPerMesh), 1000);
-	s_shader->BindUniformBufferSource(3, &s_ubPerObject, sizeof(s_ubPerObject), 0);
+	s_shader->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame));
+	s_shader->CreateDescriptorSet(1, &s_ubPerMaterial, sizeof(s_ubPerMaterial), 1000, { CGI::Sampler::aniso, CGI::Sampler::aniso });
+	s_shader->CreateDescriptorSet(2, &s_ubPerMesh, sizeof(s_ubPerMesh), 1000);
+	s_shader->CreateDescriptorSet(3, &s_ubSkinning, sizeof(s_ubSkinning), 500);
+	s_shader->CreateDescriptorSet(4, &s_ubPerObject, sizeof(s_ubPerObject), 0);
 	s_shader->CreatePipelineLayout();
 }
 
@@ -39,10 +41,13 @@ void Mesh::DoneStatic()
 	s_shader.Done();
 }
 
-void Mesh::Init()
+void Mesh::Init(RcDesc desc)
 {
-	CSZ url = "[Models]:Actors/Gulman/Gulman.x3d";
-	BaseMesh::Init(url);
+	VERUS_RT_ASSERT(desc._url);
+
+	_maxNumInstances = desc._maxNumInstances;
+
+	BaseMesh::Init(desc._url);
 }
 
 void Mesh::Done()
@@ -56,6 +61,30 @@ void Mesh::Bind(CGI::CommandBufferPtr cb, UINT32 bindingsFilter)
 	cb->BindIndexBuffer(_geo);
 }
 
+void Mesh::UpdateUniformBufferPerFrame(Scene::RcCamera cam)
+{
+	s_ubPerFrame._matV = cam.GetMatrixV().UniformBufferFormat();
+	s_ubPerFrame._matP = cam.GetMatrixP().UniformBufferFormat();
+	s_ubPerFrame._matVP = cam.GetMatrixVP().UniformBufferFormat();
+}
+
+void Mesh::UpdateUniformBufferPerMaterial()
+{
+}
+
+void Mesh::UpdateUniformBufferPerMesh()
+{
+	memcpy(&s_ubPerMesh._posDeqScale, _posDeq + 0, 12);
+	memcpy(&s_ubPerMesh._posDeqBias, _posDeq + 3, 12);
+	memcpy(&s_ubPerMesh._tc0DeqScaleBias, _tc0Deq, 16);
+	memcpy(&s_ubPerMesh._tc1DeqScaleBias, _tc1Deq, 16);
+}
+
+void Mesh::UpdateUniformBufferSkinning()
+{
+	_skeleton.UpdateUniformBufferArray(s_ubSkinning._vMatBones);
+}
+
 void Mesh::UpdateUniformBufferPerObject(Point3 pos)
 {
 	VERUS_QREF_TIMER;
@@ -67,28 +96,9 @@ void Mesh::UpdateUniformBufferPerObject(Point3 pos)
 	s_ubPerObject._userColor = Vector4(1, 0, 0, 1).GLM();
 }
 
-void Mesh::UpdateUniformBufferPerMesh()
-{
-	memcpy(&s_ubPerMesh._posDeqScale, _posDeq + 0, 12);
-	memcpy(&s_ubPerMesh._posDeqBias, _posDeq + 3, 12);
-	memcpy(&s_ubPerMesh._tc0DeqScaleBias, _tc0Deq, 16);
-	memcpy(&s_ubPerMesh._tc1DeqScaleBias, _tc1Deq, 16);
-}
-
-void Mesh::UpdateUniformBufferPerMaterial()
-{
-}
-
-void Mesh::UpdateUniformBufferPerFrame(Scene::RcCamera cam)
-{
-	s_ubPerFrame._matV = cam.GetMatrixV().UniformBufferFormat();
-	s_ubPerFrame._matP = cam.GetMatrixP().UniformBufferFormat();
-	s_ubPerFrame._matVP = cam.GetMatrixVP().UniformBufferFormat();
-}
-
 void Mesh::CreateDeviceBuffers()
 {
-	_bindingMask = 0;
+	_bindingsMask = 0;
 	const CGI::InputElementDesc ied[] =
 	{
 		{0, offsetof(VertexInputBinding0, _pos), CGI::IeType::_short, 4, CGI::IeUsage::position, 0},
@@ -116,14 +126,14 @@ void Mesh::CreateDeviceBuffers()
 	_geo.Init(geoDesc);
 
 	// Vertex buffer, binding 0:
-	_bindingMask |= (1 << 0);
+	_bindingsMask |= (1 << 0);
 	_geo->CreateVertexBuffer(Utils::Cast32(_vBinding0.size()), 0);
 	_geo->UpdateVertexBuffer(_vBinding0.data(), 0);
 
 	// Vertex buffer, binding 1 (skinning):
 	if (!_vBinding1.empty())
 	{
-		_bindingMask |= (1 << 1);
+		_bindingsMask |= (1 << 1);
 		_geo->CreateVertexBuffer(Utils::Cast32(_vBinding1.size()), 1);
 		_geo->UpdateVertexBuffer(_vBinding1.data(), 1);
 	}
@@ -131,7 +141,7 @@ void Mesh::CreateDeviceBuffers()
 	// Vertex buffer, binding 2 (tangent space):
 	if (!_vBinding2.empty())
 	{
-		_bindingMask |= (1 << 2);
+		_bindingsMask |= (1 << 2);
 		_geo->CreateVertexBuffer(Utils::Cast32(_vBinding2.size()), 2);
 		_geo->UpdateVertexBuffer(_vBinding2.data(), 2);
 	}
@@ -139,7 +149,7 @@ void Mesh::CreateDeviceBuffers()
 	// Vertex buffer, binding 3 (lightmap):
 	if (!_vBinding3.empty())
 	{
-		_bindingMask |= (1 << 3);
+		_bindingsMask |= (1 << 3);
 		_geo->CreateVertexBuffer(Utils::Cast32(_vBinding3.size()), 3);
 		_geo->UpdateVertexBuffer(_vBinding3.data(), 3);
 	}
@@ -155,9 +165,52 @@ void Mesh::CreateDeviceBuffers()
 		_geo->CreateIndexBuffer(Utils::Cast32(_vIndices.size()));
 		_geo->UpdateIndexBuffer(_vIndices.data());
 	}
+
+	// Instance buffer:
+	if (_maxNumInstances > 1)
+	{
+		_vInstanceBuffer.resize(_maxNumInstances);
+		_bindingsMask |= (1 << 4);
+		_geo->CreateVertexBuffer(Utils::Cast32(_vInstanceBuffer.size()), 4);
+	}
 }
 
 void Mesh::BufferDataVB(const void* p, int binding)
 {
 	_geo->UpdateVertexBuffer(p, binding);
+}
+
+void Mesh::PushInstance(RcTransform3 matW, RcVector4 instData)
+{
+	if (!_numVerts)
+		return;
+	if (IsInstanceBufferFull())
+		return;
+	matW.InstFormat(&_vInstanceBuffer[_numInstances]._matPart0);
+	_vInstanceBuffer[_numInstances]._instData = instData;
+	_numInstances++;
+}
+
+bool Mesh::IsInstanceBufferFull()
+{
+	if (!_numVerts)
+		return false;
+	return _numInstances >= _maxNumInstances;
+}
+
+bool Mesh::IsInstanceBufferEmpty()
+{
+	if (!_numVerts)
+		return true;
+	return _numInstances <= 0;
+}
+
+void Mesh::ResetNumInstances()
+{
+	_numInstances = 0;
+}
+
+void Mesh::UpdateInstanceBuffer()
+{
+	_geo->UpdateVertexBuffer(_vInstanceBuffer.data(), 4);
 }

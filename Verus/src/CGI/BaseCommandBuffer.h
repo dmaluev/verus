@@ -18,6 +18,7 @@ namespace verus
 			virtual void End() = 0;
 
 			virtual void BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, PcVector4 pRenderArea = nullptr) = 0;
+			virtual void NextSubpass() = 0;
 			virtual void EndRenderPass() = 0;
 
 			virtual void BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilter = UINT32_MAX) = 0;
@@ -28,10 +29,10 @@ namespace verus
 			virtual void SetScissor(std::initializer_list<Vector4> il) = 0;
 			virtual void SetBlendConstants(const float* p) = 0;
 
-			virtual bool BindDescriptors(ShaderPtr shader, int descSet) = 0;
+			virtual bool BindDescriptors(ShaderPtr shader, int setNumber, int complexSetID = -1) = 0;
 			virtual void PushConstants(ShaderPtr shader, int offset, int size, const void* p, ShaderStageFlags stageFlags = ShaderStageFlags::vs_fs) = 0;
 
-			virtual void PipelineBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout) = 0;
+			virtual void PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, int mipLevel) = 0;
 			virtual void Clear(ClearFlags clearFlags) = 0;
 
 			virtual void Draw(int vertexCount, int instanceCount, int firstVertex = 0, int firstInstance = 0) = 0;

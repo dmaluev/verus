@@ -13,6 +13,8 @@ VkFormat CGI::ToNativeFormat(Format format)
 	case Format::unormR8G8:         return VK_FORMAT_R8G8_UNORM;
 	case Format::unormR8G8B8A8:     return VK_FORMAT_R8G8B8A8_UNORM;
 	case Format::unormB8G8R8A8:     return VK_FORMAT_B8G8R8A8_UNORM;
+	case Format::srgbR8G8B8A8:      return VK_FORMAT_R8G8B8A8_SRGB;
+	case Format::srgbB8G8R8A8:      return VK_FORMAT_B8G8R8A8_SRGB;
 
 	case Format::floatR16:          return VK_FORMAT_R16_SFLOAT;
 	case Format::floatR16G16:       return VK_FORMAT_R16G16_SFLOAT;
@@ -27,10 +29,10 @@ VkFormat CGI::ToNativeFormat(Format format)
 	case Format::floatD32:          return VK_FORMAT_D32_SFLOAT;
 
 	case Format::unormBC1:          return VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
-	case Format::srgbBC1:           return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
 	case Format::unormBC2:          return VK_FORMAT_BC2_UNORM_BLOCK;
-	case Format::srgbBC2:           return VK_FORMAT_BC2_SRGB_BLOCK;
 	case Format::unormBC3:          return VK_FORMAT_BC3_UNORM_BLOCK;
+	case Format::srgbBC1:           return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
+	case Format::srgbBC2:           return VK_FORMAT_BC2_SRGB_BLOCK;
 	case Format::srgbBC3:           return VK_FORMAT_BC3_SRGB_BLOCK;
 
 	default: throw VERUS_RECOVERABLE << "ToNativeFormat()";
@@ -100,6 +102,22 @@ VkSampleCountFlagBits CGI::ToNativeSampleCount(int sampleCount)
 	case 32: return VK_SAMPLE_COUNT_32_BIT;
 	case 64: return VK_SAMPLE_COUNT_64_BIT;
 	default: throw VERUS_RECOVERABLE << "ToNativeSampleCount()";
+	}
+}
+
+VkCompareOp CGI::ToNativeCompareOp(CompareOp compareOp)
+{
+	switch (compareOp)
+	{
+	case CompareOp::never:          return VK_COMPARE_OP_NEVER;
+	case CompareOp::less:           return VK_COMPARE_OP_LESS;
+	case CompareOp::equal:          return VK_COMPARE_OP_EQUAL;
+	case CompareOp::lessOrEqual:    return VK_COMPARE_OP_LESS_OR_EQUAL;
+	case CompareOp::greater:        return VK_COMPARE_OP_GREATER;
+	case CompareOp::notEqual:       return VK_COMPARE_OP_NOT_EQUAL;
+	case CompareOp::greaterOrEqual: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+	case CompareOp::always:         return VK_COMPARE_OP_ALWAYS;
+	default: throw VERUS_RECOVERABLE << "ToNativeCompareOp()";
 	}
 }
 

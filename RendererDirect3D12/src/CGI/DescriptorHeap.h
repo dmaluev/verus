@@ -19,10 +19,21 @@ namespace verus
 
 			void Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num, bool shaderVisible = false);
 
-			CD3DX12_CPU_DESCRIPTOR_HANDLE AtCPU(INT index);
-			CD3DX12_GPU_DESCRIPTOR_HANDLE AtGPU(INT index);
+			CD3DX12_CPU_DESCRIPTOR_HANDLE AtCPU(INT index) const;
+			CD3DX12_GPU_DESCRIPTOR_HANDLE AtGPU(INT index) const;
 		};
 		VERUS_TYPEDEFS(DescriptorHeap);
+
+		struct HandlePair
+		{
+			CD3DX12_CPU_DESCRIPTOR_HANDLE _hCPU;
+			CD3DX12_GPU_DESCRIPTOR_HANDLE _hGPU;
+
+			HandlePair(
+				CD3DX12_CPU_DESCRIPTOR_HANDLE hCPU = CD3DX12_CPU_DESCRIPTOR_HANDLE(),
+				CD3DX12_GPU_DESCRIPTOR_HANDLE hGPU = CD3DX12_GPU_DESCRIPTOR_HANDLE()) : _hCPU(hCPU), _hGPU(hGPU) {}
+		};
+		VERUS_TYPEDEFS(HandlePair);
 
 		class DynamicDescriptorHeap : public DescriptorHeap
 		{
@@ -33,7 +44,7 @@ namespace verus
 		public:
 			void Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num, bool shaderVisible = false);
 
-			std::pair<CD3DX12_CPU_DESCRIPTOR_HANDLE, CD3DX12_GPU_DESCRIPTOR_HANDLE> GetNextHandle();
+			HandlePair GetNextHandlePair(int num = 1);
 
 			UINT GetCapacity() const { return _capacity; }
 			UINT GetOffset() const { return _offset; }

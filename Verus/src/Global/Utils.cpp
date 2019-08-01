@@ -73,3 +73,13 @@ UINT32 Utils::Cast32(UINT64 x)
 		throw VERUS_RECOVERABLE << "Cast32 failed, x=" << x;
 	return static_cast<UINT32>(x);
 }
+
+void Utils::CopyColor(BYTE* dest, UINT32 src)
+{
+	memcpy(dest, &src, sizeof(UINT32));
+}
+
+void Utils::CopyColor(UINT32& dest, const BYTE* src)
+{
+	memcpy(&dest, src, sizeof(UINT32));
+}

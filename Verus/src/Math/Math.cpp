@@ -83,3 +83,71 @@ float Math::TriangleArea(
 	const float s = (a + b + c)*0.5f;
 	return sqrt(s*(s - a)*(s - b)*(s - c));
 }
+
+int Math::GetNumStripGridIndices(int widthPoly, int heightPoly)
+{
+	const int widthVert = widthPoly + 1;
+	return (widthVert * 2)*heightPoly + (heightPoly - 1); // Strip and primitive restart values.
+}
+
+void Math::BuildStripGrid(int widthPoly, int heightPoly, Vector<UINT16>& vIndices)
+{
+	vIndices.resize(GetNumStripGridIndices(widthPoly, heightPoly));
+	int offset = 0;
+	const int widthVert = widthPoly + 1;
+	VERUS_FOR(h, heightPoly)
+	{
+		if (h > 0) // Primitive restart value:
+			vIndices[offset++] = 0xFFFF;
+		if (h & 0x1)
+		{
+			for (int w = widthPoly; w >= 0; --w)
+			{
+				vIndices[offset++] = widthVert * (h + 1) + w;
+				vIndices[offset++] = widthVert * (h + 0) + w;
+			}
+		}
+		else
+		{
+			VERUS_FOR(w, widthVert)
+			{
+				vIndices[offset++] = widthVert * (h + 0) + w;
+				vIndices[offset++] = widthVert * (h + 1) + w;
+			}
+		}
+	}
+}
+
+void Math::BuildListGrid(int widthPoly, int heightPoly, Vector<UINT16>& vIndices)
+{
+	vIndices.resize(widthPoly*heightPoly * 6);
+	int offset = 0;
+	const int widthVert = widthPoly + 1;
+	VERUS_FOR(h, heightPoly)
+	{
+		if (h & 0x1)
+		{
+			for (int w = widthPoly - 1; w >= 0; --w)
+			{
+				vIndices[offset++] = widthVert * (h + 1) + w + 1;
+				vIndices[offset++] = widthVert * (h + 0) + w + 1;
+				vIndices[offset++] = widthVert * (h + 1) + w;
+				vIndices[offset++] = widthVert * (h + 1) + w;
+				vIndices[offset++] = widthVert * (h + 0) + w + 1;
+				vIndices[offset++] = widthVert * (h + 0) + w;
+			}
+		}
+		else
+		{
+			VERUS_FOR(w, widthPoly)
+			{
+				vIndices[offset++] = widthVert * (h + 0) + w;
+				vIndices[offset++] = widthVert * (h + 1) + w;
+				vIndices[offset++] = widthVert * (h + 0) + w + 1;
+				vIndices[offset++] = widthVert * (h + 0) + w + 1;
+				vIndices[offset++] = widthVert * (h + 1) + w;
+				vIndices[offset++] = widthVert * (h + 1) + w + 1;
+			}
+		}
+	}
+}

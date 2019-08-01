@@ -326,7 +326,7 @@ void FileSystem::LoadTextureParts(RFile file, CSZ url, int texturePart, Vector<B
 	{
 		const int w = maxW >> part;
 		const int h = maxH >> part;
-		const size_t sizePart = DDSHeader::ComputeDxtLevelSize(w, h, header.IsDxt1());
+		const size_t sizePart = DDSHeader::ComputeBcLevelSize(w, h, header.IsBC1());
 		if (part < numPartsSkip)
 			sizeSkip += sizePart;
 	}

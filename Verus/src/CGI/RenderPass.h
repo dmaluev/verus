@@ -9,14 +9,14 @@ namespace verus
 			class Attachment
 			{
 			public:
-				enum class LoadOp
+				enum class LoadOp : int
 				{
 					load,
 					clear,
 					dontCare
 				};
 
-				enum class StoreOp
+				enum class StoreOp : int
 				{
 					store,
 					dontCare
@@ -38,6 +38,7 @@ namespace verus
 				Attachment& LoadOpDontCare();
 				Attachment& StoreOpDontCare();
 				Attachment& Layout(ImageLayout whenBegins, ImageLayout whenEnds);
+				Attachment& Layout(ImageLayout both);
 				Attachment& FinalLayout(ImageLayout whenEnds);
 			};
 			VERUS_TYPEDEFS(Attachment);

@@ -15,6 +15,10 @@ namespace verus
 			int                        _renderPassID = -1;
 			int                        _subpass = 0;
 			UINT32                     _vertexInputBindingsFilter = UINT32_MAX;
+			CompareOp                  _depthCompareOp = CompareOp::less;
+			bool                       _depthTestEnable = true;
+			bool                       _depthWriteEnable = true;
+			bool                       _stencilTestEnable = false;
 			bool                       _primitiveRestartEnable = false;
 
 			PipelineDesc(GeometryPtr geo, ShaderPtr shader, CSZ branch, int renderPassID) :

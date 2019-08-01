@@ -91,13 +91,14 @@ namespace verus
 
 			DDSHeader();
 			bool Validate() const;
-			bool IsDxt1() const;
-			bool IsDxt3() const;
-			bool IsDxt5() const;
-			bool IsDxt() const;
+			bool IsBC1() const;
+			bool IsBC2() const;
+			bool IsBC3() const;
+			bool IsBC() const;
 			bool IsBGRA8() const;
 			bool IsBGR8() const;
-			static int ComputeDxtLevelSize(int w, int h, bool dxt1 = true);
+			static int ComputeBcLevelSize(int w, int h, bool dxt1 = true);
+			static int ComputeBcPitch(int w, int h, bool bc1 = true);
 			int GetNumParts() const;
 			int SkipParts(int numSkip);
 		};

@@ -16,6 +16,8 @@ namespace verus
 
 		VkSampleCountFlagBits ToNativeSampleCount(int sampleCount);
 
+		VkCompareOp ToNativeCompareOp(CompareOp compareOp);
+
 		VkShaderStageFlags ToNativeStageFlags(ShaderStageFlags stageFlags);
 
 		int ToNativeLocation(IeUsage usage, int usageIndex);

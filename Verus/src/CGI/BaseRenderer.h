@@ -70,10 +70,10 @@ namespace verus
 			virtual void DeleteShader(PBaseShader p) = 0;
 			virtual void DeleteTexture(PBaseTexture p) = 0;
 
-			virtual int CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) { return 0; }
-			virtual int CreateFramebuffer(int renderPassID, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex = -1) { return 0; }
-			virtual void DeleteRenderPass(int id) {}
-			virtual void DeleteFramebuffer(int id) {}
+			virtual int CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) = 0;
+			virtual int CreateFramebuffer(int renderPassID, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex = -1) = 0;
+			virtual void DeleteRenderPass(int id) = 0;
+			virtual void DeleteFramebuffer(int id) = 0;
 		};
 		VERUS_TYPEDEFS(BaseRenderer);
 	}

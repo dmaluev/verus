@@ -20,12 +20,15 @@ namespace verus
 			PBaseRenderer     _pBaseRenderer = nullptr;
 			PRendererDelegate _pRendererDelegate = nullptr;
 			CommandBufferPwn  _commandBuffer;
+			TexturePwn        _texDepthStencil;
 			UINT64            _numFrames = 0;
 			Gapi              _gapi = Gapi::unknown;
 			float             _fps = 30;
 			int               _rpSwapChain = 0;
+			int               _rpSwapChainDepth = 0;
 			int               _rpDS = 0;
 			Vector<int>       _fbSwapChain;
+			Vector<int>       _fbSwapChainDepth;
 
 		public:
 			Renderer();
@@ -43,6 +46,7 @@ namespace verus
 			void Present();
 
 			CommandBufferPtr GetCommandBuffer() const { return _commandBuffer; }
+			TexturePwn GetTexDepthStencil() const { return _texDepthStencil; }
 
 			void OnShaderError(CSZ s);
 			void OnShaderWarning(CSZ s);
@@ -58,10 +62,12 @@ namespace verus
 			float GetFps() const { return _fps; }
 			UINT64 GetNumFrames() const { return _numFrames; }
 
-			int GetRenderPassSwapChain() const { return _rpSwapChain; }
-			int GetRenderPassDS() const { return _rpDS; }
+			int GetRenderPass_SwapChain() const { return _rpSwapChain; }
+			int GetRenderPass_SwapChainDepth() const { return _rpSwapChainDepth; }
+			int GetRenderPass_DS() const { return _rpDS; }
 
-			int GetFramebufferSwapChain(int index) const { return _fbSwapChain[index]; }
+			int GetFramebuffer_SwapChain(int index) const { return _fbSwapChain[index]; }
+			int GetFramebuffer_SwapChainDepth(int index) const { return _fbSwapChainDepth[index]; }
 		};
 		VERUS_TYPEDEFS(Renderer);
 	}

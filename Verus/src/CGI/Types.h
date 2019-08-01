@@ -59,6 +59,18 @@ namespace verus
 			bool        _rasterizerDiscardEnable = false;
 		};
 
+		enum class CompareOp : int
+		{
+			never,
+			less,
+			equal,
+			lessOrEqual,
+			greater,
+			notEqual,
+			greaterOrEqual,
+			always,
+		};
+
 		enum class ShaderStageFlags : UINT32
 		{
 			vs = (1 << 0),
@@ -104,5 +116,14 @@ namespace verus
 			static constexpr InputElementDesc End() { return { -1, -1, IeType::_float, 0, IeUsage::position, 0 }; }
 		};
 		VERUS_TYPEDEFS(InputElementDesc);
+
+		enum class Sampler : int
+		{
+			custom,
+			aniso,
+			linear3D,
+			nearest3D,
+			count
+		};
 	}
 }

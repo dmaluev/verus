@@ -102,7 +102,7 @@ namespace verus
 				int numAlphaMotions = 0, PAlphaMotion pAlphaMotions = nullptr);
 
 			//! Fills the array of matrices that will be used by a shader.
-			void FillMatrixArray(mataff* p) const;
+			void UpdateUniformBufferArray(mataff* p) const;
 
 			void ResetFinalPose();
 

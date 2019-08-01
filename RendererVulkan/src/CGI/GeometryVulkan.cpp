@@ -96,8 +96,16 @@ void GeometryVulkan::CreateVertexBuffer(int num, int binding)
 	const int elementSize = _vStrides[binding];
 	vb._bufferSize = num * elementSize;
 
-	pRendererVulkan->CreateBuffer(vb._bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
-		vb._buffer, vb._vmaAllocation);
+	if ((_bindingInstMask >> binding) & 0x1)
+	{
+		pRendererVulkan->CreateBuffer(vb._bufferSize * BaseRenderer::s_ringBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,
+			vb._buffer, vb._vmaAllocation);
+	}
+	else
+	{
+		pRendererVulkan->CreateBuffer(vb._bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
+			vb._buffer, vb._vmaAllocation);
+	}
 }
 
 void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, BaseCommandBuffer* pCB)
@@ -105,23 +113,36 @@ void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, BaseCommandB
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
-	if (_vStagingVertexBuffers.size() <= binding)
-		_vStagingVertexBuffers.resize(binding + 1);
+	if ((_bindingInstMask >> binding) & 0x1)
+	{
+		auto& vb = _vVertexBuffers[binding];
+		void* pData = nullptr;
+		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), vb._vmaAllocation, &pData)))
+			throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
+		BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererVulkan->GetRingBufferIndex() * vb._bufferSize;
+		memcpy(pMappedData, p, vb._bufferSize);
+		vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), vb._vmaAllocation);
+	}
+	else
+	{
+		if (_vStagingVertexBuffers.size() <= binding)
+			_vStagingVertexBuffers.resize(binding + 1);
 
-	auto& vb = _vVertexBuffers[binding];
-	auto& svb = _vStagingVertexBuffers[binding];
-	pRendererVulkan->CreateBuffer(vb._bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY,
-		svb._buffer, svb._vmaAllocation);
+		auto& vb = _vVertexBuffers[binding];
+		auto& svb = _vStagingVertexBuffers[binding];
+		pRendererVulkan->CreateBuffer(vb._bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY,
+			svb._buffer, svb._vmaAllocation);
 
-	void* pData = nullptr;
-	if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), svb._vmaAllocation, &pData)))
-		throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
-	memcpy(pData, p, vb._bufferSize);
-	vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), svb._vmaAllocation);
+		void* pData = nullptr;
+		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), svb._vmaAllocation, &pData)))
+			throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
+		memcpy(pData, p, vb._bufferSize);
+		vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), svb._vmaAllocation);
 
-	pRendererVulkan->CopyBuffer(svb._buffer, vb._buffer, vb._bufferSize);
+		pRendererVulkan->CopyBuffer(svb._buffer, vb._buffer, vb._bufferSize, pCB);
 
-	_destroyStagingBuffers.Schedule();
+		_destroyStagingBuffers.Schedule();
+	}
 }
 
 void GeometryVulkan::CreateIndexBuffer(int num)
@@ -149,17 +170,17 @@ void GeometryVulkan::UpdateIndexBuffer(const void* p, BaseCommandBuffer* pCB)
 	memcpy(pData, p, _indexBuffer._bufferSize);
 	vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), _stagingIndexBuffer._vmaAllocation);
 
-	pRendererVulkan->CopyBuffer(_stagingIndexBuffer._buffer, _indexBuffer._buffer, _indexBuffer._bufferSize);
+	pRendererVulkan->CopyBuffer(_stagingIndexBuffer._buffer, _indexBuffer._buffer, _indexBuffer._bufferSize, pCB);
 
 	_destroyStagingBuffers.Schedule();
 }
 
 void GeometryVulkan::DestroyStagingBuffers()
 {
-	VERUS_QREF_RENDERER_VULKAN;
-
 	if (!_destroyStagingBuffers.IsAllowed())
 		return;
+
+	VERUS_QREF_RENDERER_VULKAN;
 	VERUS_VULKAN_DESTROY(_stagingIndexBuffer._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), _stagingIndexBuffer._buffer, _stagingIndexBuffer._vmaAllocation));
 	for (auto& x : _vStagingVertexBuffers)
 		VERUS_VULKAN_DESTROY(x._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), x._buffer, x._vmaAllocation));
@@ -179,9 +200,9 @@ VkPipelineVertexInputStateCreateInfo GeometryVulkan::GetVkPipelineVertexInputSta
 		return vertexInputState;
 	}
 
-	uint32_t replaceBinding[VERUS_CGI_MAX_VB] = {}; // For bindings compaction.
+	uint32_t replaceBinding[VERUS_MAX_NUM_VB] = {}; // For bindings compaction.
 	int binding = 0;
-	VERUS_FOR(i, VERUS_CGI_MAX_VB)
+	VERUS_FOR(i, VERUS_MAX_NUM_VB)
 	{
 		replaceBinding[i] = binding;
 		if ((bindingsFilter >> i) & 0x1)
@@ -190,7 +211,7 @@ VkPipelineVertexInputStateCreateInfo GeometryVulkan::GetVkPipelineVertexInputSta
 
 	vVertexInputBindingDesc.reserve(_vVertexInputBindingDesc.size());
 	vVertexInputAttributeDesc.reserve(_vVertexInputAttributeDesc.size());
-	for (auto& x : _vVertexInputBindingDesc)
+	for (const auto& x : _vVertexInputBindingDesc)
 	{
 		if ((bindingsFilter >> x.binding) & 0x1)
 		{
@@ -198,7 +219,7 @@ VkPipelineVertexInputStateCreateInfo GeometryVulkan::GetVkPipelineVertexInputSta
 			vVertexInputBindingDesc.back().binding = replaceBinding[x.binding];
 		}
 	}
-	for (auto& x : _vVertexInputAttributeDesc)
+	for (const auto& x : _vVertexInputAttributeDesc)
 	{
 		if ((bindingsFilter >> x.binding) & 0x1)
 		{

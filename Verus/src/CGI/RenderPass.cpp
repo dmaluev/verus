@@ -37,6 +37,13 @@ RAttachment Attachment::Layout(ImageLayout whenBegins, ImageLayout whenEnds)
 	return *this;
 }
 
+RAttachment Attachment::Layout(ImageLayout both)
+{
+	_initialLayout = both;
+	_finalLayout = both;
+	return *this;
+}
+
 RAttachment Attachment::FinalLayout(ImageLayout whenEnds)
 {
 	_finalLayout = whenEnds;

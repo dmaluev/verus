@@ -63,7 +63,7 @@ void CommandBufferVulkan::BeginRenderPass(int renderPassID, int framebufferID, s
 		vkrpbi.renderArea.extent.width = settings._screenSizeWidth;
 		vkrpbi.renderArea.extent.height = settings._screenSizeHeight;
 	}
-	VkClearValue clearValue[VERUS_CGI_MAX_RT] = {};
+	VkClearValue clearValue[VERUS_MAX_NUM_RT] = {};
 	int num = 0;
 	for (const auto& x : ilClearValues)
 	{
@@ -75,6 +75,11 @@ void CommandBufferVulkan::BeginRenderPass(int renderPassID, int framebufferID, s
 	vkCmdBeginRenderPass(GetVkCommandBuffer(), &vkrpbi, VK_SUBPASS_CONTENTS_INLINE);
 }
 
+void CommandBufferVulkan::NextSubpass()
+{
+	vkCmdNextSubpass(GetVkCommandBuffer(), VK_SUBPASS_CONTENTS_INLINE);
+}
+
 void CommandBufferVulkan::EndRenderPass()
 {
 	vkCmdEndRenderPass(GetVkCommandBuffer());
@@ -84,8 +89,8 @@ void CommandBufferVulkan::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilt
 {
 	auto& geoVulkan = static_cast<RGeometryVulkan>(*geo);
 	geoVulkan.DestroyStagingBuffers();
-	VkBuffer buffers[VERUS_CGI_MAX_VB];
-	VkDeviceSize offsets[VERUS_CGI_MAX_VB];
+	VkBuffer buffers[VERUS_MAX_NUM_VB];
+	VkDeviceSize offsets[VERUS_MAX_NUM_VB];
 	const int num = geoVulkan.GetNumVertexBuffers();
 	int at = 0;
 	VERUS_FOR(i, num)
@@ -116,9 +121,9 @@ void CommandBufferVulkan::BindPipeline(PipelinePtr pipe)
 
 void CommandBufferVulkan::SetViewport(std::initializer_list<Vector4> il, float minDepth, float maxDepth)
 {
-	VkViewport vpVulkan[VERUS_CGI_MAX_RT];
+	VkViewport vpVulkan[VERUS_MAX_NUM_RT];
 	int num = 0;
-	for (auto& rc : il)
+	for (const auto& rc : il)
 	{
 		vpVulkan[num].x = rc.getX();
 		vpVulkan[num].y = rc.getY();
@@ -133,9 +138,9 @@ void CommandBufferVulkan::SetViewport(std::initializer_list<Vector4> il, float m
 
 void CommandBufferVulkan::SetScissor(std::initializer_list<Vector4> il)
 {
-	VkRect2D rcVulkan[VERUS_CGI_MAX_RT];
+	VkRect2D rcVulkan[VERUS_MAX_NUM_RT];
 	int num = 0;
-	for (auto& rc : il)
+	for (const auto& rc : il)
 	{
 		rcVulkan[num].offset.x = static_cast<int32_t>(rc.getX());
 		rcVulkan[num].offset.y = static_cast<int32_t>(rc.getY());
@@ -151,20 +156,24 @@ void CommandBufferVulkan::SetBlendConstants(const float* p)
 	vkCmdSetBlendConstants(GetVkCommandBuffer(), p);
 }
 
-bool CommandBufferVulkan::BindDescriptors(ShaderPtr shader, int descSet)
+bool CommandBufferVulkan::BindDescriptors(ShaderPtr shader, int setNumber, int complexSetID)
 {
-	auto& shaderVulkan = static_cast<RShaderVulkan>(*shader);
-	if (shaderVulkan.TryPushConstants(descSet, *this))
+	if (setNumber < 0)
 		return true;
-	const int offset = shaderVulkan.UpdateUniformBuffer(descSet);
+
+	auto& shaderVulkan = static_cast<RShaderVulkan>(*shader);
+	if (shaderVulkan.TryPushConstants(setNumber, *this))
+		return true;
+	const int offset = shaderVulkan.UpdateUniformBuffer(setNumber);
 	if (offset < 0)
 		return false;
 
-	const VkDescriptorSet descriptorSet = shaderVulkan.GetVkDescriptorSet(descSet);
+	const VkDescriptorSet descriptorSet = (complexSetID >= 0) ?
+		shaderVulkan.GetComplexVkDescriptorSet(complexSetID) : shaderVulkan.GetVkDescriptorSet(setNumber);
 	const uint32_t dynamicOffset = offset;
 	const uint32_t dynamicOffsetCount = 1;
 	vkCmdBindDescriptorSets(GetVkCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, shaderVulkan.GetVkPipelineLayout(),
-		descSet, 1, &descriptorSet, dynamicOffsetCount, &dynamicOffset);
+		setNumber, 1, &descriptorSet, dynamicOffsetCount, &dynamicOffset);
 	return true;
 }
 
@@ -175,7 +184,7 @@ void CommandBufferVulkan::PushConstants(ShaderPtr shader, int offset, int size, 
 	vkCmdPushConstants(GetVkCommandBuffer(), shaderVulkan.GetVkPipelineLayout(), vkssf, offset << 2, size << 2, p);
 }
 
-void CommandBufferVulkan::PipelineBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout)
+void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, int mipLevel)
 {
 	auto& texVulkan = static_cast<RTextureVulkan>(*tex);
 	VkImageMemoryBarrier vkimb = {};
@@ -186,11 +195,44 @@ void CommandBufferVulkan::PipelineBarrier(TexturePtr tex, ImageLayout oldLayout,
 	vkimb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	vkimb.image = texVulkan.GetVkImage();
 	vkimb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	vkimb.subresourceRange.baseMipLevel = 0;
-	vkimb.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+	vkimb.subresourceRange.baseMipLevel = mipLevel;
+	vkimb.subresourceRange.levelCount = 1;
 	vkimb.subresourceRange.baseArrayLayer = 0;
 	vkimb.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-	vkCmdPipelineBarrier(GetVkCommandBuffer(), VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &vkimb);
+
+	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+	if (vkimb.oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb.newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+	{
+		vkimb.srcAccessMask = 0;
+		vkimb.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+	}
+	else if (vkimb.oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && vkimb.newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+	{
+		vkimb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		vkimb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	}
+	else if (vkimb.oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb.newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+	{
+		vkimb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+		vkimb.srcAccessMask = 0;
+		vkimb.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+	}
+	else
+	{
+		VERUS_RT_FAIL("");
+	}
+
+	vkCmdPipelineBarrier(GetVkCommandBuffer(), srcStageMask, dstStageMask, 0,
+		0, nullptr,
+		0, nullptr,
+		1, &vkimb);
 }
 
 void CommandBufferVulkan::Clear(ClearFlags clearFlags)
@@ -224,4 +266,30 @@ VkCommandBuffer CommandBufferVulkan::GetVkCommandBuffer() const
 {
 	VERUS_QREF_RENDERER;
 	return _commandBuffers[renderer->GetRingBufferIndex()];
+}
+
+void CommandBufferVulkan::InitSingleTimeCommands()
+{
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_RENDERER_VULKAN;
+	auto commandPool = pRendererVulkan->GetVkCommandPool(renderer->GetRingBufferIndex());
+	auto commandBuffer = pRendererVulkan->CreateCommandBuffer(commandPool);
+	VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
+		_commandBuffers[i] = commandBuffer;
+	Begin();
+}
+
+void CommandBufferVulkan::DoneSingleTimeCommands()
+{
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_RENDERER_VULKAN;
+	End();
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = _commandBuffers;
+	vkQueueSubmit(pRendererVulkan->GetVkGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(pRendererVulkan->GetVkGraphicsQueue());
+	auto commandPool = pRendererVulkan->GetVkCommandPool(renderer->GetRingBufferIndex());
+	vkFreeCommandBuffers(pRendererVulkan->GetVkDevice(), commandPool, 1, _commandBuffers);
 }

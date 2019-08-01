@@ -111,6 +111,12 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			vDefines.push_back("_WATER_QUALITY");
 			vDefines.push_back(defWaterQuality);
 		}
+		char defMaxNumBones[64] = {};
+		{
+			sprintf_s(defMaxNumBones, "%d", VERUS_MAX_NUM_BONES);
+			vDefines.push_back("VERUS_MAX_NUM_BONES");
+			vDefines.push_back(defMaxNumBones);
+		}
 		vDefines.push_back("_VULKAN");
 		vDefines.push_back("1");
 		const int typeIndex = Utils::Cast32(vDefines.size());
@@ -171,7 +177,7 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		branches++;
 	}
 
-	_vUniformBuffers.reserve(4);
+	_vDescriptorSetDesc.reserve(4);
 }
 
 void ShaderVulkan::Done()
@@ -183,9 +189,9 @@ void ShaderVulkan::Done()
 	for (auto& x : _vDescriptorSetLayouts)
 		VERUS_VULKAN_DESTROY(x, vkDestroyDescriptorSetLayout(pRendererVulkan->GetVkDevice(), x, pRendererVulkan->GetAllocator()));
 	_vDescriptorSetLayouts.clear();
-	for (auto& x : _vUniformBuffers)
+	for (auto& x : _vDescriptorSetDesc)
 		VERUS_VULKAN_DESTROY(x._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), x._buffer, x._vmaAllocation));
-	_vUniformBuffers.clear();
+	_vDescriptorSetDesc.clear();
 	for (auto& kv : _mapCompiled)
 	{
 		VERUS_FOR(i, +Stage::count)
@@ -199,33 +205,32 @@ void ShaderVulkan::Done()
 	VERUS_DONE(ShaderVulkan);
 }
 
-void ShaderVulkan::BindUniformBufferSource(int descSet, const void* pSrc, int size, int capacity, ShaderStageFlags stageFlags)
+void ShaderVulkan::CreateDescriptorSet(int setNumber, const void* pSrc, int size, int capacity, std::initializer_list<Sampler> il, ShaderStageFlags stageFlags)
 {
 	VERUS_QREF_RENDERER_VULKAN;
-
+	VERUS_RT_ASSERT(_vDescriptorSetDesc.size() == setNumber);
 	VERUS_RT_ASSERT(!(reinterpret_cast<intptr_t>(pSrc) & 0xF));
 
 	const VkPhysicalDeviceProperties* pPhysicalDeviceProperties = nullptr;
 	vmaGetPhysicalDeviceProperties(pRendererVulkan->GetVmaAllocator(), &pPhysicalDeviceProperties);
 
-	UniformBuffer uniformBuffer;
-	uniformBuffer._pSrc = pSrc;
-	uniformBuffer._size = size;
-	uniformBuffer._sizeAligned = Math::AlignUp(uniformBuffer._size, static_cast<int>(pPhysicalDeviceProperties->limits.minUniformBufferOffsetAlignment));
-	uniformBuffer._capacity = capacity;
-	uniformBuffer._capacityInBytes = uniformBuffer._sizeAligned*uniformBuffer._capacity;
-	uniformBuffer._stageFlags = ToNativeStageFlags(stageFlags);
+	DescriptorSetDesc dsd;
+	dsd._vSamplers.assign(il);
+	dsd._pSrc = pSrc;
+	dsd._size = size;
+	dsd._sizeAligned = Math::AlignUp(dsd._size, static_cast<int>(pPhysicalDeviceProperties->limits.minUniformBufferOffsetAlignment));
+	dsd._capacity = capacity;
+	dsd._capacityInBytes = dsd._sizeAligned*dsd._capacity;
+	dsd._stageFlags = ToNativeStageFlags(stageFlags);
 
 	if (capacity > 0)
 	{
-		const VkDeviceSize bufferSize = uniformBuffer._capacityInBytes * BaseRenderer::s_ringBufferSize;
+		const VkDeviceSize bufferSize = dsd._capacityInBytes * BaseRenderer::s_ringBufferSize;
 		pRendererVulkan->CreateBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,
-			uniformBuffer._buffer, uniformBuffer._vmaAllocation);
+			dsd._buffer, dsd._vmaAllocation);
 	}
 
-	if (_vUniformBuffers.size() <= descSet)
-		_vUniformBuffers.resize(descSet + 1);
-	_vUniformBuffers[descSet] = uniformBuffer;
+	_vDescriptorSetDesc.push_back(dsd);
 }
 
 void ShaderVulkan::CreatePipelineLayout()
@@ -236,30 +241,50 @@ void ShaderVulkan::CreatePipelineLayout()
 	VkPushConstantRange vkpcr = {};
 	VkPipelineLayoutCreateInfo vkplci = {};
 	vkplci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	if (_vUniformBuffers.empty())
+	if (_vDescriptorSetDesc.empty())
 	{
 		vkplci.setLayoutCount = 0;
 		vkplci.pushConstantRangeCount = 0;
 	}
 	else
 	{
-		_vDescriptorSetLayouts.reserve(_vUniformBuffers.size());
-		for (auto& ub : _vUniformBuffers)
+		_vDescriptorSetLayouts.reserve(_vDescriptorSetDesc.size());
+		for (const auto& dsd : _vDescriptorSetDesc)
 		{
-			if (ub._capacity > 0)
+			const int numTextures = Utils::Cast32(dsd._vSamplers.size());
+			if (numTextures > 0)
 			{
+				_poolComplexUniformBuffers += dsd._capacity;
+				_poolComplexImageSamplers += dsd._capacity*numTextures;
+			}
+
+			if (dsd._capacity > 0)
+			{
+				Vector<VkDescriptorSetLayoutBinding> vBindings;
+				vBindings.reserve(1 + numTextures);
 				VkDescriptorSetLayoutBinding vkdslb = {};
 				vkdslb.binding = 0;
 				vkdslb.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 				vkdslb.descriptorCount = 1;
-				vkdslb.stageFlags = ub._stageFlags;
+				vkdslb.stageFlags = dsd._stageFlags;
 				vkdslb.pImmutableSamplers = nullptr;
-
-				VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
+				vBindings.push_back(vkdslb);
+				VERUS_FOR(i, numTextures)
+				{
+					VkDescriptorSetLayoutBinding vkdslb = {};
+					vkdslb.binding = i + 1;
+					vkdslb.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+					vkdslb.descriptorCount = 1;
+					vkdslb.stageFlags = dsd._stageFlags;
+					if (Sampler::custom != dsd._vSamplers[i])
+						vkdslb.pImmutableSamplers = pRendererVulkan->GetImmutableSampler(dsd._vSamplers[i]);
+					vBindings.push_back(vkdslb);
+				}
 				VkDescriptorSetLayoutCreateInfo vkdslci = {};
 				vkdslci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-				vkdslci.bindingCount = 1;
-				vkdslci.pBindings = &vkdslb;
+				vkdslci.bindingCount = Utils::Cast32(vBindings.size());
+				vkdslci.pBindings = vBindings.data();
+				VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
 				if (VK_SUCCESS != (res = vkCreateDescriptorSetLayout(pRendererVulkan->GetVkDevice(), &vkdslci, pRendererVulkan->GetAllocator(), &descriptorSetLayout)))
 					throw VERUS_RUNTIME_ERROR << "vkCreateDescriptorSetLayout(), res=" << res;
 
@@ -267,10 +292,10 @@ void ShaderVulkan::CreatePipelineLayout()
 			}
 			else
 			{
-				VERUS_RT_ASSERT(&ub == &_vUniformBuffers.back()); // Only the last set is allowed to use push constants.
-				vkpcr.stageFlags = ub._stageFlags;
+				VERUS_RT_ASSERT(&dsd == &_vDescriptorSetDesc.back()); // Only the last set is allowed to use push constants.
+				vkpcr.stageFlags = dsd._stageFlags;
 				vkpcr.offset = 0;
-				vkpcr.size = ub._size;
+				vkpcr.size = dsd._size;
 				vkplci.pushConstantRangeCount = 1;
 				vkplci.pPushConstantRanges = &vkpcr;
 			}
@@ -283,11 +308,100 @@ void ShaderVulkan::CreatePipelineLayout()
 	if (VK_SUCCESS != (res = vkCreatePipelineLayout(pRendererVulkan->GetVkDevice(), &vkplci, pRendererVulkan->GetAllocator(), &_pipelineLayout)))
 		throw VERUS_RUNTIME_ERROR << "vkCreatePipelineLayout(), res=" << res;
 
+	_vComplexDescriptorSets.reserve(_poolComplexUniformBuffers);
+
 	if (vkplci.setLayoutCount)
 	{
 		CreateDescriptorPool();
 		CreateDescriptorSets();
 	}
+}
+
+int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il)
+{
+	VERUS_QREF_RENDERER_VULKAN;
+	VkResult res = VK_SUCCESS;
+
+	// New complex descriptor set's ID:
+	int complexSetID = -1;
+	VERUS_FOR(i, _vComplexDescriptorSets.size())
+	{
+		if (VK_NULL_HANDLE == _vComplexDescriptorSets[i])
+		{
+			complexSetID = i;
+			break;
+		}
+	}
+	if (-1 == complexSetID)
+	{
+		complexSetID = Utils::Cast32(_vComplexDescriptorSets.size());
+		_vComplexDescriptorSets.resize(complexSetID + 1);
+	}
+
+	// Allocate from pool:
+	VkDescriptorSetAllocateInfo vkdsai = {};
+	vkdsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	vkdsai.descriptorPool = _descriptorPool;
+	vkdsai.descriptorSetCount = 1;
+	vkdsai.pSetLayouts = &_vDescriptorSetLayouts[setNumber];
+	VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+	if (VK_SUCCESS != (res = vkAllocateDescriptorSets(pRendererVulkan->GetVkDevice(), &vkdsai, &descriptorSet)))
+		throw VERUS_RUNTIME_ERROR << "vkAllocateDescriptorSets(), res=" << res;
+	_vComplexDescriptorSets[complexSetID] = descriptorSet;
+
+	auto& dsd = _vDescriptorSetDesc[setNumber];
+	VERUS_RT_ASSERT(dsd._vSamplers.size() == il.size());
+
+	// Info structures:
+	VkDescriptorBufferInfo vkdbi = {};
+	vkdbi.buffer = dsd._buffer;
+	vkdbi.offset = 0;
+	vkdbi.range = dsd._size;
+	Vector<VkDescriptorImageInfo> vDescriptorImageInfo;
+	vDescriptorImageInfo.reserve(il.size());
+	for (const auto& x : il)
+	{
+		auto& texVulkan = static_cast<RTextureVulkan>(*x);
+		VkDescriptorImageInfo vkdii = {};
+		vkdii.sampler = texVulkan.GetVkSampler();
+		vkdii.imageView = texVulkan.GetVkImageView();
+		vkdii.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		vDescriptorImageInfo.push_back(vkdii);
+	}
+
+	Vector<VkWriteDescriptorSet> vWriteDescriptorSet;
+	vWriteDescriptorSet.reserve(1 + il.size());
+
+	// First comes uniform buffer:
+	VkWriteDescriptorSet vkwds = {};
+	vkwds.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	vkwds.dstSet = descriptorSet;
+	vkwds.dstBinding = 0;
+	vkwds.dstArrayElement = 0;
+	vkwds.descriptorCount = 1;
+	vkwds.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+	vkwds.pBufferInfo = &vkdbi;
+	vWriteDescriptorSet.push_back(vkwds);
+
+	// Images & samplers:
+	int index = 0;
+	for (const auto& x : il)
+	{
+		VkWriteDescriptorSet vkwds = {};
+		vkwds.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		vkwds.dstSet = descriptorSet;
+		vkwds.dstBinding = index + 1;
+		vkwds.dstArrayElement = 0;
+		vkwds.descriptorCount = 1;
+		vkwds.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		vkwds.pImageInfo = &vDescriptorImageInfo[index];
+		vWriteDescriptorSet.push_back(vkwds);
+		index++;
+	}
+
+	vkUpdateDescriptorSets(pRendererVulkan->GetVkDevice(), Utils::Cast32(vWriteDescriptorSet.size()), vWriteDescriptorSet.data(), 0, nullptr);
+
+	return complexSetID;
 }
 
 void ShaderVulkan::BeginBindDescriptors()
@@ -299,18 +413,18 @@ void ShaderVulkan::BeginBindDescriptors()
 	const bool resetOffset = _currentFrame != renderer.GetNumFrames();
 	_currentFrame = renderer.GetNumFrames();
 
-	for (auto& ub : _vUniformBuffers)
+	for (auto& dsd : _vDescriptorSetDesc)
 	{
-		if (!ub._capacity)
+		if (!dsd._capacity)
 			continue;
-		VERUS_RT_ASSERT(!ub._pMappedData);
+		VERUS_RT_ASSERT(!dsd._pMappedData);
 		void* pData = nullptr;
-		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), ub._vmaAllocation, &pData)))
+		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), dsd._vmaAllocation, &pData)))
 			throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
-		ub._pMappedData = static_cast<BYTE*>(pData);
-		ub._pMappedData += ub._capacityInBytes * pRendererVulkan->GetRingBufferIndex(); // Adjust address for this frame.
+		dsd._pMappedData = static_cast<BYTE*>(pData);
+		dsd._pMappedData += dsd._capacityInBytes * pRendererVulkan->GetRingBufferIndex(); // Adjust address for this frame.
 		if (resetOffset)
-			ub._offset = 0;
+			dsd._offset = 0;
 	}
 }
 
@@ -318,13 +432,13 @@ void ShaderVulkan::EndBindDescriptors()
 {
 	VERUS_QREF_RENDERER_VULKAN;
 
-	for (auto& ub : _vUniformBuffers)
+	for (auto& dsd : _vDescriptorSetDesc)
 	{
-		if (!ub._capacity)
+		if (!dsd._capacity)
 			continue;
-		VERUS_RT_ASSERT(ub._pMappedData);
-		vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), ub._vmaAllocation);
-		ub._pMappedData = nullptr;
+		VERUS_RT_ASSERT(dsd._pMappedData);
+		vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), dsd._vmaAllocation);
+		dsd._pMappedData = nullptr;
 	}
 }
 
@@ -333,14 +447,16 @@ void ShaderVulkan::CreateDescriptorPool()
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
-	VkDescriptorPoolSize vkdps = {};
-	vkdps.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-	vkdps.descriptorCount = Utils::Cast32(_vDescriptorSetLayouts.size());
+	VkDescriptorPoolSize vkdps[2] = {};
+	vkdps[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+	vkdps[0].descriptorCount = Utils::Cast32(_vDescriptorSetLayouts.size()) + _poolComplexUniformBuffers;
+	vkdps[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	vkdps[1].descriptorCount = _poolComplexImageSamplers;
 	VkDescriptorPoolCreateInfo vkdpci = {};
 	vkdpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	vkdpci.maxSets = Utils::Cast32(_vDescriptorSetLayouts.size()); // Each set has one uniform buffer.
-	vkdpci.poolSizeCount = 1;
-	vkdpci.pPoolSizes = &vkdps;
+	vkdpci.maxSets = vkdps[0].descriptorCount;
+	vkdpci.poolSizeCount = (_poolComplexImageSamplers > 0) ? 2 : 1;
+	vkdpci.pPoolSizes = vkdps;
 	if (VK_SUCCESS != (res = vkCreateDescriptorPool(pRendererVulkan->GetVkDevice(), &vkdpci, pRendererVulkan->GetAllocator(), &_descriptorPool)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateDescriptorPool(), res=" << res;
 }
@@ -350,28 +466,29 @@ void ShaderVulkan::CreateDescriptorSets()
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
-	_vDescriptorSets.resize(_vDescriptorSetLayouts.size());
-	VkDescriptorSetAllocateInfo vkdsai = {};
-	vkdsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	vkdsai.descriptorPool = _descriptorPool;
-	vkdsai.descriptorSetCount = Utils::Cast32(_vDescriptorSetLayouts.size());
-	vkdsai.pSetLayouts = _vDescriptorSetLayouts.data();
-	if (VK_SUCCESS != (res = vkAllocateDescriptorSets(pRendererVulkan->GetVkDevice(), &vkdsai, _vDescriptorSets.data())))
-		throw VERUS_RUNTIME_ERROR << "vkAllocateDescriptorSets(), res=" << res;
-
 	int index = 0;
-	for (auto& ub : _vUniformBuffers)
+	for (auto& dsd : _vDescriptorSetDesc)
 	{
-		if (ub._capacity > 0)
+		if (index < _vDescriptorSetLayouts.size())
+		{
+			VkDescriptorSetAllocateInfo vkdsai = {};
+			vkdsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+			vkdsai.descriptorPool = _descriptorPool;
+			vkdsai.descriptorSetCount = 1;
+			vkdsai.pSetLayouts = &_vDescriptorSetLayouts[index];
+			if (VK_SUCCESS != (res = vkAllocateDescriptorSets(pRendererVulkan->GetVkDevice(), &vkdsai, &dsd._descriptorSet)))
+				throw VERUS_RUNTIME_ERROR << "vkAllocateDescriptorSets(), res=" << res;
+		}
+
+		if (dsd._capacity > 0)
 		{
 			VkDescriptorBufferInfo vkdbi = {};
-			vkdbi.buffer = ub._buffer;
+			vkdbi.buffer = dsd._buffer;
 			vkdbi.offset = 0;
-			vkdbi.range = ub._size;
-
+			vkdbi.range = dsd._size;
 			VkWriteDescriptorSet vkwds = {};
 			vkwds.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			vkwds.dstSet = _vDescriptorSets[index];
+			vkwds.dstSet = dsd._descriptorSet;
 			vkwds.dstBinding = 0;
 			vkwds.dstArrayElement = 0;
 			vkwds.descriptorCount = 1;
@@ -385,35 +502,40 @@ void ShaderVulkan::CreateDescriptorSets()
 	}
 }
 
-VkDescriptorSet ShaderVulkan::GetVkDescriptorSet(int descSet)
+VkDescriptorSet ShaderVulkan::GetVkDescriptorSet(int setNumber)
 {
-	return _vDescriptorSets[descSet];
+	return _vDescriptorSetDesc[setNumber]._descriptorSet;
 }
 
-bool ShaderVulkan::TryPushConstants(int descSet, RBaseCommandBuffer cb)
+VkDescriptorSet ShaderVulkan::GetComplexVkDescriptorSet(int descSetID)
 {
-	auto& ub = _vUniformBuffers[descSet];
-	if (!ub._capacity)
+	return _vComplexDescriptorSets[descSetID];
+}
+
+bool ShaderVulkan::TryPushConstants(int setNumber, RBaseCommandBuffer cb)
+{
+	auto& dsd = _vDescriptorSetDesc[setNumber];
+	if (!dsd._capacity)
 	{
 		auto& cbVulkan = static_cast<RCommandBufferVulkan>(cb);
-		vkCmdPushConstants(cbVulkan.GetVkCommandBuffer(), _pipelineLayout, ub._stageFlags, 0, ub._size, ub._pSrc);
+		vkCmdPushConstants(cbVulkan.GetVkCommandBuffer(), _pipelineLayout, dsd._stageFlags, 0, dsd._size, dsd._pSrc);
 		return true;
 	}
 	return false;
 }
 
-int ShaderVulkan::UpdateUniformBuffer(int descSet)
+int ShaderVulkan::UpdateUniformBuffer(int setNumber)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 
-	auto& ub = _vUniformBuffers[descSet];
-	if (ub._offset + ub._sizeAligned > ub._capacityInBytes)
+	auto& dsd = _vDescriptorSetDesc[setNumber];
+	if (dsd._offset + dsd._sizeAligned > dsd._capacityInBytes)
 		return -1;
 
-	VERUS_RT_ASSERT(ub._pMappedData);
-	const int ret = ub._capacityInBytes * pRendererVulkan->GetRingBufferIndex() + ub._offset;
-	memcpy(ub._pMappedData + ub._offset, ub._pSrc, ub._size);
-	ub._offset += ub._sizeAligned;
+	VERUS_RT_ASSERT(dsd._pMappedData);
+	const int ret = dsd._capacityInBytes * pRendererVulkan->GetRingBufferIndex() + dsd._offset;
+	memcpy(dsd._pMappedData + dsd._offset, dsd._pSrc, dsd._size);
+	dsd._offset += dsd._sizeAligned;
 	return ret;
 }
 

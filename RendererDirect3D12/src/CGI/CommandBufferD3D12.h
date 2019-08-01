@@ -7,6 +7,11 @@ namespace verus
 		class CommandBufferD3D12 : public BaseCommandBuffer
 		{
 			ComPtr<ID3D12GraphicsCommandList3> _pCommandLists[BaseRenderer::s_ringBufferSize];
+			RP::PcD3DRenderPass                _pRenderPass = nullptr;
+			RP::PcD3DFramebuffer               _pFramebuffer = nullptr;
+			Vector<FLOAT>                      _vClearValues;
+			Vector<D3D12_RESOURCE_STATES>      _vAttachmentStates;
+			int                                _subpassIndex = 0;
 
 		public:
 			CommandBufferD3D12();
@@ -19,6 +24,7 @@ namespace verus
 			virtual void End() override;
 
 			virtual void BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, PcVector4 pRenderArea) override;
+			virtual void NextSubpass() override;
 			virtual void EndRenderPass() override;
 
 			virtual void BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilter) override;
@@ -29,10 +35,10 @@ namespace verus
 			virtual void SetScissor(std::initializer_list<Vector4> il) override;
 			virtual void SetBlendConstants(const float* p) override;
 
-			virtual bool BindDescriptors(ShaderPtr shader, int descSet) override;
+			virtual bool BindDescriptors(ShaderPtr shader, int setNumber, int complexSetID) override;
 			virtual void PushConstants(ShaderPtr shader, int offset, int size, const void* p, ShaderStageFlags stageFlags) override;
 
-			virtual void PipelineBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout) override;
+			virtual void PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, int mipLevel) override;
 			virtual void Clear(ClearFlags clearFlags) override;
 
 			virtual void Draw(int vertexCount, int instanceCount, int firstVertex, int firstInstance) override;
@@ -43,6 +49,8 @@ namespace verus
 			//
 
 			ID3D12GraphicsCommandList3* GetD3DGraphicsCommandList() const;
+
+			void PrepareSubpass();
 		};
 		VERUS_TYPEDEFS(CommandBufferD3D12);
 	}

@@ -78,6 +78,13 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	multisampleState.sampleShadingEnable = VK_FALSE;
 	multisampleState.rasterizationSamples = ToNativeSampleCount(desc._sampleCount);
 
+	VkPipelineDepthStencilStateCreateInfo depthStencilState = {};
+	depthStencilState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencilState.depthTestEnable = desc._depthTestEnable;
+	depthStencilState.depthWriteEnable = desc._depthWriteEnable;
+	depthStencilState.depthCompareOp = ToNativeCompareOp(desc._depthCompareOp);
+	depthStencilState.stencilTestEnable = desc._stencilTestEnable;
+
 	VkPipelineColorBlendAttachmentState vkpcbas = {};
 	vkpcbas.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	vkpcbas.blendEnable = VK_FALSE;
@@ -107,6 +114,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	vkgpci.pViewportState = &viewportState;
 	vkgpci.pRasterizationState = &rasterizationState;
 	vkgpci.pMultisampleState = &multisampleState;
+	vkgpci.pDepthStencilState = &depthStencilState;
 	vkgpci.pColorBlendState = &colorBlendState;
 	vkgpci.pDynamicState = &dynamicState;
 	vkgpci.layout = shader.GetVkPipelineLayout();

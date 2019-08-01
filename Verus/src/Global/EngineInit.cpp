@@ -85,7 +85,7 @@ void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::Rendere
 	if (_makeScene)
 	{
 		Scene::Mesh::InitStatic();
-		//Scene::CTerrain::InitStatic();
+		Scene::Terrain::InitStatic();
 		//Scene::CForest::InitStatic();
 	}
 

@@ -106,6 +106,11 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			sprintf_s(defWaterQuality, "%d", settings._sceneWaterQuality);
 			vDefines.push_back({ "_WATER_QUALITY", defWaterQuality });
 		}
+		char defMaxNumBones[64] = {};
+		{
+			sprintf_s(defMaxNumBones, "%d", VERUS_MAX_NUM_BONES);
+			vDefines.push_back({ "VERUS_MAX_NUM_BONES", defMaxNumBones });
+		}
 		vDefines.push_back({ "_DIRECT3D", "1" });
 		const int typeIndex = Utils::Cast32(vDefines.size());
 		vDefines.push_back({ "_XS", "1" });
@@ -159,15 +164,16 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		branches++;
 	}
 
-	_vUniformBuffers.reserve(4);
+	_vDescriptorSetDesc.reserve(4);
 }
 
 void ShaderD3D12::Done()
 {
-	for (auto& ub : _vUniformBuffers)
+	for (auto& dsd : _vDescriptorSetDesc)
 	{
-		VERUS_COM_RELEASE_CHECK(ub._pConstantBuffer.Get());
-		ub._pConstantBuffer.Reset();
+		VERUS_COM_RELEASE_CHECK(dsd._pConstantBuffer.Get());
+		dsd._dhDynamicOffsets.Reset();
+		dsd._pConstantBuffer.Reset();
 	}
 
 	VERUS_COM_RELEASE_CHECK(_pRootSignature.Get());
@@ -185,43 +191,58 @@ void ShaderD3D12::Done()
 	VERUS_DONE(ShaderD3D12);
 }
 
-void ShaderD3D12::BindUniformBufferSource(int descSet, const void* pSrc, int size, int capacity, ShaderStageFlags stageFlags)
+void ShaderD3D12::CreateDescriptorSet(int setNumber, const void* pSrc, int size, int capacity, std::initializer_list<Sampler> il, ShaderStageFlags stageFlags)
 {
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
-
+	VERUS_RT_ASSERT(_vDescriptorSetDesc.size() == setNumber);
 	VERUS_RT_ASSERT(!(reinterpret_cast<intptr_t>(pSrc) & 0xF));
 
-	UniformBuffer uniformBuffer;
-	uniformBuffer._pSrc = pSrc;
-	uniformBuffer._size = size;
-	uniformBuffer._sizeAligned = Math::AlignUp(size, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-	uniformBuffer._capacity = capacity;
-	uniformBuffer._capacityInBytes = uniformBuffer._sizeAligned*uniformBuffer._capacity;
-	uniformBuffer._stageFlags = stageFlags;
+	DescriptorSetDesc dsd;
+	dsd._vSamplers.assign(il);
+	dsd._pSrc = pSrc;
+	dsd._size = size;
+	dsd._sizeAligned = Math::AlignUp(size, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+	dsd._capacity = capacity;
+	dsd._capacityInBytes = dsd._sizeAligned*dsd._capacity;
+	dsd._stageFlags = stageFlags;
 
 	if (capacity > 0)
 	{
-		const UINT64 bufferSize = uniformBuffer._capacityInBytes * BaseRenderer::s_ringBufferSize;
+		const UINT64 bufferSize = dsd._capacityInBytes * BaseRenderer::s_ringBufferSize;
 		if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,
 			&CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
-			IID_PPV_ARGS(&uniformBuffer._pConstantBuffer))))
+			IID_PPV_ARGS(&dsd._pConstantBuffer))))
 			throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(), hr=" << VERUS_HR(hr);
+
+		const int num = dsd._capacity*BaseRenderer::s_ringBufferSize;
+		dsd._dhDynamicOffsets.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, num);
+		VERUS_FOR(i, num)
+		{
+			const int offset = i * dsd._sizeAligned;
+			auto handle = dsd._dhDynamicOffsets.AtCPU(i);
+			D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
+			desc.BufferLocation = dsd._pConstantBuffer->GetGPUVirtualAddress() + offset;
+			desc.SizeInBytes = dsd._sizeAligned;
+			pRendererD3D12->GetD3DDevice()->CreateConstantBufferView(&desc, handle);
+		}
 	}
 
-	if (_vUniformBuffers.size() <= descSet)
-		_vUniformBuffers.resize(descSet + 1);
-	_vUniformBuffers[descSet] = uniformBuffer;
+	_vDescriptorSetDesc.push_back(dsd);
 }
 
 void ShaderD3D12::CreatePipelineLayout()
 {
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
+
+	int numTextures = 0;
+	for (const auto& dsd : _vDescriptorSetDesc)
+		numTextures += Utils::Cast32(dsd._vSamplers.size());
 
 	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureSupportData = {};
 	featureSupportData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
@@ -231,36 +252,71 @@ void ShaderD3D12::CreatePipelineLayout()
 	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	Vector<CD3DX12_DESCRIPTOR_RANGE1> vDescRanges;
-	vDescRanges.reserve(_vUniformBuffers.size()); // Must not reallocate.
+	vDescRanges.reserve(_vDescriptorSetDesc.size() + numTextures); // Must not reallocate.
+	Vector<CD3DX12_DESCRIPTOR_RANGE1> vDescRangesSamplers;
+	vDescRangesSamplers.reserve(numTextures);
 	Vector<CD3DX12_ROOT_PARAMETER1> vRootParams;
-	vRootParams.reserve(_vUniformBuffers.size());
-	if (!_vUniformBuffers.empty())
+	vRootParams.reserve(_vDescriptorSetDesc.size() + 1);
+	Vector<D3D12_STATIC_SAMPLER_DESC> vStaticSamplers;
+	vStaticSamplers.reserve(numTextures);
+	if (!_vDescriptorSetDesc.empty())
 	{
-		ShaderStageFlags stageFlags = _vUniformBuffers.front()._stageFlags;
+		ShaderStageFlags stageFlags = _vDescriptorSetDesc.front()._stageFlags;
 		// Reverse order:
-		const int num = Utils::Cast32(_vUniformBuffers.size());
+		const int num = Utils::Cast32(_vDescriptorSetDesc.size());
 		int space = num - 1;
 		for (int i = num - 1; i >= 0; --i)
 		{
-			auto& ub = _vUniformBuffers[i];
-			stageFlags |= ub._stageFlags;
-			if (ub._capacity > 0)
+			auto& dsd = _vDescriptorSetDesc[i];
+			stageFlags |= dsd._stageFlags;
+			if (dsd._capacity > 0)
 			{
 				CD3DX12_DESCRIPTOR_RANGE1 descRange;
-				descRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, space, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+				descRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, space);
 				vDescRanges.push_back(descRange);
+				const auto pDescriptorRanges = &vDescRanges.back();
+				const int numTextures = Utils::Cast32(dsd._vSamplers.size());
+				VERUS_FOR(i, numTextures)
+				{
+					CD3DX12_DESCRIPTOR_RANGE1 descRange;
+					descRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, i + 1, space);
+					vDescRanges.push_back(descRange);
+					if (Sampler::custom == dsd._vSamplers[i])
+					{
+						dsd._staticSamplersOnly = false;
+						CD3DX12_DESCRIPTOR_RANGE1 descRangeSampler;
+						descRangeSampler.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, i + 1, space);
+						vDescRangesSamplers.push_back(descRangeSampler);
+					}
+					else
+					{
+						D3D12_STATIC_SAMPLER_DESC samplerDesc = pRendererD3D12->GetStaticSamplerDesc(dsd._vSamplers[i]);
+						samplerDesc.ShaderRegister = i + 1;
+						samplerDesc.RegisterSpace = space;
+						samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+						vStaticSamplers.push_back(samplerDesc);
+					}
+				}
 				CD3DX12_ROOT_PARAMETER1 rootParam;
-				rootParam.InitAsDescriptorTable(1, &vDescRanges.back(), D3D12_SHADER_VISIBILITY_ALL);
+				rootParam.InitAsDescriptorTable(1 + numTextures, pDescriptorRanges);
 				vRootParams.push_back(rootParam);
 			}
 			else
 			{
-				VERUS_RT_ASSERT(&ub == &_vUniformBuffers.back()); // Only the last set is allowed to use push constants.
+				VERUS_RT_ASSERT(&dsd == &_vDescriptorSetDesc.back()); // Only the last set is allowed to use push constants.
 				CD3DX12_ROOT_PARAMETER1 rootParam;
-				rootParam.InitAsConstants(ub._size >> 2, 0, space);
+				rootParam.InitAsConstants(dsd._size >> 2, 0, space);
 				vRootParams.push_back(rootParam);
 			}
 			space--;
+		}
+
+		// Samplers:
+		if (!vDescRangesSamplers.empty())
+		{
+			CD3DX12_ROOT_PARAMETER1 rootParam;
+			rootParam.InitAsDescriptorTable(Utils::Cast32(vDescRangesSamplers.size()), vDescRangesSamplers.data());
+			vRootParams.push_back(rootParam);
 		}
 
 		if (!(stageFlags & ShaderStageFlags::vs))
@@ -276,7 +332,10 @@ void ShaderD3D12::CreatePipelineLayout()
 	}
 
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
-	rootSignatureDesc.Init_1_1(Utils::Cast32(vRootParams.size()), vRootParams.data(), 0, nullptr, rootSignatureFlags);
+	rootSignatureDesc.Init_1_1(
+		Utils::Cast32(vRootParams.size()), vRootParams.data(),
+		Utils::Cast32(vStaticSamplers.size()), vStaticSamplers.data(),
+		rootSignatureFlags);
 
 	ComPtr<ID3DBlob> pRootSignatureBlob;
 	ComPtr<ID3DBlob> pErrorBlob;
@@ -289,6 +348,53 @@ void ShaderD3D12::CreatePipelineLayout()
 		throw VERUS_RUNTIME_ERROR << "CreateRootSignature(), hr=" << VERUS_HR(hr);
 }
 
+int ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il)
+{
+	VERUS_QREF_RENDERER_D3D12;
+
+	int complexSetID = -1;
+	VERUS_FOR(i, _vComplexSets.size())
+	{
+		if (_vComplexSets[i]._vTextures.empty())
+		{
+			complexSetID = i;
+			break;
+		}
+	}
+	if (-1 == complexSetID)
+	{
+		complexSetID = Utils::Cast32(_vComplexSets.size());
+		_vComplexSets.resize(complexSetID + 1);
+	}
+
+	auto& dsd = _vDescriptorSetDesc[setNumber];
+	RComplexSet complexSet = _vComplexSets[complexSetID];
+	complexSet._vTextures.reserve(il.size());
+	complexSet._dhSRVs.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Utils::Cast32(il.size()));
+	if (!dsd._staticSamplersOnly)
+		complexSet._dhSamplers.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, Utils::Cast32(il.size()));
+	int index = 0;
+	for (auto x : il)
+	{
+		complexSet._vTextures.push_back(x);
+		auto& texD3D12 = static_cast<RTextureD3D12>(*x);
+		pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
+			complexSet._dhSRVs.AtCPU(index),
+			texD3D12.GetDescriptorHeapSRV().AtCPU(0),
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		if (!dsd._staticSamplersOnly)
+		{
+			pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
+				complexSet._dhSamplers.AtCPU(index),
+				texD3D12.GetDescriptorHeapSampler().AtCPU(0),
+				D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+		}
+		index++;
+	}
+
+	return complexSetID;
+}
+
 void ShaderD3D12::BeginBindDescriptors()
 {
 	VERUS_QREF_RENDERER;
@@ -298,71 +404,114 @@ void ShaderD3D12::BeginBindDescriptors()
 	const bool resetOffset = _currentFrame != renderer.GetNumFrames();
 	_currentFrame = renderer.GetNumFrames();
 
-	for (auto& ub : _vUniformBuffers)
+	for (auto& dsd : _vDescriptorSetDesc)
 	{
-		if (!ub._capacity)
+		if (!dsd._capacity)
 			continue;
-		VERUS_RT_ASSERT(!ub._pMappedData);
+		VERUS_RT_ASSERT(!dsd._pMappedData);
 		CD3DX12_RANGE readRange(0, 0);
 		void* pData = nullptr;
-		if (FAILED(hr = ub._pConstantBuffer->Map(0, &readRange, &pData)))
+		if (FAILED(hr = dsd._pConstantBuffer->Map(0, &readRange, &pData)))
 			throw VERUS_RUNTIME_ERROR << "Map(), hr=" << VERUS_HR(hr);
-		ub._pMappedData = static_cast<BYTE*>(pData);
-		ub._pMappedData += ub._capacityInBytes*pRendererD3D12->GetRingBufferIndex(); // Adjust address for this frame.
+		dsd._pMappedData = static_cast<BYTE*>(pData);
+		dsd._pMappedData += dsd._capacityInBytes*pRendererD3D12->GetRingBufferIndex(); // Adjust address for this frame.
 		if (resetOffset)
-			ub._offset = 0;
+		{
+			dsd._offset = 0;
+			dsd._index = 0;
+		}
 	}
 }
 
 void ShaderD3D12::EndBindDescriptors()
 {
-	for (auto& ub : _vUniformBuffers)
+	for (auto& dsd : _vDescriptorSetDesc)
 	{
-		if (!ub._capacity)
+		if (!dsd._capacity)
 			continue;
-		VERUS_RT_ASSERT(ub._pMappedData);
-		ub._pConstantBuffer->Unmap(0, nullptr);
-		ub._pMappedData = nullptr;
+		VERUS_RT_ASSERT(dsd._pMappedData);
+		dsd._pConstantBuffer->Unmap(0, nullptr);
+		dsd._pMappedData = nullptr;
 	}
 }
 
-UINT ShaderD3D12::ToRootParameterIndex(int descSet) const
+UINT ShaderD3D12::ToRootParameterIndex(int setNumber) const
 {
-	return static_cast<UINT>(_vUniformBuffers.size()) - descSet - 1;
+	return static_cast<UINT>(_vDescriptorSetDesc.size()) - setNumber - 1;
 }
 
-bool ShaderD3D12::TryRootConstants(int descSet, RBaseCommandBuffer cb)
+bool ShaderD3D12::TryRootConstants(int setNumber, RBaseCommandBuffer cb)
 {
-	auto& ub = _vUniformBuffers[descSet];
-	if (!ub._capacity)
+	auto& dsd = _vDescriptorSetDesc[setNumber];
+	if (!dsd._capacity)
 	{
 		auto& cbD3D12 = static_cast<RCommandBufferD3D12>(cb);
-		const UINT rootParameterIndex = ToRootParameterIndex(descSet);
-		cbD3D12.GetD3DGraphicsCommandList()->SetGraphicsRoot32BitConstants(rootParameterIndex, ub._size >> 2, ub._pSrc, 0);
+		const UINT rootParameterIndex = ToRootParameterIndex(setNumber);
+		cbD3D12.GetD3DGraphicsCommandList()->SetGraphicsRoot32BitConstants(rootParameterIndex, dsd._size >> 2, dsd._pSrc, 0);
 		return true;
 	}
 	return false;
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int descSet)
+CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, int complexSetID, bool copyDescOnly)
 {
 	VERUS_QREF_RENDERER_D3D12;
 
-	auto& ub = _vUniformBuffers[descSet];
-	if (ub._offset + ub._sizeAligned > ub._capacityInBytes)
+	auto& dsd = _vDescriptorSetDesc[setNumber];
+	int at = 0;
+	if (copyDescOnly)
+		at = dsd._capacity * pRendererD3D12->GetRingBufferIndex();
+	else
+	{
+		if (dsd._offset + dsd._sizeAligned > dsd._capacityInBytes)
+			return CD3DX12_GPU_DESCRIPTOR_HANDLE();
+
+		VERUS_RT_ASSERT(dsd._pMappedData);
+		at = dsd._capacity * pRendererD3D12->GetRingBufferIndex() + dsd._index;
+		memcpy(dsd._pMappedData + dsd._offset, dsd._pSrc, dsd._size);
+		dsd._offset += dsd._sizeAligned;
+		dsd._index++;
+	}
+
+	auto hpBase = pRendererD3D12->GetHeapCbvSrvUav().GetNextHandlePair();
+
+	// Copy CBV:
+	pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
+		hpBase._hCPU,
+		dsd._dhDynamicOffsets.AtCPU(at),
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	if (complexSetID >= 0)
+	{
+		// Copy SRVs:
+		const auto& complexSet = _vComplexSets[complexSetID];
+		const int num = Utils::Cast32(complexSet._vTextures.size());
+		pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(num,
+			pRendererD3D12->GetHeapCbvSrvUav().GetNextHandlePair(num)._hCPU,
+			complexSet._dhSRVs.AtCPU(0),
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	}
+
+	return hpBase._hGPU;
+}
+
+CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateSamplers(int setNumber, int complexSetID)
+{
+	VERUS_QREF_RENDERER_D3D12;
+	VERUS_RT_ASSERT(complexSetID >= 0);
+
+	auto& dsd = _vDescriptorSetDesc[setNumber];
+	if (dsd._staticSamplersOnly)
 		return CD3DX12_GPU_DESCRIPTOR_HANDLE();
 
-	VERUS_RT_ASSERT(ub._pMappedData);
-	const int at = ub._capacityInBytes * pRendererD3D12->GetRingBufferIndex() + ub._offset;
-	memcpy(ub._pMappedData + ub._offset, ub._pSrc, ub._size);
-	ub._offset += ub._sizeAligned;
+	const auto& complexSet = _vComplexSets[complexSetID];
+	const int num = Utils::Cast32(complexSet._vTextures.size());
+	auto hpSampler = pRendererD3D12->GetHeapSampler().GetNextHandlePair(num);
+	pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(num,
+		hpSampler._hCPU,
+		complexSet._dhSamplers.AtCPU(0),
+		D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
-	auto handle = pRendererD3D12->GetHeapCbvSrvUav().GetNextHandle();
-	D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
-	desc.BufferLocation = ub._pConstantBuffer->GetGPUVirtualAddress() + at;
-	desc.SizeInBytes = ub._sizeAligned;
-	pRendererD3D12->GetD3DDevice()->CreateConstantBufferView(&desc, handle.first);
-	return handle.second;
+	return hpSampler._hGPU;
 }
 
 void ShaderD3D12::OnError(CSZ s)

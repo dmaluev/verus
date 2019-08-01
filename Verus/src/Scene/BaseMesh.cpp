@@ -233,24 +233,22 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 		break;
 		case '>HB<':
 		{
-#if 0
-			BYTE numBone = 0;
-			sp >> numBone;
-			VERUS_RT_ASSERT(numBone <= VERUS_MAX_NUM_BONES);
-			_numBones = numBone;
+			BYTE numBones = 0;
+			sp >> numBones;
+			VERUS_RT_ASSERT(numBones <= VERUS_MAX_NUM_BONES);
+			_numBones = numBones;
 			_skeleton.Init();
 			VERUS_FOR(i, _numBones)
 			{
 				Anim::Skeleton::Bone bone;
-				sp.ReadString(buffer); bone.m_name = buffer;
-				sp.ReadString(buffer); bone.m_parentName = buffer;
+				sp.ReadString(buffer); bone._name = buffer;
+				sp.ReadString(buffer); bone._parentName = buffer;
 				Transform3 matOffset;
 				sp.Read(&matOffset, 64);
-				bone.m_matToBoneSpace = matOffset;
-				bone.m_matFromBoneSpace = VMath::orthoInverse(matOffset);
+				bone._matToBoneSpace = matOffset;
+				bone._matFromBoneSpace = VMath::orthoInverse(matOffset);
 				_skeleton.InsertBone(bone);
 			}
-#endif
 		}
 		break;
 		case '>SS<':

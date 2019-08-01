@@ -1,16 +1,13 @@
 #pragma once
 
-#define VERUS_CGI_MAX_RT 8
-#define VERUS_CGI_MAX_VB 8
-
 #include "Types.h"
 #include "Formats.h"
 #include "RenderPass.h"
 
 #include "BaseGeometry.h"
+#include "BaseTexture.h"
 #include "BaseShader.h"
 #include "BasePipeline.h"
-#include "BaseTexture.h"
 #include "BaseCommandBuffer.h"
 #include "BaseRenderer.h"
 
