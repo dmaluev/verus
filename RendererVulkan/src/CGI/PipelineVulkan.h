@@ -7,6 +7,7 @@ namespace verus
 		class PipelineVulkan : public BasePipeline
 		{
 			VkPipeline _pipeline = VK_NULL_HANDLE;
+			bool       _compute = false;
 
 		public:
 			PipelineVulkan();
@@ -19,6 +20,8 @@ namespace verus
 			// Vulkan
 			//
 
+			VERUS_P(void InitCompute(RcPipelineDesc desc));
+			bool IsCompute() const { return _compute; }
 			VkPipeline GetVkPipeline() const { return _pipeline; }
 		};
 		VERUS_TYPEDEFS(PipelineVulkan);

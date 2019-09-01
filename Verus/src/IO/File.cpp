@@ -17,10 +17,9 @@ bool File::Open(CSZ pathName, CSZ mode)
 	Close();
 
 #ifdef _WIN32
-	_pFile = fopen(pathName, mode);
-	//CWideString url = CStr::Utf8ToWide(pathName);
-	//CWideString mode_w = CStr::Utf8ToWide(mode);
-	//_pFile = _wfopen(_C(url), _C(mode_w));
+	const WideString pathNameW = Str::Utf8ToWide(pathName);
+	const WideString modeW = Str::Utf8ToWide(mode);
+	_pFile = _wfopen(_C(pathNameW), _C(modeW));
 #else
 	_pFile = fopen(pathName, mode);
 #endif

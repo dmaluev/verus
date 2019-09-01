@@ -38,8 +38,11 @@ namespace verus
 		static INT32 Cast32(INT64 x);
 		static UINT32 Cast32(UINT64 x);
 
-		static void CopyColor(BYTE* dest, UINT32 src);
-		static void CopyColor(UINT32& dest, const BYTE* src);
+		static void CopyColor(BYTE dest[4], UINT32 src);
+		static void CopyColor(UINT32& dest, const BYTE src[4]);
+
+		static void CopyByteToInt4(const BYTE src[4], int dest[4]);
+		static void CopyIntToByte4(const int src[4], BYTE dest[4]);
 
 		template<typename T>
 		static T* Swap(T*& pDst, T*& pSrc)

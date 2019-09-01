@@ -24,7 +24,6 @@ namespace verus
 				ComPtr<ID3DBlob> _pBlobs[+Stage::count];
 				int              _numStages = 0;
 			};
-			VERUS_TYPEDEFS(Compiled);
 			typedef Map<String, Compiled> TMapCompiled;
 
 			struct DescriptorSetDesc
@@ -43,12 +42,11 @@ namespace verus
 				ShaderStageFlags       _stageFlags = ShaderStageFlags::vs_fs;
 				bool                   _staticSamplersOnly = true;
 			};
-			VERUS_TYPEDEFS(DescriptorSetDesc);
 
 			struct ComplexSet
 			{
 				Vector<TexturePtr> _vTextures;
-				DescriptorHeap     _dhSRVs;
+				DescriptorHeap     _dhSrvUav;
 				DescriptorHeap     _dhSamplers;
 			};
 			VERUS_TYPEDEFS(ComplexSet);
@@ -58,6 +56,7 @@ namespace verus
 			Vector<ComplexSet>          _vComplexSets;
 			ComPtr<ID3D12RootSignature> _pRootSignature;
 			UINT64                      _currentFrame = UINT64_MAX;
+			bool                        _compute = false;
 
 		public:
 			ShaderD3D12();
@@ -68,7 +67,7 @@ namespace verus
 
 			virtual void CreateDescriptorSet(int setNumber, const void* pSrc, int size, int capacity, std::initializer_list<Sampler> il, ShaderStageFlags stageFlags) override;
 			virtual void CreatePipelineLayout() override;
-			virtual int BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il) override;
+			virtual int BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips) override;
 
 			virtual void BeginBindDescriptors() override;
 			virtual void EndBindDescriptors() override;
@@ -87,6 +86,7 @@ namespace verus
 			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateUniformBuffer(int setNumber, int complexSetID, bool copyDescOnly = false);
 			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateSamplers(int setNumber, int complexSetID);
 			int GetNumDescriptorSets() const { return static_cast<int>(_vDescriptorSetDesc.size()); }
+			bool IsCompute() const { return _compute; }
 
 			void OnError(CSZ s);
 		};

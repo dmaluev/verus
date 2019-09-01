@@ -123,7 +123,7 @@ void NormalComputer::ComputeTangentSpace(
 			vBin[b] += bin;
 			vBin[c] += bin;
 		}
-	}, 0);
+	});
 
 	VERUS_P_FOR(i, numVerts)
 	{
@@ -146,5 +146,5 @@ void NormalComputer::ComputeTangentSpace(
 
 		if (glm::dot(vBin[i], vTan[i]) >= degree)
 			vBin[i] = glm::cross(tmpN, vTan[i]);
-	}, 0);
+	});
 }

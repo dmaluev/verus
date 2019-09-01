@@ -26,6 +26,7 @@ namespace verus
 				ds, // Tessellation evaluation shader (Domain shader)
 				gs, // Geometry shader
 				fs, // Fragment shader (Pixel shader)
+				cs, // Compute Shader
 				count
 			};
 
@@ -48,6 +49,7 @@ namespace verus
 				RString entryDS,
 				RString entryGS,
 				RString entryFS,
+				RString entryCS,
 				Vector<String>& vMacroName,
 				Vector<String>& vMacroValue,
 				CSZ prefix);
@@ -56,7 +58,7 @@ namespace verus
 			virtual void CreateDescriptorSet(int setNumber, const void* pSrc, int size,
 				int capacity = 1, std::initializer_list<Sampler> il = {}, ShaderStageFlags stageFlags = ShaderStageFlags::vs_fs) = 0;
 			virtual void CreatePipelineLayout() = 0;
-			virtual int BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il) = 0;
+			virtual int BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips = nullptr) = 0;
 
 			virtual void BeginBindDescriptors() = 0;
 			virtual void EndBindDescriptors() = 0;

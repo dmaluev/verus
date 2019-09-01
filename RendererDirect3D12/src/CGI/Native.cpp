@@ -9,6 +9,8 @@ DXGI_FORMAT CGI::ToNativeFormat(Format format)
 	{
 	case Format::unormB4G4R4A4:     return DXGI_FORMAT_B4G4R4A4_UNORM;
 	case Format::unormB5G6R5:       return DXGI_FORMAT_B5G6R5_UNORM;
+	case Format::unormR10G10B10A2:  return DXGI_FORMAT_R10G10B10A2_UNORM;
+	case Format::sintR16:           return DXGI_FORMAT_R16_SINT;
 
 	case Format::unormR8:           return DXGI_FORMAT_R8_UNORM;
 	case Format::unormR8G8:         return DXGI_FORMAT_R8G8_UNORM;

@@ -121,10 +121,11 @@ void BaseGame::Run()
 {
 	VERUS_QREF_TIMER;
 	VERUS_QREF_KM;
-	//VERUS_QREF_BULLET;
+	VERUS_QREF_BULLET;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_ASYNC;
 	VERUS_QREF_ASYS;
+	VERUS_QREF_SM;
 
 	SDL_SetRelativeMouseMode(SDL_TRUE);
 
@@ -202,7 +203,7 @@ void BaseGame::Run()
 		}
 		BaseGame_HandleInput();
 
-		//bullet.Simulate();
+		bullet.Simulate();
 
 		if (_p->_defaultCameraMovement)
 		{
@@ -218,6 +219,7 @@ void BaseGame::Run()
 			}
 			_p->_camera.Update();
 		}
+		sm.SetCamera(&_p->_camera);
 
 		BaseGame_Update();
 

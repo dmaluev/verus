@@ -98,7 +98,7 @@ void CommandBufferVulkan::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilt
 		if ((bindingsFilter >> i) & 0x1)
 		{
 			buffers[at] = geoVulkan.GetVkVertexBuffer(i);
-			offsets[at] = 0;
+			offsets[at] = geoVulkan.GetVkVertexBufferOffset(i);
 			at++;
 		}
 	}
@@ -110,13 +110,15 @@ void CommandBufferVulkan::BindIndexBuffer(GeometryPtr geo)
 	auto& geoVulkan = static_cast<RGeometryVulkan>(*geo);
 	VkBuffer buffer = geoVulkan.GetVkIndexBuffer();
 	VkDeviceSize offset = 0;
-	vkCmdBindIndexBuffer(GetVkCommandBuffer(), buffer, offset, geoVulkan.Has32bitIndices() ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16);
+	vkCmdBindIndexBuffer(GetVkCommandBuffer(), buffer, offset, geoVulkan.Has32BitIndices() ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16);
 }
 
 void CommandBufferVulkan::BindPipeline(PipelinePtr pipe)
 {
 	auto& pipeVulkan = static_cast<RPipelineVulkan>(*pipe);
-	vkCmdBindPipeline(GetVkCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeVulkan.GetVkPipeline());
+	vkCmdBindPipeline(GetVkCommandBuffer(),
+		pipeVulkan.IsCompute() ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
+		pipeVulkan.GetVkPipeline());
 }
 
 void CommandBufferVulkan::SetViewport(std::initializer_list<Vector4> il, float minDepth, float maxDepth)
@@ -172,7 +174,9 @@ bool CommandBufferVulkan::BindDescriptors(ShaderPtr shader, int setNumber, int c
 		shaderVulkan.GetComplexVkDescriptorSet(complexSetID) : shaderVulkan.GetVkDescriptorSet(setNumber);
 	const uint32_t dynamicOffset = offset;
 	const uint32_t dynamicOffsetCount = 1;
-	vkCmdBindDescriptorSets(GetVkCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, shaderVulkan.GetVkPipelineLayout(),
+	vkCmdBindDescriptorSets(GetVkCommandBuffer(),
+		shaderVulkan.IsCompute() ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
+		shaderVulkan.GetVkPipelineLayout(),
 		setNumber, 1, &descriptorSet, dynamicOffsetCount, &dynamicOffset);
 	return true;
 }
@@ -184,55 +188,91 @@ void CommandBufferVulkan::PushConstants(ShaderPtr shader, int offset, int size, 
 	vkCmdPushConstants(GetVkCommandBuffer(), shaderVulkan.GetVkPipelineLayout(), vkssf, offset << 2, size << 2, p);
 }
 
-void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, int mipLevel)
+void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, Range<int> mipLevels, int arrayLayer)
 {
 	auto& texVulkan = static_cast<RTextureVulkan>(*tex);
-	VkImageMemoryBarrier vkimb = {};
-	vkimb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	vkimb.oldLayout = ToNativeImageLayout(oldLayout);
-	vkimb.newLayout = ToNativeImageLayout(newLayout);
-	vkimb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	vkimb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	vkimb.image = texVulkan.GetVkImage();
-	vkimb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	vkimb.subresourceRange.baseMipLevel = mipLevel;
-	vkimb.subresourceRange.levelCount = 1;
-	vkimb.subresourceRange.baseArrayLayer = 0;
-	vkimb.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
 	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-	if (vkimb.oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb.newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+	VkImageMemoryBarrier vkimb[16];
+	VERUS_RT_ASSERT(mipLevels.GetRange() < VERUS_ARRAY_LENGTH(vkimb));
+	int index = 0;
+	for (int mip : mipLevels)
 	{
-		vkimb.srcAccessMask = 0;
-		vkimb.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-		dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-	}
-	else if (vkimb.oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && vkimb.newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-	{
-		vkimb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		vkimb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-		dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-	}
-	else if (vkimb.oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb.newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-	{
-		vkimb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-		vkimb.srcAccessMask = 0;
-		vkimb.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-		srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-		dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	}
-	else
-	{
-		VERUS_RT_FAIL("");
-	}
+		vkimb[index].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		vkimb[index].pNext = nullptr;
+		vkimb[index].oldLayout = ToNativeImageLayout(oldLayout);
+		vkimb[index].newLayout = ToNativeImageLayout(newLayout);
+		vkimb[index].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		vkimb[index].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		vkimb[index].image = texVulkan.GetVkImage();
+		vkimb[index].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		vkimb[index].subresourceRange.baseMipLevel = mip;
+		vkimb[index].subresourceRange.levelCount = 1;
+		vkimb[index].subresourceRange.baseArrayLayer = arrayLayer;
+		vkimb[index].subresourceRange.layerCount = 1;
 
+		// See: https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples
+		if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_GENERAL)
+		{
+			vkimb[index].srcAccessMask = 0;
+			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			srcStageMask = VK_PIPELINE_STAGE_HOST_BIT;
+			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		}
+		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+		{
+			vkimb[index].subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+			vkimb[index].srcAccessMask = 0;
+			vkimb[index].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		}
+		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+		{
+			vkimb[index].srcAccessMask = 0;
+			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			srcStageMask = VK_PIPELINE_STAGE_HOST_BIT;
+			dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		}
+		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+		{
+			vkimb[index].srcAccessMask = 0;
+			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		}
+		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_GENERAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+		{
+			vkimb[index].srcAccessMask = 0;
+			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		}
+		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+		{
+			vkimb[index].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		}
+		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+		{
+			vkimb[index].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		}
+		else
+		{
+			VERUS_RT_FAIL("");
+		}
+
+		index++;
+	}
 	vkCmdPipelineBarrier(GetVkCommandBuffer(), srcStageMask, dstStageMask, 0,
 		0, nullptr,
 		0, nullptr,
-		1, &vkimb);
+		index, vkimb);
 }
 
 void CommandBufferVulkan::Clear(ClearFlags clearFlags)
@@ -260,6 +300,11 @@ void CommandBufferVulkan::Draw(int vertexCount, int instanceCount, int firstVert
 void CommandBufferVulkan::DrawIndexed(int indexCount, int instanceCount, int firstIndex, int vertexOffset, int firstInstance)
 {
 	vkCmdDrawIndexed(GetVkCommandBuffer(), indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+}
+
+void CommandBufferVulkan::Dispatch(int groupCountX, int groupCountY, int groupCountZ)
+{
+	vkCmdDispatch(GetVkCommandBuffer(), groupCountX, groupCountY, groupCountZ);
 }
 
 VkCommandBuffer CommandBufferVulkan::GetVkCommandBuffer() const

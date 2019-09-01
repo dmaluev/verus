@@ -17,7 +17,7 @@ void GeometryD3D12::Init(RcGeometryDesc desc)
 {
 	VERUS_INIT();
 
-	_32bitIndices = desc._32bitIndices;
+	_32BitIndices = desc._32BitIndices;
 
 	_vInputElementDesc.reserve(GetNumInputElementDesc(desc._pInputElementDesc));
 	int i = 0;
@@ -96,7 +96,13 @@ void GeometryD3D12::CreateVertexBuffer(int num, int binding)
 			nullptr,
 			IID_PPV_ARGS(&vb._pBuffer))))
 			throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
-		vb._bufferView.SizeInBytes = Utils::Cast32(vb._bufferSize * BaseRenderer::s_ringBufferSize);
+
+		VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
+		{
+			vb._bufferView[i].BufferLocation = vb._pBuffer->GetGPUVirtualAddress() + i * vb._bufferSize;
+			vb._bufferView[i].SizeInBytes = Utils::Cast32(vb._bufferSize);
+			vb._bufferView[i].StrideInBytes = elementSize;
+		}
 	}
 	else
 	{
@@ -108,11 +114,11 @@ void GeometryD3D12::CreateVertexBuffer(int num, int binding)
 			nullptr,
 			IID_PPV_ARGS(&vb._pBuffer))))
 			throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
-		vb._bufferView.SizeInBytes = Utils::Cast32(vb._bufferSize);
-	}
 
-	vb._bufferView.BufferLocation = vb._pBuffer->GetGPUVirtualAddress();
-	vb._bufferView.StrideInBytes = elementSize;
+		vb._bufferView[0].BufferLocation = vb._pBuffer->GetGPUVirtualAddress();
+		vb._bufferView[0].SizeInBytes = Utils::Cast32(vb._bufferSize);
+		vb._bufferView[0].StrideInBytes = elementSize;
+	}
 }
 
 void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, BaseCommandBuffer* pCB)
@@ -155,7 +161,7 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, BaseCommandBu
 		sd.pData = p;
 		sd.RowPitch = vb._bufferSize;
 		sd.SlicePitch = sd.RowPitch;
-		UpdateSubresources(pCmdList,
+		UpdateSubresources<1>(pCmdList,
 			vb._pBuffer.Get(),
 			svb._pBuffer.Get(),
 			0, 0, 1, &sd);
@@ -172,7 +178,7 @@ void GeometryD3D12::CreateIndexBuffer(int num)
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
 
-	const int elementSize = _32bitIndices ? sizeof(UINT32) : sizeof(UINT16);
+	const int elementSize = _32BitIndices ? sizeof(UINT32) : sizeof(UINT16);
 	_indexBufferSize = num * elementSize;
 
 	if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
@@ -186,7 +192,7 @@ void GeometryD3D12::CreateIndexBuffer(int num)
 
 	_indexBufferView.BufferLocation = _pIndexBuffer->GetGPUVirtualAddress();
 	_indexBufferView.SizeInBytes = Utils::Cast32(_indexBufferSize);
-	_indexBufferView.Format = _32bitIndices ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
+	_indexBufferView.Format = _32BitIndices ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
 }
 
 void GeometryD3D12::UpdateIndexBuffer(const void* p, BaseCommandBuffer* pCB)
@@ -211,7 +217,7 @@ void GeometryD3D12::UpdateIndexBuffer(const void* p, BaseCommandBuffer* pCB)
 	sd.pData = p;
 	sd.RowPitch = _indexBufferSize;
 	sd.SlicePitch = sd.RowPitch;
-	UpdateSubresources(pCmdList,
+	UpdateSubresources<1>(pCmdList,
 		_pIndexBuffer.Get(),
 		_pStagingIndexBuffer.Get(),
 		0, 0, 1, &sd);
@@ -263,7 +269,13 @@ D3D12_INPUT_LAYOUT_DESC GeometryD3D12::GetD3DInputLayoutDesc(UINT32 bindingsFilt
 
 const D3D12_VERTEX_BUFFER_VIEW* GeometryD3D12::GetD3DVertexBufferView(int binding) const
 {
-	return &_vVertexBuffers[binding]._bufferView;
+	if ((_bindingInstMask >> binding) & 0x1)
+	{
+		VERUS_QREF_RENDERER_D3D12;
+		return &_vVertexBuffers[binding]._bufferView[pRendererD3D12->GetRingBufferIndex()];
+	}
+	else
+		return &_vVertexBuffers[binding]._bufferView[0];
 }
 
 const D3D12_INDEX_BUFFER_VIEW* GeometryD3D12::GetD3DIndexBufferView() const

@@ -10,7 +10,7 @@ namespace verus
 		{
 			PcInputElementDesc _pInputElementDesc;
 			const int*         _pStrides = nullptr;
-			bool               _32bitIndices = false;
+			bool               _32BitIndices = false;
 		};
 		VERUS_TYPEDEFS(GeometryDesc);
 
@@ -18,7 +18,7 @@ namespace verus
 		{
 		protected:
 			int  _bindingInstMask = 0;
-			bool _32bitIndices = false;
+			bool _32BitIndices = false;
 
 			BaseGeometry() = default;
 			virtual ~BaseGeometry() = default;
@@ -36,7 +36,7 @@ namespace verus
 			static int GetNumInputElementDesc(PcInputElementDesc p);
 			static int GetNumBindings(PcInputElementDesc p);
 
-			bool Has32bitIndices() const { return _32bitIndices; }
+			bool Has32BitIndices() const { return _32BitIndices; }
 		};
 		VERUS_TYPEDEFS(BaseGeometry);
 

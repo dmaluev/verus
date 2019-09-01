@@ -15,11 +15,13 @@ extern "C"
 // GLM (https://github.com/g-truc/glm):
 #define GLM_ENABLE_EXPERIMENTAL
 #include "glm-0.9.9.5/glm/glm/glm.hpp"
+#include "glm-0.9.9.5/glm/glm/gtc/packing.hpp"
 #include "glm-0.9.9.5/glm/glm/gtc/quaternion.hpp"
 #include "glm-0.9.9.5/glm/glm/gtc/type_ptr.hpp"
 #include "glm-0.9.9.5/glm/glm/gtx/euler_angles.hpp"
 #include "glm-0.9.9.5/glm/glm/gtx/normal.hpp"
 #include "glm-0.9.9.5/glm/glm/gtx/norm.hpp"
+#include "glm-0.9.9.5/glm/glm/gtx/vector_angle.hpp"
 
 // JSON for Modern C++:
 #include "json.hpp"

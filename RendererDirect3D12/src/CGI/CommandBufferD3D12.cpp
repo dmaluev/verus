@@ -136,8 +136,15 @@ void CommandBufferD3D12::BindPipeline(PipelinePtr pipe)
 	auto pCommandList = GetD3DGraphicsCommandList();
 	auto& pipeD3D12 = static_cast<RPipelineD3D12>(*pipe);
 	pCommandList->SetPipelineState(pipeD3D12.GetD3DPipelineState());
-	pCommandList->SetGraphicsRootSignature(pipeD3D12.GetD3DRootSignature()); // Must set root signature.
-	pCommandList->IASetPrimitiveTopology(pipeD3D12.GetPrimitiveTopology());
+	if (pipeD3D12.IsCompute())
+	{
+		pCommandList->SetComputeRootSignature(pipeD3D12.GetD3DRootSignature());
+	}
+	else
+	{
+		pCommandList->SetGraphicsRootSignature(pipeD3D12.GetD3DRootSignature());
+		pCommandList->IASetPrimitiveTopology(pipeD3D12.GetPrimitiveTopology());
+	}
 }
 
 void CommandBufferD3D12::SetViewport(std::initializer_list<Vector4> il, float minDepth, float maxDepth)
@@ -187,11 +194,13 @@ bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int setNumber, int co
 		return false;
 
 	auto pCommandList = GetD3DGraphicsCommandList();
-
 	const UINT rootParameterIndex = shaderD3D12.ToRootParameterIndex(setNumber);
-	pCommandList->SetGraphicsRootDescriptorTable(rootParameterIndex, hGPU);
+	if (shaderD3D12.IsCompute())
+		pCommandList->SetComputeRootDescriptorTable(rootParameterIndex, hGPU);
+	else
+		pCommandList->SetGraphicsRootDescriptorTable(rootParameterIndex, hGPU);
 
-	if (complexSetID >= 0)
+	if (complexSetID >= 0 && !shaderD3D12.IsCompute())
 	{
 		const D3D12_GPU_DESCRIPTOR_HANDLE hGPU = shaderD3D12.UpdateSamplers(setNumber, complexSetID);
 		if (hGPU.ptr)
@@ -206,16 +215,26 @@ bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int setNumber, int co
 
 void CommandBufferD3D12::PushConstants(ShaderPtr shader, int offset, int size, const void* p, ShaderStageFlags stageFlags)
 {
-	GetD3DGraphicsCommandList()->SetGraphicsRoot32BitConstants(0, size, p, offset);
+	auto& shaderD3D12 = static_cast<RShaderD3D12>(*shader);
+	if (shaderD3D12.IsCompute())
+		GetD3DGraphicsCommandList()->SetComputeRoot32BitConstants(0, size, p, offset);
+	else
+		GetD3DGraphicsCommandList()->SetGraphicsRoot32BitConstants(0, size, p, offset);
 }
 
-void CommandBufferD3D12::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, int mipLevel)
+void CommandBufferD3D12::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, Range<int> mipLevels, int arrayLayer)
 {
 	auto& texD3D12 = static_cast<RTextureD3D12>(*tex);
-	const UINT subresource = D3D12CalcSubresource(mipLevel, 0, 0, texD3D12.GetNumMipLevels(), 1);
-	const CD3DX12_RESOURCE_BARRIER rb = CD3DX12_RESOURCE_BARRIER::Transition(
-		texD3D12.GetD3DResource(), ToNativeImageLayout(oldLayout), ToNativeImageLayout(newLayout), subresource);
-	GetD3DGraphicsCommandList()->ResourceBarrier(1, &rb);
+	CD3DX12_RESOURCE_BARRIER rb[16];
+	VERUS_RT_ASSERT(mipLevels.GetRange() < VERUS_ARRAY_LENGTH(rb));
+	int index = 0;
+	for (int mip : mipLevels)
+	{
+		const UINT subresource = D3D12CalcSubresource(mip, arrayLayer, 0, texD3D12.GetNumMipLevels(), texD3D12.GetNumArrayLayers());
+		rb[index++] = CD3DX12_RESOURCE_BARRIER::Transition(
+			texD3D12.GetD3DResource(), ToNativeImageLayout(oldLayout), ToNativeImageLayout(newLayout), subresource);
+	}
+	GetD3DGraphicsCommandList()->ResourceBarrier(index, rb);
 }
 
 void CommandBufferD3D12::Clear(ClearFlags clearFlags)
@@ -240,6 +259,11 @@ void CommandBufferD3D12::Draw(int vertexCount, int instanceCount, int firstVerte
 void CommandBufferD3D12::DrawIndexed(int indexCount, int instanceCount, int firstIndex, int vertexOffset, int firstInstance)
 {
 	GetD3DGraphicsCommandList()->DrawIndexedInstanced(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+}
+
+void CommandBufferD3D12::Dispatch(int groupCountX, int groupCountY, int groupCountZ)
+{
+	GetD3DGraphicsCommandList()->Dispatch(groupCountX, groupCountY, groupCountZ);
 }
 
 ID3D12GraphicsCommandList3* CommandBufferD3D12::GetD3DGraphicsCommandList() const

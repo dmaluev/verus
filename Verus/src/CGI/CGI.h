@@ -11,6 +11,7 @@
 #include "BaseCommandBuffer.h"
 #include "BaseRenderer.h"
 
+#include "DeferredShading.h"
 #include "Renderer.h"
 #include "DestroyStaging.h"
 

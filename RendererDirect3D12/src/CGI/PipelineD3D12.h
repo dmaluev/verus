@@ -9,6 +9,7 @@ namespace verus
 			ComPtr<ID3D12PipelineState> _pPipelineState;
 			ID3D12RootSignature*        _pRootSignature = nullptr;
 			D3D_PRIMITIVE_TOPOLOGY      _topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+			bool                        _compute = false;
 
 		public:
 			PipelineD3D12();
@@ -21,6 +22,9 @@ namespace verus
 			// D3D12
 			//
 
+			VERUS_P(void InitCompute(RcPipelineDesc desc));
+			D3D12_SHADER_BYTECODE ToBytecode(ID3DBlob* pBlob);
+			bool IsCompute() const { return _compute; }
 			ID3D12PipelineState* GetD3DPipelineState() const { return _pPipelineState.Get(); }
 			ID3D12RootSignature* GetD3DRootSignature() const { return _pRootSignature; }
 			D3D_PRIMITIVE_TOPOLOGY GetPrimitiveTopology() const { return _topology; }

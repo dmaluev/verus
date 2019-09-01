@@ -42,6 +42,7 @@ void Utils::InitPaths()
 	GetModuleFileName(nullptr, pathName, MAX_PATH);
 	PathRemoveFileSpec(pathName);
 	_modulePath = Str::WideToUtf8(pathName);
+	VERUS_LOG_INFO("Module path: " << _modulePath);
 
 	_shaderPath = _modulePath + "/Data/Shaders";
 
@@ -51,6 +52,7 @@ void Utils::InitPaths()
 	_writablePath += Str::WideToUtf8(L"Testing");
 	_writablePath += "\\";
 	CreateDirectory(_C(Str::Utf8ToWide(_writablePath)), nullptr);
+	VERUS_LOG_INFO("Writable path: " << _writablePath);
 }
 
 void Utils::ExitSdlLoop()
@@ -74,12 +76,24 @@ UINT32 Utils::Cast32(UINT64 x)
 	return static_cast<UINT32>(x);
 }
 
-void Utils::CopyColor(BYTE* dest, UINT32 src)
+void Utils::CopyColor(BYTE dest[4], UINT32 src)
 {
 	memcpy(dest, &src, sizeof(UINT32));
 }
 
-void Utils::CopyColor(UINT32& dest, const BYTE* src)
+void Utils::CopyColor(UINT32& dest, const BYTE src[4])
 {
 	memcpy(&dest, src, sizeof(UINT32));
+}
+
+void Utils::CopyByteToInt4(const BYTE src[4], int dest[4])
+{
+	VERUS_FOR(i, 4)
+		dest[i] = src[i];
+}
+
+void Utils::CopyIntToByte4(const int src[4], BYTE dest[4])
+{
+	VERUS_FOR(i, 4)
+		dest[i] = src[i];
 }

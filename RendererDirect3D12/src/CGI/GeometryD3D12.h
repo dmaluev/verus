@@ -10,7 +10,7 @@ namespace verus
 			{
 				ComPtr<ID3D12Resource>   _pBuffer;
 				UINT64                   _bufferSize = 0;
-				D3D12_VERTEX_BUFFER_VIEW _bufferView;
+				D3D12_VERTEX_BUFFER_VIEW _bufferView[BaseRenderer::s_ringBufferSize] = {};
 			};
 
 			Vector<BufferEx>                 _vVertexBuffers;

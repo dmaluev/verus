@@ -6,6 +6,18 @@ namespace verus
 	class Range
 	{
 	public:
+		class Iterator
+		{
+			T _value;
+
+		public:
+			Iterator(T x) : _value(x) {}
+
+			T& operator*() { return _value; }
+			Iterator operator++() { ++_value; return *this; }
+			bool operator!=(const Iterator& that) const { return _value != that._value; }
+		};
+
 		T _min;
 		T _max;
 
@@ -15,5 +27,8 @@ namespace verus
 
 		T GetRange() const { return _max - _min; }
 		T GetRandomValue() const { return _min + Utils::I().GetRandom().NextFloat()*GetRange(); }
+
+		Iterator begin() const { return _min; }
+		Iterator end() const { return _max + 1; }
 	};
 }

@@ -249,9 +249,9 @@ void Settings::SetQuality(Quality q)
 
 #ifdef _WIN32
 #	ifndef _DEBUG
-	_screenSizeHeight = GetSystemMetrics(SM_CYSCREEN);
-	_screenSizeWidth = GetSystemMetrics(SM_CXSCREEN);
-	_screenWindowed = false;
+	//_screenSizeHeight = GetSystemMetrics(SM_CYSCREEN);
+	//_screenSizeWidth = GetSystemMetrics(SM_CXSCREEN);
+	//_screenWindowed = false;
 #	endif
 #else // Linux?
 	_gapi = 0;

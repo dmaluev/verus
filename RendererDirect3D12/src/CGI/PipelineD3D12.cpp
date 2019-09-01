@@ -18,6 +18,13 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
 
+	if (desc._compute)
+	{
+		_compute = true;
+		InitCompute(desc);
+		return;
+	}
+
 	_vertexInputBindingsFilter = desc._vertexInputBindingsFilter;
 
 	RcGeometryD3D12 geo = static_cast<RcGeometryD3D12>(*desc._geometry);
@@ -26,15 +33,9 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 	_pRootSignature = shader.GetD3DRootSignature();
 	_topology = ToNativePrimitiveTopology(desc._topology);
 
-	auto ToBytecode = [](ID3DBlob* pBlob) -> D3D12_SHADER_BYTECODE
+	auto GetStripCutValue = [&geo]()
 	{
-		D3D12_SHADER_BYTECODE bytecode = {};
-		if (pBlob)
-		{
-			bytecode.pShaderBytecode = pBlob->GetBufferPointer();
-			bytecode.BytecodeLength = pBlob->GetBufferSize();
-		}
-		return bytecode;
+		return geo.Has32BitIndices() ? D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFFFFFF : D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFF;
 	};
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsDesc = {};
@@ -67,7 +68,7 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 
 	Vector<D3D12_INPUT_ELEMENT_DESC> vInputElementDesc;
 	gpsDesc.InputLayout = geo.GetD3DInputLayoutDesc(_vertexInputBindingsFilter, vInputElementDesc);
-	gpsDesc.IBStripCutValue = desc._primitiveRestartEnable ? D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFF : D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
+	gpsDesc.IBStripCutValue = desc._primitiveRestartEnable ? GetStripCutValue() : D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
 	gpsDesc.PrimitiveTopologyType = ToNativePrimitiveTopologyType(desc._topology);
 
 	RP::RcD3DRenderPass renderPass = pRendererD3D12->GetRenderPassByID(desc._renderPassID);
@@ -100,4 +101,35 @@ void PipelineD3D12::Done()
 	_pPipelineState.Reset();
 
 	VERUS_DONE(PipelineD3D12);
+}
+
+void PipelineD3D12::InitCompute(RcPipelineDesc desc)
+{
+	VERUS_QREF_RENDERER_D3D12;
+	HRESULT hr = 0;
+
+	RcShaderD3D12 shader = static_cast<RcShaderD3D12>(*desc._shader);
+
+	_pRootSignature = shader.GetD3DRootSignature();
+
+	D3D12_COMPUTE_PIPELINE_STATE_DESC cpsDesc = {};
+	cpsDesc.pRootSignature = _pRootSignature;
+	cpsDesc.CS = ToBytecode(shader.GetD3DBlob(desc._shaderBranch, BaseShader::Stage::cs));
+	cpsDesc.NodeMask = 0;
+	cpsDesc.CachedPSO = { nullptr, 0 };
+	cpsDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+	if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateComputePipelineState(&cpsDesc, IID_PPV_ARGS(&_pPipelineState))))
+		throw VERUS_RUNTIME_ERROR << "CreateComputePipelineState(), hr=" << VERUS_HR(hr);
+}
+
+D3D12_SHADER_BYTECODE PipelineD3D12::ToBytecode(ID3DBlob* pBlob)
+{
+	D3D12_SHADER_BYTECODE bytecode = {};
+	if (pBlob)
+	{
+		bytecode.pShaderBytecode = pBlob->GetBufferPointer();
+		bytecode.BytecodeLength = pBlob->GetBufferSize();
+	}
+	return bytecode;
 }

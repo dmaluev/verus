@@ -16,7 +16,7 @@ void GeometryVulkan::Init(RcGeometryDesc desc)
 {
 	VERUS_INIT();
 
-	_32bitIndices = desc._32bitIndices;
+	_32BitIndices = desc._32BitIndices;
 
 	const int numBindings = GetNumBindings(desc._pInputElementDesc);
 	_vVertexInputBindingDesc.reserve(numBindings);
@@ -149,7 +149,7 @@ void GeometryVulkan::CreateIndexBuffer(int num)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 
-	const int elementSize = _32bitIndices ? sizeof(UINT32) : sizeof(UINT16);
+	const int elementSize = _32BitIndices ? sizeof(UINT32) : sizeof(UINT16);
 	_indexBuffer._bufferSize = num * elementSize;
 
 	pRendererVulkan->CreateBuffer(_indexBuffer._bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
@@ -235,4 +235,16 @@ VkPipelineVertexInputStateCreateInfo GeometryVulkan::GetVkPipelineVertexInputSta
 	vertexInputState.vertexAttributeDescriptionCount = Utils::Cast32(vVertexInputAttributeDesc.size());
 	vertexInputState.pVertexAttributeDescriptions = vVertexInputAttributeDesc.data();
 	return vertexInputState;
+}
+
+VkDeviceSize GeometryVulkan::GetVkVertexBufferOffset(int binding) const
+{
+	if ((_bindingInstMask >> binding) & 0x1)
+	{
+		VERUS_QREF_RENDERER_VULKAN;
+		auto& vb = _vVertexBuffers[binding];
+		return pRendererVulkan->GetRingBufferIndex() * vb._bufferSize;
+	}
+	else
+		return 0;
 }

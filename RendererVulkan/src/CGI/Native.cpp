@@ -8,6 +8,8 @@ VkFormat CGI::ToNativeFormat(Format format)
 	{
 	case Format::unormB4G4R4A4:     return VK_FORMAT_B4G4R4A4_UNORM_PACK16;
 	case Format::unormB5G6R5:       return VK_FORMAT_B5G6R5_UNORM_PACK16;
+	case Format::unormR10G10B10A2:  return VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+	case Format::sintR16:           return VK_FORMAT_R16_SINT;
 
 	case Format::unormR8:           return VK_FORMAT_R8_UNORM;
 	case Format::unormR8G8:         return VK_FORMAT_R8G8_UNORM;

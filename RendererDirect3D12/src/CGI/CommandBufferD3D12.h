@@ -38,11 +38,13 @@ namespace verus
 			virtual bool BindDescriptors(ShaderPtr shader, int setNumber, int complexSetID) override;
 			virtual void PushConstants(ShaderPtr shader, int offset, int size, const void* p, ShaderStageFlags stageFlags) override;
 
-			virtual void PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, int mipLevel) override;
+			virtual void PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, Range<int> mipLevels, int arrayLayer) override;
 			virtual void Clear(ClearFlags clearFlags) override;
 
 			virtual void Draw(int vertexCount, int instanceCount, int firstVertex, int firstInstance) override;
 			virtual void DrawIndexed(int indexCount, int instanceCount, int firstIndex, int vertexOffset, int firstInstance) override;
+
+			virtual void Dispatch(int groupCountX, int groupCountY, int groupCountZ) override;
 
 			//
 			// D3D12

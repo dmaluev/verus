@@ -49,6 +49,16 @@ void Renderer::Init(PRendererDelegate pDelegate)
 
 	_commandBuffer.Init();
 
+	CGI::ShaderDesc shaderDesc;
+	shaderDesc._url = "[Shaders]:GenerateMips.hlsl";
+	_shaderGenerateMips.Init(shaderDesc);
+	_shaderGenerateMips->CreateDescriptorSet(0, &_ubGenerateMips, sizeof(_ubGenerateMips), 100,
+		{ Sampler::linearClamp2D, Sampler::storage, Sampler::storage, Sampler::storage, Sampler::storage }, ShaderStageFlags::cs);
+	_shaderGenerateMips->CreatePipelineLayout();
+
+	CGI::PipelineDesc pipeDesc(_shaderGenerateMips, "T");
+	_pipeGenerateMips.Init(pipeDesc);
+
 	TextureDesc td;
 	td._format = Format::unormD24uintS8;
 	td._width = settings._screenSizeWidth;
@@ -71,31 +81,14 @@ void Renderer::Init(PRendererDelegate pDelegate)
 			}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachmentOptimal)),
 		},
 		{});
-	_rpDS = _pBaseRenderer->CreateRenderPass(
-		{
-			RP::Attachment("GBuffer0", Format::unormR8G8B8A8).LoadOpClear().FinalLayout(ImageLayout::presentSrc),
-			RP::Attachment("GBuffer1", Format::unormR8G8B8A8).LoadOpClear().FinalLayout(ImageLayout::presentSrc),
-			RP::Attachment("GBuffer2", Format::unormR8G8B8A8).LoadOpClear().FinalLayout(ImageLayout::presentSrc),
-			RP::Attachment("GBuffer3", Format::unormR8G8B8A8).LoadOpClear().FinalLayout(ImageLayout::presentSrc),
-			RP::Attachment("Depth", Format::unormD24uintS8).LoadOpClear().Layout(ImageLayout::depthStencilAttachmentOptimal),
-		},
-		{
-			RP::Subpass("Sp0").Color(
-				{
-					RP::Ref("GBuffer0", ImageLayout::colorAttachmentOptimal),
-					RP::Ref("GBuffer1", ImageLayout::colorAttachmentOptimal),
-					RP::Ref("GBuffer2", ImageLayout::colorAttachmentOptimal),
-					RP::Ref("GBuffer3", ImageLayout::colorAttachmentOptimal)
-				}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachmentOptimal))
-		},
-		{});
-
 	_fbSwapChain.resize(_pBaseRenderer->GetNumSwapChainBuffers());
 	VERUS_FOR(i, _fbSwapChain.size())
 		_fbSwapChain[i] = _pBaseRenderer->CreateFramebuffer(_rpSwapChain, {}, settings._screenSizeWidth, settings._screenSizeHeight, i);
 	_fbSwapChainDepth.resize(_pBaseRenderer->GetNumSwapChainBuffers());
 	VERUS_FOR(i, _fbSwapChainDepth.size())
 		_fbSwapChainDepth[i] = _pBaseRenderer->CreateFramebuffer(_rpSwapChainDepth, { _texDepthStencil }, settings._screenSizeWidth, settings._screenSizeHeight, i);
+
+	_ds.Init();
 }
 
 void Renderer::Done()
@@ -103,7 +96,10 @@ void Renderer::Done()
 	if (_pBaseRenderer)
 	{
 		_pBaseRenderer->WaitIdle();
+		_ds.Done();
 		_texDepthStencil.Done();
+		_pipeGenerateMips.Done();
+		_shaderGenerateMips.Done();
 		_commandBuffer.Done();
 
 		Scene::Terrain::DoneStatic();

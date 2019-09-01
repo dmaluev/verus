@@ -382,6 +382,7 @@ void RendererVulkan::CreateDevice()
 		vDeviceQueueCreateInfos.push_back(vkdqci);
 	}
 	VkPhysicalDeviceFeatures physicalDeviceFeatures = {};
+	physicalDeviceFeatures.fillModeNonSolid = VK_TRUE;
 	physicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
 	VkDeviceCreateInfo vkdci = {};
 	vkdci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -569,14 +570,49 @@ void RendererVulkan::CreateSamplers()
 	vksci.maxAnisotropy = static_cast<float>(settings._gpuAnisotropyLevel);
 	_vSamplers[+Sampler::aniso] = Create(vksci);
 
+	// <Repeat>
 	vksci = init;
 	_vSamplers[+Sampler::linear3D] = Create(vksci);
 
 	vksci = init;
 	vksci.magFilter = VK_FILTER_NEAREST;
 	vksci.minFilter = VK_FILTER_NEAREST;
-	vksci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 	_vSamplers[+Sampler::nearest3D] = Create(vksci);
+
+	vksci = init;
+	vksci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	_vSamplers[+Sampler::linear2D] = Create(vksci);
+
+	vksci = init;
+	vksci.magFilter = VK_FILTER_NEAREST;
+	vksci.minFilter = VK_FILTER_NEAREST;
+	vksci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	_vSamplers[+Sampler::nearest2D] = Create(vksci);
+	// </Repeat>
+
+	// <Clamp>
+	vksci = init;
+	init.addressModeU = init.addressModeV = init.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	_vSamplers[+Sampler::linearClamp3D] = Create(vksci);
+
+	vksci = init;
+	vksci.magFilter = VK_FILTER_NEAREST;
+	vksci.minFilter = VK_FILTER_NEAREST;
+	init.addressModeU = init.addressModeV = init.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	_vSamplers[+Sampler::nearestClamp3D] = Create(vksci);
+
+	vksci = init;
+	vksci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	init.addressModeU = init.addressModeV = init.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	_vSamplers[+Sampler::linearClamp2D] = Create(vksci);
+
+	vksci = init;
+	vksci.magFilter = VK_FILTER_NEAREST;
+	vksci.minFilter = VK_FILTER_NEAREST;
+	vksci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	init.addressModeU = init.addressModeV = init.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	_vSamplers[+Sampler::nearestClamp2D] = Create(vksci);
+	// </Clamp>
 }
 
 VkCommandBuffer RendererVulkan::CreateCommandBuffer(VkCommandPool commandPool)
@@ -1068,7 +1104,29 @@ void RendererVulkan::CreateImage(const VkImageCreateInfo* pImageCreateInfo, VmaM
 		throw VERUS_RECOVERABLE << "vmaCreateImage(), res=" << res;
 }
 
-void RendererVulkan::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t mipLevel, PBaseCommandBuffer pCB)
+void RendererVulkan::CopyImage(VkImage srcImage, VkImage dstImage, uint32_t width, uint32_t height, uint32_t mipLevel, uint32_t arrayLayer, PBaseCommandBuffer pCB)
+{
+	VERUS_QREF_RENDERER;
+
+	if (!pCB)
+		pCB = &(*renderer.GetCommandBuffer());
+	auto commandBuffer = static_cast<PCommandBufferVulkan>(pCB)->GetVkCommandBuffer();
+
+	VkImageCopy region = {};
+	region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	region.srcSubresource.mipLevel = mipLevel;
+	region.srcSubresource.baseArrayLayer = arrayLayer;
+	region.srcSubresource.layerCount = 1;
+	region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	region.dstSubresource.mipLevel = mipLevel;
+	region.dstSubresource.baseArrayLayer = arrayLayer;
+	region.dstSubresource.layerCount = 1;
+	region.extent = { width, height, 1 };
+
+	vkCmdCopyImage(commandBuffer, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+}
+
+void RendererVulkan::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t mipLevel, uint32_t arrayLayer, PBaseCommandBuffer pCB)
 {
 	VERUS_QREF_RENDERER;
 
@@ -1082,7 +1140,7 @@ void RendererVulkan::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t 
 	region.bufferImageHeight = 0;
 	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	region.imageSubresource.mipLevel = mipLevel;
-	region.imageSubresource.baseArrayLayer = 0;
+	region.imageSubresource.baseArrayLayer = arrayLayer;
 	region.imageSubresource.layerCount = 1;
 	region.imageOffset = { 0, 0, 0 };
 	region.imageExtent = { width, height, 1 };

@@ -285,12 +285,43 @@ void RendererD3D12::CreateSamplers()
 	desc.MaxAnisotropy = settings._gpuAnisotropyLevel;
 	_vSamplers[+Sampler::aniso] = desc;
 
+	// <Wrap>
 	desc = init;
 	_vSamplers[+Sampler::linear3D] = desc;
 
 	desc = init;
-	desc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+	desc.Filter = D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR;
 	_vSamplers[+Sampler::nearest3D] = desc;
+
+	desc = init;
+	desc.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+	_vSamplers[+Sampler::linear2D] = desc;
+
+	desc = init;
+	desc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+	_vSamplers[+Sampler::nearest2D] = desc;
+	// </Wrap>
+
+	// <Clamp>
+	desc = init;
+	init.AddressU = init.AddressV = init.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	_vSamplers[+Sampler::linearClamp3D] = desc;
+
+	desc = init;
+	desc.Filter = D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR;
+	init.AddressU = init.AddressV = init.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	_vSamplers[+Sampler::nearestClamp3D] = desc;
+
+	desc = init;
+	desc.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+	init.AddressU = init.AddressV = init.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	_vSamplers[+Sampler::linearClamp2D] = desc;
+
+	desc = init;
+	desc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+	init.AddressU = init.AddressV = init.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	_vSamplers[+Sampler::nearestClamp2D] = desc;
+	// </Clamp>
 }
 
 D3D12_STATIC_SAMPLER_DESC RendererD3D12::GetStaticSamplerDesc(Sampler s) const

@@ -4,7 +4,10 @@
 #include "BaseMesh.h"
 #include "Mesh.h"
 #include "Terrain.h"
+#include "EditorTerrain.h"
 #include "Atmosphere.h"
+#include "MaterialManager.h"
+#include "SceneManager.h"
 
 namespace verus
 {

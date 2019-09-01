@@ -7,8 +7,10 @@ namespace verus
 		class TextureD3D12 : public BaseTexture
 		{
 			ComPtr<ID3D12Resource>         _pResource;
+			ComPtr<ID3D12Resource>         _pResourceUAV;
 			Vector<ComPtr<ID3D12Resource>> _vStagingBuffers;
 			DescriptorHeap                 _dhSRV;
+			DescriptorHeap                 _dhUAV;
 			DescriptorHeap                 _dhRTV;
 			DescriptorHeap                 _dhDSV;
 			DescriptorHeap                 _dhSampler;
@@ -23,6 +25,8 @@ namespace verus
 
 			virtual void UpdateImage(int mipLevel, const void* p, int arrayLayer, PBaseCommandBuffer pCB) override;
 
+			virtual void GenerateMips(PBaseCommandBuffer pCB) override;
+
 			//
 			// D3D12
 			//
@@ -32,6 +36,7 @@ namespace verus
 			ID3D12Resource* GetD3DResource() const { return _pResource.Get(); }
 
 			RcDescriptorHeap GetDescriptorHeapSRV() const { return _dhSRV; }
+			RcDescriptorHeap GetDescriptorHeapUAV() const { return _dhUAV; }
 			RcDescriptorHeap GetDescriptorHeapRTV() const { return _dhRTV; }
 			RcDescriptorHeap GetDescriptorHeapDSV() const { return _dhDSV; }
 			RcDescriptorHeap GetDescriptorHeapSampler() const { return _dhSampler; };

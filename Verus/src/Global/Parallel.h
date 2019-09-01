@@ -6,7 +6,7 @@ namespace verus
 	{
 	public:
 		template<typename TFunc>
-		static void For(int from, int to, TFunc func, int minTime = 10, int minShare = 1)
+		static void For(int from, int to, TFunc func, int minTime = 0, int minShare = 1)
 		{
 			const int total = to - from;
 			VERUS_RT_ASSERT(minShare <= total);
@@ -38,7 +38,7 @@ namespace verus
 				it->join();
 			const std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 			const std::chrono::milliseconds d = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
-			//VERUS_RT_ASSERT(d.count() >= minTime);
+			VERUS_RT_ASSERT(!minTime || d.count() >= minTime);
 		}
 	};
 }

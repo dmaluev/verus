@@ -70,10 +70,10 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 
 	while (*branches)
 	{
-		String entryVS, entryHS, entryDS, entryGS, entryFS;
+		String entryVS, entryHS, entryDS, entryGS, entryFS, entryCS;
 		Vector<String> vMacroName;
 		Vector<String> vMacroValue;
-		const String entry = Parse(*branches, entryVS, entryHS, entryDS, entryGS, entryFS, vMacroName, vMacroValue, "DEF_");
+		const String entry = Parse(*branches, entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, vMacroName, vMacroValue, "DEF_");
 
 		if (IsInIgnoreList(_C(entry)))
 		{
@@ -172,6 +172,16 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::fs]);
 		}
 
+		if (strstr(source, " mainCS("))
+		{
+			compiled._numStages++;
+			vDefines[typeIndex] = "_CS";
+			if (!RendererVulkan::VerusCompile(source, sourceName, vDefines.data(), &inc, _C(entryCS), "cs", flags, &pCode, &size, &pErrorMsgs))
+				CheckErrorMsgs(pErrorMsgs);
+			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::cs]);
+			_compute = true;
+		}
+
 		_mapCompiled[entry] = compiled;
 
 		branches++;
@@ -255,7 +265,13 @@ void ShaderVulkan::CreatePipelineLayout()
 			if (numTextures > 0)
 			{
 				_poolComplexUniformBuffers += dsd._capacity;
-				_poolComplexImageSamplers += dsd._capacity*numTextures;
+				for (auto s : dsd._vSamplers)
+				{
+					if (Sampler::storage == s)
+						_poolComplexStorageImages += dsd._capacity;
+					else
+						_poolComplexImageSamplers += dsd._capacity;
+				}
 			}
 
 			if (dsd._capacity > 0)
@@ -273,7 +289,8 @@ void ShaderVulkan::CreatePipelineLayout()
 				{
 					VkDescriptorSetLayoutBinding vkdslb = {};
 					vkdslb.binding = i + 1;
-					vkdslb.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+					vkdslb.descriptorType = (Sampler::storage == dsd._vSamplers[i]) ?
+						VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 					vkdslb.descriptorCount = 1;
 					vkdslb.stageFlags = dsd._stageFlags;
 					if (Sampler::custom != dsd._vSamplers[i])
@@ -317,7 +334,7 @@ void ShaderVulkan::CreatePipelineLayout()
 	}
 }
 
-int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il)
+int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
@@ -338,6 +355,9 @@ int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list
 		_vComplexDescriptorSets.resize(complexSetID + 1);
 	}
 
+	auto& dsd = _vDescriptorSetDesc[setNumber];
+	VERUS_RT_ASSERT(dsd._vSamplers.size() == il.size());
+
 	// Allocate from pool:
 	VkDescriptorSetAllocateInfo vkdsai = {};
 	vkdsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -349,9 +369,6 @@ int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list
 		throw VERUS_RUNTIME_ERROR << "vkAllocateDescriptorSets(), res=" << res;
 	_vComplexDescriptorSets[complexSetID] = descriptorSet;
 
-	auto& dsd = _vDescriptorSetDesc[setNumber];
-	VERUS_RT_ASSERT(dsd._vSamplers.size() == il.size());
-
 	// Info structures:
 	VkDescriptorBufferInfo vkdbi = {};
 	vkdbi.buffer = dsd._buffer;
@@ -359,14 +376,25 @@ int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list
 	vkdbi.range = dsd._size;
 	Vector<VkDescriptorImageInfo> vDescriptorImageInfo;
 	vDescriptorImageInfo.reserve(il.size());
+	int index = 0;
 	for (const auto& x : il)
 	{
 		auto& texVulkan = static_cast<RTextureVulkan>(*x);
+		const int mip = pMips ? pMips[index] : 0;
 		VkDescriptorImageInfo vkdii = {};
-		vkdii.sampler = texVulkan.GetVkSampler();
-		vkdii.imageView = texVulkan.GetVkImageView();
-		vkdii.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		if (Sampler::storage == dsd._vSamplers[index])
+		{
+			vkdii.imageView = texVulkan.GetVkImageViewStorage(mip);
+			vkdii.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+		}
+		else
+		{
+			vkdii.sampler = texVulkan.GetVkSampler();
+			vkdii.imageView = texVulkan.GetVkImageView();
+			vkdii.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		}
 		vDescriptorImageInfo.push_back(vkdii);
+		index++;
 	}
 
 	Vector<VkWriteDescriptorSet> vWriteDescriptorSet;
@@ -384,7 +412,7 @@ int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list
 	vWriteDescriptorSet.push_back(vkwds);
 
 	// Images & samplers:
-	int index = 0;
+	index = 0;
 	for (const auto& x : il)
 	{
 		VkWriteDescriptorSet vkwds = {};
@@ -393,7 +421,8 @@ int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list
 		vkwds.dstBinding = index + 1;
 		vkwds.dstArrayElement = 0;
 		vkwds.descriptorCount = 1;
-		vkwds.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		vkwds.descriptorType = (Sampler::storage == dsd._vSamplers[index]) ?
+			VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		vkwds.pImageInfo = &vDescriptorImageInfo[index];
 		vWriteDescriptorSet.push_back(vkwds);
 		index++;
@@ -447,15 +476,21 @@ void ShaderVulkan::CreateDescriptorPool()
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
-	VkDescriptorPoolSize vkdps[2] = {};
+	VkDescriptorPoolSize vkdps[3] = {};
 	vkdps[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-	vkdps[0].descriptorCount = Utils::Cast32(_vDescriptorSetLayouts.size()) + _poolComplexUniformBuffers;
+	vkdps[0].descriptorCount = _poolComplexUniformBuffers + Utils::Cast32(_vDescriptorSetLayouts.size());
 	vkdps[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	vkdps[1].descriptorCount = _poolComplexImageSamplers;
+	vkdps[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	vkdps[2].descriptorCount = _poolComplexStorageImages;
 	VkDescriptorPoolCreateInfo vkdpci = {};
 	vkdpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	vkdpci.maxSets = vkdps[0].descriptorCount;
-	vkdpci.poolSizeCount = (_poolComplexImageSamplers > 0) ? 2 : 1;
+	vkdpci.poolSizeCount = 1;
+	if (_poolComplexImageSamplers > 0)
+		vkdpci.poolSizeCount++;
+	if (_poolComplexStorageImages > 0)
+		vkdpci.poolSizeCount++;
 	vkdpci.pPoolSizes = vkdps;
 	if (VK_SUCCESS != (res = vkCreateDescriptorPool(pRendererVulkan->GetVkDevice(), &vkdpci, pRendererVulkan->GetAllocator(), &_descriptorPool)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateDescriptorPool(), res=" << res;

@@ -179,7 +179,7 @@ void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc d
 		}
 	}
 	else if (desc._mandatory)
-		throw VERUS_RUNTIME_ERROR << "LoadResourceFromFile(), File not found: " << url;
+		throw VERUS_RUNTIME_ERROR << "LoadResourceFromFile(), File not found: " << url << " (" << strUrl << ")";
 }
 
 void FileSystem::LoadResourceFromCache(CSZ url, Vector<BYTE>& vData, bool mandatory)

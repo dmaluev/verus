@@ -18,6 +18,13 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
+	if (desc._compute)
+	{
+		_compute = true;
+		InitCompute(desc);
+		return;
+	}
+
 	_vertexInputBindingsFilter = desc._vertexInputBindingsFilter;
 
 	RcGeometryVulkan geo = static_cast<RcGeometryVulkan>(*desc._geometry);
@@ -132,4 +139,23 @@ void PipelineVulkan::Done()
 	VERUS_VULKAN_DESTROY(_pipeline, vkDestroyPipeline(pRendererVulkan->GetVkDevice(), _pipeline, pRendererVulkan->GetAllocator()));
 
 	VERUS_DONE(PipelineVulkan);
+}
+
+void PipelineVulkan::InitCompute(RcPipelineDesc desc)
+{
+	VERUS_QREF_RENDERER_VULKAN;
+	VkResult res = VK_SUCCESS;
+
+	RcShaderVulkan shader = static_cast<RcShaderVulkan>(*desc._shader);
+	const VkShaderModule shaderModule = shader.GetVkShaderModule(desc._shaderBranch, BaseShader::Stage::cs);
+
+	VkComputePipelineCreateInfo vkcpci = {};
+	vkcpci.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	vkcpci.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vkcpci.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	vkcpci.stage.module = shaderModule;
+	vkcpci.stage.pName = "mainCS";
+	vkcpci.layout = shader.GetVkPipelineLayout();
+	if (VK_SUCCESS != (res = vkCreateComputePipelines(pRendererVulkan->GetVkDevice(), VK_NULL_HANDLE, 1, &vkcpci, pRendererVulkan->GetAllocator(), &_pipeline)))
+		throw VERUS_RUNTIME_ERROR << "vkCreateComputePipelines(), res=" << res;
 }

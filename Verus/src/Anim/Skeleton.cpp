@@ -501,7 +501,6 @@ void Skeleton::LoadRigInfoFromPtr(const BYTE* p)
 
 void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 {
-#if 0
 	VERUS_QREF_BULLET;
 
 	EndRagdoll();
@@ -516,12 +515,12 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 	const float sleepL = 1.6f;
 	const float sleepA = 2.5f;
 
-	for (const auto& kv : _mapBones)
+	for (auto& kv : _mapBones)
 		kv.second._ready = true;
 
 	for (const auto& kv : _mapBones)
 	{
-		PBone pBone = &kv.second;
+		PcBone pBone = &kv.second;
 		PBone pParent = FindBone(_C(pBone->_parentName));
 
 		if (pParent && pParent->_rigBone && !pParent->_pShape) // Create a shape for parent bone:
@@ -580,8 +579,8 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 				group = mask = 0;
 			const btTransform t = matBody.Bullet();
 			pParent->_pBody = bullet.AddNewRigidBody(pParent->_mass, t, pParent->_pShape, group, mask);
-			pParent->_pBody->setFriction(Physics::CBullet::GetFriction(Physics::Material::leather));
-			pParent->_pBody->setRestitution(Physics::CBullet::GetRestitution(Physics::Material::leather)*0.5f);
+			pParent->_pBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::leather));
+			pParent->_pBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::leather)*0.5f);
 			pParent->_pBody->setDamping(dampL, dampA);
 			pParent->_pBody->setDeactivationTime(daTime);
 			pParent->_pBody->setSleepingThresholds(sleepL, sleepA);
@@ -592,7 +591,7 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 	const Transform3 matInitC = Transform3::rotationZYX(Vector3(-VERUS_PI / 2, 0, -VERUS_PI / 2));
 
 	// Create leaf actors and joints:
-	for (const auto& kv : _mapBones)
+	for (auto& kv : _mapBones)
 	{
 		PBone pBone = &kv.second;
 		PBone pParent = pBone;
@@ -631,8 +630,8 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 				group = mask = 0;
 			const btTransform t = matBody.Bullet();
 			pBone->_pBody = bullet.AddNewRigidBody(pBone->_mass, t, pBone->_pShape, group, mask);
-			pBone->_pBody->setFriction(Physics::CBullet::GetFriction(Physics::Material::leather));
-			pBone->_pBody->setRestitution(Physics::CBullet::GetRestitution(Physics::Material::leather)*0.5f);
+			pBone->_pBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::leather));
+			pBone->_pBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::leather)*0.5f);
 			pBone->_pBody->setDamping(dampL, dampA);
 			pBone->_pBody->setDeactivationTime(daTime);
 			pBone->_pBody->setSleepingThresholds(sleepL, sleepA);
@@ -679,15 +678,13 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 	}
 
 	_ragdollMode = true;
-#endif
 }
 
 void Skeleton::EndRagdoll()
 {
-#if 0
 	VERUS_QREF_BULLET;
 
-	for (const auto& kv : _mapBones)
+	for (auto& kv : _mapBones)
 	{
 		RBone bone = kv.second;
 		if (bone._pConstraint)
@@ -698,7 +695,7 @@ void Skeleton::EndRagdoll()
 		}
 	}
 
-	for (const auto& kv : _mapBones)
+	for (auto& kv : _mapBones)
 	{
 		RBone bone = kv.second;
 		if (bone._pBody)
@@ -716,7 +713,6 @@ void Skeleton::EndRagdoll()
 	}
 
 	_ragdollMode = false;
-#endif
 }
 
 void Skeleton::BakeMotion(RMotion motion, int frame, bool kinect)

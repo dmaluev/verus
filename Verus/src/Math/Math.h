@@ -38,6 +38,9 @@ namespace verus
 #include "Plane.h"
 #include "Frustum.h"
 #include "NormalComputer.h"
+#include "QuadtreeIntegral.h"
+#include "Quadtree.h"
+#include "Octree.h"
 
 namespace verus
 {
@@ -60,7 +63,6 @@ namespace verus
 		float LinearToCos(float t);
 
 		// Shapes:
-		Transform3 BoundsDrawMatrix(RcPoint3 mn, RcPoint3 mx);
 		Vector3 TriangleNormal(RcPoint3 a, RcPoint3 b, RcPoint3 c);
 		float TriangleArea(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2);
 
@@ -68,6 +70,13 @@ namespace verus
 		int GetNumStripGridIndices(int widthPoly, int heightPoly);
 		void BuildStripGrid(int widthPoly, int heightPoly, Vector<UINT16>& vIndices);
 		void BuildListGrid(int widthPoly, int heightPoly, Vector<UINT16>& vIndices);
+
+		// Scene:
+		Transform3 BoundsDrawMatrix(RcPoint3 mn, RcPoint3 mx);
+		float ComputeOnePixelDistance(float size, float screenHeight = 120, float fovY = VERUS_PI / 4);
+		void Quadrant(const int** ppSrcMinMax, int** ppDestMinMax, int half, int id);
+
+		int ComputeMipLevels(int w, int h, int d = 1);
 
 		// Clamp:
 		template<typename T>
@@ -102,6 +111,11 @@ namespace verus
 		T AlignDown(T val, T align)
 		{
 			return val / align * align;
+		}
+		template<typename T>
+		T DivideByMultiple(T value, T alignment)
+		{
+			return (value + alignment - 1) / alignment;
 		}
 	};
 }

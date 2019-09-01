@@ -47,6 +47,7 @@ namespace verus
 			int GetNumVertexBuffers() const { return Utils::Cast32(_vVertexBuffers.size()); }
 			VkBuffer GetVkVertexBuffer(int binding) const { return _vVertexBuffers[binding]._buffer; }
 			VkBuffer GetVkIndexBuffer() const { return _indexBuffer._buffer; }
+			VkDeviceSize GetVkVertexBufferOffset(int binding) const;
 		};
 		VERUS_TYPEDEFS(GeometryVulkan);
 	}

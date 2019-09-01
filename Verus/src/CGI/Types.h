@@ -119,10 +119,17 @@ namespace verus
 
 		enum class Sampler : int
 		{
-			custom,
-			aniso,
+			custom, // Not immutable, not static sampler.
+			storage, // Also known as UAV.
+			aniso, // Most common sampler for 3D.
 			linear3D,
 			nearest3D,
+			linear2D,
+			nearest2D,
+			linearClamp3D,
+			nearestClamp3D,
+			linearClamp2D,
+			nearestClamp2D,
 			count
 		};
 	}

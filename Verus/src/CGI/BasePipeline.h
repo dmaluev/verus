@@ -20,9 +20,12 @@ namespace verus
 			bool                       _depthWriteEnable = true;
 			bool                       _stencilTestEnable = false;
 			bool                       _primitiveRestartEnable = false;
+			bool                       _compute = false;
 
 			PipelineDesc(GeometryPtr geo, ShaderPtr shader, CSZ branch, int renderPassID) :
 				_geometry(geo), _shader(shader), _shaderBranch(branch), _renderPassID(renderPassID) {}
+			PipelineDesc(ShaderPtr shader, CSZ branch) :
+				_shader(shader), _shaderBranch(branch), _compute(true) {}
 		};
 		VERUS_TYPEDEFS(PipelineDesc);
 

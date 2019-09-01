@@ -11,7 +11,6 @@ namespace verus
 				VkShaderModule _shaderModules[+Stage::count] = {};
 				int            _numStages = 0;
 			};
-			VERUS_TYPEDEFS(Compiled);
 			typedef Map<String, Compiled> TMapCompiled;
 
 			struct DescriptorSetDesc
@@ -39,6 +38,8 @@ namespace verus
 			UINT64                        _currentFrame = UINT64_MAX;
 			int                           _poolComplexUniformBuffers = 0;
 			int                           _poolComplexImageSamplers = 0;
+			int                           _poolComplexStorageImages = 0;
+			bool                          _compute = false;
 
 		public:
 			ShaderVulkan();
@@ -49,7 +50,7 @@ namespace verus
 
 			virtual void CreateDescriptorSet(int setNumber, const void* pSrc, int size, int capacity, std::initializer_list<Sampler> il, ShaderStageFlags stageFlags) override;
 			virtual void CreatePipelineLayout() override;
-			virtual int BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il) override;
+			virtual int BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips) override;
 
 			virtual void BeginBindDescriptors() override;
 			virtual void EndBindDescriptors() override;
@@ -70,6 +71,8 @@ namespace verus
 
 			bool TryPushConstants(int setNumber, RBaseCommandBuffer cb);
 			int UpdateUniformBuffer(int setNumber);
+
+			bool IsCompute() const { return _compute; }
 
 			void OnError(CSZ s);
 		};

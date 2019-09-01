@@ -35,6 +35,17 @@
 #	define _PER_INSTANCE_DATA
 #endif
 
+#define _SINGULARITY_FIX 0.001
+
+matrix ToFloat4x4(mataff m)
+{
+	return matrix(
+		float4(m[0], 0),
+		float4(m[1], 0),
+		float4(m[2], 0),
+		float4(m[3], 1));
+}
+
 float CalcNormalZ(float2 v)
 {
 	return sqrt(saturate(1.0 - dot(v.rg, v.rg)));

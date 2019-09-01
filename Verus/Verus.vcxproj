@@ -112,6 +112,7 @@
     <ClInclude Include="src\CGI\BaseShader.h" />
     <ClInclude Include="src\CGI\BaseTexture.h" />
     <ClInclude Include="src\CGI\CGI.h" />
+    <ClInclude Include="src\CGI\DeferredShading.h" />
     <ClInclude Include="src\CGI\DestroyStaging.h" />
     <ClInclude Include="src\CGI\Types.h" />
     <ClInclude Include="src\CGI\Formats.h" />
@@ -170,7 +171,10 @@
     <ClInclude Include="src\Math\Math.h" />
     <ClInclude Include="src\Math\Matrix.h" />
     <ClInclude Include="src\Math\NormalComputer.h" />
+    <ClInclude Include="src\Math\Octree.h" />
     <ClInclude Include="src\Math\Plane.h" />
+    <ClInclude Include="src\Math\Quadtree.h" />
+    <ClInclude Include="src\Math\QuadtreeIntegral.h" />
     <ClInclude Include="src\Math\Quat.h" />
     <ClInclude Include="src\Math\Sphere.h" />
     <ClInclude Include="src\Math\Vector.h" />
@@ -178,11 +182,18 @@
     <ClInclude Include="src\Net\HttpFile.h" />
     <ClInclude Include="src\Net\Net.h" />
     <ClInclude Include="src\Net\Socket.h" />
+    <ClInclude Include="src\Physics\Bullet.h" />
+    <ClInclude Include="src\Physics\Groups.h" />
+    <ClInclude Include="src\Physics\Physics.h" />
+    <ClInclude Include="src\Physics\UserPtr.h" />
     <ClInclude Include="src\Scene\Atmosphere.h" />
     <ClInclude Include="src\Scene\BaseMesh.h" />
     <ClInclude Include="src\Scene\Camera.h" />
+    <ClInclude Include="src\Scene\EditorTerrain.h" />
+    <ClInclude Include="src\Scene\MaterialManager.h" />
     <ClInclude Include="src\Scene\Mesh.h" />
     <ClInclude Include="src\Scene\Scene.h" />
+    <ClInclude Include="src\Scene\SceneManager.h" />
     <ClInclude Include="src\Scene\Terrain.h" />
     <ClInclude Include="src\Security\CipherRC4.h" />
     <ClInclude Include="src\Security\Security.h" />
@@ -233,6 +244,7 @@
     <ClCompile Include="src\CGI\BaseShader.cpp" />
     <ClCompile Include="src\CGI\BaseTexture.cpp" />
     <ClCompile Include="src\CGI\CGI.cpp" />
+    <ClCompile Include="src\CGI\DeferredShading.cpp" />
     <ClCompile Include="src\CGI\Renderer.cpp" />
     <ClCompile Include="src\CGI\RenderPass.cpp" />
     <ClCompile Include="src\D\Log.cpp" />
@@ -264,7 +276,10 @@
     <ClCompile Include="src\Math\Math.cpp" />
     <ClCompile Include="src\Math\Matrix.cpp" />
     <ClCompile Include="src\Math\NormalComputer.cpp" />
+    <ClCompile Include="src\Math\Octree.cpp" />
     <ClCompile Include="src\Math\Plane.cpp" />
+    <ClCompile Include="src\Math\Quadtree.cpp" />
+    <ClCompile Include="src\Math\QuadtreeIntegral.cpp" />
     <ClCompile Include="src\Math\Quat.cpp" />
     <ClCompile Include="src\Math\Sphere.cpp" />
     <ClCompile Include="src\Math\Vector.cpp" />
@@ -272,11 +287,16 @@
     <ClCompile Include="src\Net\HttpFile.cpp" />
     <ClCompile Include="src\Net\Net.cpp" />
     <ClCompile Include="src\Net\Socket.cpp" />
+    <ClCompile Include="src\Physics\Bullet.cpp" />
+    <ClCompile Include="src\Physics\Physics.cpp" />
     <ClCompile Include="src\Scene\Atmosphere.cpp" />
     <ClCompile Include="src\Scene\BaseMesh.cpp" />
     <ClCompile Include="src\Scene\Camera.cpp" />
+    <ClCompile Include="src\Scene\EditorTerrain.cpp" />
+    <ClCompile Include="src\Scene\MaterialManager.cpp" />
     <ClCompile Include="src\Scene\Mesh.cpp" />
     <ClCompile Include="src\Scene\Scene.cpp" />
+    <ClCompile Include="src\Scene\SceneManager.cpp" />
     <ClCompile Include="src\Scene\Terrain.cpp" />
     <ClCompile Include="src\ThirdParty\libb64\cdecode.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -419,6 +439,45 @@
       <FileType>Document</FileType>
     </None>
     <None Include="src\Shaders\DS_Terrain.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\GenerateMips.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\GenerateMips.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\DS.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DS.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DS_Compose.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DS_Compose.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\LibDeferredShading.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\LibLighting.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\LibDepth.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

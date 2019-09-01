@@ -15,20 +15,25 @@ namespace verus
 
 		class Renderer : public Singleton<Renderer>, public Object
 		{
+#include "../Shaders/GenerateMips.inc.hlsl"
+
 			Vector4           _clearColor = Vector4(0);
 			App::PWindow      _pMainWindow = nullptr;
 			PBaseRenderer     _pBaseRenderer = nullptr;
 			PRendererDelegate _pRendererDelegate = nullptr;
 			CommandBufferPwn  _commandBuffer;
+			PipelinePwn       _pipeGenerateMips;
+			ShaderPwn         _shaderGenerateMips;
 			TexturePwn        _texDepthStencil;
+			DeferredShading   _ds;
 			UINT64            _numFrames = 0;
 			Gapi              _gapi = Gapi::unknown;
 			float             _fps = 30;
 			int               _rpSwapChain = 0;
 			int               _rpSwapChainDepth = 0;
-			int               _rpDS = 0;
 			Vector<int>       _fbSwapChain;
 			Vector<int>       _fbSwapChainDepth;
+			UB_GenerateMips   _ubGenerateMips;
 
 		public:
 			Renderer();
@@ -64,10 +69,12 @@ namespace verus
 
 			int GetRenderPass_SwapChain() const { return _rpSwapChain; }
 			int GetRenderPass_SwapChainDepth() const { return _rpSwapChainDepth; }
-			int GetRenderPass_DS() const { return _rpDS; }
-
 			int GetFramebuffer_SwapChain(int index) const { return _fbSwapChain[index]; }
 			int GetFramebuffer_SwapChainDepth(int index) const { return _fbSwapChainDepth[index]; }
+
+			PipelinePtr GetPipelineGenerateMips() { return _pipeGenerateMips; }
+			ShaderPtr GetShaderGenerateMips() { return _shaderGenerateMips; }
+			UB_GenerateMips& GetUbGenerateMips() { return _ubGenerateMips; }
 		};
 		VERUS_TYPEDEFS(Renderer);
 	}

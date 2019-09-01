@@ -12,12 +12,15 @@ namespace verus
 				VmaAllocation _vmaAllocation = VK_NULL_HANDLE;
 			};
 
-			VkImage            _image = VK_NULL_HANDLE;
-			VmaAllocation      _vmaAllocation = VK_NULL_HANDLE;
-			VkImageView        _imageView = VK_NULL_HANDLE;
-			VkSampler          _sampler = VK_NULL_HANDLE;
-			Vector<VkBufferEx> _vStagingBuffers;
-			DestroyStaging     _destroyStagingBuffers;
+			VkImage             _image = VK_NULL_HANDLE;
+			VmaAllocation       _vmaAllocation = VK_NULL_HANDLE;
+			VkImage             _imageStorage = VK_NULL_HANDLE;
+			VmaAllocation       _vmaAllocationStorage = VK_NULL_HANDLE;
+			VkImageView         _imageView = VK_NULL_HANDLE;
+			VkSampler           _sampler = VK_NULL_HANDLE;
+			Vector<VkImageView> _vImageViewsStorage;
+			Vector<VkBufferEx>  _vStagingBuffers;
+			DestroyStaging      _destroyStagingBuffers;
 
 		public:
 			TextureVulkan();
@@ -28,6 +31,8 @@ namespace verus
 
 			virtual void UpdateImage(int mipLevel, const void* p, int arrayLayer, BaseCommandBuffer* pCB) override;
 
+			virtual void GenerateMips(PBaseCommandBuffer pCB) override;
+
 			//
 			// Vulkan
 			//
@@ -36,6 +41,7 @@ namespace verus
 
 			VkImage GetVkImage() const { return _image; }
 			VkImageView GetVkImageView() const { return _imageView; }
+			VkImageView GetVkImageViewStorage(int mip) const { return _vImageViewsStorage[mip]; }
 			VkSampler GetVkSampler() const { return _sampler; }
 		};
 		VERUS_TYPEDEFS(TextureVulkan);

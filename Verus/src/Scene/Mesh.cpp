@@ -61,11 +61,12 @@ void Mesh::Bind(CGI::CommandBufferPtr cb, UINT32 bindingsFilter)
 	cb->BindIndexBuffer(_geo);
 }
 
-void Mesh::UpdateUniformBufferPerFrame(Scene::RcCamera cam)
+void Mesh::UpdateUniformBufferPerFrame()
 {
-	s_ubPerFrame._matV = cam.GetMatrixV().UniformBufferFormat();
-	s_ubPerFrame._matP = cam.GetMatrixP().UniformBufferFormat();
-	s_ubPerFrame._matVP = cam.GetMatrixVP().UniformBufferFormat();
+	VERUS_QREF_SM;
+	s_ubPerFrame._matV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
+	s_ubPerFrame._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
+	s_ubPerFrame._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
 }
 
 void Mesh::UpdateUniformBufferPerMaterial()
@@ -122,7 +123,7 @@ void Mesh::CreateDeviceBuffers()
 	geoDesc._pInputElementDesc = ied;
 	const int strides[] = { sizeof(VertexInputBinding0), sizeof(VertexInputBinding1), sizeof(VertexInputBinding2), sizeof(VertexInputBinding3), sizeof(PerInstanceData), 0 };
 	geoDesc._pStrides = strides;
-	geoDesc._32bitIndices = _vIndices.empty();
+	geoDesc._32BitIndices = _vIndices.empty();
 	_geo.Init(geoDesc);
 
 	// Vertex buffer, binding 0:

@@ -16,8 +16,8 @@ void EngineInit::Make()
 		Make_Audio();
 	if (_makeCGI)
 		Make_CGI();
-	//if (_makePhysics)
-	//	Make_Physics();
+	if (_makePhysics)
+		Make_Physics();
 	//if (_makeEffects)
 	//	Make_Effects();
 	//if (_makeExtra)
@@ -38,8 +38,8 @@ void EngineInit::Free()
 	//	Free_Extra();
 	//if (_makeEffects)
 	//	Free_Effects();
-	//if (_makePhysics)
-	//	Free_Physics();
+	if (_makePhysics)
+		Free_Physics();
 	if (_makeCGI)
 		Free_CGI();
 	if (_makeAudio)
@@ -64,8 +64,8 @@ void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::Rendere
 	// "A.P.I.":
 	if (_makeAudio)
 		Audio::AudioSystem::I().Init();
-	//if (_makePhysics)
-	//	Physics::CBullet::I().Init();
+	if (_makePhysics)
+		Physics::Bullet::I().Init();
 	if (_makeInput)
 	{
 		Input::KeyMapper::I().Init();

@@ -70,10 +70,10 @@ void BaseTexture::LoadDDS(RcBlob blob)
 			UINT32 w = header.width >> i, h = header.height >> i;
 			if (!w) w = 1;
 			if (!h) h = 1;
-			int levelSize = IO::DDSHeader::ComputeBcLevelSize(w, h, header.IsBC1());
+			const int levelSize = IO::DDSHeader::ComputeBcLevelSize(w, h, header.IsBC1());
 			VERUS_RT_ASSERT(offset + levelSize <= blob._size);
 
-			if (int(i) >= lod)
+			if (static_cast<int>(i) >= lod)
 				UpdateImage(i - lod, blob._p + offset);
 
 			offset += levelSize;
@@ -174,6 +174,98 @@ void BaseTexture::LoadDDS(RcBlob blob)
 	}
 }
 
+void BaseTexture::LoadDDSArray(CSZ* urls)
+{
+	TextureDesc desc;
+	desc._arrayLayers = 0;
+	CSZ* urlsCount = urls;
+	while (*urlsCount)
+	{
+		desc._arrayLayers++;
+		urlsCount++;
+	}
+	bool init = true;
+	int arrayLayer = 0;
+	while (*urls)
+	{
+		_name = *urls;
+
+		Vector<BYTE> vData;
+		IO::FileSystem::LoadResource(*urls, vData);
+
+		const BYTE* pData = vData.data();
+		const size_t size = vData.size();
+
+		IO::DDSHeader header;
+		memcpy(&header, pData, sizeof(header));
+		if (!header.Validate())
+			throw VERUS_RUNTIME_ERROR << "Invalid DDS header: " << _name;
+
+		VERUS_QREF_CONST_SETTINGS;
+
+		if (!header.mipmapCount)
+			header.mipmapCount = 1;
+
+		const int maxLod = Math::Max<int>(header.mipmapCount - 4, 0); // Keep 1x1, 2x2, 4x4.
+		const int lod = Math::Min(settings._gpuTextureLodLevel, maxLod);
+
+		if (header.IsBC())
+		{
+			auto SelectFormat = [this](Format unorm, Format srgb)
+			{
+				return IsSRGB() ? srgb : unorm;
+			};
+
+			const int w = header.width >> lod;
+			const int h = header.height >> lod;
+
+			if (desc._width)
+			{
+				VERUS_RT_ASSERT(desc._width == w);
+			}
+			if (desc._height)
+			{
+				VERUS_RT_ASSERT(desc._height == h);
+			}
+
+			if (header.IsBC1())
+				desc._format = SelectFormat(Format::unormBC1, Format::srgbBC1);
+			else if (header.IsBC2())
+				desc._format = SelectFormat(Format::unormBC2, Format::srgbBC2);
+			else if (header.IsBC3())
+				desc._format = SelectFormat(Format::unormBC3, Format::srgbBC3);
+			desc._width = w;
+			desc._height = h;
+			desc._mipLevels = header.mipmapCount - lod;
+
+			if (init)
+			{
+				init = false;
+				Init(desc);
+			}
+
+			int offset = sizeof(header);
+			VERUS_U_FOR(i, header.mipmapCount)
+			{
+				UINT32 w = header.width >> i;
+				UINT32 h = header.height >> i;
+				if (!w) w = 1;
+				if (!h) h = 1;
+				int levelSize = IO::DDSHeader::ComputeBcLevelSize(w, h, header.IsBC1());
+				VERUS_RT_ASSERT(offset + levelSize <= size);
+
+				if (static_cast<int>(i) >= lod)
+					UpdateImage(i - lod, pData + offset, arrayLayer);
+
+				offset += levelSize;
+			}
+		}
+
+		urls++;
+		arrayLayer++;
+	}
+}
+
 void BaseTexture::Async_Run(CSZ url, RcBlob blob)
 {
 	LoadDDS(blob);
@@ -185,6 +277,8 @@ int BaseTexture::FormatToBytesPerPixel(Format format)
 	{
 	case Format::unormB4G4R4A4:     return 2;
 	case Format::unormB5G6R5:       return 2;
+	case Format::unormR10G10B10A2:  return 4;
+	case Format::sintR16:           return 2;
 
 	case Format::unormR8:           return 1;
 	case Format::unormR8G8:         return 2;
@@ -232,6 +326,8 @@ void TexturePtr::Init(RcTextureDesc desc)
 	_p = renderer->InsertTexture();
 	if (desc._url)
 		_p->LoadDDS(desc._url, desc._texturePart);
+	else if (desc._urls)
+		_p->LoadDDSArray(desc._urls);
 	else
 		_p->Init(desc);
 }
