@@ -14,8 +14,8 @@ namespace verus
 
 		class DeferredShading : public Object
 		{
-			//#include "../Cg/DS.inc.cg"
-			//#include "../Cg/DS_Compose.inc.cg"
+#include "../Shaders/DS.inc.hlsl"
+#include "../Shaders/DS_Compose.inc.hlsl"
 
 			enum S
 			{
@@ -24,15 +24,14 @@ namespace verus
 				S_MAX
 			};
 
-			enum SB
+			enum PIPE
 			{
-				SB_ACC_DIR,
-				SB_ACC_NON_DIR,
-				SB_ACC_WIREFRAME_DIR,
-				SB_ACC_WIREFRAME_NON_DIR,
-				SB_COMPOSE,
-				SB_COMPOSE_AA,
-				SB_MAX
+				PIPE_INSTANCED_DIR,
+				PIPE_INSTANCED_OMNI,
+				PIPE_INSTANCED_SPOT,
+				PIPE_COMPOSE,
+				PIPE_QUAD,
+				PIPE_MAX
 			};
 
 			enum TEX
@@ -46,15 +45,25 @@ namespace verus
 				TEX_MAX
 			};
 
-			ShaderPwns<S_MAX>       _shader;
-			TexturePwns<TEX_MAX>    _tex;
-			UINT64                  _frame = 0;
-			int                     _width = 0;
-			int                     _height = 0;
-			int                     _renderPassID = -1;
-			int                     _framebufferID = -1;
-			bool                    _activeGeometryPass = false;
-			bool                    _activeLightingPass = false;
+			static UB_PerFrame         s_ubPerFrame;
+			static UB_PerMesh          s_ubPerMesh;
+			static UB_PerObject        s_ubPerObject;
+			static UB_ComposePerObject s_ubComposePerObject;
+
+			ShaderPwns<S_MAX>      _shader;
+			PipelinePwns<PIPE_MAX> _pipe;
+			TexturePwns<TEX_MAX>   _tex;
+			UINT64                 _frame = 0;
+			int                    _width = 0;
+			int                    _height = 0;
+			int                    _rp = -1;
+			int                    _fb = -1;
+			int                    _csidLight = -1;
+			int                    _csidCompose = -1;
+			int                    _csidQuad[6];
+			bool                   _activeGeometryPass = false;
+			bool                   _activeLightingPass = false;
+			bool                   _async_initPipe = false;
 
 		public:
 			DeferredShading();
@@ -64,6 +73,8 @@ namespace verus
 			void InitGBuffers(int w, int h);
 			void Done();
 
+			static bool IsLoaded();
+
 			void Draw(int gbuffer);
 
 			int GetWidth() const { return _width; }
@@ -72,19 +83,20 @@ namespace verus
 			bool IsActiveGeometryPass() const { return _activeGeometryPass; }
 			bool IsActiveLightingPass() const { return _activeLightingPass; }
 
+			int GetRenderPassID() const { return _rp; }
+
 			void BeginGeometryPass(bool onlySetRT = false, bool spriteBaking = false);
 			void EndGeometryPass(bool resetRT = false);
-			void BeginLightingPass();
+			bool BeginLightingPass();
 			void EndLightingPass();
 			void Compose();
 			void AntiAliasing();
 
 			static bool IsLightUrl(CSZ url);
-			//static CB_PerMesh& GetCB_PerMesh() { return ms_cbPerMesh; }
+			static UB_PerMesh& GetUbPerMesh() { return s_ubPerMesh; }
 			void OnNewLightType(LightType type, bool wireframe = false);
-			void UpdateBufferPerMesh();
-			void UpdateBufferPerFrame();
-			void EndLights();
+			void UpdateUniformBufferPerFrame();
+			void BindDescriptorsPerMesh();
 
 			void Load();
 

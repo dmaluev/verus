@@ -28,6 +28,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 	_desc._mipLevels = desc._mipLevels ? desc._mipLevels : Math::ComputeMipLevels(desc._width, desc._height, desc._depth);
 	_bytesPerPixel = FormatToBytesPerPixel(desc._format);
 	const bool depthFormat = IsDepthFormat(desc._format);
+	const bool renderTarget = (_desc._flags & TextureDesc::Flags::colorAttachment);
 
 	D3D12_RESOURCE_DESC resDesc = {};
 	resDesc.Dimension = _desc._depth > 1 ? D3D12_RESOURCE_DIMENSION_TEXTURE3D : D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -37,30 +38,50 @@ void TextureD3D12::Init(RcTextureDesc desc)
 	resDesc.MipLevels = _desc._mipLevels;
 	resDesc.Format = ToNativeFormat(_desc._format);
 	resDesc.SampleDesc.Count = _desc._sampleCount;
-	resDesc.Flags = depthFormat ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE;
+	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	if (depthFormat)
+		resDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+	if (renderTarget)
+		resDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+	D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COPY_DEST;
 	D3D12_CLEAR_VALUE clearValue = {};
 	clearValue.Format = resDesc.Format;
-	clearValue.DepthStencil.Depth = 1;
-	if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE,
+	if (depthFormat)
+	{
+		initialResourceState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+		clearValue.DepthStencil.Depth = _desc._clearValue.getX();
+		clearValue.DepthStencil.Stencil = static_cast<UINT8>(_desc._clearValue.getY());
+	}
+	if (renderTarget)
+	{
+		initialResourceState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		memcpy(clearValue.Color, _desc._clearValue.ToPointer(), sizeof(clearValue.Color));
+	}
+	D3D12MA::ALLOCATION_DESC allocDesc = {};
+	allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+	if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+		&allocDesc,
 		&resDesc,
-		depthFormat ? D3D12_RESOURCE_STATE_DEPTH_WRITE : D3D12_RESOURCE_STATE_COPY_DEST,
-		depthFormat ? &clearValue : nullptr,
-		IID_PPV_ARGS(&_pResource))))
-		throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(), hr=" << VERUS_HR(hr);
+		initialResourceState,
+		(depthFormat || renderTarget) ? &clearValue : nullptr,
+		&_resource._pMaAllocation,
+		IID_PPV_ARGS(&_resource._pResource))))
+		throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
 
-	if (_desc._generateMips)
+	if (_desc._flags & TextureDesc::Flags::generateMips)
 	{
 		resDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-		if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-			D3D12_HEAP_FLAG_NONE,
+		D3D12MA::ALLOCATION_DESC allocDesc = {};
+		allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+			&allocDesc,
 			&resDesc,
 			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
 			nullptr,
-			IID_PPV_ARGS(&_pResourceUAV))))
-			throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(), hr=" << VERUS_HR(hr);
+			&_resourceUAV._pMaAllocation,
+			IID_PPV_ARGS(&_resourceUAV._pResource))))
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
 
 		_dhUAV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, _desc._mipLevels);
 		VERUS_FOR(i, _desc._mipLevels)
@@ -69,33 +90,29 @@ void TextureD3D12::Init(RcTextureDesc desc)
 			uavDesc.Format = resDesc.Format;
 			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 			uavDesc.Texture2D.MipSlice = i;
-			pRendererD3D12->GetD3DDevice()->CreateUnorderedAccessView(_pResourceUAV.Get(), nullptr, &uavDesc, _dhUAV.AtCPU(i));
+			pRendererD3D12->GetD3DDevice()->CreateUnorderedAccessView(_resourceUAV._pResource.Get(), nullptr, &uavDesc, _dhUAV.AtCPU(i));
 		}
 	}
 
 	if (depthFormat)
 	{
 		_dhDSV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
-		pRendererD3D12->GetD3DDevice()->CreateDepthStencilView(_pResource.Get(), nullptr, _dhDSV.AtCPU(0));
+		pRendererD3D12->GetD3DDevice()->CreateDepthStencilView(_resource._pResource.Get(), nullptr, _dhDSV.AtCPU(0));
 	}
 	else
 	{
 		_dhSRV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-		pRendererD3D12->GetD3DDevice()->CreateShaderResourceView(_pResource.Get(), nullptr, _dhSRV.AtCPU(0));
+		pRendererD3D12->GetD3DDevice()->CreateShaderResourceView(_resource._pResource.Get(), nullptr, _dhSRV.AtCPU(0));
 	}
 
-	_dhSampler.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 1);
-	D3D12_SAMPLER_DESC samplerDesc = {};
-	samplerDesc.Filter = D3D12_FILTER_ANISOTROPIC;
-	samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	samplerDesc.MipLODBias = 0;
-	samplerDesc.MaxAnisotropy = 16;
-	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	samplerDesc.MinLOD = 0;
-	samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
-	pRendererD3D12->GetD3DDevice()->CreateSampler(&samplerDesc, _dhSampler.AtCPU(0));
+	if (renderTarget)
+	{
+		_dhRTV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);
+		pRendererD3D12->GetD3DDevice()->CreateRenderTargetView(_resource._pResource.Get(), nullptr, _dhRTV.AtCPU(0));
+	}
+
+	if (_desc._pSamplerDesc)
+		CreateSampler();
 
 	_vStagingBuffers.reserve(_desc._mipLevels*_desc._arrayLayers);
 }
@@ -109,7 +126,12 @@ void TextureD3D12::Done()
 	_dhDSV.Reset();
 	_dhRTV.Reset();
 	_dhSRV.Reset();
-	_pResource.Reset();
+	VERUS_SMART_RELEASE(_resourceUAV._pMaAllocation);
+	VERUS_COM_RELEASE_CHECK(_resourceUAV._pResource.Get());
+	_resourceUAV._pResource.Reset();
+	VERUS_SMART_RELEASE(_resource._pMaAllocation);
+	//VERUS_COM_RELEASE_CHECK(_resource._pResource.Get());
+	_resource._pResource.Reset();
 
 	VERUS_DONE(TextureD3D12);
 }
@@ -131,14 +153,16 @@ void TextureD3D12::UpdateImage(int mipLevel, const void* p, int arrayLayer, PBas
 		_vStagingBuffers.resize(sbIndex + 1);
 
 	auto& sb = _vStagingBuffers[sbIndex];
-	if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-		D3D12_HEAP_FLAG_NONE,
+	D3D12MA::ALLOCATION_DESC allocDesc = {};
+	allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+	if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+		&allocDesc,
 		&CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&sb))))
-		throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(), hr=" << VERUS_HR(hr);
+		&sb._pMaAllocation,
+		IID_PPV_ARGS(&sb._pResource))))
+		throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
 
 	if (!pCB)
 		pCB = &(*renderer.GetCommandBuffer());
@@ -157,8 +181,8 @@ void TextureD3D12::UpdateImage(int mipLevel, const void* p, int arrayLayer, PBas
 	}
 	const UINT subresource = D3D12CalcSubresource(mipLevel, arrayLayer, 0, _desc._mipLevels, _desc._arrayLayers);
 	UpdateSubresources<1>(pCmdList,
-		_pResource.Get(),
-		sb.Get(),
+		_resource._pResource.Get(),
+		sb._pResource.Get(),
 		0,
 		subresource,
 		1,
@@ -170,7 +194,7 @@ void TextureD3D12::UpdateImage(int mipLevel, const void* p, int arrayLayer, PBas
 
 void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 {
-	VERUS_RT_ASSERT(_desc._generateMips);
+	VERUS_RT_ASSERT(_desc._flags & TextureDesc::Flags::generateMips);
 	VERUS_QREF_RENDERER;
 
 	if (!pCB)
@@ -217,19 +241,19 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 
 		pCB->Dispatch(Math::DivideByMultiple(dstWidth, 8), Math::DivideByMultiple(dstHeight, 8));
 
-		auto rb = CD3DX12_RESOURCE_BARRIER::UAV(_pResourceUAV.Get());
+		auto rb = CD3DX12_RESOURCE_BARRIER::UAV(_resourceUAV._pResource.Get());
 		pCmdList->ResourceBarrier(1, &rb);
 
 		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::shaderReadOnlyOptimal, ImageLayout::transferDstOptimal, Range<int>(srcMip + 1, srcMip + numMips));
 		VERUS_FOR(mip, numMips)
 		{
 			const int sub = srcMip + mip + 1;
-			auto rb = CD3DX12_RESOURCE_BARRIER::Transition(_pResourceUAV.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE, sub);
+			auto rb = CD3DX12_RESOURCE_BARRIER::Transition(_resourceUAV._pResource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE, sub);
 			pCmdList->ResourceBarrier(1, &rb);
 			pCmdList->CopyTextureRegion(
-				&CD3DX12_TEXTURE_COPY_LOCATION(_pResource.Get(), sub),
+				&CD3DX12_TEXTURE_COPY_LOCATION(_resource._pResource.Get(), sub),
 				0, 0, 0,
-				&CD3DX12_TEXTURE_COPY_LOCATION(_pResourceUAV.Get(), sub),
+				&CD3DX12_TEXTURE_COPY_LOCATION(_resourceUAV._pResource.Get(), sub),
 				nullptr);
 		}
 		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDstOptimal, ImageLayout::shaderReadOnlyOptimal, Range<int>(srcMip + 1, srcMip + numMips));
@@ -245,7 +269,82 @@ void TextureD3D12::DestroyStagingBuffers()
 	if (!_destroyStagingBuffers.IsAllowed())
 		return;
 
-	for (const auto& x : _vStagingBuffers)
-		VERUS_COM_RELEASE_CHECK(x.Get());
+	for (auto& x : _vStagingBuffers)
+	{
+		VERUS_SMART_RELEASE(x._pMaAllocation);
+		VERUS_COM_RELEASE_CHECK(x._pResource.Get());
+		x._pResource.Reset();
+	}
 	_vStagingBuffers.clear();
+}
+
+void TextureD3D12::CreateSampler()
+{
+	VERUS_QREF_RENDERER_D3D12;
+	VERUS_QREF_CONST_SETTINGS;
+
+	const bool tf = settings._gpuTrilinearFilter;
+
+	D3D12_SAMPLER_DESC samplerDesc = {};
+
+	samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+	if ('a' == _desc._pSamplerDesc->_filterMagMinMip[0])
+	{
+		if (settings._gpuAnisotropyLevel > 0)
+			samplerDesc.Filter = D3D12_FILTER_ANISOTROPIC;
+		else
+			samplerDesc.Filter = tf ? D3D12_FILTER_MIN_MAG_MIP_LINEAR : D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+	}
+	else if ('s' == _desc._pSamplerDesc->_filterMagMinMip[0]) // Shadow map:
+	{
+		if (settings._sceneShadowQuality >= App::Settings::ShadowQuality::filtered)
+			samplerDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+		else
+			samplerDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_POINT;
+		samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS;
+	}
+	else
+	{
+		if (!strcmp(_desc._pSamplerDesc->_filterMagMinMip, "nn"))
+			samplerDesc.Filter = tf ? D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR : D3D12_FILTER_MIN_MAG_MIP_POINT;
+		if (!strcmp(_desc._pSamplerDesc->_filterMagMinMip, "nl"))
+			samplerDesc.Filter = tf ? D3D12_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR : D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT;
+		if (!strcmp(_desc._pSamplerDesc->_filterMagMinMip, "ln"))
+			samplerDesc.Filter = tf ? D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR : D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT;
+		if (!strcmp(_desc._pSamplerDesc->_filterMagMinMip, "ll"))
+			samplerDesc.Filter = tf ? D3D12_FILTER_MIN_MAG_MIP_LINEAR : D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+	}
+	samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	VERUS_FOR(i, 3)
+	{
+		if (!_desc._pSamplerDesc->_addressModeUVW[i])
+			break;
+		D3D12_TEXTURE_ADDRESS_MODE tam = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		switch (_desc._pSamplerDesc->_addressModeUVW[i])
+		{
+		case 'r': tam = D3D12_TEXTURE_ADDRESS_MODE_WRAP; break;
+		case 'm': tam = D3D12_TEXTURE_ADDRESS_MODE_MIRROR; break;
+		case 'c': tam = D3D12_TEXTURE_ADDRESS_MODE_CLAMP; break;
+		case 'b': tam = D3D12_TEXTURE_ADDRESS_MODE_BORDER; break;
+		}
+		switch (i)
+		{
+		case 0: samplerDesc.AddressU = tam; break;
+		case 1: samplerDesc.AddressV = tam; break;
+		case 2: samplerDesc.AddressW = tam; break;
+		}
+	}
+	samplerDesc.MipLODBias = _desc._pSamplerDesc->_mipLodBias;
+	samplerDesc.MaxAnisotropy = settings._gpuAnisotropyLevel;
+	samplerDesc.MinLOD = _desc._pSamplerDesc->_minLod;
+	samplerDesc.MaxLOD = _desc._pSamplerDesc->_maxLod;
+	memcpy(samplerDesc.BorderColor, _desc._pSamplerDesc->_borderColor.ToPointer(), sizeof(samplerDesc.BorderColor));
+
+	_dhSampler.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 1);
+	pRendererD3D12->GetD3DDevice()->CreateSampler(&samplerDesc, _dhSampler.AtCPU(0));
+
+	_desc._pSamplerDesc = nullptr;
 }

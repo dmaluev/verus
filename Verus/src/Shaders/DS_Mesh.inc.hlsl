@@ -7,7 +7,22 @@ VERUS_UBUFFER UB_PerFrame
 
 VERUS_UBUFFER UB_PerMaterial
 {
+	float4 _texEnableAlbedo;
+	float4 _texEnableNormal;
+	float4 _skinPick;
+	float4 _hairPick;
+	float4 _emitPick;
+	float4 _emitXPick;
+	float4 _metalPick;
+	float4 _glossXPick;
+	float4 _eyePick;
+	float4 _hairParams;
 	float4 _lsb_gloss_lp;
+	float4 _ssb_as;
+	float4 _userPick;
+	float4 _ds_scale;
+	float4 _motionBlur_glossX;
+	float4 _bushEffect;
 };
 
 VERUS_UBUFFER UB_PerMesh

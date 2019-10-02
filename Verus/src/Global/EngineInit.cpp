@@ -90,10 +90,10 @@ void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::Rendere
 	}
 
 	// Helpers:
-	//if (_makeCGI)
-	//	CGL::CDebugRender::I().Init();
-	//if (_makeScene)
-	//	Scene::CHelpers::I().Init();
+	if (_makeCGI)
+		CGI::DebugDraw::I().Init();
+	if (_makeScene)
+		Scene::Helpers::I().Init();
 
 	// Effects:
 	//if (_makeEffects)

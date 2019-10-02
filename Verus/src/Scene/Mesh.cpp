@@ -88,11 +88,7 @@ void Mesh::UpdateUniformBufferSkinning()
 
 void Mesh::UpdateUniformBufferPerObject(Point3 pos)
 {
-	VERUS_QREF_TIMER;
-
-	Transform3 matT = Transform3::rotationY(timer.GetTime());
-	matT.setTranslation(Vector3(pos));
-
+	const Transform3 matT = Transform3::translation(Vector3(pos));
 	s_ubPerObject._matW = matT.UniformBufferFormat();
 	s_ubPerObject._userColor = Vector4(1, 0, 0, 1).GLM();
 }
@@ -102,20 +98,20 @@ void Mesh::CreateDeviceBuffers()
 	_bindingsMask = 0;
 	const CGI::InputElementDesc ied[] =
 	{
-		{0, offsetof(VertexInputBinding0, _pos), CGI::IeType::_short, 4, CGI::IeUsage::position, 0},
-		{0, offsetof(VertexInputBinding0, _tc0), CGI::IeType::_short, 2, CGI::IeUsage::texCoord, 0},
-		{0, offsetof(VertexInputBinding0, _nrm), CGI::IeType::_ubyte, 4, CGI::IeUsage::normal,   0},
-		{1, offsetof(VertexInputBinding1, _bw),  CGI::IeType::_short, 4, CGI::IeUsage::texCoord, 4},
-		{1, offsetof(VertexInputBinding1, _bi),  CGI::IeType::_short, 4, CGI::IeUsage::texCoord, 5},
-		{2, offsetof(VertexInputBinding2, _tan), CGI::IeType::_short, 4, CGI::IeUsage::tangent,  6},
-		{2, offsetof(VertexInputBinding2, _bin), CGI::IeType::_short, 4, CGI::IeUsage::binormal, 7},
-		{3, offsetof(VertexInputBinding3, _tc1), CGI::IeType::_short, 2, CGI::IeUsage::texCoord, 1},
-		{3, offsetof(VertexInputBinding3, _clr), CGI::IeType::_ubyte, 4, CGI::IeUsage::color,    0},
+		{0, offsetof(VertexInputBinding0, _pos), CGI::IeType::shorts, 4, CGI::IeUsage::position, 0},
+		{0, offsetof(VertexInputBinding0, _tc0), CGI::IeType::shorts, 2, CGI::IeUsage::texCoord, 0},
+		{0, offsetof(VertexInputBinding0, _nrm), CGI::IeType::ubytes, 4, CGI::IeUsage::normal,   0},
+		{1, offsetof(VertexInputBinding1, _bw),  CGI::IeType::shorts, 4, CGI::IeUsage::texCoord, 4},
+		{1, offsetof(VertexInputBinding1, _bi),  CGI::IeType::shorts, 4, CGI::IeUsage::texCoord, 5},
+		{2, offsetof(VertexInputBinding2, _tan), CGI::IeType::shorts, 4, CGI::IeUsage::tangent,  6},
+		{2, offsetof(VertexInputBinding2, _bin), CGI::IeType::shorts, 4, CGI::IeUsage::binormal, 7},
+		{3, offsetof(VertexInputBinding3, _tc1), CGI::IeType::shorts, 2, CGI::IeUsage::texCoord, 1},
+		{3, offsetof(VertexInputBinding3, _clr), CGI::IeType::ubytes, 4, CGI::IeUsage::color,    0},
 
-		{-4, offsetof(PerInstanceData, _matPart0), CGI::IeType::_float, 4, CGI::IeUsage::texCoord, 8},
-		{-4, offsetof(PerInstanceData, _matPart1), CGI::IeType::_float, 4, CGI::IeUsage::texCoord, 9},
-		{-4, offsetof(PerInstanceData, _matPart2), CGI::IeType::_float, 4, CGI::IeUsage::texCoord, 10},
-		{-4, offsetof(PerInstanceData, _instData), CGI::IeType::_float, 4, CGI::IeUsage::texCoord, 11},
+		{-4, offsetof(PerInstanceData, _matPart0), CGI::IeType::floats, 4, CGI::IeUsage::texCoord, 8},
+		{-4, offsetof(PerInstanceData, _matPart1), CGI::IeType::floats, 4, CGI::IeUsage::texCoord, 9},
+		{-4, offsetof(PerInstanceData, _matPart2), CGI::IeType::floats, 4, CGI::IeUsage::texCoord, 10},
+		{-4, offsetof(PerInstanceData, _instData), CGI::IeType::floats, 4, CGI::IeUsage::texCoord, 11},
 		CGI::InputElementDesc::End()
 	};
 

@@ -9,12 +9,13 @@ float FresnelSchlick(float minRef, float maxAdd, float power)
 	return saturate(minRef + maxAdd * power);
 }
 
+// See: http://www.thetenthplanet.de/archives/255
 float EnergyNorm(float gloss)
 {
 	return (gloss + 2.0) / 8.0;
 }
 
-float4 TrueLit(float3 dirToLight, float3 normal, float3 dirToEye, float gloss,
+float4 VerusLit(float3 dirToLight, float3 normal, float3 dirToEye, float gloss,
 	float2 lamScaleBias, float4 aniso = 0.0)
 {
 	float4 ret = float4(1, 0, 0, 1);

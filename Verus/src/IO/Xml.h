@@ -6,8 +6,8 @@ namespace verus
 	{
 		class Xml
 		{
-			tinyxml2::XMLDocument _doc;
-			String                _pathName;
+			pugi::xml_document _doc;
+			String             _pathName;
 
 		public:
 			Xml();
@@ -19,8 +19,8 @@ namespace verus
 			void Load(bool fromCache = false);
 			void Save();
 
-			tinyxml2::XMLElement* GetRoot();
-			tinyxml2::XMLElement* AddElement(CSZ name);
+			pugi::xml_node GetRoot();
+			pugi::xml_node AddElement(CSZ name);
 
 			void Set(CSZ name, CSZ v, bool ifNull = false);
 			void Set(CSZ name, int v, bool ifNull = false);

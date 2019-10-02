@@ -44,12 +44,6 @@ RAttachment Attachment::Layout(ImageLayout both)
 	return *this;
 }
 
-RAttachment Attachment::FinalLayout(ImageLayout whenEnds)
-{
-	_finalLayout = whenEnds;
-	return *this;
-}
-
 // Subpass:
 
 Subpass::Subpass(CSZ name) :
@@ -89,16 +83,14 @@ RSubpass Subpass::DepthStencil(Ref r)
 
 // Dependency:
 
-Dependency::Dependency()
+Dependency::Dependency(CSZ src, CSZ dst) :
+	_srcSubpass(src),
+	_dstSubpass(dst)
 {
 }
 
-RDependency Dependency::Src(CSZ name)
+RDependency Dependency::Mode(int mode)
 {
-	return *this;
-}
-
-RDependency Dependency::Dst(CSZ name)
-{
+	_mode = mode;
 	return *this;
 }

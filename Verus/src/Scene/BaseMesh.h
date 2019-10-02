@@ -83,6 +83,10 @@ namespace verus
 			static void DequantizeNrm(const char* in, glm::vec3& out);
 			static void DequantizeNrm(const char* in, RVector3 out);
 			static void DequantizeTanBin(const short* in, RVector3 out);
+			void  CopyPosDeqScale(float* p) const { memcpy(p, _posDeq + 0, sizeof(float) * 3); }
+			void   CopyPosDeqBias(float* p) const { memcpy(p, _posDeq + 3, sizeof(float) * 3); }
+			void CopyTexCoord0Deq(float* p) const { memcpy(p, _tc0Deq, sizeof(float) * 4); }
+			void CopyTexCoord1Deq(float* p) const { memcpy(p, _tc1Deq, sizeof(float) * 4); }
 
 			void ComputeTangentSpace();
 

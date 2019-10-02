@@ -39,6 +39,8 @@ namespace verus
 
 			void DestroyStagingBuffers();
 
+			void CreateSampler();
+
 			VkImage GetVkImage() const { return _image; }
 			VkImageView GetVkImageView() const { return _imageView; }
 			VkImageView GetVkImageViewStorage(int mip) const { return _vImageViewsStorage[mip]; }

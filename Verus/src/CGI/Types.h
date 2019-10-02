@@ -4,13 +4,6 @@ namespace verus
 {
 	namespace CGI
 	{
-		enum class ClearFlags : int
-		{
-			color = (1 << 0),
-			depth = (1 << 1),
-			stencil = (1 << 2)
-		};
-
 		enum class CullMode : int
 		{
 			none,
@@ -84,9 +77,9 @@ namespace verus
 
 		enum class IeType : int
 		{
-			_float,
-			_ubyte,
-			_short
+			floats,
+			ubytes,
+			shorts
 		};
 
 		// See: https://docs.microsoft.com/en-us/windows/desktop/direct3d9/d3ddeclusage
@@ -113,7 +106,7 @@ namespace verus
 			IeUsage _usage;
 			int     _usageIndex;
 
-			static constexpr InputElementDesc End() { return { -1, -1, IeType::_float, 0, IeUsage::position, 0 }; }
+			static constexpr InputElementDesc End() { return { -1, -1, IeType::floats, 0, IeUsage::position, 0 }; }
 		};
 		VERUS_TYPEDEFS(InputElementDesc);
 
@@ -121,6 +114,7 @@ namespace verus
 		{
 			custom, // Not immutable, not static sampler.
 			storage, // Also known as UAV.
+			input,
 			aniso, // Most common sampler for 3D.
 			linear3D,
 			nearest3D,

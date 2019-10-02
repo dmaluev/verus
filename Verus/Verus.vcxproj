@@ -112,8 +112,10 @@
     <ClInclude Include="src\CGI\BaseShader.h" />
     <ClInclude Include="src\CGI\BaseTexture.h" />
     <ClInclude Include="src\CGI\CGI.h" />
+    <ClInclude Include="src\CGI\DebugDraw.h" />
     <ClInclude Include="src\CGI\DeferredShading.h" />
     <ClInclude Include="src\CGI\DestroyStaging.h" />
+    <ClInclude Include="src\CGI\RendererParser.h" />
     <ClInclude Include="src\CGI\Types.h" />
     <ClInclude Include="src\CGI\Formats.h" />
     <ClInclude Include="src\CGI\Renderer.h" />
@@ -157,6 +159,7 @@
     <ClInclude Include="src\IO\FileSystem.h" />
     <ClInclude Include="src\IO\IO.h" />
     <ClInclude Include="src\IO\Json.h" />
+    <ClInclude Include="src\IO\Dictionary.h" />
     <ClInclude Include="src\IO\Stream.h" />
     <ClInclude Include="src\Global\EnumClass.h" />
     <ClInclude Include="src\Global\Macros.h" />
@@ -190,6 +193,7 @@
     <ClInclude Include="src\Scene\BaseMesh.h" />
     <ClInclude Include="src\Scene\Camera.h" />
     <ClInclude Include="src\Scene\EditorTerrain.h" />
+    <ClInclude Include="src\Scene\Helpers.h" />
     <ClInclude Include="src\Scene\MaterialManager.h" />
     <ClInclude Include="src\Scene\Mesh.h" />
     <ClInclude Include="src\Scene\Scene.h" />
@@ -201,8 +205,9 @@
     <ClInclude Include="src\ThirdParty\libb64\cdecode.h" />
     <ClInclude Include="src\ThirdParty\libb64\cencode.h" />
     <ClInclude Include="src\ThirdParty\md5.h" />
+    <ClInclude Include="src\ThirdParty\pugixml-1.10\pugiconfig.hpp" />
+    <ClInclude Include="src\ThirdParty\pugixml-1.10\pugixml.hpp" />
     <ClInclude Include="src\ThirdParty\ThirdParty.h" />
-    <ClInclude Include="src\ThirdParty\tinyxml2-7.0.1\tinyxml2.h" />
     <ClInclude Include="src\ThirdParty\utf8.h" />
     <ClInclude Include="src\ThirdParty\utf8\checked.h" />
     <ClInclude Include="src\ThirdParty\utf8\core.h" />
@@ -244,8 +249,10 @@
     <ClCompile Include="src\CGI\BaseShader.cpp" />
     <ClCompile Include="src\CGI\BaseTexture.cpp" />
     <ClCompile Include="src\CGI\CGI.cpp" />
+    <ClCompile Include="src\CGI\DebugDraw.cpp" />
     <ClCompile Include="src\CGI\DeferredShading.cpp" />
     <ClCompile Include="src\CGI\Renderer.cpp" />
+    <ClCompile Include="src\CGI\RendererParser.cpp" />
     <ClCompile Include="src\CGI\RenderPass.cpp" />
     <ClCompile Include="src\D\Log.cpp" />
     <ClCompile Include="src\Game\BaseGame.cpp" />
@@ -270,6 +277,7 @@
     <ClCompile Include="src\IO\FileSystem.cpp" />
     <ClCompile Include="src\IO\IO.cpp" />
     <ClCompile Include="src\IO\Json.cpp" />
+    <ClCompile Include="src\IO\Dictionary.cpp" />
     <ClCompile Include="src\IO\Xml.cpp" />
     <ClCompile Include="src\Math\Bounds.cpp" />
     <ClCompile Include="src\Math\Frustum.cpp" />
@@ -293,6 +301,7 @@
     <ClCompile Include="src\Scene\BaseMesh.cpp" />
     <ClCompile Include="src\Scene\Camera.cpp" />
     <ClCompile Include="src\Scene\EditorTerrain.cpp" />
+    <ClCompile Include="src\Scene\Helpers.cpp" />
     <ClCompile Include="src\Scene\MaterialManager.cpp" />
     <ClCompile Include="src\Scene\Mesh.cpp" />
     <ClCompile Include="src\Scene\Scene.cpp" />
@@ -318,7 +327,7 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <ClCompile Include="src\ThirdParty\tinyxml2-7.0.1\tinyxml2.cpp">
+    <ClCompile Include="src\ThirdParty\pugixml-1.10\pugixml.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -480,6 +489,20 @@
     <None Include="src\Shaders\LibDepth.hlsl">
       <FileType>Document</FileType>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\Quad.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\Quad.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="src\ThirdParty\pugixml-1.10\pugixml.natvis" />
+    <Natvis Include="src\ThirdParty\pugixml-1.10\pugixml_compact.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

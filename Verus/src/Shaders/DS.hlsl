@@ -5,19 +5,15 @@
 #include "LibVertex.hlsl"
 #include "DS.inc.hlsl"
 
-ConstantBuffer<UB_PerFrame>  g_perFrame  : register(b0, space0);
-ConstantBuffer<UB_PerMesh>   g_perMesh   : register(b0, space2);
+ConstantBuffer<UB_PerFrame>  g_ubPerFrame  : register(b0, space0);
+ConstantBuffer<UB_PerMesh>   g_ubPerMesh   : register(b0, space1);
 VK_PUSH_CONSTANT
-ConstantBuffer<UB_PerObject> g_perObject : register(b0, space4);
+ConstantBuffer<UB_PerObject> g_ubPerObject : register(b0, space2);
 
-Texture2D    g_texGBuffer0 : register(t1, space0);
-SamplerState g_samGBuffer0 : register(s1, space0);
-Texture2D    g_texGBuffer1 : register(t2, space0);
-SamplerState g_samGBuffer1 : register(s2, space0);
-Texture2D    g_texGBuffer2 : register(t3, space0);
-SamplerState g_samGBuffer2 : register(s3, space0);
-Texture2D    g_texGBuffer3 : register(t4, space0);
-SamplerState g_samGBuffer3 : register(s4, space0);
+VK_SUBPASS_INPUT(0, g_texGBuffer0, g_samGBuffer0, t1, s1, space0);
+VK_SUBPASS_INPUT(1, g_texGBuffer1, g_samGBuffer1, t2, s2, space0);
+VK_SUBPASS_INPUT(2, g_texGBuffer2, g_samGBuffer2, t3, s3, space0);
+VK_SUBPASS_INPUT(3, g_texGBuffer3, g_samGBuffer3, t4, s4, space0);
 
 struct VSI
 {
@@ -25,19 +21,6 @@ struct VSI
 	VK_LOCATION_POSITION int4 pos   : POSITION;
 	VK_LOCATION_NORMAL   float3 nrm : NORMAL;
 	VK_LOCATION(8)       int4 tc0   : TEXCOORD0;
-	// Binding 1:
-#ifdef DEF_SKELETON
-	VK_LOCATION(12)      int4 bw : TEXCOORD4;
-	VK_LOCATION(13)      int4 bi : TEXCOORD5;
-#endif
-	// Binding 2:
-	VK_LOCATION(14)      float4 tan : TEXCOORD6;
-	VK_LOCATION(15)      float4 bin : TEXCOORD7;
-	// Binding 3:
-#if 0
-	VK_LOCATION(9)       int4 tc1     : TEXCOORD1;
-	VK_LOCATION_COLOR0   float4 color : COLOR0;
-#endif
 
 	_PER_INSTANCE_DATA
 };
@@ -64,7 +47,7 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
-	const float3 intactPos = DequantizeUsingDeq3D(si.pos.xyz, g_perMesh._posDeqScale.xyz, g_perMesh._posDeqBias.xyz);
+	const float3 intactPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMesh._posDeqScale.xyz, g_ubPerMesh._posDeqBias.xyz);
 
 	// World matrix, instance data:
 #ifdef DEF_INSTANCED
@@ -75,9 +58,9 @@ VSO mainVS(VSI si)
 	const float3 color = si.instData.rgb;
 	const float coneIn = si.instData.a;
 #else
-	const mataff matW = g_perObject._matW;
-	const float3 color = g_perObject.rgb;
-	const float coneIn = g_perObject.a;
+	const mataff matW = g_ubPerObject._matW;
+	const float3 color = g_ubPerObject.rgb;
+	const float coneIn = g_ubPerObject.a;
 #endif
 
 #ifdef DEF_DIR
@@ -86,19 +69,20 @@ VSO mainVS(VSI si)
 	const float glossScale = 1.0;
 #endif
 
-	const matrix matWV = mul(ToFloat4x4(matW), ToFloat4x4(g_perFrame._matV));
+	const matrix matWV = mul(ToFloat4x4(matW), ToFloat4x4(g_ubPerFrame._matV));
 
 	const float3x3 matW33 = (float3x3)matW;
-	const float3x3 matV33 = (float3x3)g_perFrame._matV;
+	const float3x3 matV33 = (float3x3)g_ubPerFrame._matV;
 	const float3x3 matWV33 = (float3x3)matWV;
 
 #ifdef DEF_DIR
-	so.pos = float4(intactPos, 1);
+	so.pos = float4(mul(float4(intactPos, 1), g_ubPerFrame._matQuad), 1);
+	so.posFS = float4(intactPos, 1);
 #else
 	const float3 posW = mul(float4(intactPos, 1), matW);
-	so.pos = mul(float4(posW, 1), g_perFrame._matVP);
-#endif
+	so.pos = mul(float4(posW, 1), g_ubPerFrame._matVP);
 	so.posFS = so.pos;
+#endif
 
 	// <MoreLightParams>
 #if defined(DEF_OMNI) || defined(DEF_SPOT)
@@ -143,7 +127,7 @@ DS_ACC_FSO mainFS(VSO si)
 #endif
 
 	// GBuffer tex. coord. from posCS:
-	const float2 tc0 = posCS.xy*g_perFrame._toUV.xy + g_perFrame._toUV.zw;
+	const float2 tc0 = mul(float4(posCS.xy, 0, 1), g_ubPerFrame._matToUV).xy;
 
 	// For Omni & Spot: light's radius and position:
 #if defined(DEF_OMNI) || defined(DEF_SPOT)
@@ -170,8 +154,8 @@ DS_ACC_FSO mainFS(VSO si)
 #endif
 
 	// GBuffer1:
-	const float rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, tc0, 0).r;
-	const float3 posWV = DS_GetPosition(rawGBuffer1, g_perFrame._matInvP, posCS.xy);
+	const float rawGBuffer1 = VK_SUBPASS_LOAD(g_texGBuffer1, g_samGBuffer1, tc0).r;
+	const float3 posWV = DS_GetPosition(rawGBuffer1, g_ubPerFrame._matInvP, posCS.xy);
 
 	so.target0 = 0.0;
 	so.target1 = 0.0;
@@ -184,20 +168,21 @@ DS_ACC_FSO mainFS(VSO si)
 		const float3 colorDiff = si.color_coneOut.rgb;
 		const float3 colorSpec = saturate(colorDiff + dot(colorDiff, 0.1));
 
-		const float4 rawGBuffer0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, tc0, 0);
+		// GBuffer0 (color, spec):
+		const float4 rawGBuffer0 = VK_SUBPASS_LOAD(g_texGBuffer0, g_samGBuffer0, tc0);
+		const float spec = rawGBuffer0.a;
 		const float3 dirToEyeWV = normalize(-posWV);
 
-		// GBuffer2:
-		const float4 rawGBuffer2 = g_texGBuffer2.SampleLevel(g_samGBuffer2, tc0, 0);
+		// GBuffer2 (normal, emission, motion):
+		const float4 rawGBuffer2 = VK_SUBPASS_LOAD(g_texGBuffer2, g_samGBuffer2, tc0);
 		const float3 normalWV = DS_GetNormal(rawGBuffer2);
 		const float2 emission = DS_GetEmission(rawGBuffer2);
-		const float2 metal = DS_GetMetallicity(rawGBuffer2);
 
-		// GBuffer3:
-		const float4 rawGBuffer3 = g_texGBuffer3.SampleLevel(g_samGBuffer3, tc0, 0);
+		// GBuffer3 (lam, metal, gloss):
+		const float4 rawGBuffer3 = VK_SUBPASS_LOAD(g_texGBuffer3, g_samGBuffer3, tc0);
 		const float3 anisoWV = DS_GetAnisoSpec(rawGBuffer3);
 		const float2 lamScaleBias = DS_GetLamScaleBias(rawGBuffer3);
-		const float spec = rawGBuffer3.b;
+		const float2 metal = DS_GetMetallicity(rawGBuffer3);
 		const float gloss64 = rawGBuffer3.a*64.0;
 		const float gloss64Scaled = gloss64 * glossScale;
 
@@ -230,7 +215,7 @@ DS_ACC_FSO mainFS(VSO si)
 		const float coneIntensity = 1.0;
 #endif
 
-		const float4 litRet = TrueLit(dirToLightWV, normalWV, dirToEyeWV,
+		const float4 litRet = VerusLit(dirToLightWV, normalWV, dirToEyeWV,
 			lerp(gloss*(2.0 - lightFalloff), 12.0, hairAlpha),
 			lerp(lamScaleBias, float2(1, 0.4), hairAlpha),
 			float4(anisoWV, hairAlpha));
@@ -269,7 +254,7 @@ DS_ACC_FSO mainFS(VSO si)
 
 #ifdef DEF_DIR
 		so.target0.rgb = maxDiff * litRet.y; // Lambert's cosine law.
-		so.target1.rgb = maxSpec * saturate(litRet.z*intensitySpec + rim) + diffBoost + skySpec;
+		so.target1.rgb = maxSpec * saturate(litRet.z*intensitySpec + rim) + diffBoost;
 #else
 		so.target0.rgb = maxDiff * litRet.y; // Lambert's cosine law.
 		so.target1.rgb = maxSpec * saturate(litRet.z*intensitySpec) + diffBoost;

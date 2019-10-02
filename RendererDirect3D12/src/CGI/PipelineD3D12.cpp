@@ -30,8 +30,19 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 	RcGeometryD3D12 geo = static_cast<RcGeometryD3D12>(*desc._geometry);
 	RcShaderD3D12 shader = static_cast<RcShaderD3D12>(*desc._shader);
 
+	int attachmentCount = 0;
+	for (const auto& x : desc._colorAttachBlendEqs)
+	{
+		if (x.empty())
+			break;
+		attachmentCount++;
+	}
+
 	_pRootSignature = shader.GetD3DRootSignature();
 	_topology = ToNativePrimitiveTopology(desc._topology);
+
+	RP::RcD3DRenderPass renderPass = pRendererD3D12->GetRenderPassByID(desc._renderPassID);
+	RP::RcD3DSubpass subpass = renderPass._vSubpasses[desc._subpass];
 
 	auto GetStripCutValue = [&geo]()
 	{
@@ -46,7 +57,80 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 	gpsDesc.HS = ToBytecode(shader.GetD3DBlob(desc._shaderBranch, BaseShader::Stage::hs));
 	gpsDesc.GS = ToBytecode(shader.GetD3DBlob(desc._shaderBranch, BaseShader::Stage::gs));
 	gpsDesc.StreamOutput = {};
-	gpsDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+
+	gpsDesc.BlendState = {};
+	gpsDesc.BlendState.AlphaToCoverageEnable = FALSE;
+	gpsDesc.BlendState.IndependentBlendEnable = TRUE;
+	VERUS_FOR(i, attachmentCount)
+	{
+		CSZ p = _C(desc._colorAttachWriteMasks[i]);
+		while (*p)
+		{
+			switch (*p)
+			{
+			case 'r': gpsDesc.BlendState.RenderTarget[i].RenderTargetWriteMask |= D3D12_COLOR_WRITE_ENABLE_RED; break;
+			case 'g': gpsDesc.BlendState.RenderTarget[i].RenderTargetWriteMask |= D3D12_COLOR_WRITE_ENABLE_GREEN; break;
+			case 'b': gpsDesc.BlendState.RenderTarget[i].RenderTargetWriteMask |= D3D12_COLOR_WRITE_ENABLE_BLUE; break;
+			case 'a': gpsDesc.BlendState.RenderTarget[i].RenderTargetWriteMask |= D3D12_COLOR_WRITE_ENABLE_ALPHA; break;
+			}
+			p++;
+		}
+
+		if (desc._colorAttachBlendEqs[i] != "off")
+		{
+			gpsDesc.BlendState.RenderTarget[i].BlendEnable = TRUE;
+
+			static const D3D12_BLEND bfs[] =
+			{
+				D3D12_BLEND_ZERO,
+				D3D12_BLEND_ONE,
+				D3D12_BLEND_INV_DEST_ALPHA,
+				D3D12_BLEND_INV_DEST_COLOR,
+				D3D12_BLEND_INV_BLEND_FACTOR,
+				D3D12_BLEND_INV_SRC_ALPHA,
+				D3D12_BLEND_INV_SRC_COLOR,
+				D3D12_BLEND_DEST_ALPHA,
+				D3D12_BLEND_DEST_COLOR,
+				D3D12_BLEND_BLEND_FACTOR,
+				D3D12_BLEND_SRC_ALPHA,
+				D3D12_BLEND_SRC_ALPHA_SAT,
+				D3D12_BLEND_SRC_COLOR
+			};
+			static const D3D12_BLEND_OP ops[] =
+			{
+				D3D12_BLEND_OP_ADD,
+				D3D12_BLEND_OP_SUBTRACT,
+				D3D12_BLEND_OP_REV_SUBTRACT,
+				D3D12_BLEND_OP_MIN,
+				D3D12_BLEND_OP_MAX
+			};
+
+			int colorBlendOp = -1;
+			int alphaBlendOp = -1;
+			int srcColorBlendFactor = -1;
+			int dstColorBlendFactor = -1;
+			int srcAlphaBlendFactor = -1;
+			int dstAlphaBlendFactor = -1;
+
+			BaseRenderer::SetAlphaBlendHelper(
+				_C(desc._colorAttachBlendEqs[i]),
+				colorBlendOp,
+				alphaBlendOp,
+				srcColorBlendFactor,
+				dstColorBlendFactor,
+				srcAlphaBlendFactor,
+				dstAlphaBlendFactor);
+
+			gpsDesc.BlendState.RenderTarget[i].SrcBlend = bfs[srcColorBlendFactor];
+			gpsDesc.BlendState.RenderTarget[i].DestBlend = bfs[dstColorBlendFactor];
+			gpsDesc.BlendState.RenderTarget[i].BlendOp = ops[colorBlendOp];
+			gpsDesc.BlendState.RenderTarget[i].SrcBlendAlpha = bfs[srcAlphaBlendFactor];
+			gpsDesc.BlendState.RenderTarget[i].DestBlendAlpha = bfs[dstAlphaBlendFactor];
+			gpsDesc.BlendState.RenderTarget[i].BlendOpAlpha = ops[alphaBlendOp];
+			gpsDesc.BlendState.RenderTarget[i].LogicOp = D3D12_LOGIC_OP_CLEAR;
+		}
+	}
+
 	gpsDesc.SampleMask = UINT_MAX;
 
 	gpsDesc.RasterizerState.FillMode = ToNativePolygonMode(desc._rasterizationState._polygonMode);
@@ -61,19 +145,21 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 	gpsDesc.RasterizerState.ForcedSampleCount = 0;
 	gpsDesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
-	gpsDesc.DepthStencilState.DepthEnable = desc._depthTestEnable;
-	gpsDesc.DepthStencilState.DepthWriteMask = desc._depthWriteEnable ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
-	gpsDesc.DepthStencilState.DepthFunc = ToNativeCompareOp(desc._depthCompareOp);
-	gpsDesc.DepthStencilState.StencilEnable = desc._stencilTestEnable;
+	if (subpass._depthStencil._index >= 0)
+	{
+		gpsDesc.DepthStencilState.DepthEnable = desc._depthTestEnable;
+		gpsDesc.DepthStencilState.DepthWriteMask = desc._depthWriteEnable ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
+		gpsDesc.DepthStencilState.DepthFunc = ToNativeCompareOp(desc._depthCompareOp);
+		gpsDesc.DepthStencilState.StencilEnable = desc._stencilTestEnable;
+	}
 
 	Vector<D3D12_INPUT_ELEMENT_DESC> vInputElementDesc;
 	gpsDesc.InputLayout = geo.GetD3DInputLayoutDesc(_vertexInputBindingsFilter, vInputElementDesc);
 	gpsDesc.IBStripCutValue = desc._primitiveRestartEnable ? GetStripCutValue() : D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
 	gpsDesc.PrimitiveTopologyType = ToNativePrimitiveTopologyType(desc._topology);
 
-	RP::RcD3DRenderPass renderPass = pRendererD3D12->GetRenderPassByID(desc._renderPassID);
-	RP::RcD3DSubpass subpass = renderPass._vSubpasses[desc._subpass];
 	gpsDesc.NumRenderTargets = Utils::Cast32(subpass._vColor.size());
+	VERUS_RT_ASSERT(gpsDesc.NumRenderTargets == attachmentCount);
 	VERUS_U_FOR(i, gpsDesc.NumRenderTargets)
 	{
 		const int index = subpass._vColor[i]._index;

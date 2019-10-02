@@ -16,14 +16,27 @@ namespace verus
 		class Renderer : public Singleton<Renderer>, public Object
 		{
 #include "../Shaders/GenerateMips.inc.hlsl"
+#include "../Shaders/Quad.inc.hlsl"
 
-			Vector4           _clearColor = Vector4(0);
+			enum S
+			{
+				S_GENERATE_MIPS,
+				S_QUAD,
+				S_MAX
+			};
+
+			struct Vertex
+			{
+				glm::vec2 _pos;
+			};
+
 			App::PWindow      _pMainWindow = nullptr;
 			PBaseRenderer     _pBaseRenderer = nullptr;
 			PRendererDelegate _pRendererDelegate = nullptr;
 			CommandBufferPwn  _commandBuffer;
+			GeometryPwn       _geoQuad;
+			ShaderPwns<S_MAX> _shader;
 			PipelinePwn       _pipeGenerateMips;
-			ShaderPwn         _shaderGenerateMips;
 			TexturePwn        _texDepthStencil;
 			DeferredShading   _ds;
 			UINT64            _numFrames = 0;
@@ -34,6 +47,7 @@ namespace verus
 			Vector<int>       _fbSwapChain;
 			Vector<int>       _fbSwapChainDepth;
 			UB_GenerateMips   _ubGenerateMips;
+			UB_Quad           _ubQuad;
 
 		public:
 			Renderer();
@@ -44,14 +58,20 @@ namespace verus
 			static bool IsLoaded();
 
 			void Init(PRendererDelegate pDelegate);
+			void InitCmd();
 			void Done();
 
 			// Frame cycle:
 			void Draw();
 			void Present();
 
+			// Simple (fullscreen) quad:
+			void DrawQuad(PBaseCommandBuffer pCB = nullptr);
+
+			RDeferredShading GetDS() { return _ds; }
 			CommandBufferPtr GetCommandBuffer() const { return _commandBuffer; }
-			TexturePwn GetTexDepthStencil() const { return _texDepthStencil; }
+			GeometryPtr GetGeoQuad() const { return _geoQuad; }
+			TexturePtr GetTexDepthStencil() const { return _texDepthStencil; }
 
 			void OnShaderError(CSZ s);
 			void OnShaderWarning(CSZ s);
@@ -59,9 +79,6 @@ namespace verus
 			App::PWindow GetMainWindow() const { return _pMainWindow; }
 			App::PWindow SetMainWindow(App::PWindow p) { return Utils::Swap(_pMainWindow, p); }
 			float GetWindowAspectRatio() const;
-
-			RcVector4 GetClearColor() const { return _clearColor; }
-			void SetClearColor(RcVector4 color) { _clearColor = color; }
 
 			// Frame rate:
 			float GetFps() const { return _fps; }
@@ -73,8 +90,11 @@ namespace verus
 			int GetFramebuffer_SwapChainDepth(int index) const { return _fbSwapChainDepth[index]; }
 
 			PipelinePtr GetPipelineGenerateMips() { return _pipeGenerateMips; }
-			ShaderPtr GetShaderGenerateMips() { return _shaderGenerateMips; }
+			ShaderPtr GetShaderGenerateMips() { return _shader[S_GENERATE_MIPS]; }
 			UB_GenerateMips& GetUbGenerateMips() { return _ubGenerateMips; }
+
+			ShaderPtr GetShaderQuad() { return _shader[S_QUAD]; }
+			UB_Quad& GetUbQuad() { return _ubQuad; }
 		};
 		VERUS_TYPEDEFS(Renderer);
 	}

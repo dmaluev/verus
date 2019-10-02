@@ -130,7 +130,7 @@ namespace verus
 			int                         _numVisiblePatches = 0;
 			int                         _numVerts = 0;
 			int                         _numIndices = 0;
-			int                         _complexDescSetID = -1;
+			int                         _csid = -1;
 			TerrainLOD                  _lods[5]; // Level of detail data for (16x16, 8x8, 4x4, 2x2, 1x1).
 			LayerData                   _layerData[s_maxNumLayers];
 			TerrainPhysics              _physics;

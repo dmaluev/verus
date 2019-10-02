@@ -368,9 +368,9 @@ void Terrain::Init(RcDesc desc)
 
 	const CGI::InputElementDesc ied[] =
 	{
-		{0, 0,                                     CGI::IeType::_short, 4, CGI::IeUsage::position, 0},
-		{-1, offsetof(PerInstanceData, _posPatch), CGI::IeType::_short, 4, CGI::IeUsage::texCoord, 8},
-		{-1, offsetof(PerInstanceData, _layers),   CGI::IeType::_short, 4, CGI::IeUsage::texCoord, 9},
+		{0, 0,                                     CGI::IeType::shorts, 4, CGI::IeUsage::position, 0},
+		{-1, offsetof(PerInstanceData, _posPatch), CGI::IeType::shorts, 4, CGI::IeUsage::texCoord, 8},
+		{-1, offsetof(PerInstanceData, _layers),   CGI::IeType::shorts, 4, CGI::IeUsage::texCoord, 9},
 		CGI::InputElementDesc::End()
 	};
 	CGI::GeometryDesc geoDesc;
@@ -386,8 +386,11 @@ void Terrain::Init(RcDesc desc)
 
 	_vInstanceBuffer.resize(numPatches);
 
-	CGI::PipelineDesc pipeDesc(_geo, s_shader, "T", renderer.GetRenderPass_SwapChainDepth());
-	//pipeDesc._rasterizationState._polygonMode = CGI::PolygonMode::line;
+	CGI::PipelineDesc pipeDesc(_geo, s_shader, "T", renderer.GetDS().GetRenderPassID());
+	pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+	pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
+	pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
+	pipeDesc._colorAttachBlendEqs[3] = VERUS_COLOR_BLEND_OFF;
 	_pipe[PIPE_LIST].Init(pipeDesc);
 	pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 	pipeDesc._primitiveRestartEnable = true;
@@ -404,7 +407,7 @@ void Terrain::Init(RcDesc desc)
 	texDesc._width = _mapSide;
 	texDesc._height = _mapSide;
 	texDesc._mipLevels = 0;
-	texDesc._generateMips = true;
+	texDesc._flags = CGI::TextureDesc::Flags::generateMips;
 	_tex[TEX_NORMALS].Init(texDesc);
 	_tex[TEX_BLEND].Init(texDesc);
 
@@ -476,13 +479,17 @@ void Terrain::Draw()
 			if (!lod)
 			{
 				renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_LIST]);
-				renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _complexDescSetID);
+				renderer.GetCommandBuffer()->SetViewport({ Vector4(0, 0, settings._screenSizeWidth, settings._screenSizeHeight) });
+				renderer.GetCommandBuffer()->SetScissor({ Vector4(0, 0, settings._screenSizeWidth, settings._screenSizeHeight) });
+				renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _csid);
 			}
 			else if (!strip)
 			{
 				strip = true;
 				renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_STRIP]);
-				renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _complexDescSetID);
+				renderer.GetCommandBuffer()->SetViewport({ Vector4(0, 0, settings._screenSizeWidth, settings._screenSizeHeight) });
+				renderer.GetCommandBuffer()->SetScissor({ Vector4(0, 0, settings._screenSizeWidth, settings._screenSizeHeight) });
+				renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _csid);
 			}
 
 			const int instanceCount = i - firstInstance; // Drawing patches [firstInstance, i).
@@ -720,7 +727,7 @@ void Terrain::LoadLayerTextures()
 	texDesc._urls = vLayerUrlsPtrNM.data();
 	_tex[TEX_LAYERS_NM].Init(texDesc);
 
-	_complexDescSetID = s_shader->BindDescriptorSetTextures(0, { _tex[TEX_HEIGHTMAP], _tex[TEX_NORMALS], _tex[TEX_BLEND], _tex[TEX_LAYERS], _tex[TEX_LAYERS_NM] });
+	_csid = s_shader->BindDescriptorSetTextures(0, { _tex[TEX_HEIGHTMAP], _tex[TEX_NORMALS], _tex[TEX_BLEND], _tex[TEX_LAYERS], _tex[TEX_LAYERS_NM] });
 }
 
 int Terrain::GetMainLayerAt(const int ij[2]) const

@@ -406,10 +406,10 @@ void Skeleton::LoadRigInfo(CSZ url)
 {
 	Vector<BYTE> v;
 	IO::FileSystem::LoadResource(url, v, IO::FileSystem::LoadDesc(true));
-	LoadRigInfoFromPtr(v.data());
+	LoadRigInfoFromPtr(reinterpret_cast<SZ>(v.data()));
 }
 
-void Skeleton::LoadRigInfoFromPtr(const BYTE* p)
+void Skeleton::LoadRigInfoFromPtr(SZ p)
 {
 	for (auto& kv : _mapBones)
 	{
@@ -435,59 +435,50 @@ void Skeleton::LoadRigInfoFromPtr(const BYTE* p)
 			bone._rigBone = false;
 		}
 
-		tinyxml2::XMLDocument doc;
-		doc.Parse(reinterpret_cast<CSZ>(p));
-		if (doc.Error())
-			return;
+		pugi::xml_document doc;
+		const pugi::xml_parse_result result = doc.load_buffer_inplace(p, strlen(p));
+		if (!result)
+			throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+		pugi::xml_node root = doc.root();
 
-		tinyxml2::XMLElement* pElem = nullptr;
-		tinyxml2::XMLElement* pRoot = doc.FirstChildElement();
-		if (!pRoot)
-			return;
+		if (auto node = root.child("mass"))
+			_mass = node.text().as_float();
 
-		pElem = pRoot->FirstChildElement("mass");
-		if (pElem)
-			_mass = static_cast<float>(atof(pElem->GetText()));
-
-		for (pElem = pRoot->FirstChildElement("bone"); pElem; pElem = pElem->NextSiblingElement("bone"))
+		for (auto node : root.children("bone"))
 		{
-			PBone pBone = FindBone(pElem->Attribute("name"));
+			PBone pBone = FindBone(node.attribute("name").value());
 			if (pBone)
 			{
 				pBone->_rigBone = true;
-				pElem->QueryFloatAttribute("w", &pBone->_width);
-				pElem->QueryFloatAttribute("l", &pBone->_length);
-				CSZ rot = pElem->Attribute("rot");
-				if (rot)
-					pBone->_rigRot.FromString(rot);
 
-				CSZ climit = pElem->Attribute("climit");
-				if (climit)
-					pBone->_cLimits.FromString(climit);
+				pBone->_width = node.attribute("w").as_float();
+				pBone->_length = node.attribute("l").as_float();
 
-				CSZ ctype = pElem->Attribute("ctype");
-				if (ctype)
+				if (auto attr = node.attribute("rot"))
+					pBone->_rigRot.FromString(attr.value());
+
+				if (auto attr = node.attribute("climit"))
+					pBone->_cLimits.FromString(attr.value());
+
+				if (auto attr = node.attribute("ctype"))
 				{
-					if (!strcmp(ctype, "hinge"))
+					if (!strcmp(attr.value(), "hinge"))
 						pBone->_hinge = true;
-					if (!strcmp(ctype, "free"))
+					if (!strcmp(attr.value(), "free"))
 						pBone->_cLimits.setZ(-100);
 				}
 
-				CSZ crot = pElem->Attribute("crot");
-				if (crot)
-					pBone->_cRot.FromString(crot);
+				if (auto attr = node.attribute("crot"))
+					pBone->_cRot.FromString(attr.value());
 
-				CSZ boxSize = pElem->Attribute("boxSize");
-				if (boxSize)
-					pBone->_boxSize.FromString(boxSize);
+				if (auto attr = node.attribute("boxSize"))
+					pBone->_boxSize.FromString(attr.value());
 
-				float pmass = 0;
-				pElem->QueryFloatAttribute("m", &pmass);
+				float pmass = node.attribute("m").as_float();
 				if (pmass != 0)
 					pBone->_mass = pmass * _mass;
 
-				pElem->QueryBoolAttribute("noCollision", &pBone->_noCollision);
+				pBone->_noCollision = node.attribute("noCollision").as_bool();
 
 				massCheck += pBone->_mass;
 			}

@@ -49,29 +49,46 @@ void Renderer::Init(PRendererDelegate pDelegate)
 
 	_commandBuffer.Init();
 
-	CGI::ShaderDesc shaderDesc;
-	shaderDesc._url = "[Shaders]:GenerateMips.hlsl";
-	_shaderGenerateMips.Init(shaderDesc);
-	_shaderGenerateMips->CreateDescriptorSet(0, &_ubGenerateMips, sizeof(_ubGenerateMips), 100,
-		{ Sampler::linearClamp2D, Sampler::storage, Sampler::storage, Sampler::storage, Sampler::storage }, ShaderStageFlags::cs);
-	_shaderGenerateMips->CreatePipelineLayout();
+	GeometryDesc geoDesc;
+	const InputElementDesc ied[] =
+	{
+		{0, offsetof(Vertex, _pos), IeType::floats, 2, IeUsage::position, 0},
+		InputElementDesc::End()
+	};
+	geoDesc._pInputElementDesc = ied;
+	const int strides[] = { sizeof(Vertex), 0 };
+	geoDesc._pStrides = strides;
+	_geoQuad.Init(geoDesc);
 
-	CGI::PipelineDesc pipeDesc(_shaderGenerateMips, "T");
+	ShaderDesc shaderDesc;
+	shaderDesc._url = "[Shaders]:GenerateMips.hlsl";
+	_shader[S_GENERATE_MIPS].Init(shaderDesc);
+	_shader[S_GENERATE_MIPS]->CreateDescriptorSet(0, &_ubGenerateMips, sizeof(_ubGenerateMips), 100,
+		{ Sampler::linearClamp2D, Sampler::storage, Sampler::storage, Sampler::storage, Sampler::storage }, ShaderStageFlags::cs);
+	_shader[S_GENERATE_MIPS]->CreatePipelineLayout();
+
+	shaderDesc._url = "[Shaders]:Quad.hlsl";
+	_shader[S_QUAD].Init(shaderDesc);
+	_shader[S_QUAD]->CreateDescriptorSet(0, &_ubQuad, sizeof(_ubQuad), 100, { Sampler::linearClamp2D });
+	_shader[S_QUAD]->CreatePipelineLayout();
+
+	PipelineDesc pipeDesc(_shader[S_GENERATE_MIPS], "T");
 	_pipeGenerateMips.Init(pipeDesc);
 
-	TextureDesc td;
-	td._format = Format::unormD24uintS8;
-	td._width = settings._screenSizeWidth;
-	td._height = settings._screenSizeHeight;
-	_texDepthStencil.Init(td);
+	TextureDesc texDesc;
+	texDesc._clearValue = Vector4(1);
+	texDesc._format = Format::unormD24uintS8;
+	texDesc._width = settings._screenSizeWidth;
+	texDesc._height = settings._screenSizeHeight;
+	_texDepthStencil.Init(texDesc);
 
 	_rpSwapChain = _pBaseRenderer->CreateRenderPass(
-		{ RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().FinalLayout(ImageLayout::presentSrc) },
+		{ RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().Layout(ImageLayout::undefined, ImageLayout::presentSrc) },
 		{ RP::Subpass("Sp0").Color({RP::Ref("Color", ImageLayout::colorAttachmentOptimal)}) },
 		{});
 	_rpSwapChainDepth = _pBaseRenderer->CreateRenderPass(
 		{
-			RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().FinalLayout(ImageLayout::presentSrc),
+			RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().Layout(ImageLayout::undefined, ImageLayout::presentSrc),
 			RP::Attachment("Depth", Format::unormD24uintS8).LoadOpClear().Layout(ImageLayout::depthStencilAttachmentOptimal),
 		},
 		{
@@ -91,6 +108,19 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	_ds.Init();
 }
 
+void Renderer::InitCmd()
+{
+	const Vertex quadVerts[] =
+	{
+		glm::vec2(-1, +1), // TL.
+		glm::vec2(-1, -1), // BL.
+		glm::vec2(+1, +1), // TR.
+		glm::vec2(+1, -1)  // BR.
+	};
+	_geoQuad->CreateVertexBuffer(VERUS_ARRAY_LENGTH(quadVerts), 0);
+	_geoQuad->UpdateVertexBuffer(quadVerts, 0);
+}
+
 void Renderer::Done()
 {
 	if (_pBaseRenderer)
@@ -99,7 +129,8 @@ void Renderer::Done()
 		_ds.Done();
 		_texDepthStencil.Done();
 		_pipeGenerateMips.Done();
-		_shaderGenerateMips.Done();
+		_shader.Done();
+		_geoQuad.Done();
 		_commandBuffer.Done();
 
 		Scene::Terrain::DoneStatic();
@@ -128,6 +159,14 @@ void Renderer::Present()
 
 	VERUS_QREF_TIMER;
 	_fps = _fps * 0.75f + timer.GetDeltaTimeInv()*0.25f;
+}
+
+void Renderer::DrawQuad(PBaseCommandBuffer pCB)
+{
+	if (!pCB)
+		pCB = &(*_commandBuffer);
+	pCB->BindVertexBuffers(_geoQuad);
+	pCB->Draw(4, 1);
 }
 
 void Renderer::OnShaderError(CSZ s)

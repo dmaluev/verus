@@ -4,6 +4,7 @@ namespace verus
 {
 	void Make_Scene()
 	{
+		Scene::Helpers::Make();
 		Scene::MaterialManager::Make();
 		Scene::SceneManager::Make();
 	}
@@ -11,5 +12,6 @@ namespace verus
 	{
 		Scene::SceneManager::Free();
 		Scene::MaterialManager::Free();
+		Scene::Helpers::Free();
 	}
 }

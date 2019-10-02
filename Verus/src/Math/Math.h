@@ -78,6 +78,10 @@ namespace verus
 
 		int ComputeMipLevels(int w, int h, int d = 1);
 
+		// Matrices:
+		Transform3 QuadMatrix(float x = 0, float y = 0, float w = 1, float h = 1);
+		Transform3 ToUVMatrix(float zOffset = 0, RcVector4 texSize = Vector4(0), PcVector4 pTileSize = nullptr);
+
 		// Clamp:
 		template<typename T>
 		T Clamp(T x, T mn, T mx)

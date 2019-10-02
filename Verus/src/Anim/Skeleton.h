@@ -125,7 +125,7 @@ namespace verus
 			bool IsParentOf(CSZ bone, CSZ parent) const;
 
 			void LoadRigInfo(CSZ url);
-			void LoadRigInfoFromPtr(const BYTE* p);
+			void LoadRigInfoFromPtr(SZ p);
 			void BeginRagdoll(RcTransform3 matW, RcVector3 impulse = Vector3(0), CSZ bone = "Spine2");
 			void EndRagdoll();
 			bool IsRagdollMode() const { return _ragdollMode; }

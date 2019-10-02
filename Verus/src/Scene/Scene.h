@@ -8,6 +8,7 @@
 #include "Atmosphere.h"
 #include "MaterialManager.h"
 #include "SceneManager.h"
+#include "Helpers.h"
 
 namespace verus
 {

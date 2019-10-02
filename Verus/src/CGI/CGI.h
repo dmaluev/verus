@@ -11,8 +11,10 @@
 #include "BaseCommandBuffer.h"
 #include "BaseRenderer.h"
 
+#include "DebugDraw.h"
 #include "DeferredShading.h"
 #include "Renderer.h"
+#include "RendererParser.h"
 #include "DestroyStaging.h"
 
 namespace verus

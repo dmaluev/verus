@@ -55,6 +55,8 @@ void CommandBufferD3D12::BeginRenderPass(int renderPassID, int framebufferID, st
 	_pRenderPass = &pRendererD3D12->GetRenderPassByID(renderPassID);
 	_pFramebuffer = &pRendererD3D12->GetFramebufferByID(framebufferID);
 
+	VERUS_RT_ASSERT(_pRenderPass->_vAttachments.size() == ilClearValues.size());
+
 	_vClearValues.clear();
 	for (auto x : ilClearValues)
 	{
@@ -237,20 +239,6 @@ void CommandBufferD3D12::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout 
 	GetD3DGraphicsCommandList()->ResourceBarrier(index, rb);
 }
 
-void CommandBufferD3D12::Clear(ClearFlags clearFlags)
-{
-	VERUS_QREF_RENDERER;
-
-	if (clearFlags & ClearFlags::color)
-		GetD3DGraphicsCommandList()->ClearRenderTargetView({}, renderer.GetClearColor().ToPointer(), 0, nullptr);
-
-	UINT cf = 0;
-	if (clearFlags & ClearFlags::depth) cf |= D3D12_CLEAR_FLAG_DEPTH;
-	if (clearFlags & ClearFlags::stencil) cf |= D3D12_CLEAR_FLAG_STENCIL;
-	if (cf)
-		GetD3DGraphicsCommandList()->ClearDepthStencilView({}, static_cast<D3D12_CLEAR_FLAGS>(cf), 1, 0, 0, nullptr);
-}
-
 void CommandBufferD3D12::Draw(int vertexCount, int instanceCount, int firstVertex, int firstInstance)
 {
 	GetD3DGraphicsCommandList()->DrawInstanced(vertexCount, instanceCount, firstVertex, firstInstance);
@@ -280,17 +268,30 @@ void CommandBufferD3D12::PrepareSubpass()
 	RP::RcD3DFramebufferSubpass fs = _pFramebuffer->_vSubpasses[_subpassIndex];
 
 	// Resource transitions for this subpass:
-	CD3DX12_RESOURCE_BARRIER barriers[VERUS_MAX_NUM_RT + 1];
+	CD3DX12_RESOURCE_BARRIER barriers[VERUS_MAX_NUM_RT * 2 + 1];
+	int resIndex = 0;
 	int numBarriers = 0;
+	VERUS_FOR(i, subpass._vInput.size())
+	{
+		const auto& ref = subpass._vInput[i];
+		if (_vAttachmentStates[ref._index] != ref._state)
+		{
+			const auto& resources = fs._vResources[resIndex];
+			barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(resources.Get(), _vAttachmentStates[ref._index], ref._state);
+			_vAttachmentStates[ref._index] = ref._state;
+		}
+		resIndex++;
+	}
 	VERUS_FOR(i, subpass._vColor.size())
 	{
 		const auto& ref = subpass._vColor[i];
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
-			const auto& resources = fs._vResources[i];
+			const auto& resources = fs._vResources[resIndex];
 			barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(resources.Get(), _vAttachmentStates[ref._index], ref._state);
 			_vAttachmentStates[ref._index] = ref._state;
 		}
+		resIndex++;
 	}
 	if (subpass._depthStencil._index >= 0)
 	{
@@ -318,9 +319,13 @@ void CommandBufferD3D12::PrepareSubpass()
 		if (RP::Attachment::LoadOp::clear == attachment._loadOp && attachment._clearSubpassIndex == _subpassIndex)
 		{
 			D3D12_CLEAR_FLAGS clearFlags = D3D12_CLEAR_FLAG_DEPTH;
+			UINT8 stencil = 0;
 			if (RP::Attachment::LoadOp::clear == attachment._stencilLoadOp)
+			{
 				clearFlags |= D3D12_CLEAR_FLAG_STENCIL;
-			pCommandList->ClearDepthStencilView(fs._dhDSV.AtCPU(0), clearFlags, _vClearValues[subpass._depthStencil._index << 2], 0, 0, nullptr);
+				stencil = static_cast<UINT8>(_vClearValues[(subpass._depthStencil._index << 2) + 1]);
+			}
+			pCommandList->ClearDepthStencilView(fs._dhDSV.AtCPU(0), clearFlags, _vClearValues[subpass._depthStencil._index << 2], stencil, 0, nullptr);
 		}
 	}
 

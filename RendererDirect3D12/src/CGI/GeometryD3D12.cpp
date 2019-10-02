@@ -64,11 +64,15 @@ void GeometryD3D12::Done()
 	_destroyStagingBuffers.Allow();
 	DestroyStagingBuffers();
 
-	VERUS_COM_RELEASE_CHECK(_pIndexBuffer.Get());
-	for (const auto& x : _vVertexBuffers)
+	VERUS_SMART_RELEASE(_indexBuffer._pMaAllocation);
+	VERUS_COM_RELEASE_CHECK(_indexBuffer._pBuffer.Get());
+	_indexBuffer._pBuffer.Reset();
+	for (auto& x : _vVertexBuffers)
+	{
+		VERUS_SMART_RELEASE(x._pMaAllocation);
 		VERUS_COM_RELEASE_CHECK(x._pBuffer.Get());
-
-	_pIndexBuffer.Reset();
+		x._pBuffer.Reset();
+	}
 	_vVertexBuffers.clear();
 
 	VERUS_DONE(GeometryD3D12);
@@ -88,14 +92,16 @@ void GeometryD3D12::CreateVertexBuffer(int num, int binding)
 
 	if ((_bindingInstMask >> binding) & 0x1)
 	{
-		if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
+		D3D12MA::ALLOCATION_DESC allocDesc = {};
+		allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+			&allocDesc,
 			&CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize * BaseRenderer::s_ringBufferSize),
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
+			&vb._pMaAllocation,
 			IID_PPV_ARGS(&vb._pBuffer))))
-			throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
 
 		VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
 		{
@@ -106,14 +112,16 @@ void GeometryD3D12::CreateVertexBuffer(int num, int binding)
 	}
 	else
 	{
-		if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-			D3D12_HEAP_FLAG_NONE,
+		D3D12MA::ALLOCATION_DESC allocDesc = {};
+		allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+			&allocDesc,
 			&CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize),
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			nullptr,
+			&vb._pMaAllocation,
 			IID_PPV_ARGS(&vb._pBuffer))))
-			throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
 
 		vb._bufferView[0].BufferLocation = vb._pBuffer->GetGPUVirtualAddress();
 		vb._bufferView[0].SizeInBytes = Utils::Cast32(vb._bufferSize);
@@ -145,14 +153,16 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, BaseCommandBu
 
 		auto& vb = _vVertexBuffers[binding];
 		auto& svb = _vStagingVertexBuffers[binding];
-		if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
+		D3D12MA::ALLOCATION_DESC allocDesc = {};
+		allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+			&allocDesc,
 			&CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize),
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
+			&svb._pMaAllocation,
 			IID_PPV_ARGS(&svb._pBuffer))))
-			throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
 
 		if (!pCB)
 			pCB = &(*renderer.GetCommandBuffer());
@@ -179,19 +189,21 @@ void GeometryD3D12::CreateIndexBuffer(int num)
 	HRESULT hr = 0;
 
 	const int elementSize = _32BitIndices ? sizeof(UINT32) : sizeof(UINT16);
-	_indexBufferSize = num * elementSize;
+	_indexBuffer._bufferSize = num * elementSize;
 
-	if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(_indexBufferSize),
+	D3D12MA::ALLOCATION_DESC allocDesc = {};
+	allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+	if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+		&allocDesc,
+		&CD3DX12_RESOURCE_DESC::Buffer(_indexBuffer._bufferSize),
 		D3D12_RESOURCE_STATE_COPY_DEST,
 		nullptr,
-		IID_PPV_ARGS(&_pIndexBuffer))))
-		throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
+		&_indexBuffer._pMaAllocation,
+		IID_PPV_ARGS(&_indexBuffer._pBuffer))))
+		throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
 
-	_indexBufferView.BufferLocation = _pIndexBuffer->GetGPUVirtualAddress();
-	_indexBufferView.SizeInBytes = Utils::Cast32(_indexBufferSize);
+	_indexBufferView.BufferLocation = _indexBuffer._pBuffer->GetGPUVirtualAddress();
+	_indexBufferView.SizeInBytes = Utils::Cast32(_indexBuffer._bufferSize);
 	_indexBufferView.Format = _32BitIndices ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
 }
 
@@ -201,28 +213,30 @@ void GeometryD3D12::UpdateIndexBuffer(const void* p, BaseCommandBuffer* pCB)
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
 
-	if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(_indexBufferSize),
+	D3D12MA::ALLOCATION_DESC allocDesc = {};
+	allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+	if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+		&allocDesc,
+		&CD3DX12_RESOURCE_DESC::Buffer(_indexBuffer._bufferSize),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&_pStagingIndexBuffer))))
-		throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+		&_stagingIndexBuffer._pMaAllocation,
+		IID_PPV_ARGS(&_stagingIndexBuffer._pBuffer))))
+		throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
 
 	if (!pCB)
 		pCB = &(*renderer.GetCommandBuffer());
 	auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
 	D3D12_SUBRESOURCE_DATA sd = {};
 	sd.pData = p;
-	sd.RowPitch = _indexBufferSize;
+	sd.RowPitch = _indexBuffer._bufferSize;
 	sd.SlicePitch = sd.RowPitch;
 	UpdateSubresources<1>(pCmdList,
-		_pIndexBuffer.Get(),
-		_pStagingIndexBuffer.Get(),
+		_indexBuffer._pBuffer.Get(),
+		_stagingIndexBuffer._pBuffer.Get(),
 		0, 0, 1, &sd);
 	const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-		_pIndexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+		_indexBuffer._pBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER);
 	pCmdList->ResourceBarrier(1, &barrier);
 
 	_destroyStagingBuffers.Schedule();
@@ -233,10 +247,15 @@ void GeometryD3D12::DestroyStagingBuffers()
 	if (!_destroyStagingBuffers.IsAllowed())
 		return;
 
-	VERUS_COM_RELEASE_CHECK(_pStagingIndexBuffer.Get());
-	for (const auto& x : _vStagingVertexBuffers)
+	VERUS_SMART_RELEASE(_stagingIndexBuffer._pMaAllocation);
+	VERUS_COM_RELEASE_CHECK(_stagingIndexBuffer._pBuffer.Get());
+	_stagingIndexBuffer._pBuffer.Reset();
+	for (auto& x : _vStagingVertexBuffers)
+	{
+		VERUS_SMART_RELEASE(x._pMaAllocation);
 		VERUS_COM_RELEASE_CHECK(x._pBuffer.Get());
-	_pStagingIndexBuffer.Reset();
+		x._pBuffer.Reset();
+	}
 	_vStagingVertexBuffers.clear();
 }
 

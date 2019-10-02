@@ -9,15 +9,15 @@ namespace verus
 			struct BufferEx
 			{
 				ComPtr<ID3D12Resource>   _pBuffer;
+				D3D12MA::Allocation*     _pMaAllocation = nullptr;
 				UINT64                   _bufferSize = 0;
 				D3D12_VERTEX_BUFFER_VIEW _bufferView[BaseRenderer::s_ringBufferSize] = {};
 			};
 
 			Vector<BufferEx>                 _vVertexBuffers;
-			ComPtr<ID3D12Resource>           _pIndexBuffer;
+			BufferEx                         _indexBuffer;
 			Vector<BufferEx>                 _vStagingVertexBuffers;
-			ComPtr<ID3D12Resource>           _pStagingIndexBuffer;
-			UINT64                           _indexBufferSize = 0;
+			BufferEx                         _stagingIndexBuffer;
 			D3D12_INDEX_BUFFER_VIEW          _indexBufferView;
 			Vector<D3D12_INPUT_ELEMENT_DESC> _vInputElementDesc;
 			Vector<int>                      _vStrides;

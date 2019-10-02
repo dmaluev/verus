@@ -18,8 +18,9 @@
 #define VERUS_PD(x)           protected: x; private:
 #define VERUS_FRIEND(c, type) friend c type; type
 
-#define VERUS_SMART_DELETE(p)       {if(p) {delete p;    p = nullptr;}}
-#define VERUS_SMART_DELETE_ARRAY(p) {if(p) {delete [] p; p = nullptr;}}
+#define VERUS_SMART_DELETE(p)       {if(p) {delete p;     p = nullptr;}}
+#define VERUS_SMART_DELETE_ARRAY(p) {if(p) {delete [] p;  p = nullptr;}}
+#define VERUS_SMART_RELEASE(p)      {if(p) {p->Release(); p = nullptr;}}
 
 #define _C(x) ((x).c_str())
 
@@ -79,3 +80,11 @@
 #define VERUS_MAX_NUM_BONES 128
 #define VERUS_MAX_NUM_RT 8
 #define VERUS_MAX_NUM_VB 8
+
+#define VERUS_COLOR_BLEND_OFF          "off"
+#define VERUS_COLOR_BLEND_ALPHA        "s*(sa)+d*(1-sa)"
+#define VERUS_COLOR_BLEND_PA           "s*(1)+d*(1-sa)"
+#define VERUS_COLOR_BLEND_ADD          "s*(1)+d*(1)"
+#define VERUS_COLOR_BLEND_MUL          "s*(dc)+d*(0)"
+#define VERUS_COLOR_BLEND_FILTER       "s*(0)+d*(sc)"
+#define VERUS_COLOR_BLEND_TINTED_GLASS "s*(sc)+d*(1-sc)"

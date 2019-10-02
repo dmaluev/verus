@@ -57,11 +57,7 @@ void Camera::UpdateFFP()
 
 Vector4 Camera::GetZNearFarEx() const
 {
-	//VERUS_QREF_RENDER;
-	//if (CGL::RENDERER_OPENGL != render.GetRenderer())
-	//	return Vector4(_zNear, _zFar, _zFar / (_zFar - _zNear), _zFar*_zNear / (_zNear - _zFar));
-	//else
-	return Vector4(_zNear, _zFar, (_zFar + _zNear) / (_zFar - _zNear), -2 * _zFar*_zNear / (_zFar - _zNear));
+	return Vector4(_zNear, _zFar, _zFar / (_zFar - _zNear), _zFar*_zNear / (_zNear - _zFar));
 }
 
 void Camera::SetFrustumNear(float zNear)

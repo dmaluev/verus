@@ -275,23 +275,6 @@ void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout
 		index, vkimb);
 }
 
-void CommandBufferVulkan::Clear(ClearFlags clearFlags)
-{
-	VERUS_QREF_RENDERER;
-	if (clearFlags & ClearFlags::color)
-	{
-		VkClearColorValue clearColorValue;
-		memcpy(&clearColorValue, renderer.GetClearColor().ToPointer(), sizeof(clearColorValue));
-		VkImageSubresourceRange vkisr = {};
-		vkisr.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		vkisr.baseMipLevel = 0;
-		vkisr.levelCount = 1;
-		vkisr.baseArrayLayer = 0;
-		vkisr.layerCount = 1;
-		vkCmdClearColorImage(GetVkCommandBuffer(), nullptr, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValue, 1, &vkisr);
-	}
-}
-
 void CommandBufferVulkan::Draw(int vertexCount, int instanceCount, int firstVertex, int firstInstance)
 {
 	vkCmdDraw(GetVkCommandBuffer(), vertexCount, instanceCount, firstVertex, firstInstance);

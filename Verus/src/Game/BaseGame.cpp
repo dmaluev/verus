@@ -12,11 +12,11 @@ struct MyRendererDelegate : CGI::RendererDelegate
 
 	virtual void Renderer_OnDraw() override
 	{
-		VERUS_QREF_RENDERER;
-		VERUS_QREF_TIMER;
-		const float x = fmod(timer.GetTime(), 1.f);
-		renderer.SetClearColor(Vector4(x, 0.5f, 0.25f, 1.f));
-		renderer->Clear(0);
+		//VERUS_QREF_RENDERER;
+		//VERUS_QREF_TIMER;
+		//const float x = fmod(timer.GetTime(), 1.f);
+		//renderer.SetClearColor(Vector4(x, 0.5f, 0.25f, 1.f));
+		//renderer->Clear(0);
 		_p->BaseGame_Draw();
 	}
 
@@ -113,6 +113,7 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS)
 	//sm.SetCamera(&_p->_camera);
 
 	renderer->BeginFrame(false); // Begin recording a command buffer.
+	renderer.InitCmd();
 	BaseGame_LoadContent();
 	renderer->EndFrame(false); // End recording a command buffer.
 }

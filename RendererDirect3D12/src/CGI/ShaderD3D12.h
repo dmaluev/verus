@@ -30,6 +30,7 @@ namespace verus
 			{
 				Vector<Sampler>        _vSamplers;
 				ComPtr<ID3D12Resource> _pConstantBuffer;
+				D3D12MA::Allocation*   _pMaAllocation = nullptr;
 				DescriptorHeap         _dhDynamicOffsets;
 				BYTE*                  _pMappedData = nullptr;
 				const void*            _pSrc = nullptr;

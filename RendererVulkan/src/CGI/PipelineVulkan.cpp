@@ -30,6 +30,14 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	RcGeometryVulkan geo = static_cast<RcGeometryVulkan>(*desc._geometry);
 	RcShaderVulkan shader = static_cast<RcShaderVulkan>(*desc._shader);
 
+	int attachmentCount = 0;
+	for (const auto& x : desc._colorAttachBlendEqs)
+	{
+		if (x.empty())
+			break;
+		attachmentCount++;
+	}
+
 	Vector<VkPipelineShaderStageCreateInfo> vShaderStages;
 	vShaderStages.reserve(shader.GetNumStages(desc._shaderBranch));
 	auto PushShaderStage = [&vShaderStages, &shader, &desc](CSZ name, BaseShader::Stage stage, VkShaderStageFlagBits shaderStageFlagBits)
@@ -64,8 +72,8 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 
 	VkPipelineViewportStateCreateInfo viewportState = {};
 	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-	viewportState.viewportCount = 1;
-	viewportState.scissorCount = 1;
+	viewportState.viewportCount = desc._multiViewport;
+	viewportState.scissorCount = desc._multiViewport;
 
 	VkPipelineRasterizationStateCreateInfo rasterizationState = {};
 	rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -92,15 +100,81 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	depthStencilState.depthCompareOp = ToNativeCompareOp(desc._depthCompareOp);
 	depthStencilState.stencilTestEnable = desc._stencilTestEnable;
 
-	VkPipelineColorBlendAttachmentState vkpcbas = {};
-	vkpcbas.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	vkpcbas.blendEnable = VK_FALSE;
+	VkPipelineColorBlendAttachmentState vkpcbas[VERUS_MAX_NUM_RT] = {};
+	VERUS_FOR(i, attachmentCount)
+	{
+		CSZ p = _C(desc._colorAttachWriteMasks[i]);
+		while (*p)
+		{
+			switch (*p)
+			{
+			case 'r': vkpcbas[i].colorWriteMask |= VK_COLOR_COMPONENT_R_BIT; break;
+			case 'g': vkpcbas[i].colorWriteMask |= VK_COLOR_COMPONENT_G_BIT; break;
+			case 'b': vkpcbas[i].colorWriteMask |= VK_COLOR_COMPONENT_B_BIT; break;
+			case 'a': vkpcbas[i].colorWriteMask |= VK_COLOR_COMPONENT_A_BIT; break;
+			}
+			p++;
+		}
+
+		if (desc._colorAttachBlendEqs[i] != "off")
+		{
+			vkpcbas[i].blendEnable = VK_TRUE;
+
+			static const VkBlendFactor bfs[] =
+			{
+				VK_BLEND_FACTOR_ZERO,
+				VK_BLEND_FACTOR_ONE,
+				VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA,
+				VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR,
+				VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR,
+				VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+				VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR,
+				VK_BLEND_FACTOR_DST_ALPHA,
+				VK_BLEND_FACTOR_DST_COLOR,
+				VK_BLEND_FACTOR_CONSTANT_COLOR,
+				VK_BLEND_FACTOR_SRC_ALPHA,
+				VK_BLEND_FACTOR_SRC_ALPHA_SATURATE,
+				VK_BLEND_FACTOR_SRC_COLOR
+			};
+			static const VkBlendOp ops[] =
+			{
+				VK_BLEND_OP_ADD,
+				VK_BLEND_OP_SUBTRACT,
+				VK_BLEND_OP_REVERSE_SUBTRACT,
+				VK_BLEND_OP_MIN,
+				VK_BLEND_OP_MAX
+			};
+
+			int colorBlendOp = -1;
+			int alphaBlendOp = -1;
+			int srcColorBlendFactor = -1;
+			int dstColorBlendFactor = -1;
+			int srcAlphaBlendFactor = -1;
+			int dstAlphaBlendFactor = -1;
+
+			BaseRenderer::SetAlphaBlendHelper(
+				_C(desc._colorAttachBlendEqs[i]),
+				colorBlendOp,
+				alphaBlendOp,
+				srcColorBlendFactor,
+				dstColorBlendFactor,
+				srcAlphaBlendFactor,
+				dstAlphaBlendFactor);
+
+			vkpcbas[i].srcColorBlendFactor = bfs[srcColorBlendFactor];
+			vkpcbas[i].dstColorBlendFactor = bfs[dstColorBlendFactor];
+			vkpcbas[i].colorBlendOp = ops[colorBlendOp];
+			vkpcbas[i].srcAlphaBlendFactor = bfs[srcAlphaBlendFactor];
+			vkpcbas[i].dstAlphaBlendFactor = bfs[dstAlphaBlendFactor];
+			vkpcbas[i].alphaBlendOp = ops[alphaBlendOp];
+		}
+	}
 	VkPipelineColorBlendStateCreateInfo colorBlendState = {};
 	colorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	colorBlendState.logicOpEnable = VK_FALSE;
-	colorBlendState.logicOp = VK_LOGIC_OP_COPY;
-	colorBlendState.attachmentCount = 1;
-	colorBlendState.pAttachments = &vkpcbas;
+	colorBlendState.logicOp = VK_LOGIC_OP_CLEAR;
+	colorBlendState.attachmentCount = attachmentCount;
+	colorBlendState.pAttachments = vkpcbas;
 	colorBlendState.blendConstants[0] = 1;
 	colorBlendState.blendConstants[1] = 1;
 	colorBlendState.blendConstants[2] = 1;

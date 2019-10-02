@@ -1,7 +1,8 @@
 VERUS_UBUFFER UB_PerFrame
 {
+	mataff _matQuad;
+	mataff _matToUV;
 	mataff _matV;
-	matrix _matP;
 	matrix _matVP;
 	matrix _matInvP;
 	float4 _toUV;

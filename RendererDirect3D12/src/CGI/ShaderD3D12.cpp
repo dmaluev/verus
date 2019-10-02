@@ -180,6 +180,7 @@ void ShaderD3D12::Done()
 {
 	for (auto& dsd : _vDescriptorSetDesc)
 	{
+		VERUS_SMART_RELEASE(dsd._pMaAllocation);
 		VERUS_COM_RELEASE_CHECK(dsd._pConstantBuffer.Get());
 		dsd._dhDynamicOffsets.Reset();
 		dsd._pConstantBuffer.Reset();
@@ -219,14 +220,16 @@ void ShaderD3D12::CreateDescriptorSet(int setNumber, const void* pSrc, int size,
 	if (capacity > 0)
 	{
 		const UINT64 bufferSize = dsd._capacityInBytes * BaseRenderer::s_ringBufferSize;
-		if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
+		D3D12MA::ALLOCATION_DESC allocDesc = {};
+		allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+			&allocDesc,
 			&CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
+			&dsd._pMaAllocation,
 			IID_PPV_ARGS(&dsd._pConstantBuffer))))
-			throw VERUS_RUNTIME_ERROR << "CreateCommittedResource(), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
 
 		const int num = dsd._capacity*BaseRenderer::s_ringBufferSize;
 		dsd._dhDynamicOffsets.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, num);
@@ -308,7 +311,10 @@ void ShaderD3D12::CreatePipelineLayout()
 						}
 						else
 						{
-							D3D12_STATIC_SAMPLER_DESC samplerDesc = pRendererD3D12->GetStaticSamplerDesc(dsd._vSamplers[i]);
+							Sampler s = dsd._vSamplers[i];
+							if (Sampler::input == s)
+								s = Sampler::nearest2D;
+							D3D12_STATIC_SAMPLER_DESC samplerDesc = pRendererD3D12->GetStaticSamplerDesc(s);
 							samplerDesc.ShaderRegister = i + 1;
 							samplerDesc.RegisterSpace = space;
 							samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;

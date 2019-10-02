@@ -4,7 +4,7 @@
 #include "LibDepth.hlsl"
 #include "DS_Compose.inc.hlsl"
 
-ConstantBuffer<UB_ComposePerObject> g_composePerObject : register(b0, space0);
+ConstantBuffer<UB_ComposePerObject> g_ubComposePerObject : register(b0, space0);
 
 Texture2D    g_texGBuffer0 : register(t1, space0);
 SamplerState g_samGBuffer0 : register(s1, space0);
@@ -41,8 +41,8 @@ VSO mainVS(VSI si)
 	VSO so;
 
 	// Standard quad:
-	so.pos = float4(mul(si.pos, g_composePerObject._matW), 1);
-	so.tc0 = mul(si.pos, g_composePerObject._matV).xy;
+	so.pos = float4(mul(si.pos, g_ubComposePerObject._matW), 1);
+	so.tc0 = mul(si.pos, g_ubComposePerObject._matV).xy;
 
 	return so;
 }
@@ -53,9 +53,12 @@ FSO mainFS(VSO si)
 {
 	FSO so;
 
+	const float3 colorAmbient = g_ubComposePerObject._colorAmbient.rgb;
+
 	const float4 rawGBuffer0 = g_texGBuffer0.Sample(g_samGBuffer0, si.tc0);
 	const float1 rawGBuffer1 = g_texGBuffer1.Sample(g_samGBuffer1, si.tc0).r; // Depth for fog.
 	const float4 rawGBuffer2 = g_texGBuffer2.Sample(g_samGBuffer2, si.tc0);
+	const float4 rawGBuffer3 = g_texGBuffer3.Sample(g_samGBuffer3, si.tc0);
 	const float3 normalWV = DS_GetNormal(rawGBuffer2);
 	const float2 emission = DS_GetEmission(rawGBuffer2);
 
@@ -68,15 +71,16 @@ FSO mainFS(VSO si)
 
 	const float3 albedo = rawGBuffer0.rgb;
 
-	const float depth = ToLinearDepth(rawGBuffer1, g_composePerObject._zNearFarEx);
-	const float fog = ComputeFog(depth, g_composePerObject._fogColor.a);
-	const float3 normalW = mul(normalWV, (float3x3)g_composePerObject._matInvV);
-	const float grey = Greyscale(g_composePerObject._colorAmbient);
-	const float3 colorGround = lerp(g_composePerObject._colorAmbient, float3(1, 0.88, 0.47)*grey, saturate(grey*14.0));
-	const float3 colorAmbient = lerp(colorGround, g_composePerObject._colorAmbient, saturate(normalW.y*2.0 + 0.5));
+	const float depth = ToLinearDepth(rawGBuffer1, g_ubComposePerObject._zNearFarEx);
+	const float fog = ComputeFog(depth, g_ubComposePerObject._fogColor.a);
+
+	const float3 normalW = mul(normalWV, (float3x3)g_ubComposePerObject._matInvV);
+	const float grey = Greyscale(colorAmbient);
+	const float3 colorGround = lerp(colorAmbient, float3(1, 0.88, 0.47)*grey, saturate(grey*14.0));
+	const float3 colorAmbientFinal = lerp(colorGround, colorAmbient, saturate(normalW.y*2.0 + 0.5));
 	const float3 color = lerp(
-		ApplyEmission(albedo, emission.x)*saturate(rawAccDiff.rgb*ssaoDiff + colorAmbient * ssaoAmb) + rawAccSpec.rgb*ssaoSpec,
-		g_composePerObject._fogColor.rgb,
+		ApplyEmission(albedo, emission.x)*saturate(rawAccDiff.rgb*ssaoDiff + colorAmbientFinal * ssaoAmb) + rawAccSpec.rgb*ssaoSpec,
+		g_ubComposePerObject._fogColor.rgb,
 		fog);
 
 	so.color.rgb = color;

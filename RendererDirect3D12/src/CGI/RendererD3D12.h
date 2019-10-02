@@ -16,6 +16,7 @@ namespace verus
 
 			ComPtr<ID3D12Device3>             _pDevice;
 			ComPtr<ID3D12CommandQueue>        _pCommandQueue;
+			D3D12MA::Allocator*               _pMaAllocator = nullptr;
 			ComPtr<IDXGISwapChain4>           _pSwapChain;
 			Vector<ComPtr<ID3D12Resource>>    _vSwapChainBuffers;
 			DescriptorHeap                    _dhSwapChainBuffersRTVs;
@@ -59,6 +60,7 @@ namespace verus
 			void CreateSamplers();
 
 			ID3D12Device3* GetD3DDevice() const { return _pDevice.Get(); }
+			D3D12MA::Allocator* GetMaAllocator() const { return _pMaAllocator; }
 			ID3D12CommandAllocator* GetD3DCommandAllocator(int ringBufferIndex) const { return _mapCommandAllocators[ringBufferIndex].at(std::this_thread::get_id()).Get(); }
 			D3D12_STATIC_SAMPLER_DESC GetStaticSamplerDesc(Sampler s) const;
 
@@ -69,7 +71,6 @@ namespace verus
 			virtual void BeginFrame(bool present) override;
 			virtual void EndFrame(bool present) override;
 			virtual void Present() override;
-			virtual void Clear(UINT32 flags) override;
 
 			virtual void WaitIdle() override;
 

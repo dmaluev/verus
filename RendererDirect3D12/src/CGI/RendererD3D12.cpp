@@ -55,6 +55,7 @@ void RendererD3D12::Done()
 	_pSwapChain.Reset();
 	VERUS_COM_RELEASE_CHECK(_pCommandQueue.Get());
 	_pCommandQueue.Reset();
+	VERUS_SMART_RELEASE(_pMaAllocator);
 	VERUS_COM_RELEASE_CHECK(_pDevice.Get());
 	_pDevice.Reset();
 
@@ -133,6 +134,11 @@ void RendererD3D12::InitD3D()
 
 	if (FAILED(hr = D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&_pDevice))))
 		throw VERUS_RUNTIME_ERROR << "D3D12CreateDevice(), hr=" << VERUS_HR(hr);
+
+	D3D12MA::ALLOCATOR_DESC allocatorDesc = {};
+	allocatorDesc.pDevice = _pDevice.Get();
+	if (FAILED(hr = D3D12MA::CreateAllocator(&allocatorDesc, &_pMaAllocator)))
+		throw VERUS_RUNTIME_ERROR << "CreateAllocator(), hr=" << VERUS_HR(hr);
 
 #if defined(_DEBUG) || defined(VERUS_DEBUG)
 	ComPtr<ID3D12InfoQueue> pInfoQueue;
@@ -381,15 +387,6 @@ void RendererD3D12::Present()
 	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
 }
 
-void RendererD3D12::Clear(UINT32 flags)
-{
-	VERUS_QREF_RENDERER;
-
-	//auto handle = _dhSwapChainBuffersRTVs.AtCPU(_swapChainBufferIndex);
-	//static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->ClearRenderTargetView(handle, renderer.GetClearColor().ToPointer(), 0, nullptr);
-	//static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->OMSetRenderTargets(1, &handle, FALSE, nullptr);
-}
-
 void RendererD3D12::WaitIdle()
 {
 	QueueWaitIdle();
@@ -604,11 +601,20 @@ int RendererD3D12::CreateFramebuffer(int renderPassID, std::initializer_list<Tex
 	{
 		RP::D3DFramebufferSubpass fs;
 
-		int numRes = Utils::Cast32(subpass._vColor.size());
+		int numRes = Utils::Cast32(subpass._vInput.size() + subpass._vColor.size());
 		if (subpass._depthStencil._index >= 0)
 			numRes++;
 		fs._vResources.reserve(numRes);
 
+		if (!subpass._vInput.empty())
+		{
+			int index = 0;
+			for (const auto& ref : subpass._vInput)
+			{
+				fs._vResources.push_back(GetResource(ref._index));
+				index++;
+			}
+		}
 		if (!subpass._vColor.empty())
 		{
 			fs._dhRTVs.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, Utils::Cast32(subpass._vColor.size()));

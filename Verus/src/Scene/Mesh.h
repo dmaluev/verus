@@ -54,6 +54,7 @@ namespace verus
 			void Bind(CGI::CommandBufferPtr cb, UINT32 bindingsFilter);
 
 			static CGI::ShaderPtr GetShader() { return s_shader; }
+			static UB_PerMaterial& GetUbPerMaterial() { return s_ubPerMaterial; }
 			void UpdateUniformBufferPerFrame();
 			void UpdateUniformBufferPerMaterial();
 			void UpdateUniformBufferPerMesh();

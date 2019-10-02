@@ -53,7 +53,6 @@ namespace verus
 			virtual void BeginFrame(bool present = true) = 0;
 			virtual void EndFrame(bool present = true) = 0;
 			virtual void Present() = 0;
-			virtual void Clear(UINT32 flags) = 0;
 
 			virtual void WaitIdle() = 0;
 
@@ -74,6 +73,15 @@ namespace verus
 			virtual int CreateFramebuffer(int renderPassID, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex = -1) = 0;
 			virtual void DeleteRenderPass(int id) = 0;
 			virtual void DeleteFramebuffer(int id) = 0;
+
+			static void SetAlphaBlendHelper(
+				CSZ sz,
+				int& colorBlendOp,
+				int& alphaBlendOp,
+				int& srcColorBlendFactor,
+				int& dstColorBlendFactor,
+				int& srcAlphaBlendFactor,
+				int& dstAlphaBlendFactor);
 		};
 		VERUS_TYPEDEFS(BaseRenderer);
 	}

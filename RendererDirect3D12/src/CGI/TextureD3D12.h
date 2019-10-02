@@ -6,15 +6,21 @@ namespace verus
 	{
 		class TextureD3D12 : public BaseTexture
 		{
-			ComPtr<ID3D12Resource>         _pResource;
-			ComPtr<ID3D12Resource>         _pResourceUAV;
-			Vector<ComPtr<ID3D12Resource>> _vStagingBuffers;
-			DescriptorHeap                 _dhSRV;
-			DescriptorHeap                 _dhUAV;
-			DescriptorHeap                 _dhRTV;
-			DescriptorHeap                 _dhDSV;
-			DescriptorHeap                 _dhSampler;
-			DestroyStaging                 _destroyStagingBuffers;
+			struct ResourceEx
+			{
+				ComPtr<ID3D12Resource> _pResource;
+				D3D12MA::Allocation*   _pMaAllocation = nullptr;
+			};
+
+			ResourceEx         _resource;
+			ResourceEx         _resourceUAV;
+			Vector<ResourceEx> _vStagingBuffers;
+			DescriptorHeap     _dhSRV;
+			DescriptorHeap     _dhUAV;
+			DescriptorHeap     _dhRTV;
+			DescriptorHeap     _dhDSV;
+			DescriptorHeap     _dhSampler;
+			DestroyStaging     _destroyStagingBuffers;
 
 		public:
 			TextureD3D12();
@@ -33,7 +39,9 @@ namespace verus
 
 			void DestroyStagingBuffers();
 
-			ID3D12Resource* GetD3DResource() const { return _pResource.Get(); }
+			void CreateSampler();
+
+			ID3D12Resource* GetD3DResource() const { return _resource._pResource.Get(); }
 
 			RcDescriptorHeap GetDescriptorHeapSRV() const { return _dhSRV; }
 			RcDescriptorHeap GetDescriptorHeapUAV() const { return _dhUAV; }

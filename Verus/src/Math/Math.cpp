@@ -197,3 +197,28 @@ int Math::ComputeMipLevels(int w, int h, int d)
 {
 	return 1 + static_cast<int>(floor(log2(Max(Max(w, h), d))));
 }
+
+Transform3 Math::QuadMatrix(float x, float y, float w, float h)
+{
+	const Transform3 matT = Transform3::translation(Vector3(x * 2 - 1, y*-2 + 1));
+	const Transform3 mat = matT * VMath::prependScale(Vector3(w, h), Transform3::translation(Vector3(1, -1, 0)));
+	if (CGI::Gapi::vulkan == CGI::Renderer::I()->GetGapi())
+		return VMath::prependScale(Vector3(1, -1, 1), mat);
+	else
+		return mat;
+}
+
+Transform3 Math::ToUVMatrix(float zOffset, RcVector4 texSize, PcVector4 pTileSize)
+{
+	Transform3 m = Transform3::identity();
+	m[0][0] = m[3][0] = m[3][1] = 0.5f;
+	m[1][1] = -0.5f;
+	m[3][2] = zOffset;
+
+	if (pTileSize)
+		m = VMath::prependScale(Vector3(
+			texSize.getX()*pTileSize->getZ(),
+			texSize.getY()*pTileSize->getW(), 1), m);
+
+	return m;
+}

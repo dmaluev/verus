@@ -267,10 +267,12 @@ void ShaderVulkan::CreatePipelineLayout()
 				_poolComplexUniformBuffers += dsd._capacity;
 				for (auto s : dsd._vSamplers)
 				{
-					if (Sampler::storage == s)
-						_poolComplexStorageImages += dsd._capacity;
-					else
-						_poolComplexImageSamplers += dsd._capacity;
+					switch (s)
+					{
+					case Sampler::storage: _poolComplexStorageImages += dsd._capacity; break;
+					case Sampler::input: _poolComplexInputAttachments += dsd._capacity; break;
+					default: _poolComplexImageSamplers += dsd._capacity;
+					}
 				}
 			}
 
@@ -289,8 +291,12 @@ void ShaderVulkan::CreatePipelineLayout()
 				{
 					VkDescriptorSetLayoutBinding vkdslb = {};
 					vkdslb.binding = i + 1;
-					vkdslb.descriptorType = (Sampler::storage == dsd._vSamplers[i]) ?
-						VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+					switch (dsd._vSamplers[i])
+					{
+					case Sampler::storage: vkdslb.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; break;
+					case Sampler::input: vkdslb.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT; break;
+					default: vkdslb.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+					}
 					vkdslb.descriptorCount = 1;
 					vkdslb.stageFlags = dsd._stageFlags;
 					if (Sampler::custom != dsd._vSamplers[i])
@@ -421,8 +427,12 @@ int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list
 		vkwds.dstBinding = index + 1;
 		vkwds.dstArrayElement = 0;
 		vkwds.descriptorCount = 1;
-		vkwds.descriptorType = (Sampler::storage == dsd._vSamplers[index]) ?
-			VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		switch (dsd._vSamplers[index])
+		{
+		case Sampler::storage: vkwds.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; break;
+		case Sampler::input: vkwds.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT; break;
+		default: vkwds.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		}
 		vkwds.pImageInfo = &vDescriptorImageInfo[index];
 		vWriteDescriptorSet.push_back(vkwds);
 		index++;
@@ -476,21 +486,35 @@ void ShaderVulkan::CreateDescriptorPool()
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
-	VkDescriptorPoolSize vkdps[3] = {};
-	vkdps[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-	vkdps[0].descriptorCount = _poolComplexUniformBuffers + Utils::Cast32(_vDescriptorSetLayouts.size());
-	vkdps[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	vkdps[1].descriptorCount = _poolComplexImageSamplers;
-	vkdps[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	vkdps[2].descriptorCount = _poolComplexStorageImages;
 	VkDescriptorPoolCreateInfo vkdpci = {};
 	vkdpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	vkdpci.maxSets = vkdps[0].descriptorCount;
 	vkdpci.poolSizeCount = 1;
+	VkDescriptorPoolSize vkdps[4] = {};
+	vkdps[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+	vkdps[0].descriptorCount = _poolComplexUniformBuffers + Utils::Cast32(_vDescriptorSetLayouts.size());
+	vkdpci.maxSets = vkdps[0].descriptorCount;
+	int index = 1;
 	if (_poolComplexImageSamplers > 0)
+	{
+		vkdps[index].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		vkdps[index].descriptorCount = _poolComplexImageSamplers;
 		vkdpci.poolSizeCount++;
+		index++;
+	}
 	if (_poolComplexStorageImages > 0)
+	{
+		vkdps[index].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		vkdps[index].descriptorCount = _poolComplexStorageImages;
 		vkdpci.poolSizeCount++;
+		index++;
+	}
+	if (_poolComplexInputAttachments > 0)
+	{
+		vkdps[index].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		vkdps[index].descriptorCount = _poolComplexInputAttachments;
+		vkdpci.poolSizeCount++;
+		index++;
+	}
 	vkdpci.pPoolSizes = vkdps;
 	if (VK_SUCCESS != (res = vkCreateDescriptorPool(pRendererVulkan->GetVkDevice(), &vkdpci, pRendererVulkan->GetAllocator(), &_descriptorPool)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateDescriptorPool(), res=" << res;

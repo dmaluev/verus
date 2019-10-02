@@ -197,12 +197,12 @@ VkFormat CGI::ToNativeFormat(IeUsage usage, IeType type, int components)
 	};
 	switch (type)
 	{
-	case IeType::_float:
+	case IeType::floats:
 	{
 		return floats[index];
 	}
 	break;
-	case IeType::_ubyte:
+	case IeType::ubytes:
 	{
 		VERUS_RT_ASSERT(4 == components);
 		switch (usage)
@@ -213,7 +213,7 @@ VkFormat CGI::ToNativeFormat(IeUsage usage, IeType type, int components)
 		return bytes[index];
 	}
 	break;
-	case IeType::_short:
+	case IeType::shorts:
 	{
 		VERUS_RT_ASSERT(2 == components || 4 == components);
 		switch (usage)

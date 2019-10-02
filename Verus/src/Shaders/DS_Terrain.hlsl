@@ -1,9 +1,10 @@
 #include "Lib.hlsl"
+#include "LibDeferredShading.hlsl"
 #include "DS_Terrain.inc.hlsl"
 
 #define HEIGHT_SCALE 0.01
 
-ConstantBuffer<UB_DrawDepth> g_drawDepth : register(b0, space0);
+ConstantBuffer<UB_DrawDepth> g_ubDrawDepth : register(b0, space0);
 
 Texture2D      g_texHeight    : register(t1, space0);
 SamplerState   g_samHeight    : register(s1, space0);
@@ -26,13 +27,9 @@ struct VSI
 
 struct VSO
 {
-	float4 pos : SV_Position;
+	float4 pos           : SV_Position;
 	float4 tcLayer_tcMap : TEXCOORD0;
-};
-
-struct FSO
-{
-	float4 color : SV_Target0;
+	float2 depth         : TEXCOORD1;
 };
 
 #ifdef _VS
@@ -40,8 +37,8 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
-	const float3 posEye = g_drawDepth._posEye_mapSideInv.xyz;
-	const float mapSideInv = g_drawDepth._posEye_mapSideInv.w;
+	const float3 posEye = g_ubDrawDepth._posEye_mapSideInv.xyz;
+	const float mapSideInv = g_ubDrawDepth._posEye_mapSideInv.w;
 
 	const float2 edgeCorrection = si.pos.yw;
 	si.pos.yw = 0.0;
@@ -59,28 +56,49 @@ VSO mainVS(VSI si)
 	const float yB = g_texHeight.SampleLevel(g_samHeight, tcMap + halfTexelAB.yy, geomipsLodNext).r + bestPrecision;
 	pos.y = lerp(yA, yB, geomipsLodFrac);
 
-	so.pos = mul(float4(pos, 1), g_drawDepth._matVP);
-
+	so.pos = mul(float4(pos, 1), g_ubDrawDepth._matVP);
 	so.tcLayer_tcMap.xy = pos.xz * (1.0 / 8.0);
 	so.tcLayer_tcMap.zw = (pos.xz + 0.5)*mapSideInv + 0.5; // Texel's center.
+	so.depth = so.pos.zw;
 
 	return so;
 }
 #endif
 
 #ifdef _FS
-FSO mainFS(VSO si)
+DS_FSO mainFS(VSO si)
 {
-	FSO so;
+	DS_FSO so;
+
+	const float3 rand = Rand(si.pos.xy);
 
 	const float2 tcLayer = si.tcLayer_tcMap.xy;
 	const float2 tcMap = si.tcLayer_tcMap.zw;
 
-	const float4 normal = g_texNormal.Sample(g_samNormal, tcMap);
+	const float4 rawAlbedo = g_texLayers.Sample(g_samLayers, float3(tcLayer, 1.0));
 
-	const float4 albedo = g_texLayers.Sample(g_samLayers, float3(tcLayer, 1.0));
+	// <Basis>
+	const float4 rawBasis = g_texNormal.Sample(g_samNormal, tcMap);
+	const float4 basis = rawBasis * 2.0 - 1.0;
+	float3 basisNrm = float3(basis.x, 0, basis.y);
+	float3 basisTan = float3(0, basis.z, basis.w);
+	basisNrm.y = CalcNormalZ(basisNrm.xz);
+	basisTan.x = CalcNormalZ(basisTan.yz);
+	const float3 basisBin = cross(basisTan, basisNrm);
+	_TBN_SPACE(
+		mul(basisTan, (float3x3)g_ubDrawDepth._matWV),
+		mul(basisBin, (float3x3)g_ubDrawDepth._matWV),
+		mul(basisNrm, (float3x3)g_ubDrawDepth._matWV));
+	// </Basis>
 
-	so.color = float4(albedo.xyz * normal.r, 1);
+	// <Normal>
+	const float3 normalWV = mul(float3(0, 0, 1), matFromTBN);
+	// </Normal>
+
+	DS_Test(so, 0.0, 0.5, 16.0);
+	DS_SetAlbedo(so, rawAlbedo.rgb);
+	DS_SetDepth(so, si.depth.x / si.depth.y);
+	DS_SetNormal(so, normalWV + NormalDither(rand));
 
 	return so;
 }

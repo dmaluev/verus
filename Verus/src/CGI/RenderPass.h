@@ -39,7 +39,6 @@ namespace verus
 				Attachment& StoreOpDontCare();
 				Attachment& Layout(ImageLayout whenBegins, ImageLayout whenEnds);
 				Attachment& Layout(ImageLayout both);
-				Attachment& FinalLayout(ImageLayout whenEnds);
 			};
 			VERUS_TYPEDEFS(Attachment);
 
@@ -77,10 +76,13 @@ namespace verus
 			class Dependency
 			{
 			public:
-				Dependency();
+				CSZ _srcSubpass = nullptr;
+				CSZ _dstSubpass = nullptr;
+				int _mode = 0;
 
-				Dependency& Src(CSZ name);
-				Dependency& Dst(CSZ name);
+				Dependency(CSZ src = nullptr, CSZ dst = nullptr);
+
+				Dependency& Mode(int mode);
 			};
 			VERUS_TYPEDEFS(Dependency);
 		}

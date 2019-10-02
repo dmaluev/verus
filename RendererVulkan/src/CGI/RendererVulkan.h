@@ -122,7 +122,6 @@ namespace verus
 			virtual void BeginFrame(bool present) override;
 			virtual void EndFrame(bool present) override;
 			virtual void Present() override;
-			virtual void Clear(UINT32 flags) override;
 
 			virtual void WaitIdle() override;
 

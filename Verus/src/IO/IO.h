@@ -8,6 +8,7 @@
 #include "Async.h"
 #include "Json.h"
 #include "Xml.h"
+#include "Dictionary.h"
 
 namespace verus
 {

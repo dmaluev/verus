@@ -60,6 +60,9 @@
     <ClInclude Include="src\CGI\RenderPass.h">
       <Filter>src\CGI</Filter>
     </ClInclude>
+    <ClInclude Include="src\ThirdParty\D3D12MemAlloc.h">
+      <Filter>src\ThirdParty</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -95,5 +98,13 @@
     <ClCompile Include="src\CGI\RenderPass.cpp">
       <Filter>src\CGI</Filter>
     </ClCompile>
+    <ClCompile Include="src\ThirdParty\D3D12MemAlloc.cpp">
+      <Filter>src\ThirdParty</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="src\ThirdParty\D3D12MemAlloc.natvis">
+      <Filter>src\ThirdParty</Filter>
+    </Natvis>
   </ItemGroup>
 </Project>

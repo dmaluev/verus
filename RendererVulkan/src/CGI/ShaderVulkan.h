@@ -39,6 +39,7 @@ namespace verus
 			int                           _poolComplexUniformBuffers = 0;
 			int                           _poolComplexImageSamplers = 0;
 			int                           _poolComplexStorageImages = 0;
+			int                           _poolComplexInputAttachments = 0;
 			bool                          _compute = false;
 
 		public:

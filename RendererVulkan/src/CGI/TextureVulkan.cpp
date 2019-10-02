@@ -28,6 +28,8 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	_desc._mipLevels = desc._mipLevels ? desc._mipLevels : Math::ComputeMipLevels(desc._width, desc._height, desc._depth);
 	_bytesPerPixel = FormatToBytesPerPixel(desc._format);
 	const bool depthFormat = IsDepthFormat(desc._format);
+	const bool renderTarget = (_desc._flags & TextureDesc::Flags::colorAttachment);
+	const bool inputAttach = (_desc._flags & TextureDesc::Flags::inputAttachment);
 
 	VkImageCreateInfo vkici = {};
 	vkici.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -45,9 +47,14 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	vkici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	if (depthFormat)
 		vkici.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+	if (renderTarget)
+		vkici.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	if (inputAttach)
+		vkici.usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+
 	pRendererVulkan->CreateImage(&vkici, VMA_MEMORY_USAGE_GPU_ONLY, _image, _vmaAllocation);
 
-	if (_desc._generateMips)
+	if (_desc._flags & TextureDesc::Flags::generateMips)
 	{
 		vkici.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 		pRendererVulkan->CreateImage(&vkici, VMA_MEMORY_USAGE_GPU_ONLY, _imageStorage, _vmaAllocationStorage);
@@ -85,29 +92,21 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	if (VK_SUCCESS != (res = vkCreateImageView(pRendererVulkan->GetVkDevice(), &vkivci, pRendererVulkan->GetAllocator(), &_imageView)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateImageView(), res=" << res;
 
-	VkSamplerCreateInfo vksci = {};
-	vksci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	vksci.magFilter = VK_FILTER_LINEAR;
-	vksci.minFilter = VK_FILTER_LINEAR;
-	vksci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	vksci.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	vksci.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	vksci.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	vksci.anisotropyEnable = VK_TRUE;
-	vksci.maxAnisotropy = 16;
-	vksci.compareEnable = VK_FALSE;
-	vksci.compareOp = VK_COMPARE_OP_ALWAYS;
-	vksci.minLod = 0;
-	vksci.maxLod = FLT_MAX;
-	vksci.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	if (VK_SUCCESS != (res = vkCreateSampler(pRendererVulkan->GetVkDevice(), &vksci, pRendererVulkan->GetAllocator(), &_sampler)))
-		throw VERUS_RUNTIME_ERROR << "vkCreateSampler(), res=" << res;
+	if (_desc._pSamplerDesc)
+		CreateSampler();
 
 	if (depthFormat)
 	{
 		CommandBufferVulkan commandBuffer;
 		commandBuffer.InitSingleTimeCommands();
 		commandBuffer.PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, ImageLayout::depthStencilAttachmentOptimal, 0, 0);
+		commandBuffer.DoneSingleTimeCommands();
+	}
+	if (renderTarget)
+	{
+		CommandBufferVulkan commandBuffer;
+		commandBuffer.InitSingleTimeCommands();
+		commandBuffer.PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, ImageLayout::shaderReadOnlyOptimal, 0, 0);
 		commandBuffer.DoneSingleTimeCommands();
 	}
 
@@ -157,17 +156,10 @@ void TextureVulkan::UpdateImage(int mipLevel, const void* p, int arrayLayer, Bas
 	memcpy(pData, p, bufferSize);
 	vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), sb._vmaAllocation);
 
-	int iw = w;
-	int ih = h;
-	if (IsBC(_desc._format))
-	{
-		iw = Math::Max(iw, 4);
-		ih = Math::Max(ih, 4);
-	}
 	if (!pCB)
 		pCB = &(*renderer.GetCommandBuffer());
 	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, ImageLayout::transferDstOptimal, mipLevel, arrayLayer);
-	pRendererVulkan->CopyBufferToImage(sb._buffer, _image, iw, ih, mipLevel, arrayLayer, pCB);
+	pRendererVulkan->CopyBufferToImage(sb._buffer, _image, w, h, mipLevel, arrayLayer, pCB);
 	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::transferDstOptimal, ImageLayout::shaderReadOnlyOptimal, mipLevel, arrayLayer);
 
 	_destroyStagingBuffers.Schedule();
@@ -175,7 +167,7 @@ void TextureVulkan::UpdateImage(int mipLevel, const void* p, int arrayLayer, Bas
 
 void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 {
-	VERUS_RT_ASSERT(_desc._generateMips);
+	VERUS_RT_ASSERT(_desc._flags & TextureDesc::Flags::generateMips);
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_VULKAN;
 
@@ -253,4 +245,98 @@ void TextureVulkan::DestroyStagingBuffers()
 	VERUS_QREF_RENDERER_VULKAN;
 	for (auto& x : _vStagingBuffers)
 		VERUS_VULKAN_DESTROY(x._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), x._buffer, x._vmaAllocation));
+}
+
+void TextureVulkan::CreateSampler()
+{
+	VERUS_QREF_RENDERER_VULKAN;
+	VERUS_QREF_CONST_SETTINGS;
+	VkResult res = VK_SUCCESS;
+
+	const bool tf = settings._gpuTrilinearFilter;
+
+	VkSamplerCreateInfo vksci = {};
+	vksci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+
+	if ('a' == _desc._pSamplerDesc->_filterMagMinMip[0])
+	{
+		if (settings._gpuAnisotropyLevel > 0)
+			vksci.anisotropyEnable = VK_TRUE;
+		vksci.magFilter = VK_FILTER_LINEAR;
+		vksci.minFilter = VK_FILTER_LINEAR;
+		vksci.mipmapMode = tf ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	}
+	else if ('s' == _desc._pSamplerDesc->_filterMagMinMip[0]) // Shadow map:
+	{
+		vksci.compareEnable = VK_TRUE;
+		vksci.compareOp = VK_COMPARE_OP_LESS;
+		if (settings._sceneShadowQuality >= App::Settings::ShadowQuality::filtered)
+		{
+			vksci.magFilter = VK_FILTER_LINEAR;
+			vksci.minFilter = VK_FILTER_LINEAR;
+		}
+		else
+		{
+			vksci.magFilter = VK_FILTER_NEAREST;
+			vksci.minFilter = VK_FILTER_NEAREST;
+		}
+	}
+	else
+	{
+		VERUS_FOR(i, 2)
+		{
+			VkFilter filter = VK_FILTER_NEAREST;
+			switch (_desc._pSamplerDesc->_filterMagMinMip[i])
+			{
+			case 'n': filter = VK_FILTER_NEAREST; break;
+			case 'l': filter = VK_FILTER_LINEAR; break;
+			}
+			switch (i)
+			{
+			case 0: vksci.magFilter = filter; break;
+			case 1: vksci.minFilter = filter; break;
+			}
+		}
+		vksci.mipmapMode = tf ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	}
+	vksci.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	vksci.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	vksci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	VERUS_FOR(i, 3)
+	{
+		if (!_desc._pSamplerDesc->_addressModeUVW[i])
+			break;
+		VkSamplerAddressMode sam = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		switch (_desc._pSamplerDesc->_addressModeUVW[i])
+		{
+		case 'r': sam = VK_SAMPLER_ADDRESS_MODE_REPEAT; break;
+		case 'm': sam = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT; break;
+		case 'c': sam = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE; break;
+		case 'b': sam = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER; break;
+		}
+		switch (i)
+		{
+		case 0: vksci.addressModeU = sam; break;
+		case 1: vksci.addressModeV = sam; break;
+		case 2: vksci.addressModeW = sam; break;
+		}
+	}
+	vksci.mipLodBias = _desc._pSamplerDesc->_mipLodBias;
+	vksci.maxAnisotropy = settings._gpuAnisotropyLevel;
+	vksci.minLod = _desc._pSamplerDesc->_minLod;
+	vksci.maxLod = _desc._pSamplerDesc->_maxLod;
+	if (_desc._pSamplerDesc->_borderColor.getX() < 0.5f)
+	{
+		if (_desc._pSamplerDesc->_borderColor.getW() < 0.5f)
+			vksci.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+		else
+			vksci.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+	}
+	else
+		vksci.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+
+	if (VK_SUCCESS != (res = vkCreateSampler(pRendererVulkan->GetVkDevice(), &vksci, pRendererVulkan->GetAllocator(), &_sampler)))
+		throw VERUS_RUNTIME_ERROR << "vkCreateSampler(), res=" << res;
+
+	_desc._pSamplerDesc = nullptr;
 }

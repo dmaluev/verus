@@ -152,27 +152,8 @@ bool KeyMapper::HandleSdlEvent(SDL_Event& event)
 void KeyMapper::Load(Action* pAction)
 {
 	StringStream ss;
-	//ss << CUtils::I().GetWritablePath() << "/Keys.xml";
-
-	tinyxml2::XMLDocument xmlDoc;
-
-	IO::File file;
-	if (file.Open(_C(ss.str()), "rb"))
-	{
-		if (xmlDoc.LoadFile(file.GetFile()))
-			xmlDoc.Clear();
-		file.Close();
-	}
-	tinyxml2::XMLHandle hDoc(&xmlDoc);
-	tinyxml2::XMLHandle hRoot = tinyxml2::XMLHandle(hDoc.FirstChildElement().ToElement());
-	if (!hRoot.ToElement())
-	{
-		tinyxml2::XMLElement* pRoot = xmlDoc.NewElement("keys");
-		xmlDoc.Clear();
-		xmlDoc.LinkEndChild(xmlDoc.NewDeclaration());
-		xmlDoc.LinkEndChild(pRoot);
-		//hRoot = pRoot;
-	}
+	ss << _C(Utils::I().GetWritablePath()) << "/Keys.xml";
+	IO::Xml xml(_C(ss.str()));
 }
 
 bool KeyMapper::IsKeyPressed(int id) const

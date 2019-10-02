@@ -383,6 +383,7 @@ void RendererVulkan::CreateDevice()
 	}
 	VkPhysicalDeviceFeatures physicalDeviceFeatures = {};
 	physicalDeviceFeatures.fillModeNonSolid = VK_TRUE;
+	physicalDeviceFeatures.multiViewport = VK_TRUE;
 	physicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
 	VkDeviceCreateInfo vkdci = {};
 	vkdci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -446,7 +447,7 @@ void RendererVulkan::CreateSwapChain()
 	vksci.imageExtent.width = settings._screenSizeWidth;
 	vksci.imageExtent.height = settings._screenSizeHeight;
 	vksci.imageArrayLayers = 1;
-	vksci.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	vksci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 	vksci.preTransform = swapChainInfo._surfaceCapabilities.currentTransform;
 	vksci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 	vksci.presentMode = settings._screenVSync ? VK_PRESENT_MODE_MAILBOX_KHR : VK_PRESENT_MODE_FIFO_KHR;
@@ -711,37 +712,6 @@ void RendererVulkan::Present()
 		throw VERUS_RUNTIME_ERROR << "vkQueuePresentKHR(), res=" << res;
 }
 
-void RendererVulkan::Clear(UINT32 flags)
-{
-	VERUS_QREF_RENDERER;
-
-	VkImageMemoryBarrier vkimb = {};
-	vkimb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	vkimb.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	vkimb.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	vkimb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	vkimb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	vkimb.image = _vSwapChainImages[_swapChainBufferIndex];
-	vkimb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	vkimb.subresourceRange.baseMipLevel = 0;
-	vkimb.subresourceRange.levelCount = 1;
-	vkimb.subresourceRange.baseArrayLayer = 0;
-	vkimb.subresourceRange.layerCount = 1;
-	vkCmdPipelineBarrier(static_cast<CommandBufferVulkan*>(&(*renderer.GetCommandBuffer()))->GetVkCommandBuffer(),
-		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &vkimb);
-
-	VkClearColorValue clearColorValue;
-	memcpy(&clearColorValue, renderer.GetClearColor().ToPointer(), sizeof(clearColorValue));
-	VkImageSubresourceRange vkisr = {};
-	vkisr.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	vkisr.baseMipLevel = 0;
-	vkisr.levelCount = 1;
-	vkisr.baseArrayLayer = 0;
-	vkisr.layerCount = 1;
-	vkCmdClearColorImage(static_cast<CommandBufferVulkan*>(&(*renderer.GetCommandBuffer()))->GetVkCommandBuffer(),
-		_vSwapChainImages[_swapChainBufferIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValue, 1, &vkisr);
-}
-
 void RendererVulkan::WaitIdle()
 {
 	if (_device)
@@ -937,12 +907,48 @@ int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, 
 		index++;
 	}
 
+	auto GetSubpassIndexByName = [&ilS](CSZ name) -> uint32_t
+	{
+		if (!name)
+			return VK_SUBPASS_EXTERNAL;
+		uint32_t index = 0;
+		for (const auto& subpass : ilS)
+		{
+			if (!strcmp(subpass._name, name))
+				return index;
+			index++;
+		}
+		throw VERUS_RECOVERABLE << "CreateRenderPass(), Subpass not found";
+	};
+
 	Vector<VkSubpassDependency> vSubpassDependency;
 	vSubpassDependency.reserve(ilD.size());
 	for (const auto& dependency : ilD)
 	{
 		VkSubpassDependency vksd = {};
-
+		vksd.srcSubpass = GetSubpassIndexByName(dependency._srcSubpass);
+		vksd.dstSubpass = GetSubpassIndexByName(dependency._dstSubpass);
+		switch (dependency._mode)
+		{
+		case 0:
+		{
+			vksd.srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+			vksd.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			vksd.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+			vksd.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			vksd.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+		}
+		break;
+		case 1:
+		{
+			vksd.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			vksd.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			vksd.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			vksd.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			vksd.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+		}
+		break;
+		}
 		vSubpassDependency.push_back(vksd);
 	}
 

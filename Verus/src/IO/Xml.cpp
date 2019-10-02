@@ -21,7 +21,7 @@ void Xml::SetFilename(CSZ name)
 	CSZ pSlash = strchr(name, '/');
 	if (!pSlash)
 	{
-		//pathName = CUtils::I().GetWritablePath() + "/" + name;
+		pathName = String(_C(Utils::I().GetWritablePath())) + "/" + name;
 		name = _C(pathName);
 	}
 	_pathName = name;
@@ -33,7 +33,9 @@ void Xml::Load(bool fromCache)
 	if (fromCache)
 	{
 		IO::FileSystem::I().LoadResourceFromCache(_C(_pathName), vData);
-		_doc.Parse(reinterpret_cast<CSZ>(vData.data()));
+		const pugi::xml_parse_result result = _doc.load_buffer_inplace(vData.data(), vData.size());
+		if (!result)
+			throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
 	}
 	else
 	{
@@ -41,18 +43,10 @@ void Xml::Load(bool fromCache)
 		ss << "Load() url=" << _pathName;
 		VERUS_LOG_INFO(_C(ss.str()));
 
-		const size_t colon = _pathName.find(':');
-		if (colon != String::npos && colon > 1)
-		{
-			IO::FileSystem::LoadResource(_C(_pathName), vData, IO::FileSystem::LoadDesc(true));
-			_doc.Parse(reinterpret_cast<CSZ>(vData.data()));
-		}
-		else
-		{
-			IO::File file;
-			if (file.Open(_C(_pathName)))
-				_doc.LoadFile(file.GetFile());
-		}
+		IO::FileSystem::LoadResource(_C(_pathName), vData, IO::FileSystem::LoadDesc(true));
+		const pugi::xml_parse_result result = _doc.load_buffer_inplace(vData.data(), vData.size());
+		if (!result)
+			throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
 	}
 }
 
@@ -63,43 +57,37 @@ void Xml::Save()
 	IO::File file;
 	if (file.Open(_C(_pathName), "w"))
 	{
-		_doc.SaveFile(file.GetFile());
+		pugi::xml_writer_file writer(file.GetFile());
+		_doc.save(writer);
 		ss << ", OK";
 	}
 	VERUS_LOG_INFO(_C(ss.str()));
 }
 
-tinyxml2::XMLElement* Xml::GetRoot()
+pugi::xml_node Xml::GetRoot()
 {
-	tinyxml2::XMLElement* pElem = _doc.FirstChildElement();
-	if (!pElem)
+	pugi::xml_node ret = _doc.root();
+	if (!ret)
 	{
-		_doc.Clear();
-		_doc.LinkEndChild(_doc.NewDeclaration());
-		_doc.LinkEndChild(_doc.NewElement("root"));
-		pElem = _doc.FirstChildElement();
+		_doc.append_child("root");
+		ret = _doc.root();
 	}
-	return pElem;
+	return ret;
 }
 
-tinyxml2::XMLElement* Xml::AddElement(CSZ name)
+pugi::xml_node Xml::AddElement(CSZ name)
 {
-	tinyxml2::XMLElement* pElem = _doc.NewElement(name);
-	GetRoot()->LinkEndChild(pElem);
-	return pElem;
+	return GetRoot().append_child(name);
 }
 
 void Xml::Set(CSZ name, CSZ v, bool ifNull)
 {
-	tinyxml2::XMLElement* pElem = GetRoot()->FirstChildElement(name);
-	if (!pElem)
-	{
-		GetRoot()->LinkEndChild(_doc.NewElement(name));
-		pElem = GetRoot()->FirstChildElement(name);
-	}
+	pugi::xml_node node = GetRoot().child(name);
+	if (!node)
+		node = GetRoot().append_child(name);
 	else if (ifNull)
 		return;
-	pElem->SetAttribute("v", v);
+	node.append_attribute("v") = v;
 }
 
 void Xml::Set(CSZ name, int v, bool ifNull)
@@ -125,8 +113,8 @@ void Xml::Set(CSZ name, bool v, bool ifNull)
 
 CSZ Xml::GetS(CSZ name, CSZ def)
 {
-	tinyxml2::XMLElement* pElem = GetRoot()->FirstChildElement(name);
-	return pElem ? pElem->Attribute("v") : def;
+	pugi::xml_node node = GetRoot().child(name);
+	return node ? node.attribute("v").value() : def;
 }
 
 int Xml::GetI(CSZ name, int def)

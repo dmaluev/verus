@@ -9,21 +9,29 @@ namespace verus
 			GeometryPtr                _geometry;
 			ShaderPtr                  _shader;
 			CSZ                        _shaderBranch = nullptr;
+			String                     _colorAttachBlendEqs[VERUS_MAX_NUM_RT];
+			String                     _colorAttachWriteMasks[VERUS_MAX_NUM_RT];
 			PipelineRasterizationState _rasterizationState;
 			PrimitiveTopology          _topology = PrimitiveTopology::triangleList;
 			int                        _sampleCount = 1;
 			int                        _renderPassID = -1;
 			int                        _subpass = 0;
+			int                        _multiViewport = 1; // See SV_ViewportArrayIndex semantic output by a geometry shader.
 			UINT32                     _vertexInputBindingsFilter = UINT32_MAX;
 			CompareOp                  _depthCompareOp = CompareOp::less;
 			bool                       _depthTestEnable = true;
 			bool                       _depthWriteEnable = true;
 			bool                       _stencilTestEnable = false;
-			bool                       _primitiveRestartEnable = false;
-			bool                       _compute = false;
+			bool                       _primitiveRestartEnable = false; // Special index value is 0xFFFFFFFF for 32-bit and 0xFFFF for 16-bit indices.
+			bool                       _compute = false; // Compute pipeline, use PipelineDesc(ShaderPtr, CSZ) to set this to true.
 
-			PipelineDesc(GeometryPtr geo, ShaderPtr shader, CSZ branch, int renderPassID) :
-				_geometry(geo), _shader(shader), _shaderBranch(branch), _renderPassID(renderPassID) {}
+			PipelineDesc(GeometryPtr geo, ShaderPtr shader, CSZ branch, int renderPassID, int subpass = 0) :
+				_geometry(geo), _shader(shader), _shaderBranch(branch), _renderPassID(renderPassID), _subpass(subpass)
+			{
+				_colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+				VERUS_FOR(i, VERUS_ARRAY_LENGTH(_colorAttachWriteMasks))
+					_colorAttachWriteMasks[i] = "rgba";
+			}
 			PipelineDesc(ShaderPtr shader, CSZ branch) :
 				_shader(shader), _shaderBranch(branch), _compute(true) {}
 		};
