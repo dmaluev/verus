@@ -32,9 +32,9 @@ namespace verus
 		void Delete(TValue* p)
 		{
 			_list.remove_if([p](const TValue& v)
-			{
-				return p == &v;
-			});
+				{
+					return p == &v;
+				});
 		}
 
 		void DeleteAll()

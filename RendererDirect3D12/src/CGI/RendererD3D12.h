@@ -16,7 +16,7 @@ namespace verus
 
 			ComPtr<ID3D12Device3>             _pDevice;
 			ComPtr<ID3D12CommandQueue>        _pCommandQueue;
-			D3D12MA::Allocator*               _pMaAllocator = nullptr;
+			D3D12MA::Allocator* _pMaAllocator = nullptr;
 			ComPtr<IDXGISwapChain4>           _pSwapChain;
 			Vector<ComPtr<ID3D12Resource>>    _vSwapChainBuffers;
 			DescriptorHeap                    _dhSwapChainBuffersRTVs;
@@ -63,6 +63,9 @@ namespace verus
 			D3D12MA::Allocator* GetMaAllocator() const { return _pMaAllocator; }
 			ID3D12CommandAllocator* GetD3DCommandAllocator(int ringBufferIndex) const { return _mapCommandAllocators[ringBufferIndex].at(std::this_thread::get_id()).Get(); }
 			D3D12_STATIC_SAMPLER_DESC GetStaticSamplerDesc(Sampler s) const;
+
+			virtual void ImGuiInit(int renderPassID) override;
+			virtual void ImGuiRenderDrawData() override;
 
 			// Which graphics API?
 			virtual Gapi GetGapi() override { return Gapi::direct3D12; }

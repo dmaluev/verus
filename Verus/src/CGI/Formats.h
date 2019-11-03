@@ -38,9 +38,11 @@ namespace verus
 			unormBC1,
 			unormBC2,
 			unormBC3,
+			unormBC7,
 			srgbBC1,
 			srgbBC2,
-			srgbBC3
+			srgbBC3,
+			srgbBC7
 		};
 	}
 }

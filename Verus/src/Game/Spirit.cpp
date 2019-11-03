@@ -21,31 +21,31 @@ void Spirit::ComputeDerivedVars()
 {
 	_dv._matPitch = Matrix3::rotationX(_pitch);
 	_dv._matYaw = Matrix3::rotationY(_yaw);
-	_dv._matRot = _dv._matYaw*_dv._matPitch;
-	_dv._dirFront = _dv._matRot*Vector3(0, 0, 1);
-	_dv._dirFront2D = _dv._matYaw*Vector3(0, 0, 1);
+	_dv._matRot = _dv._matYaw * _dv._matPitch;
+	_dv._dirFront = _dv._matRot * Vector3(0, 0, 1);
+	_dv._dirFront2D = _dv._matYaw * Vector3(0, 0, 1);
 	_dv._dirSide = VMath::normalizeApprox(VMath::cross(_dv._dirFront, Vector3(0, 1, 0)));
 	_dv._dirSide2D = VMath::normalizeApprox(VMath::cross(_dv._dirFront2D, Vector3(0, 1, 0)));
 }
 
 void Spirit::MoveFront(float x)
 {
-	_move += _dv._dirFront*x;
+	_move += _dv._dirFront * x;
 }
 
 void Spirit::MoveSide(float x)
 {
-	_move += _dv._dirSide*x;
+	_move += _dv._dirSide * x;
 }
 
 void Spirit::MoveFront2D(float x)
 {
-	_move += _dv._dirFront2D*x;
+	_move += _dv._dirFront2D * x;
 }
 
 void Spirit::MoveSide2D(float x)
 {
-	_move += _dv._dirSide2D*x;
+	_move += _dv._dirSide2D * x;
 }
 
 void Spirit::TurnPitch(float rad)
@@ -103,7 +103,7 @@ void Spirit::Update()
 	_smoothPosition = _position;
 	_smoothPosition.Update();
 
-	_speed = VMath::dist(_smoothPosition, _smoothPositionPrev)*timer.GetDeltaTimeInv();
+	_speed = VMath::dist(_smoothPosition, _smoothPositionPrev) * timer.GetDeltaTimeInv();
 
 	// Friction:
 	if (_decel && _moveLen < VERUS_FLOAT_THRESHOLD)
@@ -151,7 +151,7 @@ bool Spirit::FitRemotePosition()
 	VERUS_QREF_TIMER;
 	const Point3 pos = _position;
 	const float d = Math::Max(9.f, VMath::distSqr(_positionRemote, pos) * 4);
-	const float ratio = 1 / exp(dt*d);
+	const float ratio = 1 / exp(dt * d);
 	const bool warp = d >= 4 * 4;
 	_position = warp ? _positionRemote : VMath::lerp(ratio, _positionRemote, pos);
 	if (warp)
@@ -182,8 +182,8 @@ void Spirit::Rotate(RcVector3 front, float speed)
 		dYaw -= VERUS_2PI;
 	if (dYaw <= -VERUS_PI)
 		dYaw += VERUS_2PI;
-	_pitch = _pitch + Math::Min(speed*dt, abs(dPitch))*glm::sign(dPitch);
-	_yaw = Math::WrapAngle(_yaw + Math::Min(speed*dt, abs(dYaw))*glm::sign(dYaw));
+	_pitch = _pitch + Math::Min(speed * dt, abs(dPitch)) * glm::sign(dPitch);
+	_yaw = Math::WrapAngle(_yaw + Math::Min(speed * dt, abs(dYaw)) * glm::sign(dYaw));
 }
 
 void Spirit::LookAt(RcPoint3 point)

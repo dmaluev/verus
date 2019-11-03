@@ -5,6 +5,7 @@
 #include "Mesh.h"
 #include "Terrain.h"
 #include "EditorTerrain.h"
+#include "ShadowMap.h"
 #include "Atmosphere.h"
 #include "MaterialManager.h"
 #include "SceneManager.h"

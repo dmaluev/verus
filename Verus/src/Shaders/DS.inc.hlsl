@@ -8,10 +8,25 @@ VERUS_UBUFFER UB_PerFrame
 	float4 _toUV;
 };
 
-VERUS_UBUFFER UB_PerMesh
+VERUS_UBUFFER UB_TexturesFS
+{
+	float4 _dummy;
+};
+
+VERUS_UBUFFER UB_PerMeshVS
 {
 	float4 _posDeqScale;
 	float4 _posDeqBias;
+};
+
+VERUS_UBUFFER UB_ShadowFS
+{
+	float4 _shadowTexSize;
+	matrix _matSunShadow;
+	matrix _matSunShadowCSM1;
+	matrix _matSunShadowCSM2;
+	matrix _matSunShadowCSM3;
+	float4 _splitRanges;
 };
 
 VERUS_UBUFFER UB_PerObject

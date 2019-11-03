@@ -46,6 +46,7 @@ struct BaseGame::Pimpl : AllocatorAware
 	bool              _showFPS = true;
 	bool              _debugBullet = false;
 	bool              _escapeKeyExitGame = true;
+	bool              _minimized = false;
 
 	Pimpl(PBaseGame p) : _p(p)
 	{
@@ -142,6 +143,7 @@ void BaseGame::Run()
 
 		while (SDL_PollEvent(&event))
 		{
+			ImGui_ImplSDL2_ProcessEvent(&event);
 			if (!km.HandleSdlEvent(event))
 			{
 				switch (event.type)
@@ -156,9 +158,12 @@ void BaseGame::Run()
 					switch (event.window.event)
 					{
 					case SDL_WINDOWEVENT_MINIMIZED:
+						_p->_minimized = true;
 						BaseGame_OnDeactivated();
+						renderer->WaitIdle();
 						break;
 					case SDL_WINDOWEVENT_RESTORED:
+						_p->_minimized = false;
 						BaseGame_OnActivated();
 						break;
 					}
@@ -176,6 +181,9 @@ void BaseGame::Run()
 				}
 			}
 		}
+
+		if (_p->_minimized)
+			continue;
 
 		if (done)
 			break;

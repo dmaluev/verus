@@ -15,6 +15,15 @@ Atmosphere::~Atmosphere()
 void Atmosphere::Init()
 {
 	VERUS_INIT();
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_CONST_SETTINGS;
+
+	if (settings._sceneShadowQuality > App::Settings::ShadowQuality::none)
+		_shadowMap.Init(4096);
+
+	renderer.GetDS().InitByAtmosphere(_shadowMap.GetTexture());
+
+	_sun._dirTo = VMath::normalize(Vector3(1.3f, 1, 1.3f));
 }
 
 void Atmosphere::Done()
@@ -30,4 +39,31 @@ RcVector3 Atmosphere::GetDirToSun() const
 RcVector3 Atmosphere::GetSunColor() const
 {
 	return _sun._color;
+}
+
+void Atmosphere::BeginShadow(int split)
+{
+	_shadowMap.Begin(_sun._dirTo, 1, 0, split);
+}
+
+void Atmosphere::EndShadow(int split)
+{
+	_shadowMap.End(split);
+}
+
+RcPoint3 Atmosphere::GetEyePosition(PVector3 pDirFront)
+{
+	VERUS_QREF_SM;
+	if (_shadowMap.GetSceneCamera())
+	{
+		if (pDirFront)
+			*pDirFront = _shadowMap.GetSceneCamera()->GetDirectionFront();
+		return _shadowMap.GetSceneCamera()->GetPositionEye();
+	}
+	else
+	{
+		if (pDirFront)
+			*pDirFront = sm.GetCamera()->GetDirectionFront();
+		return sm.GetCamera()->GetPositionEye();
+	}
 }

@@ -34,6 +34,15 @@ namespace verus
 			}
 			PipelineDesc(ShaderPtr shader, CSZ branch) :
 				_shader(shader), _shaderBranch(branch), _compute(true) {}
+
+			void DepthBiasEnable()
+			{
+				_rasterizationState._depthBiasEnable = true;
+				_rasterizationState._depthBiasConstantFactor = 14;
+				_rasterizationState._depthBiasSlopeFactor = 1.1f;
+				if (App::Settings::I()._sceneShadowQuality >= App::Settings::ShadowQuality::cascaded)
+					_rasterizationState._depthBiasConstantFactor = 50;
+			}
 		};
 		VERUS_TYPEDEFS(PipelineDesc);
 

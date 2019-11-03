@@ -30,18 +30,25 @@ void BaseTexture::LoadDDS(CSZ url, int texturePart)
 
 void BaseTexture::LoadDDS(RcBlob blob)
 {
+	int offset = sizeof(IO::DDSHeader);
 	IO::DDSHeader header;
 	memcpy(&header, blob._p, sizeof(header));
 	if (!header.Validate())
 		throw VERUS_RUNTIME_ERROR << "Invalid DDS header: " << _name;
-	_part = header.reserved2;
+	IO::DDSHeaderDXT10 header10;
+	if (header.IsDXT10())
+	{
+		memcpy(&header10, blob._p + offset, sizeof(header10));
+		offset += sizeof(IO::DDSHeaderDXT10);
+	}
+	_part = header._reserved2;
 
 	VERUS_QREF_CONST_SETTINGS;
 
-	if (!header.mipmapCount)
-		header.mipmapCount = 1;
+	if (!header._mipMapCount)
+		header._mipMapCount = 1;
 
-	const int maxLod = Math::Max<int>(header.mipmapCount - 4, 0); // Keep 1x1, 2x2, 4x4.
+	const int maxLod = Math::Max<int>(header._mipMapCount - 4, 0); // Keep 1x1, 2x2, 4x4.
 	const int lod = Math::Min(settings._gpuTextureLodLevel, maxLod);
 
 	if (header.IsBC())
@@ -58,19 +65,20 @@ void BaseTexture::LoadDDS(RcBlob blob)
 			desc._format = SelectFormat(Format::unormBC2, Format::srgbBC2);
 		else if (header.IsBC3())
 			desc._format = SelectFormat(Format::unormBC3, Format::srgbBC3);
-		desc._width = header.width >> lod;
-		desc._height = header.height >> lod;
-		desc._mipLevels = header.mipmapCount - lod;
+		else if (header10.IsBC7())
+			desc._format = SelectFormat(Format::unormBC7, Format::srgbBC7);
+		desc._width = header._width >> lod;
+		desc._height = header._height >> lod;
+		desc._mipLevels = header._mipMapCount - lod;
 
 		Init(desc);
 
-		int offset = sizeof(header);
-		for (UINT32 i = 0; i < header.mipmapCount; ++i)
+		for (UINT32 i = 0; i < header._mipMapCount; ++i)
 		{
-			UINT32 w = header.width >> i, h = header.height >> i;
+			UINT32 w = header._width >> i, h = header._height >> i;
 			if (!w) w = 1;
 			if (!h) h = 1;
-			const int levelSize = IO::DDSHeader::ComputeBcLevelSize(w, h, header.IsBC1());
+			const int levelSize = IO::DDSHeader::ComputeBcLevelSize(w, h, header.Is4BitsBC());
 			VERUS_RT_ASSERT(offset + levelSize <= blob._size);
 
 			if (static_cast<int>(i) >= lod)
@@ -81,21 +89,20 @@ void BaseTexture::LoadDDS(RcBlob blob)
 	}
 	else // Not DXTn?
 	{
-		if (header.pixelFormat.flags == IO::DDSHeader::PixelFormatFlags::alpha &&
-			header.pixelFormat.rgbBitCount == 8)
+		if (header._pixelFormat._flags == IO::DDSHeader::PixelFormatFlags::alpha &&
+			header._pixelFormat._rgbBitCount == 8)
 		{
 			TextureDesc desc;
 			desc._format = Format::unormR8;
-			desc._width = header.width;
-			desc._height = header.height;
-			desc._mipLevels = header.mipmapCount;
+			desc._width = header._width;
+			desc._height = header._height;
+			desc._mipLevels = header._mipMapCount;
 
 			Init(desc);
 
-			int offset = sizeof(header);
-			for (UINT32 i = 0; i < header.mipmapCount; ++i)
+			for (UINT32 i = 0; i < header._mipMapCount; ++i)
 			{
-				UINT32 w = header.width >> i, h = header.height >> i;
+				UINT32 w = header._width >> i, h = header._height >> i;
 				if (!w) w = 1;
 				if (!h) h = 1;
 
@@ -103,33 +110,32 @@ void BaseTexture::LoadDDS(RcBlob blob)
 				offset += w * h;
 			}
 		}
-		else if (header.pixelFormat.flags == IO::DDSHeader::PixelFormatFlags::rgb &&
-			header.pixelFormat.rgbBitCount == 24)
+		else if (header._pixelFormat._flags == IO::DDSHeader::PixelFormatFlags::rgb &&
+			header._pixelFormat._rgbBitCount == 24)
 		{
 			TextureDesc desc;
 			desc._format = IsSRGB() ? Format::srgbR8G8B8A8 : Format::unormR8G8B8A8;
-			desc._width = header.width;
-			desc._height = header.height;
-			desc._mipLevels = header.mipmapCount;
+			desc._width = header._width;
+			desc._height = header._height;
+			desc._mipLevels = header._mipMapCount;
 
 			Init(desc);
 
-			int offset = sizeof(header);
-			for (UINT32 i = 0; i < header.mipmapCount; ++i)
+			for (UINT32 i = 0; i < header._mipMapCount; ++i)
 			{
-				int w = header.width >> i, h = header.height >> i;
+				int w = header._width >> i, h = header._height >> i;
 				if (!w) w = 1;
 				if (!h) h = 1;
 
 				const BYTE* p = blob._p + offset;
 				Vector<UINT32> vData;
-				vData.resize(w*h);
+				vData.resize(w * h);
 				VERUS_FOR(y, h)
 				{
 					VERUS_FOR(x, w)
 					{
 						const BYTE color[4] = { p[2], p[1], p[0], 255 };
-						Utils::CopyColor(vData[y*w + x], color);
+						Utils::CopyColor(vData[y * w + x], color);
 						p += 3;
 					}
 				}
@@ -137,33 +143,32 @@ void BaseTexture::LoadDDS(RcBlob blob)
 				offset += w * h * 3;
 			}
 		}
-		else if (header.pixelFormat.flags == (IO::DDSHeader::PixelFormatFlags::rgb | IO::DDSHeader::PixelFormatFlags::alphaPixels) &&
-			header.pixelFormat.rgbBitCount == 32)
+		else if (header._pixelFormat._flags == (IO::DDSHeader::PixelFormatFlags::rgb | IO::DDSHeader::PixelFormatFlags::alphaPixels) &&
+			header._pixelFormat._rgbBitCount == 32)
 		{
 			TextureDesc desc;
 			desc._format = IsSRGB() ? Format::srgbR8G8B8A8 : Format::unormR8G8B8A8;
-			desc._width = header.width;
-			desc._height = header.height;
-			desc._mipLevels = header.mipmapCount;
+			desc._width = header._width;
+			desc._height = header._height;
+			desc._mipLevels = header._mipMapCount;
 
 			Init(desc);
 
-			int offset = sizeof(header);
-			for (UINT32 i = 0; i < header.mipmapCount; ++i)
+			for (UINT32 i = 0; i < header._mipMapCount; ++i)
 			{
-				int w = header.width >> i, h = header.height >> i;
+				int w = header._width >> i, h = header._height >> i;
 				if (!w) w = 1;
 				if (!h) h = 1;
 
 				const BYTE* p = blob._p + offset;
 				Vector<UINT32> vData;
-				vData.resize(w*h);
+				vData.resize(w * h);
 				VERUS_FOR(y, h)
 				{
 					VERUS_FOR(x, w)
 					{
 						const BYTE color[4] = { p[2], p[1], p[0], p[3] };
-						Utils::CopyColor(vData[y*w + x], color);
+						Utils::CopyColor(vData[y * w + x], color);
 						p += 4;
 					}
 				}
@@ -203,10 +208,10 @@ void BaseTexture::LoadDDSArray(CSZ* urls)
 
 		VERUS_QREF_CONST_SETTINGS;
 
-		if (!header.mipmapCount)
-			header.mipmapCount = 1;
+		if (!header._mipMapCount)
+			header._mipMapCount = 1;
 
-		const int maxLod = Math::Max<int>(header.mipmapCount - 4, 0); // Keep 1x1, 2x2, 4x4.
+		const int maxLod = Math::Max<int>(header._mipMapCount - 4, 0); // Keep 1x1, 2x2, 4x4.
 		const int lod = Math::Min(settings._gpuTextureLodLevel, maxLod);
 
 		if (header.IsBC())
@@ -216,8 +221,8 @@ void BaseTexture::LoadDDSArray(CSZ* urls)
 				return IsSRGB() ? srgb : unorm;
 			};
 
-			const int w = header.width >> lod;
-			const int h = header.height >> lod;
+			const int w = header._width >> lod;
+			const int h = header._height >> lod;
 
 			if (desc._width)
 			{
@@ -236,7 +241,7 @@ void BaseTexture::LoadDDSArray(CSZ* urls)
 				desc._format = SelectFormat(Format::unormBC3, Format::srgbBC3);
 			desc._width = w;
 			desc._height = h;
-			desc._mipLevels = header.mipmapCount - lod;
+			desc._mipLevels = header._mipMapCount - lod;
 
 			if (init)
 			{
@@ -245,13 +250,13 @@ void BaseTexture::LoadDDSArray(CSZ* urls)
 			}
 
 			int offset = sizeof(header);
-			VERUS_U_FOR(i, header.mipmapCount)
+			VERUS_U_FOR(i, header._mipMapCount)
 			{
-				UINT32 w = header.width >> i;
-				UINT32 h = header.height >> i;
+				UINT32 w = header._width >> i;
+				UINT32 h = header._height >> i;
 				if (!w) w = 1;
 				if (!h) h = 1;
-				int levelSize = IO::DDSHeader::ComputeBcLevelSize(w, h, header.IsBC1());
+				int levelSize = IO::DDSHeader::ComputeBcLevelSize(w, h, header.Is4BitsBC());
 				VERUS_RT_ASSERT(offset + levelSize <= size);
 
 				if (static_cast<int>(i) >= lod)
@@ -304,7 +309,7 @@ int BaseTexture::FormatToBytesPerPixel(Format format)
 
 bool BaseTexture::IsBC(Format format)
 {
-	return format >= Format::unormBC1 && format <= Format::srgbBC3;
+	return format >= Format::unormBC1 && format <= Format::srgbBC7;
 }
 
 bool BaseTexture::IsBC1(Format format)

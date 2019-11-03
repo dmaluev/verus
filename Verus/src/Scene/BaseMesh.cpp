@@ -120,11 +120,11 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 			std::sort(vSorted.begin(), vSorted.end());
 			bool isolatedVertex = false;
 			std::adjacent_find(vSorted.begin(), vSorted.end(), [&isolatedVertex](const UINT16& a, const UINT16& b)
-			{
-				if (b - a > 1)
-					isolatedVertex = true;
-				return false;
-			});
+				{
+					if (b - a > 1)
+						isolatedVertex = true;
+					return false;
+				});
 			if (isolatedVertex)
 				VERUS_LOG_SESSION(_C("WARNING: Isolated vertex in " + _url));
 			if (_numVerts <= vSorted.back())
@@ -397,7 +397,7 @@ void BaseMesh::ComputeDeq(glm::vec3& scale, glm::vec3& bias, const glm::vec3& ex
 
 void BaseMesh::QuantizeV(glm::vec3& v, const glm::vec3& extents, const glm::vec3& minPos)
 {
-	v = ((v - minPos - extents) / extents)*float(SHRT_MAX);
+	v = ((v - minPos - extents) / extents) * float(SHRT_MAX);
 	v.x = (v.x >= 0) ? v.x + 0.5f : v.x - 0.5f;
 	v.y = (v.y >= 0) ? v.y + 0.5f : v.y - 0.5f;
 	v.z = (v.z >= 0) ? v.z + 0.5f : v.z - 0.5f;

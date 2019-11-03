@@ -25,11 +25,12 @@ namespace verus
 				Vector3 _color = Vector3(0);
 			};
 
-			Fog     _fog;
-			Sun     _sun;
-			Vector3 _colorAmbient = Vector3(0);
-			float   _time = 0.5f;
-			float   _timeSpeed = 1 / 300.f;
+			Fog               _fog;
+			Sun               _sun;
+			Vector3           _colorAmbient = Vector3(0);
+			CascadedShadowMap _shadowMap;
+			float             _time = 0.5f;
+			float             _timeSpeed = 1 / 300.f;
 
 		public:
 			Atmosphere();
@@ -48,6 +49,20 @@ namespace verus
 			// Sun:
 			RcVector3 GetDirToSun() const;
 			RcVector3 GetSunColor() const;
+
+			// Shadow:
+			void BeginShadow(int split);
+			void EndShadow(int split);
+			RShadowMap GetShadowMap() { return _shadowMap; }
+			bool IsRenderingShadow() const { return _shadowMap.IsRendering(); }
+			int GetCurrentSplit() const { return _shadowMap.GetCurrentSplit(); }
+			PCamera GetSunCameraCSM() { return _shadowMap.GetCameraCSM(); }
+			RcVector4       GetSunShadowSplitRanges()       const { return _shadowMap.GetSplitRanges(); }
+			RcMatrix4       GetSunShadowMatrix(int split)   const { return _shadowMap.GetShadowMatrix(split); }
+			RcMatrix4       GetSunShadowMatrixDS(int split) const { return _shadowMap.GetShadowMatrixDS(split); }
+			CGI::TexturePtr GetSunShadowTexture()           const { return _shadowMap.GetTexture(); }
+
+			RcPoint3 GetEyePosition(PVector3 pDirFront = nullptr);
 		};
 		VERUS_TYPEDEFS(Atmosphere);
 	}

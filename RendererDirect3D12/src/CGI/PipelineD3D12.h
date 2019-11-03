@@ -7,7 +7,7 @@ namespace verus
 		class PipelineD3D12 : public BasePipeline
 		{
 			ComPtr<ID3D12PipelineState> _pPipelineState;
-			ID3D12RootSignature*        _pRootSignature = nullptr;
+			ID3D12RootSignature* _pRootSignature = nullptr;
 			D3D_PRIMITIVE_TOPOLOGY      _topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
 			bool                        _compute = false;
 

@@ -3,8 +3,8 @@
 using namespace verus;
 
 // F to I:
-BYTE   Convert::UnormToUint8(float x) { return BYTE(x*UCHAR_MAX + 0.5f); }
-UINT16 Convert::UnormToUint16(float x) { return UINT16(x*USHRT_MAX + 0.5f); }
+BYTE   Convert::UnormToUint8(float x) { return BYTE(x * UCHAR_MAX + 0.5f); }
+UINT16 Convert::UnormToUint16(float x) { return UINT16(x * USHRT_MAX + 0.5f); }
 char   Convert::SnormToSint8(float x) { return char((x >= 0) ? x * SCHAR_MAX + 0.5f : x * SCHAR_MAX - 0.5f); }
 short  Convert::SnormToSint16(float x) { return short((x >= 0) ? x * SHRT_MAX + 0.5f : x * SHRT_MAX - 0.5f); }
 
@@ -56,7 +56,7 @@ UINT32 Convert::ToDeviceColor(UINT32 color)
 
 float Convert::Byte256ToSFloat(BYTE in)
 {
-	return float(in)*(1 / 128.f) - 1;
+	return float(in) * (1 / 128.f) - 1;
 }
 
 UINT16 Convert::Uint8x4ToUint4x4(UINT32 in)
@@ -94,18 +94,18 @@ UINT32 Convert::Color16To32(UINT16 in)
 void Convert::ColorInt32ToFloat(UINT32 in, float* out, bool sRGB)
 {
 	const float gamma = sRGB ? 2.2f : 1.f;
-	out[0] = pow(float(int((in >> 0) & 0xFF))*(1 / 255.f), gamma);
-	out[1] = pow(float(int((in >> 8) & 0xFF))*(1 / 255.f), gamma);
-	out[2] = pow(float(int((in >> 16) & 0xFF))*(1 / 255.f), gamma);
-	out[3] = float(int((in >> 24) & 0xFF))*(1 / 255.f);
+	out[0] = pow(float(int((in >> 0) & 0xFF))* (1 / 255.f), gamma);
+	out[1] = pow(float(int((in >> 8) & 0xFF))* (1 / 255.f), gamma);
+	out[2] = pow(float(int((in >> 16) & 0xFF))* (1 / 255.f), gamma);
+	out[3] = float(int((in >> 24) & 0xFF))* (1 / 255.f);
 }
 
 UINT32 Convert::ColorFloatToInt32(const float* in, bool sRGB)
 {
 	const float gamma = sRGB ? 1 / 2.2f : 1.f;
-	const int r = Math::Clamp(int(pow(in[0], gamma)*255.5f), 0, 255);
-	const int g = Math::Clamp(int(pow(in[1], gamma)*255.5f), 0, 255);
-	const int b = Math::Clamp(int(pow(in[2], gamma)*255.5f), 0, 255);
+	const int r = Math::Clamp(int(pow(in[0], gamma) * 255.5f), 0, 255);
+	const int g = Math::Clamp(int(pow(in[1], gamma) * 255.5f), 0, 255);
+	const int b = Math::Clamp(int(pow(in[2], gamma) * 255.5f), 0, 255);
 	const int a = Math::Clamp(int(in[3] * 255.5f), 0, 255);
 	return VERUS_COLOR_RGBA(r, g, b, a);
 }
@@ -141,10 +141,10 @@ void Convert::ColorTextToFloat4(CSZ sz, float* out, bool sRGB)
 			color[3] = 255;
 	}
 	const float gamma = sRGB ? 2.2f : 1.f;
-	out[0] = pow(float(color[0])*(1 / 255.f), gamma);
-	out[1] = pow(float(color[1])*(1 / 255.f), gamma);
-	out[2] = pow(float(color[2])*(1 / 255.f), gamma);
-	out[3] = float(color[3])*(1 / 255.f);
+	out[0] = pow(float(color[0]) * (1 / 255.f), gamma);
+	out[1] = pow(float(color[1]) * (1 / 255.f), gamma);
+	out[2] = pow(float(color[2]) * (1 / 255.f), gamma);
+	out[3] = float(color[3]) * (1 / 255.f);
 }
 
 UINT32 Convert::ColorTextToInt32(CSZ sz)

@@ -92,8 +92,8 @@ void Octree::Build(int currentNode, int depth)
 		VERUS_FOR(i, numDepths)
 		{
 			numNodes +=
-				(1 << Math::Min(i, maxDepthX))*
-				(1 << Math::Min(i, maxDepthY))*
+				(1 << Math::Min(i, maxDepthX)) *
+				(1 << Math::Min(i, maxDepthY)) *
 				(1 << Math::Min(i, maxDepthZ));
 		}
 		_vNodes.resize(numNodes);
@@ -210,14 +210,14 @@ Continue Octree::TraverseProper(RcFrustum frustum, PResult pResult, int currentN
 		pResult->_numTests = 0;
 		pResult->_numTestsPassed = 0;
 		pResult->_pLastFoundToken = nullptr;
-		//pResult->_depth = Utils::IsDrawingDepth(DrawDepth::automatic);
+		pResult->_depth = Scene::SceneManager::IsDrawingDepth(Scene::DrawDepth::automatic);
 	}
 
 	pResult->_numTests++;
 	const float onePixel = Math::ComputeOnePixelDistance(
 		_vNodes[currentNode].GetSphere().GetRadius());
 	const bool notTooSmall = pResult->_depth || VMath::distSqr(
-		frustum.GetEyePosition(), _vNodes[currentNode].GetSphere().GetCenter()) < onePixel*onePixel;
+		frustum.GetEyePosition(), _vNodes[currentNode].GetSphere().GetCenter()) < onePixel * onePixel;
 
 	if (notTooSmall &&
 		Relation::outside != frustum.ContainsSphere(_vNodes[currentNode].GetSphere()) &&
@@ -234,7 +234,7 @@ Continue Octree::TraverseProper(RcFrustum frustum, PResult pResult, int currentN
 				const float onePixel = Math::ComputeOnePixelDistance(
 					entity._sphere.GetRadius());
 				const bool notTooSmall = pResult->_depth || VMath::distSqr(
-					frustum.GetEyePosition(), entity._sphere.GetCenter()) < onePixel*onePixel;
+					frustum.GetEyePosition(), entity._sphere.GetCenter()) < onePixel * onePixel;
 
 				if (notTooSmall &&
 					Relation::outside != frustum.ContainsSphere(entity._sphere) &&

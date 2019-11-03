@@ -190,8 +190,8 @@ void RendererD3D12::InitD3D()
 	_pFence = CreateFence();
 	_hFence = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
-	_dhCbvSrvUav.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5000, true);
-	_dhSamplers.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 500, true);
+	_dhCbvSrvUav.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, settings.GetLimits()._d3d12_dhCbvSrvUavCapacity, true);
+	_dhSamplers.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, settings.GetLimits()._d3d12_dhSamplersCapacity, true);
 
 	CreateSamplers();
 }
@@ -271,11 +271,17 @@ void RendererD3D12::CreateSamplers()
 {
 	VERUS_QREF_CONST_SETTINGS;
 
+	const bool tf = settings._gpuTrilinearFilter;
+	auto ApplyTrilinearFilter = [tf](const D3D12_FILTER filter)
+	{
+		return tf ? static_cast<D3D12_FILTER>(filter + 1) : filter;
+	};
+
 	_vSamplers.resize(+Sampler::count);
 
 	D3D12_STATIC_SAMPLER_DESC desc = {};
 	D3D12_STATIC_SAMPLER_DESC init = {};
-	init.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	init.Filter = ApplyTrilinearFilter(D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT);
 	init.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	init.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	init.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -287,6 +293,13 @@ void RendererD3D12::CreateSamplers()
 	init.MaxLOD = D3D12_FLOAT32_MAX;
 
 	desc = init;
+	desc.Filter = (settings._sceneShadowQuality <= App::Settings::ShadowQuality::nearest) ?
+		D3D12_FILTER_COMPARISON_MIN_MAG_MIP_POINT : D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+	desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	desc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	_vSamplers[+Sampler::shadow] = desc;
+
+	desc = init;
 	desc.Filter = D3D12_FILTER_ANISOTROPIC;
 	desc.MaxAnisotropy = settings._gpuAnisotropyLevel;
 	_vSamplers[+Sampler::aniso] = desc;
@@ -296,7 +309,7 @@ void RendererD3D12::CreateSamplers()
 	_vSamplers[+Sampler::linear3D] = desc;
 
 	desc = init;
-	desc.Filter = D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR;
+	desc.Filter = ApplyTrilinearFilter(D3D12_FILTER_MIN_MAG_MIP_POINT);
 	_vSamplers[+Sampler::nearest3D] = desc;
 
 	desc = init;
@@ -310,22 +323,22 @@ void RendererD3D12::CreateSamplers()
 
 	// <Clamp>
 	desc = init;
-	init.AddressU = init.AddressV = init.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	_vSamplers[+Sampler::linearClamp3D] = desc;
 
 	desc = init;
-	desc.Filter = D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR;
-	init.AddressU = init.AddressV = init.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	desc.Filter = ApplyTrilinearFilter(D3D12_FILTER_MIN_MAG_MIP_POINT);
+	desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	_vSamplers[+Sampler::nearestClamp3D] = desc;
 
 	desc = init;
 	desc.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
-	init.AddressU = init.AddressV = init.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	_vSamplers[+Sampler::linearClamp2D] = desc;
 
 	desc = init;
 	desc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-	init.AddressU = init.AddressV = init.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	_vSamplers[+Sampler::nearestClamp2D] = desc;
 	// </Clamp>
 }
@@ -333,6 +346,14 @@ void RendererD3D12::CreateSamplers()
 D3D12_STATIC_SAMPLER_DESC RendererD3D12::GetStaticSamplerDesc(Sampler s) const
 {
 	return _vSamplers[+s];
+}
+
+void RendererD3D12::ImGuiInit(int renderPassID)
+{
+}
+
+void RendererD3D12::ImGuiRenderDrawData()
+{
 }
 
 void RendererD3D12::BeginFrame(bool present)
@@ -532,6 +553,8 @@ int RendererD3D12::CreateFramebuffer(int renderPassID, std::initializer_list<Tex
 {
 	RP::RcD3DRenderPass renderPass = GetRenderPassByID(renderPassID);
 	RP::D3DFramebuffer framebuffer;
+	framebuffer._width = w;
+	framebuffer._height = h;
 
 	const Vector<TexturePtr> vTex(il);
 	auto GetResource = [this, &vTex, swapChainBufferIndex](int index)

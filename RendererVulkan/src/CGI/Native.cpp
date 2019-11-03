@@ -33,9 +33,11 @@ VkFormat CGI::ToNativeFormat(Format format)
 	case Format::unormBC1:          return VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
 	case Format::unormBC2:          return VK_FORMAT_BC2_UNORM_BLOCK;
 	case Format::unormBC3:          return VK_FORMAT_BC3_UNORM_BLOCK;
+	case Format::unormBC7:          return VK_FORMAT_BC7_UNORM_BLOCK;
 	case Format::srgbBC1:           return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
 	case Format::srgbBC2:           return VK_FORMAT_BC2_SRGB_BLOCK;
 	case Format::srgbBC3:           return VK_FORMAT_BC3_SRGB_BLOCK;
+	case Format::srgbBC7:           return VK_FORMAT_BC7_SRGB_BLOCK;
 
 	default: throw VERUS_RECOVERABLE << "ToNativeFormat()";
 	}
@@ -56,15 +58,16 @@ VkImageLayout CGI::ToNativeImageLayout(ImageLayout layout)
 {
 	switch (layout)
 	{
-	case ImageLayout::undefined:                     return VK_IMAGE_LAYOUT_UNDEFINED;
-	case ImageLayout::general:                       return VK_IMAGE_LAYOUT_GENERAL;
-	case ImageLayout::colorAttachmentOptimal:        return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	case ImageLayout::depthStencilAttachmentOptimal: return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-	case ImageLayout::depthStencilReadOnlyOptimal:   return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-	case ImageLayout::shaderReadOnlyOptimal:         return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	case ImageLayout::transferSrcOptimal:            return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-	case ImageLayout::transferDstOptimal:            return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	case ImageLayout::presentSrc:                    return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	case ImageLayout::undefined:              return VK_IMAGE_LAYOUT_UNDEFINED;
+	case ImageLayout::general:                return VK_IMAGE_LAYOUT_GENERAL;
+	case ImageLayout::colorAttachment:        return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	case ImageLayout::depthStencilAttachment: return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	case ImageLayout::depthStencilReadOnly:   return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+	case ImageLayout::vsReadOnly:             return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	case ImageLayout::fsReadOnly:             return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	case ImageLayout::transferSrc:            return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	case ImageLayout::transferDst:            return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	case ImageLayout::presentSrc:             return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	default: throw VERUS_RECOVERABLE << "ToNativeImageLayout()";
 	}
 }

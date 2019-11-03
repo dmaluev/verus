@@ -19,7 +19,7 @@ namespace verus
 			public:
 				Bounds _bounds;
 				Sphere _sphere;
-				void*  _pToken = nullptr;
+				void* _pToken = nullptr;
 
 				Entity() {}
 				Entity(RcBounds bounds, void* pToken) :

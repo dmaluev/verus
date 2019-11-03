@@ -30,15 +30,16 @@ namespace verus
 			{
 				Vector<Sampler>        _vSamplers;
 				ComPtr<ID3D12Resource> _pConstantBuffer;
-				D3D12MA::Allocation*   _pMaAllocation = nullptr;
+				D3D12MA::Allocation* _pMaAllocation = nullptr;
 				DescriptorHeap         _dhDynamicOffsets;
-				BYTE*                  _pMappedData = nullptr;
-				const void*            _pSrc = nullptr;
+				BYTE* _pMappedData = nullptr;
+				const void* _pSrc = nullptr;
 				int                    _size = 0;
 				int                    _sizeAligned = 0;
 				int                    _capacity = 1;
 				int                    _capacityInBytes = 0;
 				int                    _offset = 0;
+				int                    _peakLoad = 0;
 				int                    _index = 0;
 				ShaderStageFlags       _stageFlags = ShaderStageFlags::vs_fs;
 				bool                   _staticSamplersOnly = true;

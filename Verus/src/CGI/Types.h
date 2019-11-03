@@ -15,12 +15,13 @@ namespace verus
 		{
 			undefined, // Does not support device access, the contents of the memory are not guaranteed to be preserved.
 			general, // Supports all types of device access.
-			colorAttachmentOptimal, // Must only be used as a color or resolve attachment.
-			depthStencilAttachmentOptimal, // Must only be used as a depth/stencil or depth/stencil resolve attachment.
-			depthStencilReadOnlyOptimal, // Must only be used as a read-only depth/stencil attachment or as a read-only image in a shader.
-			shaderReadOnlyOptimal, // Must only be used as a read-only image in a shader.
-			transferSrcOptimal, // Must only be used as a source image of a transfer command.
-			transferDstOptimal, // Must only be used as a destination image of a transfer command.
+			colorAttachment, // Must only be used as a color or resolve attachment.
+			depthStencilAttachment, // Must only be used as a depth/stencil or depth/stencil resolve attachment.
+			depthStencilReadOnly, // Must only be used as a read-only depth/stencil attachment or as a read-only image in a shader.
+			vsReadOnly, // Must only be used as a read-only image in vertex shader.
+			fsReadOnly, // Must only be used as a read-only image in any shader.
+			transferSrc, // Must only be used as a source image of a transfer command.
+			transferDst, // Must only be used as a destination image of a transfer command.
 			presentSrc // Must only be used for presenting a presentable image for display.
 		};
 
@@ -115,6 +116,7 @@ namespace verus
 			custom, // Not immutable, not static sampler.
 			storage, // Also known as UAV.
 			input,
+			shadow,
 			aniso, // Most common sampler for 3D.
 			linear3D,
 			nearest3D,

@@ -28,7 +28,7 @@ void Timer::Update()
 		_data[i]._dtPrev = _data[i]._dt;
 
 		_data[i]._dt = std::chrono::duration_cast<std::chrono::duration<float>>(
-			timeNow - _data[i]._timePrev).count()*GetGameSpeed(static_cast<Type>(i));
+			timeNow - _data[i]._timePrev).count() * GetGameSpeed(static_cast<Type>(i));
 		if (_data[i]._dt > 0.25f) // Prevent long gaps.
 			_data[i]._dt = 0.25f;
 
@@ -37,7 +37,7 @@ void Timer::Update()
 		_data[i]._timePrev = timeNow;
 
 		_data[i]._dtInv = _data[i]._dt > 0.0001f ? 1 / _data[i]._dt : 10000;
-		_data[i]._dtSq = _data[i]._dt*_data[i]._dt;
+		_data[i]._dtSq = _data[i]._dt * _data[i]._dt;
 		_data[i]._tcvValue = _data[i]._dtPrev > 0.0001f ? _data[i]._dt / _data[i]._dtPrev : 1;
 
 		_data[i]._smoothValue = Math::Clamp((1 / 30.f - _data[i]._dt) * 30, 0.f, 0.5f);

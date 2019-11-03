@@ -13,10 +13,10 @@ namespace verus
 	public:
 		Linear() : _value(0), _speed(0), _min(0), _max(1) {}
 
-		T&       GetValue() { return _value; }
+		T& GetValue() { return _value; }
 		const T& GetValue() const { return _value; }
 
-		T&       GetSpeed() { return _speed; }
+		T& GetSpeed() { return _speed; }
 		const T& GetSpeed() const { return _speed; }
 
 		void Set(const T& value, const T& speed)

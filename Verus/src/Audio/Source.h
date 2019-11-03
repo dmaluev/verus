@@ -12,7 +12,7 @@ namespace verus
 			Point3  _position = Point3(0);
 			Vector3 _direction = Vector3(0);
 			Vector3 _velocity = Vector3(0);
-			Sound*  _pSound = nullptr;
+			Sound* _pSound = nullptr;
 			ALuint  _sid = 0;
 			float   _travelDelay = 0;
 

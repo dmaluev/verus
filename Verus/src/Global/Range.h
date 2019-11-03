@@ -26,7 +26,7 @@ namespace verus
 		Range(T mn, T mx) : _min(mn), _max(mx) { VERUS_RT_ASSERT(_min <= _max); }
 
 		T GetRange() const { return _max - _min; }
-		T GetRandomValue() const { return _min + Utils::I().GetRandom().NextFloat()*GetRange(); }
+		T GetRandomValue() const { return _min + Utils::I().GetRandom().NextFloat() * GetRange(); }
 
 		Iterator begin() const { return _min; }
 		Iterator end() const { return _max + 1; }

@@ -11,9 +11,9 @@ void Turret::Update()
 	if (delta <= -VERUS_PI) delta += VERUS_2PI;
 	if (delta >= +VERUS_PI) delta -= VERUS_2PI;
 	if (delta < 0)
-		_actualYaw -= Math::Max(_yawSpeed*dt, -delta);
+		_actualYaw -= Math::Max(_yawSpeed * dt, -delta);
 	else
-		_actualYaw += Math::Min(_yawSpeed*dt, delta);
+		_actualYaw += Math::Min(_yawSpeed * dt, delta);
 	_actualYaw = Math::WrapAngle(_actualYaw);
 }
 

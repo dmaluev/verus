@@ -106,7 +106,7 @@ void StreamPlayer::Update()
 	_fade.UpdateClamped(dt);
 
 	const float level = Math::SmoothStep(0.f, 1.f, _fade.GetValue());
-	alSourcef(_source, AL_GAIN, _gain*level);
+	alSourcef(_source, AL_GAIN, _gain * level);
 }
 
 void StreamPlayer::AddTrack(PTrack pTrack)
@@ -276,7 +276,7 @@ void StreamPlayer::ThreadProc()
 	{
 		//Utils::CLog::Error(e.what(), e.GetThreadID(), e.GetFile(), e.GetLine());
 	}
-	catch (const std::exception& e)
+	catch (const std::exception & e)
 	{
 		VERUS_LOG_ERROR(e.what());
 	}

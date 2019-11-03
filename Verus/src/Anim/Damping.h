@@ -19,7 +19,7 @@ namespace verus
 			Damping(const T& x, float speed) : _target(x), _actual(x), _speed(speed) { _rate = log(10.f); }
 
 			void operator=(const T& x) { _target = x; }
-			operator const T&() const { return _actual; }
+			operator const T& () const { return _actual; }
 
 			const T& GetTarget() const { return _target; }
 			void SetActual(const T& x) { _actual = x; }
@@ -46,7 +46,7 @@ namespace verus
 				else
 				{
 					VERUS_QREF_TIMER;
-					const float ratio = 1 / exp(_speed*dt*_rate);
+					const float ratio = 1 / exp(_speed * dt * _rate);
 					_actual = Math::Lerp(_target, _actual, ratio);
 					if (angle)
 						_actual = Math::WrapAngle(_actual);
@@ -71,7 +71,7 @@ namespace verus
 			Damping(const T& x, float speed) : _target(x), _actual(x), _speed(speed) { _rate = log(10.f); }
 
 			void operator=(const T& x) { _target = x; }
-			operator const T&() const { return _actual; }
+			operator const T& () const { return _actual; }
 
 			const T& GetTarget() const { return _target; }
 			void SetActual(const T& x) { _actual = x; }
@@ -87,7 +87,7 @@ namespace verus
 				else
 				{
 					VERUS_QREF_TIMER;
-					const float ratio = 1 / exp(_speed*dt*_rate);
+					const float ratio = 1 / exp(_speed * dt * _rate);
 					_actual = VMath::lerp(ratio, _target, _actual);
 				}
 			}

@@ -21,9 +21,9 @@ namespace verus
 			static CGI::ShaderPwn       s_shader;
 			static CGI::PipelinePwns<1> s_pipe;
 			static UB_PerFrame          s_ubPerFrame;
-			static UB_PerMaterial       s_ubPerMaterial;
-			static UB_PerMesh           s_ubPerMesh;
-			static UB_Skinning          s_ubSkinning;
+			static UB_PerMaterialFS     s_ubPerMaterialFS;
+			static UB_PerMeshVS         s_ubPerMeshVS;
+			static UB_SkeletonVS        s_ubSkeletonVS;
 			static UB_PerObject         s_ubPerObject;
 
 			CGI::GeometryPwn        _geo;
@@ -54,11 +54,11 @@ namespace verus
 			void Bind(CGI::CommandBufferPtr cb, UINT32 bindingsFilter);
 
 			static CGI::ShaderPtr GetShader() { return s_shader; }
-			static UB_PerMaterial& GetUbPerMaterial() { return s_ubPerMaterial; }
+			static UB_PerMaterialFS& GetUbPerMaterialFS() { return s_ubPerMaterialFS; }
 			void UpdateUniformBufferPerFrame();
-			void UpdateUniformBufferPerMaterial();
-			void UpdateUniformBufferPerMesh();
-			void UpdateUniformBufferSkinning();
+			void UpdateUniformBufferPerMaterialFS();
+			void UpdateUniformBufferPerMeshVS();
+			void UpdateUniformBufferSkeletonVS();
 			void UpdateUniformBufferPerObject(Point3 pos);
 
 			CGI::GeometryPtr GetGeometry() const { return _geo; }

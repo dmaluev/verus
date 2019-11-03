@@ -47,7 +47,7 @@ void Random::NextArray(float* p, int num)
 void Random::NextArray(Vector<BYTE>& v)
 {
 	VERUS_FOREACH(Vector<BYTE>, v, it)
-		*it = Next();
+		* it = Next();
 }
 
 void Random::Seed(UINT32 seed)

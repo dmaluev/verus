@@ -8,7 +8,7 @@
 #define VERUS_QREF_BULLET         Physics::RBullet        bullet   = Physics::Bullet::I()
 #define VERUS_QREF_CONST_SETTINGS App::RcSettings         settings = App::Settings::IConst()
 #define VERUS_QREF_DEPTH          Effects::RDepth         depth    = Effects::Depth::I()
-#define VERUS_QREF_DR             CGL::RDebugRender       dr       = CGL::DebugRender::I()
+#define VERUS_QREF_DD             CGI::RDebugDraw         dd       = CGI::DebugDraw::I()
 #define VERUS_QREF_FSYS           IO::RFileSys            fsys     = IO::FileSys::I()
 #define VERUS_QREF_GAME           Game::RGame             game     = Game::Game::I()
 #define VERUS_QREF_GRASS          Scene::RGrass           grass    = Scene::Grass::I()

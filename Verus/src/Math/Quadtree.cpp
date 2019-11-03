@@ -71,7 +71,7 @@ void Quadtree::Build(int currentNode, int level)
 		VERUS_FOR(i, numLevels)
 		{
 			numNodes +=
-				(1 << Math::Min(i, maxLevelX))*
+				(1 << Math::Min(i, maxLevelX)) *
 				(1 << Math::Min(i, maxLevelY));
 		}
 		_vNodes.resize(numNodes);

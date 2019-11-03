@@ -57,17 +57,19 @@ namespace verus
 			class D3DFramebufferSubpass
 			{
 			public:
-				Vector<ComPtr<ID3D12Resource>> _vResources;
-				DescriptorHeap                 _dhRTVs;
-				DescriptorHeap                 _dhDSV;
+				Vector<ID3D12Resource*> _vResources;
+				DescriptorHeap          _dhRTVs;
+				DescriptorHeap          _dhDSV;
 			};
 			VERUS_TYPEDEFS(D3DFramebufferSubpass);
 
 			class D3DFramebuffer
 			{
 			public:
-				Vector<ComPtr<ID3D12Resource>> _vResources;
-				Vector<D3DFramebufferSubpass>  _vSubpasses;
+				Vector<ID3D12Resource*>       _vResources;
+				Vector<D3DFramebufferSubpass> _vSubpasses;
+				int                           _width = 0;
+				int                           _height = 0;
 			};
 			VERUS_TYPEDEFS(D3DFramebuffer);
 		}

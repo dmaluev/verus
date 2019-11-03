@@ -9,7 +9,7 @@ namespace verus
 			struct BufferEx
 			{
 				ComPtr<ID3D12Resource>   _pBuffer;
-				D3D12MA::Allocation*     _pMaAllocation = nullptr;
+				D3D12MA::Allocation* _pMaAllocation = nullptr;
 				UINT64                   _bufferSize = 0;
 				D3D12_VERTEX_BUFFER_VIEW _bufferView[BaseRenderer::s_ringBufferSize] = {};
 			};

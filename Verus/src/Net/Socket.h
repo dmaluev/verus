@@ -10,7 +10,7 @@ namespace verus
 			{
 				friend class Socket;
 
-				Socket*      _pListener = nullptr;
+				Socket* _pListener = nullptr;
 				SOCKET       _socket = INVALID_SOCKET;
 				std::thread  _thread;
 				Vector<BYTE> _vBuffer;

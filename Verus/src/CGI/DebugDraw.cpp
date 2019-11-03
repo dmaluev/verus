@@ -3,7 +3,7 @@
 using namespace verus;
 using namespace verus::CGI;
 
-//DebugDraw::CB_PerObject DebugDraw::ms_cbPerObject;
+DebugDraw::UB_DebugDraw DebugDraw::s_ubDebugDraw;
 
 DebugDraw::DebugDraw()
 {
@@ -18,41 +18,54 @@ DebugDraw::~DebugDraw()
 void DebugDraw::Init()
 {
 	VERUS_INIT();
-
 	VERUS_QREF_RENDERER;
 
-#if 0
-	CShaderDesc sd;
-	sd.m_url = "Shaders:DR.cg";
-	_shader.Init(sd);
-	_shader->BindBufferSource(&ms_cbPerObject, sizeof(ms_cbPerObject), 0, "PerObject");
+	_shader.Init("[Shaders]:DebugDraw.hlsl");
+	_shader->CreateDescriptorSet(0, &s_ubDebugDraw, sizeof(s_ubDebugDraw), 0);
+	_shader->CreatePipelineLayout();
 
-	CVertexElement ve[] =
+	GeometryDesc geoDesc;
+	const InputElementDesc ied[] =
 	{
-		{0, offsetof(Vertex, pos),		/**/VeType::_float, 3, VeUsage::position, 0},
-		{0, offsetof(Vertex, color),	/**/VeType::_ubyte, 4, VeUsage::color, 0},
-		VERUS_END_DECL
+		{0, offsetof(Vertex, _pos),   IeType::floats, 3, IeUsage::position, 0},
+		{0, offsetof(Vertex, _color), IeType::ubytes, 4, IeUsage::color, 0},
+		InputElementDesc::End()
 	};
-	CGeometryDesc gd;
-	gd.m_pVertDecl = ve;
-	gd.m_pShader = &(*_shader);
-	_geo.Init(gd);
-	_geo->DefineVertexStream(0, sizeof(Vertex), _maxNumVert * sizeof(Vertex), USAGE_DYNAMIC_DRAW);
+	geoDesc._pInputElementDesc = ied;
+	const int strides[] = { sizeof(Vertex), 0 };
+	geoDesc._pStrides = strides;
+	geoDesc._dynamic = true;
+	_geo.Init(geoDesc);
+	_geo->CreateVertexBuffer(_maxNumVert, 0);
 
-	CStateBlockDesc sbd;
-	sbd.B().rtBlendEqs[0] = VERUS_BLEND_NORMAL;
-	sbd.R().antialiasedLineEnable = true;
-	sbd.Z().depthEnable = true;
-	sbd.Z().depthWriteEnable = false;
-	m_sb[SB_MASTER].Init(sbd);
+	_vDynamicBuffer.resize(_maxNumVert);
+	_numVert = 0;
+	_offset = 0;
 
-	sbd.Reset();
-	sbd.B().rtBlendEqs[0] = VERUS_BLEND_NORMAL;
-	sbd.R().antialiasedLineEnable = true;
-	sbd.Z().depthEnable = false;
-	sbd.Z().depthWriteEnable = false;
-	m_sb[SB_NO_Z].Init(sbd);
-#endif
+	{
+		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPass_SwapChainDepth());
+		pipeDesc._rasterizationState._polygonMode = PolygonMode::line;
+		pipeDesc._topology = PrimitiveTopology::pointList;
+		_pipe[PIPE_POINTS].Init(pipeDesc);
+		pipeDesc._depthTestEnable = false;
+		_pipe[PIPE_POINTS_NO_Z].Init(pipeDesc);
+	}
+	{
+		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPass_SwapChainDepth());
+		pipeDesc._rasterizationState._polygonMode = PolygonMode::line;
+		pipeDesc._topology = PrimitiveTopology::lineList;
+		_pipe[PIPE_LINES].Init(pipeDesc);
+		pipeDesc._depthTestEnable = false;
+		_pipe[PIPE_LINES_NO_Z].Init(pipeDesc);
+	}
+	{
+		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPass_SwapChainDepth());
+		pipeDesc._rasterizationState._polygonMode = PolygonMode::line;
+		pipeDesc._topology = PrimitiveTopology::triangleList;
+		_pipe[PIPE_POLY].Init(pipeDesc);
+		pipeDesc._depthTestEnable = false;
+		_pipe[PIPE_POLY_NO_Z].Init(pipeDesc);
+	}
 }
 
 void DebugDraw::Done()
@@ -62,17 +75,29 @@ void DebugDraw::Done()
 
 void DebugDraw::Begin(Type type, PcTransform3 pMat, bool zEnable)
 {
-#if 0
 	VERUS_QREF_SM;
-	VERUS_QREF_RENDER;
+	VERUS_QREF_RENDERER;
 
 	_type = type;
 	_numVert = 0;
+	if (_currentFrame != renderer.GetNumFrames())
+	{
+		_currentFrame = renderer.GetNumFrames();
+		_offset = 0;
+	}
 
-	if (zEnable)
-		m_sb[SB_MASTER]->Apply();
-	else
-		m_sb[SB_NO_Z]->Apply();
+	PIPE pipe = PIPE_POINTS;
+	switch (type)
+	{
+	case Type::points: pipe = PIPE_POINTS; break;
+	case Type::lines: pipe = PIPE_LINES; break;
+	case Type::poly: pipe = PIPE_POLY; break;
+	}
+	if (!zEnable)
+		pipe = static_cast<PIPE>(pipe + 1);
+
+	renderer.GetCommandBuffer()->BindPipeline(_pipe[pipe]);
+	renderer.GetCommandBuffer()->BindVertexBuffers(_geo);
 
 	Matrix4 matWVP;
 	if (sm.GetCamera())
@@ -80,68 +105,52 @@ void DebugDraw::Begin(Type type, PcTransform3 pMat, bool zEnable)
 	else
 		matWVP = Matrix4::identity();
 
-	ms_cbPerObject.matWVP = pMat ? Matrix4(matWVP**pMat).ConstBufferFormat() : matWVP.ConstBufferFormat();
+	s_ubDebugDraw._matWVP = pMat ? Matrix4(matWVP * *pMat).UniformBufferFormat() : matWVP.UniformBufferFormat();
 
-	_pVB = static_cast<Vertex*>(_geo->MapVB(true));
-
-	_shader->Bind("T");
-	_shader->UpdateBuffer(0);
-
-	_geo->BeginDraw(0x1);
-#endif
+	_shader->BeginBindDescriptors();
+	renderer.GetCommandBuffer()->BindDescriptors(_shader, 0);
+	_shader->EndBindDescriptors();
 }
 
 void DebugDraw::End()
 {
-#if 0
-	_geo->UnmapVB(0);
-	if (_numVert)
-	{
-		VERUS_QREF_RENDER;
-		switch (_type)
-		{
-		case T_POINTS:	render->DrawPrimitive(PT_POINTLIST,		/**/0, _numVert); break;
-		case T_LINES:	render->DrawPrimitive(PT_LINELIST,		/**/0, _numVert); break;
-		case T_POLY:	render->DrawPrimitive(PT_TRIANGLELIST,	/**/0, _numVert); break;
-		}
-	}
-	_geo->EndDraw(0x1);
-#endif
+	VERUS_QREF_RENDERER;
+
+	_geo->UpdateVertexBuffer(_vDynamicBuffer.data(), 0);
+	renderer.GetCommandBuffer()->Draw(_numVert, 1, _offset);
+	_offset = _numVert;
+	_numVert = 0;
 }
 
-void DebugDraw::AddPoint(
+bool DebugDraw::AddPoint(
 	RcPoint3 pos,
 	UINT32 color)
 {
+	return false;
 }
 
-void DebugDraw::AddLine(
+bool DebugDraw::AddLine(
 	RcPoint3 posA,
 	RcPoint3 posB,
 	UINT32 color)
 {
-#if 0
-	if (_numVert + 1 >= _maxNumVert)
-	{
-		VERUS_QREF_RENDERER;
-		_geo->UnmapVB(0);
-		render->DrawPrimitive(PT_LINELIST, 0, _numVert);
-		_pVB = static_cast<Vertex*>(_geo->MapVB(true));
-		_numVert = 0;
-	}
-	posA.ToArray3(_pVB[_numVert]._pos);
-	Utils::CopyColor(_pVB[_numVert]._color, Convert::ToDeviceColor(color));
-	_numVert++;
-	posB.ToArray3(_pVB[_numVert]._pos);
-	Utils::CopyColor(_pVB[_numVert]._color, Convert::ToDeviceColor(color));
-	_numVert++;
-#endif
+	const int at = _offset + _numVert;
+	if (at + 2 > _maxNumVert)
+		return false;
+	posA.ToArray3(_vDynamicBuffer[at]._pos);
+	Utils::CopyColor(_vDynamicBuffer[at]._color, color);
+	posB.ToArray3(_vDynamicBuffer[at + 1]._pos);
+	Utils::CopyColor(_vDynamicBuffer[at + 1]._color, color);
+	_numVert += 2;
+	_peakLoad = Math::Max(_peakLoad, at + 2);
+	return true;
 }
 
-void DebugDraw::AddTriangle(
+bool DebugDraw::AddTriangle(
 	RcPoint3 posA,
 	RcPoint3 posB,
 	RcPoint3 posC,
 	UINT32 color)
 {
+	return false;
 }

@@ -41,7 +41,7 @@ namespace verus
 			Vector<BYTE>            _vMediumBuffer;
 			std::thread             _thread;
 			std::condition_variable _cv;
-			vorbis_info*            _pVorbisInfo = nullptr;
+			vorbis_info* _pVorbisInfo = nullptr;
 			PTrack                  _pTrack = nullptr;
 			OggVorbis_File          _oggVorbisFile;
 			ALuint                  _buffers[2];

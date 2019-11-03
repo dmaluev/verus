@@ -1,4 +1,5 @@
 #include "Lib.hlsl"
+#include "LibColor.hlsl"
 #include "GenerateMips.inc.hlsl"
 
 ConstantBuffer<UB_GenerateMips> g_ub : register(b0, space0);
@@ -42,21 +43,11 @@ float4 LoadColor(uint index)
 	return float4(gs_R[index], gs_G[index], gs_B[index], gs_A[index]);
 }
 
-float3 ConvertToLinear(float3 x)
-{
-	return x < 0.04045f ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4);
-}
-
-float3 ConvertToSRGB(float3 x)
-{
-	return x < 0.0031308 ? 12.92 * x : 1.055 * pow(abs(x), 1.0 / 2.4) - 0.055;
-}
-
 float4 PackColor(float4 x)
 {
 	if (g_ub._isSRGB)
 	{
-		return float4(ConvertToSRGB(x.rgb), x.a);
+		return ColorToSRGB(x);
 	}
 	else
 	{
@@ -172,4 +163,4 @@ void mainCS(CSI si)
 }
 #endif
 
-//@main:T
+//@main:# (C)

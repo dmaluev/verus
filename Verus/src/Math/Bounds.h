@@ -20,7 +20,7 @@ namespace verus
 
 			Point3 GetCenter()      const { return VMath::lerp(0.5f, _min, _max); }
 			Vector3 GetDimensions() const { return (_max - _min); }
-			Vector3 GetExtents()    const { return (_max - _min)*0.5f; }
+			Vector3 GetExtents()    const { return (_max - _min) * 0.5f; }
 
 			Bounds& Set(RcPoint3 mn, RcPoint3 mx);
 			Bounds& Set(float mn, float mx, int axis);

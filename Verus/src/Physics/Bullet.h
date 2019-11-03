@@ -21,11 +21,11 @@ namespace verus
 		{
 			static const int s_defaultMaxSubSteps = 8;
 
-			btDispatcher*             _pDispatcher = nullptr;
-			btBroadphaseInterface*    _pBroadphaseInterface = nullptr;
-			btConstraintSolver*       _pConstraintSolver = nullptr;
+			btDispatcher* _pDispatcher = nullptr;
+			btBroadphaseInterface* _pBroadphaseInterface = nullptr;
+			btConstraintSolver* _pConstraintSolver = nullptr;
 			btCollisionConfiguration* _pCollisionConfiguration = nullptr;
-			btDiscreteDynamicsWorld*  _pDiscreteDynamicsWorld = nullptr;
+			btDiscreteDynamicsWorld* _pDiscreteDynamicsWorld = nullptr;
 
 		public:
 			Bullet();

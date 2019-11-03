@@ -3,8 +3,9 @@
 using namespace verus;
 using namespace verus::Scene;
 
-CGI::ShaderPwn        Terrain::s_shader;
-Terrain::UB_DrawDepth Terrain::s_ubDrawDepth;
+CGI::ShaderPwn            Terrain::s_shader;
+Terrain::UB_DrawDepth     Terrain::s_ubDrawDepth;
+Terrain::UB_PerMaterialFS Terrain::s_ubPerMaterialFS;
 
 // TerrainPhysics:
 
@@ -27,7 +28,7 @@ void TerrainPhysics::Init(Physics::PUserPtr p, int w, int h, float heightScale)
 		_vData.data(),
 		heightScale,
 		-SHRT_MAX * heightScale,
-		SHRT_MAX*heightScale,
+		SHRT_MAX * heightScale,
 		1,
 		PHY_SHORT,
 		false);
@@ -241,7 +242,7 @@ void TerrainPatch::UpdateNormals(PTerrain p, int lod)
 					Convert::Sint8ToSnorm(p->GetNormalAt(ijC, lod - 1, static_cast<TerrainTBN>(tbn)), temp, 3); c = Vector3::MakeFromPointer(temp);
 					Convert::Sint8ToSnorm(p->GetNormalAt(ijD, lod - 1, static_cast<TerrainTBN>(tbn)), temp, 3); d = Vector3::MakeFromPointer(temp);
 					const float ratio = 1.f + (4 - lod) * 4;
-					const Vector3 normal = VMath::normalize(a*ratio + b + c + d);
+					const Vector3 normal = VMath::normalize(a * ratio + b + c + d);
 
 					Convert::SnormToSint8(normal.ToPointer(), &normals[lod][((i << (4 - lod)) + j) << 2], 3);
 				}
@@ -273,14 +274,18 @@ Terrain::~Terrain()
 
 void Terrain::InitStatic()
 {
-	CGI::ShaderDesc shaderDesc;
-	shaderDesc._url = "[Shaders]:DS_Terrain.hlsl";
-	s_shader.Init(shaderDesc);
-	s_shader->CreateDescriptorSet(0, &s_ubDrawDepth, sizeof(s_ubDrawDepth), 1,
+	VERUS_QREF_CONST_SETTINGS;
+
+	s_shader.Init("[Shaders]:DS_Terrain.hlsl");
+	s_shader->CreateDescriptorSet(0, &s_ubDrawDepth, sizeof(s_ubDrawDepth), settings.GetLimits()._terrain_ubDrawDepthCapacity,
 		{
-			CGI::Sampler::linear2D, CGI::Sampler::aniso, CGI::Sampler::aniso,
-			CGI::Sampler::aniso, CGI::Sampler::aniso
+			CGI::Sampler::linear2D
 		});
+	s_shader->CreateDescriptorSet(1, &s_ubPerMaterialFS, sizeof(s_ubPerMaterialFS), 1000,
+		{
+			CGI::Sampler::aniso, CGI::Sampler::aniso,
+			CGI::Sampler::aniso, CGI::Sampler::aniso
+		}, CGI::ShaderStageFlags::fs);
 	s_shader->CreatePipelineLayout();
 }
 
@@ -327,9 +332,9 @@ void Terrain::Init(RcDesc desc)
 			VERUS_FOR(j, _mapSide)
 			{
 				const float x = j * scale;
-				const float res = sin(x*VERUS_2PI)*sin(z*VERUS_2PI);
+				const float res = sin(x * VERUS_2PI) * sin(z * VERUS_2PI);
 				const int ij[] = { i, j };
-				SetHeightAt(ij, short(res*1000.f));
+				SetHeightAt(ij, short(res * 1000.f));
 			}
 		});
 
@@ -342,6 +347,7 @@ void Terrain::Init(RcDesc desc)
 		}
 	}
 	_vSortedPatchIndices.resize(numPatches);
+	const int maxNumInstances = numPatches * 8;
 
 	// Init LODs:
 	VERUS_FOR(i, VERUS_ARRAY_LENGTH(_lods))
@@ -366,35 +372,47 @@ void Terrain::Init(RcDesc desc)
 		ibSize += _lods[i]._numIndices;
 	}
 
+	CGI::GeometryDesc geoDesc;
 	const CGI::InputElementDesc ied[] =
 	{
-		{0, 0,                                     CGI::IeType::shorts, 4, CGI::IeUsage::position, 0},
+		{ 0, 0,                                    CGI::IeType::shorts, 4, CGI::IeUsage::position, 0},
 		{-1, offsetof(PerInstanceData, _posPatch), CGI::IeType::shorts, 4, CGI::IeUsage::texCoord, 8},
 		{-1, offsetof(PerInstanceData, _layers),   CGI::IeType::shorts, 4, CGI::IeUsage::texCoord, 9},
 		CGI::InputElementDesc::End()
 	};
-	CGI::GeometryDesc geoDesc;
 	geoDesc._pInputElementDesc = ied;
 	const int strides[] = { sizeof(short) * 4, sizeof(PerInstanceData), 0 };
 	geoDesc._pStrides = strides;
 	_geo.Init(geoDesc);
 	_geo->CreateVertexBuffer(vbSize, 0);
-	_geo->CreateVertexBuffer(numPatches, 1);
+	_geo->CreateVertexBuffer(maxNumInstances, 1);
 	_geo->CreateIndexBuffer(ibSize);
 	_geo->UpdateVertexBuffer(vVB.data(), 0);
 	_geo->UpdateIndexBuffer(vIB.data());
 
-	_vInstanceBuffer.resize(numPatches);
+	_vInstanceBuffer.resize(maxNumInstances);
 
-	CGI::PipelineDesc pipeDesc(_geo, s_shader, "T", renderer.GetDS().GetRenderPassID());
-	pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
-	pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
-	pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
-	pipeDesc._colorAttachBlendEqs[3] = VERUS_COLOR_BLEND_OFF;
-	_pipe[PIPE_LIST].Init(pipeDesc);
-	pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
-	pipeDesc._primitiveRestartEnable = true;
-	_pipe[PIPE_STRIP].Init(pipeDesc);
+	{
+		CGI::PipelineDesc pipeDesc(_geo, s_shader, "#", renderer.GetDS().GetRenderPassID());
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._colorAttachBlendEqs[3] = VERUS_COLOR_BLEND_OFF;
+		_pipe[PIPE_LIST].Init(pipeDesc);
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc._primitiveRestartEnable = true;
+		_pipe[PIPE_STRIP].Init(pipeDesc);
+	}
+	{
+		VERUS_QREF_ATMO;
+		CGI::PipelineDesc pipeDesc(_geo, s_shader, "#Depth", atmo.GetShadowMap().GetRenderPassID());
+		pipeDesc._colorAttachBlendEqs[0] = "";
+		pipeDesc.DepthBiasEnable();
+		_pipe[PIPE_DEPTH_LIST].Init(pipeDesc);
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc._primitiveRestartEnable = true;
+		_pipe[PIPE_DEPTH_STRIP].Init(pipeDesc);
+	}
 
 	CGI::TextureDesc texDesc;
 	texDesc._format = CGI::Format::floatR16;
@@ -410,6 +428,8 @@ void Terrain::Init(RcDesc desc)
 	texDesc._flags = CGI::TextureDesc::Flags::generateMips;
 	_tex[TEX_NORMALS].Init(texDesc);
 	_tex[TEX_BLEND].Init(texDesc);
+
+	_csidVS = s_shader->BindDescriptorSetTextures(0, { _tex[TEX_HEIGHTMAP] });
 
 	OnHeightModified();
 
@@ -433,29 +453,54 @@ int Terrain::UserPtr_GetType()
 	//return +NodeType::terrain;
 }
 
+void Terrain::ResetNumInstances()
+{
+	_numInstances = 0;
+}
+
 void Terrain::Layout()
 {
+	VERUS_QREF_CONST_SETTINGS;
+	VERUS_QREF_ATMO;
+	VERUS_QREF_SM;
+
 	// Reset LOD data:
 	std::for_each(_vPatches.begin(), _vPatches.end(), [](RTerrainPatch patch) {patch._quadtreeLOD = -1; });
+
+	PCamera pPrevCamera = nullptr;
+	Camera cam;
+	// For CSM we need to create geometry beyond the view frustum (1st slice):
+	if (settings._sceneShadowQuality >= App::Settings::ShadowQuality::cascaded && atmo.IsRenderingShadow())
+	{
+		PCamera pCameraCSM = atmo.GetSunCameraCSM();
+		if (pCameraCSM)
+			pPrevCamera = sm.SetCamera(pCameraCSM);
+	}
 
 	_numVisiblePatches = 0;
 	_quadtree.TraverseVisible();
 	SortVisiblePatches();
+
+	// Back to original camera:
+	if (pPrevCamera)
+		sm.SetCamera(pPrevCamera);
 }
 
 void Terrain::Draw()
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
-	VERUS_QREF_CONST_SETTINGS;
+	VERUS_QREF_ATMO;
 
 	if (!_numVisiblePatches)
 		return;
 
+	const bool drawingDepth = Scene::SceneManager::IsDrawingDepth(Scene::DrawDepth::automatic);
+
 	s_ubDrawDepth._matW = mataff(1);
 	s_ubDrawDepth._matWV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
 	s_ubDrawDepth._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubDrawDepth._posEye_mapSideInv = float4(sm.GetCamera()->GetPositionEye().GLM(), 0);
+	s_ubDrawDepth._posEye_mapSideInv = float4(atmo.GetEyePosition().GLM(), 0);
 	s_ubDrawDepth._posEye_mapSideInv.w = 1.f / _mapSide;
 
 	renderer.GetCommandBuffer()->BindVertexBuffers(_geo);
@@ -478,38 +523,58 @@ void Terrain::Draw()
 
 			if (!lod)
 			{
-				renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_LIST]);
-				renderer.GetCommandBuffer()->SetViewport({ Vector4(0, 0, settings._screenSizeWidth, settings._screenSizeHeight) });
-				renderer.GetCommandBuffer()->SetScissor({ Vector4(0, 0, settings._screenSizeWidth, settings._screenSizeHeight) });
-				renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _csid);
+				if (drawingDepth)
+				{
+					renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_DEPTH_LIST]);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _csidVS);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _csidFS);
+				}
+				else
+				{
+					renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_LIST]);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _csidVS);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _csidFS);
+				}
 			}
 			else if (!strip)
 			{
-				strip = true;
-				renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_STRIP]);
-				renderer.GetCommandBuffer()->SetViewport({ Vector4(0, 0, settings._screenSizeWidth, settings._screenSizeHeight) });
-				renderer.GetCommandBuffer()->SetScissor({ Vector4(0, 0, settings._screenSizeWidth, settings._screenSizeHeight) });
-				renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _csid);
+				if (drawingDepth)
+				{
+					strip = true;
+					renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_DEPTH_STRIP]);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _csidVS);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _csidFS);
+				}
+				else
+				{
+					strip = true;
+					renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_STRIP]);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _csidVS);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _csidFS);
+				}
 			}
 
 			const int instanceCount = i - firstInstance; // Drawing patches [firstInstance, i).
 			for (int inst = firstInstance; inst < i; ++inst)
 			{
+				const int at = _numInstances + inst;
 				RcTerrainPatch patchToDraw = _vPatches[_vSortedPatchIndices[inst]];
-				_vInstanceBuffer[inst]._posPatch[0] = patchToDraw._ijCoord[1] - half;
-				_vInstanceBuffer[inst]._posPatch[1] = patchToDraw._patchHeight;
-				_vInstanceBuffer[inst]._posPatch[2] = patchToDraw._ijCoord[0] - half;
-				_vInstanceBuffer[inst]._posPatch[3] = 0;
+				_vInstanceBuffer[at]._posPatch[0] = patchToDraw._ijCoord[1] - half;
+				_vInstanceBuffer[at]._posPatch[1] = patchToDraw._patchHeight;
+				_vInstanceBuffer[at]._posPatch[2] = patchToDraw._ijCoord[0] - half;
+				_vInstanceBuffer[at]._posPatch[3] = 0;
 				VERUS_FOR(ch, 4)
-					_vInstanceBuffer[inst]._layers[ch] = patchToDraw._layerForChannel[ch];
+					_vInstanceBuffer[at]._layers[ch] = patchToDraw._layerForChannel[ch];
 			}
 
-			renderer.GetCommandBuffer()->DrawIndexed(_lods[lod]._numIndices, instanceCount, _lods[lod]._firstIndex, 0, firstInstance);
+			renderer.GetCommandBuffer()->DrawIndexed(_lods[lod]._numIndices, instanceCount, _lods[lod]._firstIndex, 0, _numInstances + firstInstance);
 
 			lod = patch._quadtreeLOD;
 			firstInstance = i;
 		}
 	}
+
+	_numInstances += _numVisiblePatches;
 
 	_geo->UpdateVertexBuffer(_vInstanceBuffer.data(), 1);
 
@@ -519,27 +584,27 @@ void Terrain::Draw()
 void Terrain::SortVisiblePatches()
 {
 	std::sort(_vSortedPatchIndices.begin(), _vSortedPatchIndices.begin() + _numVisiblePatches, [this](int a, int b)
-	{
-		RcTerrainPatch patchA = GetPatch(a);
-		RcTerrainPatch patchB = GetPatch(b);
+		{
+			RcTerrainPatch patchA = GetPatch(a);
+			RcTerrainPatch patchB = GetPatch(b);
 
-		if (patchA._quadtreeLOD != patchB._quadtreeLOD)
-			return patchA._quadtreeLOD < patchB._quadtreeLOD;
+			if (patchA._quadtreeLOD != patchB._quadtreeLOD)
+				return patchA._quadtreeLOD < patchB._quadtreeLOD;
 
-		return patchA._distToCameraSq < patchB._distToCameraSq;
-	});
+			return patchA._distToCameraSq < patchB._distToCameraSq;
+		});
 }
 
 void Terrain::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center)
 {
-	VERUS_QREF_SM;
+	VERUS_QREF_ATMO;
 
-	const RcPoint3 posEye = sm.GetCamera()->GetPositionEye();
+	const RcPoint3 posEye = atmo.GetEyePosition();
 
 	const Vector3 toCenter = center - posEye;
 	const float dist = VMath::length(toCenter);
 
-	const float lodF = log2(Math::Clamp((dist - 12)*(2 / 100.f), 1.f, 18.f));
+	const float lodF = log2(Math::Clamp((dist - 12) * (2 / 100.f), 1.f, 18.f));
 	const int lod = Math::Clamp<int>(int(lodF), 0, 4);
 
 	// Locate this patch:
@@ -550,7 +615,7 @@ void Terrain::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 ce
 
 	// Update this patch:
 	RTerrainPatch patch = _vPatches[offsetPatch];
-	patch._distToCameraSq = int(dist*dist);
+	patch._distToCameraSq = int(dist * dist);
 	patch._patchHeight = ConvertHeight(center.getY());
 	patch._quadtreeLOD = lod;
 
@@ -727,7 +792,7 @@ void Terrain::LoadLayerTextures()
 	texDesc._urls = vLayerUrlsPtrNM.data();
 	_tex[TEX_LAYERS_NM].Init(texDesc);
 
-	_csid = s_shader->BindDescriptorSetTextures(0, { _tex[TEX_HEIGHTMAP], _tex[TEX_NORMALS], _tex[TEX_BLEND], _tex[TEX_LAYERS], _tex[TEX_LAYERS_NM] });
+	_csidFS = s_shader->BindDescriptorSetTextures(1, { _tex[TEX_NORMALS], _tex[TEX_BLEND], _tex[TEX_LAYERS], _tex[TEX_LAYERS_NM] });
 }
 
 int Terrain::GetMainLayerAt(const int ij[2]) const
@@ -749,7 +814,8 @@ int Terrain::GetMainLayerAt(const int ij[2]) const
 
 void Terrain::UpdateHeightmapTexture()
 {
-	Vector<glm::uint16> v(_mapSide*_mapSide);
+	VERUS_QREF_RENDERER;
+	Vector<glm::uint16> v(_mapSide * _mapSide);
 	const int mipLevels = Math::ComputeMipLevels(_mapSide, _mapSide);
 	VERUS_FOR(lod, mipLevels)
 	{
@@ -760,12 +826,13 @@ void Terrain::UpdateHeightmapTexture()
 			const int offset = i * side;
 			VERUS_FOR(j, side)
 			{
-				const int ij[] = { i*step, j*step };
+				const int ij[] = { i * step, j * step };
 				const float bestPrecision = 50;
 				v[offset + j] = glm::packHalf1x16(GetHeightAt(ij, 0) - bestPrecision);
 			}
 		});
 		_tex[TEX_HEIGHTMAP]->UpdateImage(lod, v.data());
+		renderer.GetCommandBuffer()->PipelineImageMemoryBarrier(_tex[TEX_HEIGHTMAP], CGI::ImageLayout::fsReadOnly, CGI::ImageLayout::vsReadOnly, lod);
 	}
 }
 
@@ -776,7 +843,7 @@ CGI::TexturePtr Terrain::GetHeightmapTexture() const
 
 void Terrain::UpdateNormalsTexture()
 {
-	Vector<UINT32> v(_mapSide*_mapSide);
+	Vector<UINT32> v(_mapSide * _mapSide);
 	VERUS_P_FOR(i, _mapSide)
 	{
 		VERUS_FOR(j, _mapSide)
@@ -811,7 +878,7 @@ CGI::TexturePtr Terrain::GetNormalsTexture() const
 
 void Terrain::UpdateMainLayerTexture()
 {
-	Vector<BYTE> v(_mapSide*_mapSide);
+	Vector<BYTE> v(_mapSide * _mapSide);
 	VERUS_P_FOR(i, _mapSide)
 	{
 		const int offset = i << _mapShift;
@@ -850,7 +917,7 @@ void Terrain::AddNewRigidBody()
 void Terrain::UpdateRigidBody()
 {
 	auto& v = _physics.GetData();
-	v.resize(_mapSide*_mapSide);
+	v.resize(_mapSide * _mapSide);
 	VERUS_P_FOR(i, _mapSide)
 	{
 		const int offset = i << _mapShift;

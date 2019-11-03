@@ -49,9 +49,9 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 	ShaderInclude inc;
 	const String version = "5_1";
 #ifdef _DEBUG
-	const UINT flags = D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_WARNINGS_ARE_ERRORS | D3DCOMPILE_OPTIMIZATION_LEVEL1 | D3DCOMPILE_DEBUG;
+	const UINT flags = D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_WARNINGS_ARE_ERRORS | D3DCOMPILE_ALL_RESOURCES_BOUND | D3DCOMPILE_OPTIMIZATION_LEVEL1 | D3DCOMPILE_DEBUG;
 #else
-	const UINT flags = D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_WARNINGS_ARE_ERRORS | D3DCOMPILE_OPTIMIZATION_LEVEL3;
+	const UINT flags = D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_WARNINGS_ARE_ERRORS | D3DCOMPILE_ALL_RESOURCES_BOUND | D3DCOMPILE_OPTIMIZATION_LEVEL3;
 #endif
 	ComPtr<ID3DBlob> pErrorMsgs;
 
@@ -66,10 +66,10 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 
 	while (*branches)
 	{
-		String entryVS, entryHS, entryDS, entryGS, entryFS, entryCS;
+		String entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages;
 		Vector<String> vMacroName;
 		Vector<String> vMacroValue;
-		const String entry = Parse(*branches, entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, vMacroName, vMacroValue, "DEF_");
+		const String entry = Parse(*branches, entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages, vMacroName, vMacroValue, "DEF_");
 
 		if (IsInIgnoreList(_C(entry)))
 		{
@@ -119,7 +119,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 
 		Compiled compiled;
 
-		if (strstr(source, " mainVS("))
+		if (strchr(_C(stages), 'V'))
 		{
 			compiled._numStages++;
 			vDefines[typeIndex].Name = "_VS";
@@ -127,7 +127,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			CheckErrorMsgs(pErrorMsgs);
 		}
 
-		if (strstr(source, " mainHS("))
+		if (strchr(_C(stages), 'H'))
 		{
 			compiled._numStages++;
 			vDefines[typeIndex].Name = "_HS";
@@ -135,7 +135,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			CheckErrorMsgs(pErrorMsgs);
 		}
 
-		if (strstr(source, " mainDS("))
+		if (strchr(_C(stages), 'D'))
 		{
 			compiled._numStages++;
 			vDefines[typeIndex].Name = "_DS";
@@ -143,7 +143,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			CheckErrorMsgs(pErrorMsgs);
 		}
 
-		if (strstr(source, " mainGS("))
+		if (strchr(_C(stages), 'G'))
 		{
 			compiled._numStages++;
 			vDefines[typeIndex].Name = "_GS";
@@ -151,7 +151,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			CheckErrorMsgs(pErrorMsgs);
 		}
 
-		if (strstr(source, " mainFS("))
+		if (strchr(_C(stages), 'F'))
 		{
 			compiled._numStages++;
 			vDefines[typeIndex].Name = "_FS";
@@ -159,7 +159,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			CheckErrorMsgs(pErrorMsgs);
 		}
 
-		if (strstr(source, " mainCS("))
+		if (strchr(_C(stages), 'C'))
 		{
 			compiled._numStages++;
 			vDefines[typeIndex].Name = "_CS";
@@ -214,7 +214,7 @@ void ShaderD3D12::CreateDescriptorSet(int setNumber, const void* pSrc, int size,
 	dsd._size = size;
 	dsd._sizeAligned = Math::AlignUp(size, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 	dsd._capacity = capacity;
-	dsd._capacityInBytes = dsd._sizeAligned*dsd._capacity;
+	dsd._capacityInBytes = dsd._sizeAligned * dsd._capacity;
 	dsd._stageFlags = stageFlags;
 
 	if (capacity > 0)
@@ -231,7 +231,7 @@ void ShaderD3D12::CreateDescriptorSet(int setNumber, const void* pSrc, int size,
 			IID_PPV_ARGS(&dsd._pConstantBuffer))))
 			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
 
-		const int num = dsd._capacity*BaseRenderer::s_ringBufferSize;
+		const int num = dsd._capacity * BaseRenderer::s_ringBufferSize;
 		dsd._dhDynamicOffsets.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, num);
 		VERUS_FOR(i, num)
 		{
@@ -322,8 +322,11 @@ void ShaderD3D12::CreatePipelineLayout()
 						}
 					}
 				}
+				D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
+				if (ShaderStageFlags::fs == dsd._stageFlags)
+					visibility = D3D12_SHADER_VISIBILITY_PIXEL;
 				CD3DX12_ROOT_PARAMETER1 rootParam;
-				rootParam.InitAsDescriptorTable(1 + numTextures, pDescriptorRanges);
+				rootParam.InitAsDescriptorTable(1 + numTextures, pDescriptorRanges, visibility);
 				vRootParams.push_back(rootParam);
 			}
 			else
@@ -452,7 +455,7 @@ void ShaderD3D12::BeginBindDescriptors()
 		if (FAILED(hr = dsd._pConstantBuffer->Map(0, &readRange, &pData)))
 			throw VERUS_RUNTIME_ERROR << "Map(), hr=" << VERUS_HR(hr);
 		dsd._pMappedData = static_cast<BYTE*>(pData);
-		dsd._pMappedData += dsd._capacityInBytes*pRendererD3D12->GetRingBufferIndex(); // Adjust address for this frame.
+		dsd._pMappedData += dsd._capacityInBytes * pRendererD3D12->GetRingBufferIndex(); // Adjust address for this frame.
 		if (resetOffset)
 		{
 			dsd._offset = 0;
@@ -505,12 +508,16 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, in
 	else
 	{
 		if (dsd._offset + dsd._sizeAligned > dsd._capacityInBytes)
+		{
+			VERUS_RT_FAIL("UniformBuffer is full.");
 			return CD3DX12_GPU_DESCRIPTOR_HANDLE();
+		}
 
 		VERUS_RT_ASSERT(dsd._pMappedData);
 		at = dsd._capacity * pRendererD3D12->GetRingBufferIndex() + dsd._index;
 		memcpy(dsd._pMappedData + dsd._offset, dsd._pSrc, dsd._size);
 		dsd._offset += dsd._sizeAligned;
+		dsd._peakLoad = Math::Max(dsd._peakLoad, dsd._offset);
 		dsd._index++;
 	}
 

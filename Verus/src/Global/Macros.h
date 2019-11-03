@@ -79,6 +79,7 @@
 
 #define VERUS_MAX_NUM_BONES 128
 #define VERUS_MAX_NUM_RT 8
+#define VERUS_MAX_NUM_FB_ATTACH (VERUS_MAX_NUM_RT * 4)
 #define VERUS_MAX_NUM_VB 8
 
 #define VERUS_COLOR_BLEND_OFF          "off"

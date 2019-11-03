@@ -18,6 +18,16 @@ namespace verus
 		class RendererVulkan : public Singleton<RendererVulkan>, public BaseRenderer,
 			private TStoreCommandBuffers, private TStoreGeometry, private TStorePipelines, private TStoreShaders, private TStoreTextures
 		{
+		public:
+			struct Framebuffer
+			{
+				VkFramebuffer _framebuffer = VK_NULL_HANDLE;
+				int           _width = 0;
+				int           _height = 0;
+			};
+			VERUS_TYPEDEFS(Framebuffer);
+
+		private:
 			struct QueueFamilyIndices
 			{
 				int _graphicsFamilyIndex = -1;
@@ -66,7 +76,7 @@ namespace verus
 			QueueFamilyIndices       _queueFamilyIndices;
 			Vector<VkSampler>        _vSamplers;
 			Vector<VkRenderPass>     _vRenderPasses;
-			Vector<VkFramebuffer>    _vFramebuffers;
+			Vector<Framebuffer>      _vFramebuffers;
 
 		public:
 			RendererVulkan();
@@ -115,6 +125,9 @@ namespace verus
 			VkCommandPool GetVkCommandPool(int ringBufferIndex) const { return _commandPools[ringBufferIndex]; }
 			const VkSampler* GetImmutableSampler(Sampler s) const;
 
+			virtual void ImGuiInit(int renderPassID) override;
+			virtual void ImGuiRenderDrawData() override;
+
 			// Which graphics API?
 			virtual Gapi GetGapi() override { return Gapi::vulkan; }
 
@@ -145,7 +158,7 @@ namespace verus
 			int GetNextRenderPassID() const;
 			int GetNextFramebufferID() const;
 			VkRenderPass GetRenderPassByID(int id) const;
-			VkFramebuffer GetFramebufferByID(int id) const;
+			RcFramebuffer GetFramebufferByID(int id) const;
 
 			void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage vmaUsage, VkBuffer& buffer, VmaAllocation& vmaAllocation);
 			void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, PBaseCommandBuffer pCB = nullptr);

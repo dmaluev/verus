@@ -1,19 +1,26 @@
 #include "Lib.hlsl"
 #include "LibColor.hlsl"
 #include "LibDeferredShading.hlsl"
+#include "LibDepth.hlsl"
 #include "LibLighting.hlsl"
 #include "LibVertex.hlsl"
 #include "DS.inc.hlsl"
 
-ConstantBuffer<UB_PerFrame>  g_ubPerFrame  : register(b0, space0);
-ConstantBuffer<UB_PerMesh>   g_ubPerMesh   : register(b0, space1);
+ConstantBuffer<UB_PerFrame>   g_ubPerFrame   : register(b0, space0);
+ConstantBuffer<UB_TexturesFS> g_ubTexturesFS : register(b0, space1);
+ConstantBuffer<UB_PerMeshVS>  g_ubPerMeshVS  : register(b0, space2);
+ConstantBuffer<UB_ShadowFS>   g_ubShadowFS   : register(b0, space3);
 VK_PUSH_CONSTANT
-ConstantBuffer<UB_PerObject> g_ubPerObject : register(b0, space2);
+ConstantBuffer<UB_PerObject>  g_ubPerObject  : register(b0, space4);
 
-VK_SUBPASS_INPUT(0, g_texGBuffer0, g_samGBuffer0, t1, s1, space0);
-VK_SUBPASS_INPUT(1, g_texGBuffer1, g_samGBuffer1, t2, s2, space0);
-VK_SUBPASS_INPUT(2, g_texGBuffer2, g_samGBuffer2, t3, s3, space0);
-VK_SUBPASS_INPUT(3, g_texGBuffer3, g_samGBuffer3, t4, s4, space0);
+VK_SUBPASS_INPUT(0, g_texGBuffer0, g_samGBuffer0, t1, s1, space1);
+VK_SUBPASS_INPUT(1, g_texGBuffer1, g_samGBuffer1, t2, s2, space1);
+VK_SUBPASS_INPUT(2, g_texGBuffer2, g_samGBuffer2, t3, s3, space1);
+VK_SUBPASS_INPUT(3, g_texGBuffer3, g_samGBuffer3, t4, s4, space1);
+Texture2D              g_texShadowCmp : register(t5, space1);
+SamplerComparisonState g_samShadowCmp : register(s5, space1);
+Texture2D              g_texShadow    : register(t6, space1);
+SamplerState           g_samShadow    : register(s6, space1);
 
 struct VSI
 {
@@ -47,7 +54,7 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
-	const float3 intactPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMesh._posDeqScale.xyz, g_ubPerMesh._posDeqBias.xyz);
+	const float3 intactPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMeshVS._posDeqScale.xyz, g_ubPerMeshVS._posDeqBias.xyz);
 
 	// World matrix, instance data:
 #ifdef DEF_INSTANCED
@@ -183,17 +190,17 @@ DS_ACC_FSO mainFS(VSO si)
 		const float3 anisoWV = DS_GetAnisoSpec(rawGBuffer3);
 		const float2 lamScaleBias = DS_GetLamScaleBias(rawGBuffer3);
 		const float2 metal = DS_GetMetallicity(rawGBuffer3);
-		const float gloss64 = rawGBuffer3.a*64.0;
+		const float gloss64 = rawGBuffer3.a * 64.0;
 		const float gloss64Scaled = gloss64 * glossScale;
 
 		// Special:
 		const float skinAlpha = emission.y;
 		const float hairAlpha = metal.y;
 		const float eyeAlpha = saturate(1.0 - gloss64);
-		const float rim = pow(1.0 - normalWV.z, 2.0)*(0.05 + 0.2*skinAlpha);
-		const float glossEye = 25.0*glossScale;
+		const float rim = pow(1.0 - normalWV.z, 2.0) * (0.05 + 0.2 * skinAlpha);
+		const float glossEye = 25.0 * glossScale;
 
-		const float gloss = lerp(gloss64Scaled*gloss64Scaled*gloss64Scaled, glossEye*glossEye*glossEye, eyeAlpha);
+		const float gloss = lerp(gloss64Scaled * gloss64Scaled * gloss64Scaled, glossEye * glossEye * glossEye, eyeAlpha);
 
 #ifdef DEF_DIR
 		const float3 dirToLightWV = -lightDirWV;
@@ -201,7 +208,7 @@ DS_ACC_FSO mainFS(VSO si)
 
 		const float3 reflectWV = reflect(-dirToEyeWV, normalWV);
 		const float zenith = dot(dirZenithWV, reflectWV);
-		const float zenithMask = saturate(zenith*gloss64Scaled*0.15);
+		const float zenithMask = saturate(zenith * gloss64Scaled * 0.15);
 		const float3 skyColor = 1.0;
 #else
 		const float3 toLightWV = lightPosWV - posWV;
@@ -216,51 +223,62 @@ DS_ACC_FSO mainFS(VSO si)
 #endif
 
 		const float4 litRet = VerusLit(dirToLightWV, normalWV, dirToEyeWV,
-			lerp(gloss*(2.0 - lightFalloff), 12.0, hairAlpha),
+			lerp(gloss * (2.0 - lightFalloff), 12.0, hairAlpha),
 			lerp(lamScaleBias, float2(1, 0.4), hairAlpha),
 			float4(anisoWV, hairAlpha));
 
 		// Shadow:
 #ifdef DEF_DIR
-		const float shadowAlpha = 1.0;
+		const float4 tcShadow = ShadowCoords(float4(posWV, 1), g_ubShadowFS._matSunShadow, -posWV.z);
+		const float shadowAlpha = ShadowMapCSM(
+			g_texShadowCmp,
+			g_samShadowCmp,
+			g_texShadow,
+			g_samShadow,
+			tcShadow,
+			g_ubShadowFS._splitRanges,
+			g_ubShadowFS._matSunShadow,
+			g_ubShadowFS._matSunShadowCSM1,
+			g_ubShadowFS._matSunShadowCSM2,
+			g_ubShadowFS._matSunShadowCSM3);
 #else
 		const float shadowAlpha = 1.0;
 #endif
 
-		const float intensityDiff = lightFalloff * coneIntensity*shadowAlpha;
-		const float intensitySpec = saturate(intensityDiff*2.0);
-		const float maxSpecAdd = lerp(0.2*spec, 0.1 + spec * 0.5, metal.x);
+		const float intensityDiff = lightFalloff * coneIntensity * shadowAlpha;
+		const float intensitySpec = saturate(intensityDiff * 2.0) * shadowAlpha;
+		const float maxSpecAdd = lerp(0.2 * spec, 0.1 + spec * 0.5, metal.x);
 
 		// Subsurface scattering effect for front & back faces:
 		const float3 colorSkinSSS_Face = float3(1.6, 1.2, 0.3);
 		const float3 colorSkinSSS_Back = float3(1.6, 0.8, 0.5);
-		const float3 colorDiffSSS_Face = lerp(colorDiff, colorDiff*colorSkinSSS_Face, skinAlpha*pow(1.0 - litRet.y, 2.0));
-		const float3 colorDiffSSS_Back = lerp(colorDiffSSS_Face, colorDiff*colorSkinSSS_Back, skinAlpha*litRet.x);
+		const float3 colorDiffSSS_Face = lerp(colorDiff, colorDiff * colorSkinSSS_Face, skinAlpha * pow(1.0 - litRet.y, 2.0));
+		const float3 colorDiffSSS_Back = lerp(colorDiffSSS_Face, colorDiff * colorSkinSSS_Back, skinAlpha * litRet.x);
 
-		const float grey = Greyscale(rawGBuffer0.rgb);
-		const float3 metalSpec = saturate(rawGBuffer0.rgb / (grey + _SINGULARITY_FIX));
+		const float gray = Grayscale(rawGBuffer0.rgb);
+		const float3 metalSpec = saturate(rawGBuffer0.rgb / (gray + _SINGULARITY_FIX));
 
-		const float3 matSpec = lerp(float3(1, 1, 1), metalSpec, saturate(metal.x + (hairAlpha - eyeAlpha)*0.4))*FresnelSchlick(spec, maxSpecAdd, litRet.w);
+		const float3 matSpec = lerp(float3(1, 1, 1), metalSpec, saturate(metal.x + (hairAlpha - eyeAlpha) * 0.4)) * FresnelSchlick(spec, maxSpecAdd, litRet.w);
 		const float3 maxDiff = colorDiffSSS_Back * intensityDiff;
-		const float3 maxSpec = matSpec * colorSpec + float3(-0.03, 0.0, 0.05)*skinAlpha;
+		const float3 maxSpec = matSpec * colorSpec + float3(-0.03, 0.0, 0.05) * skinAlpha;
 #ifdef DEF_DIR
 		const float skyIntensity = 1.0;
-		const float3 skySpec = skyColor * matSpec*skyIntensity;
+		const float3 skySpec = skyColor * matSpec * skyIntensity;
 #endif
 
 		// Very bright light:
 		const float3 overbright = saturate(dot(maxDiff, 1.0 / 3.0) - 1.0); // Intensity above one.
-		const float3 diffBoost = overbright * maxDiff*litRet.y*(0.25 + rawGBuffer0.rgb);
+		const float3 diffBoost = overbright * maxDiff * litRet.y * (0.25 + rawGBuffer0.rgb);
 
 #ifdef DEF_DIR
 		so.target0.rgb = maxDiff * litRet.y; // Lambert's cosine law.
-		so.target1.rgb = maxSpec * saturate(litRet.z*intensitySpec + rim) + diffBoost;
+		so.target1.rgb = maxSpec * saturate(litRet.z * intensitySpec + rim) + diffBoost;
 #else
 		so.target0.rgb = maxDiff * litRet.y; // Lambert's cosine law.
-		so.target1.rgb = maxSpec * saturate(litRet.z*intensitySpec) + diffBoost;
+		so.target1.rgb = maxSpec * saturate(litRet.z * intensitySpec) + diffBoost;
 #endif
-		so.target0.rgb = max(so.target0.rgb, emission.x*GetEmissionScale());
-		so.target1.rgb = min(so.target1.rgb, 1.0 - emission.x*GetEmissionScale());
+		so.target0.rgb = max(so.target0.rgb, emission.x * GetEmissionScale());
+		so.target1.rgb = min(so.target1.rgb, 1.0 - emission.x * GetEmissionScale());
 		so.target0.a = 1.0;
 		so.target1.a = 1.0;
 	}
@@ -275,6 +293,6 @@ DS_ACC_FSO mainFS(VSO si)
 }
 #endif
 
-//@main:TInstancedDir INSTANCED DIR
-//@main:TInstancedOmni INSTANCED OMNI
-//@main:TInstancedSpot INSTANCED SPOT
+//@main:#InstancedDir  INSTANCED DIR
+//@main:#InstancedOmni INSTANCED OMNI
+//@main:#InstancedSpot INSTANCED SPOT

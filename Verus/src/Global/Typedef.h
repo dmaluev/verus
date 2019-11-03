@@ -23,10 +23,10 @@ typedef unsigned long long UINT64;
 
 namespace verus
 {
-	typedef char*             SZ;
-	typedef const char*       CSZ;
-	typedef wchar_t*          WSZ;
-	typedef const wchar_t*    CWSZ;
+	typedef char* SZ;
+	typedef const char* CSZ;
+	typedef wchar_t* WSZ;
+	typedef const wchar_t* CWSZ;
 	typedef std::string       String;
 	typedef std::wstring      WideString;
 	typedef std::stringstream StringStream;

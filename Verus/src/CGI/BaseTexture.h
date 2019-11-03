@@ -32,13 +32,14 @@ namespace verus
 				none = 0,
 				colorAttachment = (1 << 0),
 				inputAttachment = (1 << 1),
-				generateMips = (1 << 2)
+				depthSampled = (1 << 2),
+				generateMips = (1 << 3)
 			};
 
 			Vector4       _clearValue = Vector4(0);
 			PcSamplerDesc _pSamplerDesc = nullptr;
 			CSZ           _url = nullptr;
-			CSZ*          _urls = nullptr;
+			CSZ* _urls = nullptr;
 			Format        _format = Format::unormR8G8B8A8;
 			int           _width = 0;
 			int           _height = 0;
@@ -48,6 +49,8 @@ namespace verus
 			short         _sampleCount = 1;
 			Flags         _flags = Flags::none;
 			short         _texturePart = 0;
+
+			TextureDesc(CSZ url = nullptr) : _url(url) {}
 		};
 		VERUS_TYPEDEFS(TextureDesc);
 
@@ -69,14 +72,18 @@ namespace verus
 
 			bool IsLoaded() const { return _desc._width != 0; }
 			Str GetName() const { return _C(_name); }
+
 			RcTextureDesc GetDesc() const { return _desc; }
+			RcVector4 GetClearValue() const { return _desc._clearValue; }
+			Format GetFormat() const { return _desc._format; }
 			int GetWidth() const { return _desc._width; }
 			int GetHeight() const { return _desc._height; }
+			int GetDepth() const { return _desc._depth; }
 			int GetNumMipLevels() const { return _desc._mipLevels; }
 			int GetNumArrayLayers() const { return _desc._arrayLayers; }
+
 			int GetPart() const { return _part; }
 			RcVector4 GetSize() const { return _size; }
-			RcVector4 GetClearValue() const { return _desc._clearValue; }
 			bool IsSRGB() const;
 
 			void LoadDDS(CSZ url, int texturePart = 0);

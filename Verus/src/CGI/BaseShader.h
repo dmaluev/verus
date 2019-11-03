@@ -11,6 +11,8 @@ namespace verus
 			CSZ* _branches = nullptr;
 			CSZ* _ignoreList = nullptr;
 			bool _saveCompiled = false;
+
+			ShaderDesc(CSZ url = nullptr) : _url(url) {}
 		};
 		VERUS_TYPEDEFS(ShaderDesc);
 
@@ -50,6 +52,7 @@ namespace verus
 				RString entryGS,
 				RString entryFS,
 				RString entryCS,
+				RString stages,
 				Vector<String>& vMacroName,
 				Vector<String>& vMacroValue,
 				CSZ prefix);

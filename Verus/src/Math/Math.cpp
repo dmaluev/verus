@@ -6,7 +6,7 @@ bool Math::IsPowerOfTwo(int x)
 {
 	if (x <= 0)
 		return false;
-	return !(x&(x - 1));
+	return !(x & (x - 1));
 }
 
 int Math::HighestBit(int x)
@@ -25,7 +25,7 @@ bool Math::IsNaN(float x)
 
 float Math::ToRadians(float deg)
 {
-	return deg * (VERUS_PI*(1 / 180.f));
+	return deg * (VERUS_PI * (1 / 180.f));
 }
 
 float Math::ToDegrees(float rad)
@@ -35,7 +35,7 @@ float Math::ToDegrees(float rad)
 
 float Math::WrapAngle(float rad)
 {
-	return rad - floor(rad*(1 / VERUS_2PI) + 0.5f)*VERUS_2PI;
+	return rad - floor(rad * (1 / VERUS_2PI) + 0.5f) * VERUS_2PI;
 }
 
 float Math::Lerp(float a, float b, float t)
@@ -46,17 +46,17 @@ float Math::Lerp(float a, float b, float t)
 float Math::SmoothStep(float a, float b, float t)
 {
 	const float x = Clamp((t - a) / (b - a), 0.f, 1.f);
-	return x * x*(3 - (x + x));
+	return x * x * (3 - (x + x));
 }
 
 float Math::LinearToSin(float t)
 {
-	return sin(t*VERUS_PI);
+	return sin(t * VERUS_PI);
 }
 
 float Math::LinearToCos(float t)
 {
-	return cos(t*VERUS_PI)*-0.5f + 0.5f; // [1 to -1] -> [0 to 1].
+	return cos(t * VERUS_PI) * -0.5f + 0.5f; // [1 to -1] -> [0 to 1].
 }
 
 Vector3 Math::TriangleNormal(RcPoint3 a, RcPoint3 b, RcPoint3 c)
@@ -73,14 +73,14 @@ float Math::TriangleArea(
 	const float a = glm::length(p2 - p1);
 	const float b = glm::length(p0 - p2);
 	const float c = glm::length(p1 - p0);
-	const float s = (a + b + c)*0.5f;
-	return sqrt(s*(s - a)*(s - b)*(s - c));
+	const float s = (a + b + c) * 0.5f;
+	return sqrt(s * (s - a) * (s - b) * (s - c));
 }
 
 int Math::GetNumStripGridIndices(int widthPoly, int heightPoly)
 {
 	const int widthVert = widthPoly + 1;
-	return (widthVert * 2)*heightPoly + (heightPoly - 1) * 2; // Strip and primitive restart values.
+	return (widthVert * 2) * heightPoly + (heightPoly - 1) * 2; // Strip and primitive restart values.
 }
 
 void Math::BuildStripGrid(int widthPoly, int heightPoly, Vector<UINT16>& vIndices)
@@ -116,7 +116,7 @@ void Math::BuildStripGrid(int widthPoly, int heightPoly, Vector<UINT16>& vIndice
 
 void Math::BuildListGrid(int widthPoly, int heightPoly, Vector<UINT16>& vIndices)
 {
-	vIndices.resize(widthPoly*heightPoly * 6);
+	vIndices.resize(widthPoly * heightPoly * 6);
 	int offset = 0;
 	const int widthVert = widthPoly + 1;
 	VERUS_FOR(h, heightPoly)
@@ -152,13 +152,13 @@ Transform3 Math::BoundsDrawMatrix(RcPoint3 mn, RcPoint3 mx)
 {
 	const Vector3 d = mx - mn;
 	const Point3 c = VMath::lerp(0.5f, mn, mx);
-	return VMath::appendScale(Transform3::translation(c - Point3(0, d.getY()*0.5f, 0)), d);
+	return VMath::appendScale(Transform3::translation(c - Point3(0, d.getY() * 0.5f, 0)), d);
 }
 
 float Math::ComputeOnePixelDistance(float size, float screenHeight, float fovY)
 {
 	const float viewSliceSize = size * screenHeight;
-	return viewSliceSize / (tan(fovY*0.5f) * 2);
+	return viewSliceSize / (tan(fovY * 0.5f) * 2);
 }
 
 void Math::Quadrant(const int** ppSrcMinMax, int** ppDestMinMax, int half, int id)
@@ -200,12 +200,9 @@ int Math::ComputeMipLevels(int w, int h, int d)
 
 Transform3 Math::QuadMatrix(float x, float y, float w, float h)
 {
-	const Transform3 matT = Transform3::translation(Vector3(x * 2 - 1, y*-2 + 1));
+	const Transform3 matT = Transform3::translation(Vector3(x * 2 - 1, y * -2 + 1));
 	const Transform3 mat = matT * VMath::prependScale(Vector3(w, h), Transform3::translation(Vector3(1, -1, 0)));
-	if (CGI::Gapi::vulkan == CGI::Renderer::I()->GetGapi())
-		return VMath::prependScale(Vector3(1, -1, 1), mat);
-	else
-		return mat;
+	return mat;
 }
 
 Transform3 Math::ToUVMatrix(float zOffset, RcVector4 texSize, PcVector4 pTileSize)
@@ -217,8 +214,8 @@ Transform3 Math::ToUVMatrix(float zOffset, RcVector4 texSize, PcVector4 pTileSiz
 
 	if (pTileSize)
 		m = VMath::prependScale(Vector3(
-			texSize.getX()*pTileSize->getZ(),
-			texSize.getY()*pTileSize->getW(), 1), m);
+			texSize.getX() * pTileSize->getZ(),
+			texSize.getY() * pTileSize->getW(), 1), m);
 
 	return m;
 }

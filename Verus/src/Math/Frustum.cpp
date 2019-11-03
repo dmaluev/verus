@@ -35,7 +35,7 @@ Frustum Frustum::MakeFromMatrix(RcMatrix4 m)
 	};
 	VERUS_FOR(i, 10)
 	{
-		Vector4 inv = f._matI*corners[i];
+		Vector4 inv = f._matI * corners[i];
 		inv /= inv.getW();
 		f._corners[i] = inv.getXYZ();
 	};

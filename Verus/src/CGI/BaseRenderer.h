@@ -46,6 +46,9 @@ namespace verus
 			UINT32 GetSwapChainBufferIndex() const { return _swapChainBufferIndex; }
 			UINT32 GetRingBufferIndex() const { return _ringBufferIndex; }
 
+			virtual void ImGuiInit(int renderPassID) = 0;
+			virtual void ImGuiRenderDrawData() = 0;
+
 			// Which graphics API?
 			virtual Gapi GetGapi() = 0;
 

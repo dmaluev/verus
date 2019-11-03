@@ -13,7 +13,7 @@ namespace verus
 				width       /**/ = 0x00000004,
 				pitch       /**/ = 0x00000008,
 				pixelFormat /**/ = 0x00001000,
-				mipmapCount /**/ = 0x00020000,
+				mipMapCount /**/ = 0x00020000,
 				linearSize  /**/ = 0x00080000,
 				depth       /**/ = 0x00800000
 			};
@@ -33,7 +33,7 @@ namespace verus
 			{
 				complex /**/ = 0x00000008,
 				texture /**/ = 0x00001000,
-				mipmap  /**/ = 0x00400000
+				mipMap  /**/ = 0x00400000
 			};
 
 			enum class Caps2 : UINT32
@@ -51,56 +51,88 @@ namespace verus
 			enum class FourCC : UINT32
 			{
 				dxt1 = '1TXD',
-				dxt2 = '2TXD',
 				dxt3 = '3TXD',
-				dxt4 = '4TXD',
-				dxt5 = '5TXD'
+				dxt5 = '5TXD',
+				bc4u = 'U4CB',
+				bc4s = 'S4CB',
+				bc5u = '2ITA',
+				bc5s = 'S5CB',
+				dx10 = '01XD'
 			};
 
 			struct PixelFormat
 			{
-				UINT32           size;
-				PixelFormatFlags flags;
-				FourCC           fourCC;
-				UINT32           rgbBitCount;
-				UINT32           rBitMask;
-				UINT32           gBitMask;
-				UINT32           bBitMask;
-				UINT32           rgbAlphaBitMask;
+				UINT32           _size;
+				PixelFormatFlags _flags;
+				FourCC           _fourCC;
+				UINT32           _rgbBitCount;
+				UINT32           _rBitMask;
+				UINT32           _gBitMask;
+				UINT32           _bBitMask;
+				UINT32           _rgbAlphaBitMask;
 			};
 
 			struct Caps
 			{
-				Caps1  caps1;
-				Caps2  caps2;
-				UINT32 reserved[2];
+				Caps1  _caps1;
+				Caps2  _caps2;
+				UINT32 _reserved[2];
 			};
 
-			char        magic[4];
-			UINT32      size;
-			Flags       flags;
-			UINT32      height;
-			UINT32      width;
-			UINT32      pitchOrLinearSize;
-			UINT32      depth;
-			UINT32      mipmapCount;
-			UINT32      reserved1[11];
-			PixelFormat pixelFormat;
-			Caps        caps;
-			UINT32      reserved2;
+			char        _magic[4];
+			UINT32      _size;
+			Flags       _flags;
+			UINT32      _height;
+			UINT32      _width;
+			UINT32      _pitchOrLinearSize;
+			UINT32      _depth;
+			UINT32      _mipMapCount;
+			UINT32      _reserved1[11];
+			PixelFormat _pixelFormat;
+			Caps        _caps;
+			UINT32      _reserved2;
 
 			DDSHeader();
 			bool Validate() const;
+			bool IsDXT10() const;
+			bool Is4BitsBC() const;
 			bool IsBC1() const;
 			bool IsBC2() const;
 			bool IsBC3() const;
 			bool IsBC() const;
 			bool IsBGRA8() const;
 			bool IsBGR8() const;
-			static int ComputeBcLevelSize(int w, int h, bool dxt1 = true);
-			static int ComputeBcPitch(int w, int h, bool bc1 = true);
+			static int ComputeBcLevelSize(int w, int h, bool is4Bits);
+			static int ComputeBcPitch(int w, int h, bool is4Bits);
 			int GetNumParts() const;
 			int SkipParts(int numSkip);
+		};
+
+		struct DDSHeaderDXT10
+		{
+			enum class Format : UINT32
+			{
+				bc4 = 80,
+				bc5 = 83,
+				bc7 = 98
+			};
+
+			enum class Dimension : UINT32
+			{
+				unknown = 0,
+				buffer = 1,
+				texture1D = 2,
+				texture2D = 3,
+				texture3D = 4
+			};
+
+			Format    _dxgiFormat;
+			Dimension _resourceDimension;
+			UINT32    _miscFlag;
+			UINT32    _arraySize;
+			UINT32    _miscFlags2;
+
+			bool IsBC7() const;
 		};
 	}
 }

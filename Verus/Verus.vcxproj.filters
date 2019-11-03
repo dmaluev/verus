@@ -79,6 +79,9 @@
     <Filter Include="src\ThirdParty\pugixml-1.10">
       <UniqueIdentifier>{77a61380-3977-4378-9e5b-fb4f5788aaa3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\ThirdParty\imgui">
+      <UniqueIdentifier>{3ee2005e-b456-4f4f-95cd-ad3ac11aaccb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\CGI\BaseGeometry.h">
@@ -489,6 +492,30 @@
     <ClInclude Include="src\IO\Dictionary.h">
       <Filter>src\IO</Filter>
     </ClInclude>
+    <ClInclude Include="src\Scene\ShadowMap.h">
+      <Filter>src\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imconfig.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imgui.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imgui_internal.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imstb_rectpack.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imstb_textedit.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imstb_truetype.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imgui_impl_sdl.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -794,6 +821,24 @@
     <ClCompile Include="src\IO\Dictionary.cpp">
       <Filter>src\IO</Filter>
     </ClCompile>
+    <ClCompile Include="src\Scene\ShadowMap.cpp">
+      <Filter>src\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui.cpp">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_demo.cpp">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_draw.cpp">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_widgets.cpp">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_impl_sdl.cpp">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\Shaders\Lib.hlsl">
@@ -850,6 +895,12 @@
     <None Include="src\Shaders\Quad.inc.hlsl">
       <Filter>src\Shaders</Filter>
     </None>
+    <None Include="src\Shaders\DebugDraw.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DebugDraw.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="src\ThirdParty\pugixml-1.10\pugixml.natvis">
@@ -857,6 +908,9 @@
     </Natvis>
     <Natvis Include="src\ThirdParty\pugixml-1.10\pugixml_compact.natvis">
       <Filter>src\ThirdParty\pugixml-1.10</Filter>
+    </Natvis>
+    <Natvis Include="src\ThirdParty\imgui\imgui.natvis">
+      <Filter>src\ThirdParty\imgui</Filter>
     </Natvis>
   </ItemGroup>
 </Project>

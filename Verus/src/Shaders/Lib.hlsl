@@ -14,6 +14,13 @@
 #	define VK_PUSH_CONSTANT [[vk::push_constant]]
 #	define VK_SUBPASS_INPUT(index, tex, sam, t, s, space) layout(input_attachment_index = index) SubpassInput<float4> tex : register(t, space)
 #	define VK_SUBPASS_LOAD(tex, sam, tc) tex.SubpassLoad()
+
+#	ifdef _VS
+#		define VK_POINT_SIZE [[vk::builtin("PointSize")]] float psize : PSIZE;
+#	else
+#		define VK_POINT_SIZE
+#	endif
+#	define VK_SET_POINT_SIZE so.psize = 1.0
 #else
 #	define VK_LOCATION(x)
 #	define VK_LOCATION_POSITION
@@ -29,6 +36,9 @@
 	Texture2D    tex : register(t, space);\
 	SamplerState sam : register(s, space)
 #	define VK_SUBPASS_LOAD(tex, sam, tc) tex.SampleLevel(sam, tc, 0)
+
+#	define VK_POINT_SIZE
+#	define VK_SET_POINT_SIZE
 #endif
 
 #ifdef DEF_INSTANCED
@@ -63,18 +73,18 @@ float CalcNormalZ(float2 v)
 
 float4 NormalMapAA(float4 rawNormal)
 {
-	float3 normal = rawNormal.agb*-2.0 + 1.0; // Dmitry's reverse!
+	float3 normal = rawNormal.agb * -2.0 + 1.0; // Dmitry's reverse!
 	normal.b = CalcNormalZ(normal.rg);
-	return float4(normal, 0.8 + rawNormal.b*0.8);
+	return float4(normal, 0.8 + rawNormal.b * 0.8);
 }
 
 float3 Rand(float2 uv)
 {
-	return frac(sin(dot(uv, float2(12.9898, 78.233))*float3(1, 2, 3)) * 43758.5453);
+	return frac(sin(dot(uv, float2(12.9898, 78.233)) * float3(1, 2, 3)) * 43758.5453);
 }
 
 float3 NormalDither(float3 rand)
 {
-	const float2 rr = rand.xy* (1.0 / 333.0) - (0.5 / 333.0);
+	const float2 rr = rand.xy * (1.0 / 333.0) - (0.5 / 333.0);
 	return float3(rr, 0);
 }

@@ -33,13 +33,13 @@ void NormalComputer::ComputeNormals(
 		const glm::vec3 v1(vPositions[b]);
 		const glm::vec3 v2(vPositions[c]);
 		const glm::vec3 n = glm::triangleNormal(v0, v1, v2);
-		vFaceNormals[i] = glm::normalize(n)*vFaceAreas[i];
+		vFaceNormals[i] = glm::normalize(n) * vFaceAreas[i];
 	});
 
 	VERUS_P_FOR(i, numVerts)
 	{
 		const int numFaces = Utils::Cast32(vIndices.size() / 3);
-		const float threshold = 0.001f*0.001f; // 1 mm.
+		const float threshold = 0.001f * 0.001f; // 1 mm.
 		VERUS_FOR(j, numFaces)
 		{
 			const int a = vIndices[j * 3 + 0];
@@ -62,7 +62,7 @@ void NormalComputer::ComputeNormals(
 				if (d0 < threshold || d1 < threshold || d2 < threshold)
 				{
 					vNormals[i] += vFaceNormals[j];
-					if (glm::length2(vNormals[i]) < 0.01f*0.01f) // Coplanar surface fix (1% of unit length):
+					if (glm::length2(vNormals[i]) < 0.01f * 0.01f) // Coplanar surface fix (1% of unit length):
 						vNormals[i] = prevNormal;
 				}
 			}
@@ -105,14 +105,14 @@ void NormalComputer::ComputeTangentSpace(
 		const glm::vec2 et2 = t3 - t1;
 
 		float tmp = 0;
-		const float det = et1.x*et2.y - et1.y*et2.x;
+		const float det = et1.x * et2.y - et1.y * et2.x;
 		if (abs(det) < 1e-6f)
 			tmp = 1;
 		else
 			tmp = 1 / det;
 
-		const glm::vec3 tan = glm::normalize((e1*et2.y - e2 * et1.y)*tmp);
-		const glm::vec3 bin = glm::normalize((e2*et1.x - e1 * et2.x)*tmp);
+		const glm::vec3 tan = glm::normalize((e1 * et2.y - e2 * et1.y) * tmp);
+		const glm::vec3 bin = glm::normalize((e2 * et1.x - e1 * et2.x) * tmp);
 
 		{
 			std::lock_guard<std::mutex> lock(m);
@@ -133,8 +133,8 @@ void NormalComputer::ComputeTangentSpace(
 		const glm::vec3 tmpT = vTan[i];
 		const glm::vec3 tmpB = vBin[i];
 		const glm::vec3 tmpN = vNormals[i];
-		const glm::vec3 newT = glm::normalize(tmpT - (glm::dot(tmpN, tmpT)*tmpN));
-		const glm::vec3 newB = glm::normalize(tmpB - (glm::dot(tmpN, tmpB)*tmpN) - (glm::dot(newT, tmpB)*newT));
+		const glm::vec3 newT = glm::normalize(tmpT - (glm::dot(tmpN, tmpT) * tmpN));
+		const glm::vec3 newB = glm::normalize(tmpB - (glm::dot(tmpN, tmpB) * tmpN) - (glm::dot(newT, tmpB) * newT));
 
 		vTan[i] = newT;
 		vBin[i] = newB;

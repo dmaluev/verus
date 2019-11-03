@@ -1,10 +1,11 @@
 #include "Lib.hlsl"
 #include "Quad.inc.hlsl"
 
-ConstantBuffer<UB_Quad> g_ubQuad : register(b0, space0);
+ConstantBuffer<UB_QuadVS> g_ubQuadVS : register(b0, space0);
+ConstantBuffer<UB_QuadFS> g_ubQuadFS : register(b0, space1);
 
-Texture2D    g_tex : register(t1, space0);
-SamplerState g_sam : register(s1, space0);
+Texture2D    g_tex : register(t1, space1);
+SamplerState g_sam : register(s1, space1);
 
 struct VSI
 {
@@ -28,8 +29,8 @@ VSO mainVS(VSI si)
 	VSO so;
 
 	// Standard quad:
-	so.pos = float4(mul(si.pos, g_ubQuad._matW), 1);
-	so.tc0 = mul(si.pos, g_ubQuad._matV).xy;
+	so.pos = float4(mul(si.pos, g_ubQuadVS._matW), 1);
+	so.tc0 = mul(si.pos, g_ubQuadVS._matV).xy;
 
 	return so;
 }
@@ -46,6 +47,6 @@ FSO mainFS(VSO si)
 }
 #endif
 
-//@main:T
-//@main:TDepth DEPTH
-//@main:TClear CLEAR
+//@main:#
+//@main:#Clear CLEAR
+//@main:#Depth DEPTH

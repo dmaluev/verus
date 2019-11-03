@@ -21,12 +21,12 @@ namespace verus
 			VERUS_FOR(i, numExThreads)
 			{
 				v.push_back(std::thread([i, share, func]()
-				{
-					const int from = share * i;
-					const int to = from + share;
-					for (int j = from; j < to; ++j)
-						func(j);
-				}));
+					{
+						const int from = share * i;
+						const int to = from + share;
+						for (int j = from; j < to; ++j)
+							func(j);
+					}));
 			}
 			{
 				const int from = share * numExThreads;

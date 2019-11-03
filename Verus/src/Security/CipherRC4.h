@@ -19,7 +19,7 @@ namespace verus
 				BYTE box[256];
 				for (i = 0; i < 256; ++i)
 				{
-					key[i] = password[i%password.length()];
+					key[i] = password[i % password.length()];
 					box[i] = static_cast<BYTE>(i);
 				}
 				for (j = i = 0; i < 256; ++i)

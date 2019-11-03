@@ -24,8 +24,8 @@ struct DS_ACC_FSO
 // See: http://aras-p.info/texts/CompactNormalStorage.html#method04spheremap
 float2 EncodeNormal(float3 n)
 {
-	const float f = sqrt(abs(8.0*n.z + 8.0));
-	return n.xy / f + 0.5;
+	const float rf = rsqrt(abs(8.0 * n.z + 8.0));
+	return n.xy * rf + 0.5;
 }
 
 float3 DecodeNormal(float2 enc)
@@ -60,7 +60,7 @@ void DS_Test(out DS_FSO so, float3 normal, float spec, float gloss)
 	so.target0 = float4(0.5, 0.5, 0.5, spec);
 	so.target1 = 0.0;
 	so.target2 = float4(EncodeNormal(normal), 0.5, 0.5);
-	so.target3 = float4(1.0 / 8.0, 0.5, 0.5, gloss*(1.0 / 64.0));
+	so.target3 = float4(1.0 / 8.0, 0.5, 0.5, gloss * (1.0 / 64.0));
 }
 
 void DS_SetAlbedo(inout DS_FSO so, float3 albedo)
@@ -90,7 +90,7 @@ void DS_SetNormal(inout DS_FSO so, float3 normal)
 
 float2 DS_GetEmission(float4 gbuffer)
 {
-	const float x2 = gbuffer.b*2.0;
+	const float x2 = gbuffer.b * 2.0;
 	return float2(
 		saturate(x2 - 1.0),
 		saturate(1.0 - x2));
@@ -98,22 +98,22 @@ float2 DS_GetEmission(float4 gbuffer)
 
 void DS_SetEmission(inout DS_FSO so, float emission, float skin)
 {
-	so.target2.b = (emission - skin)*0.5 + 0.5;
+	so.target2.b = (emission - skin) * 0.5 + 0.5;
 }
 
 float2 DS_GetLamScaleBias(float4 gbuffer)
 {
-	return gbuffer.rg*float2(8, 4) - float2(0, 2); // {0 to 8, -2 to 2}.
+	return gbuffer.rg * float2(8, 4) - float2(0, 2); // {0 to 8, -2 to 2}.
 }
 
 void DS_SetLamScaleBias(inout DS_FSO so, float2 lamScaleBias, float4 aniso)
 {
-	so.target3.rg = lerp(lamScaleBias*float2(1.0 / 8.0, 0.25) + float2(0, 0.5), EncodeNormal(aniso.xyz), aniso.w);
+	so.target3.rg = lerp(lamScaleBias * float2(1.0 / 8.0, 0.25) + float2(0, 0.5), EncodeNormal(aniso.xyz), aniso.w);
 }
 
 float2 DS_GetMetallicity(float4 gbuffer)
 {
-	const float x2 = gbuffer.b*2.0;
+	const float x2 = gbuffer.b * 2.0;
 	return float2(
 		saturate(x2 - 1.0),
 		saturate(1.0 - x2));
@@ -121,7 +121,7 @@ float2 DS_GetMetallicity(float4 gbuffer)
 
 void DS_SetMetallicity(inout DS_FSO so, float metal, float hair)
 {
-	so.target3.b = (metal - hair)*0.5 + 0.5;
+	so.target3.b = (metal - hair) * 0.5 + 0.5;
 }
 
 void DS_SetGloss(inout DS_FSO so, float gloss)

@@ -6,13 +6,17 @@ namespace verus
 	{
 		class DebugDraw : public Singleton<DebugDraw>, public Object
 		{
-			//#include "../Shaders/DR.inc.cg"
+#include "../Shaders/DebugDraw.inc.hlsl"
 
-			enum SB
+			enum PIPE
 			{
-				SB_MASTER,
-				SB_NO_Z,
-				SB_MAX
+				PIPE_POINTS,
+				PIPE_POINTS_NO_Z,
+				PIPE_LINES,
+				PIPE_LINES_NO_Z,
+				PIPE_POLY,
+				PIPE_POLY_NO_Z,
+				PIPE_MAX
 			};
 
 		public:
@@ -30,12 +34,18 @@ namespace verus
 				BYTE  _color[4];
 			};
 
-			GeometryPwn _geo;
-			ShaderPwn   _shader;
-			Vertex*     _pVB = nullptr;
-			const int   _maxNumVert = 4096;
-			int         _numVert = 0;
-			Type        _type = Type::points;
+			static UB_DebugDraw s_ubDebugDraw;
+
+			GeometryPwn            _geo;
+			ShaderPwn              _shader;
+			PipelinePwns<PIPE_MAX> _pipe;
+			Vector<Vertex>         _vDynamicBuffer;
+			UINT64                 _currentFrame = UINT64_MAX;
+			const int              _maxNumVert = 4096;
+			int                    _numVert = 0;
+			int                    _offset = 0;
+			int                    _peakLoad = 0;
+			Type                   _type = Type::points;
 
 		public:
 			DebugDraw();
@@ -47,14 +57,14 @@ namespace verus
 			void Begin(Type type, PcTransform3 pMat = nullptr, bool zEnable = true);
 			void End();
 
-			void AddPoint(
+			bool AddPoint(
 				RcPoint3 pos,
 				UINT32 color);
-			void AddLine(
+			bool AddLine(
 				RcPoint3 posA,
 				RcPoint3 posB,
 				UINT32 color);
-			void AddTriangle(
+			bool AddTriangle(
 				RcPoint3 posA,
 				RcPoint3 posB,
 				RcPoint3 posC,

@@ -50,7 +50,7 @@ namespace verus
 	public:
 		bool IsInitialized() const { return _flags & ObjectFlags::init; }
 
-		bool IsFlagSet(UINT32 mask) const { return !!(_flags&mask); }
+		bool IsFlagSet(UINT32 mask) const { return !!(_flags & mask); }
 		void   SetFlag(UINT32 mask) { _flags |= mask; }
 		void ResetFlag(UINT32 mask) { _flags &= ~mask; }
 	};

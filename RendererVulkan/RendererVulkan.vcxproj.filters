@@ -22,6 +22,9 @@
     <Filter Include="src\ThirdParty">
       <UniqueIdentifier>{8e3978a6-661c-4255-af52-d49e598d7f91}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\ThirdParty\imgui">
+      <UniqueIdentifier>{cde4ae25-f9c6-40d5-8841-a4ac5a94286a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\stdafx.h">
@@ -54,6 +57,9 @@
     <ClInclude Include="src\ThirdParty\vk_mem_alloc.h">
       <Filter>src\ThirdParty</Filter>
     </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imgui_impl_vulkan.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -85,6 +91,9 @@
     </ClCompile>
     <ClCompile Include="src\ThirdParty\vk_mem_alloc.cpp">
       <Filter>src\ThirdParty</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_impl_vulkan.cpp">
+      <Filter>src\ThirdParty\imgui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

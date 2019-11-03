@@ -33,7 +33,7 @@ void Camera::UpdateView()
 {
 	_dirFront = VMath::normalizeApprox(_posAt - _posEye);
 #ifdef VERUS_COMPARE_MODE
-	_dirFront = VMath::normalizeApprox(Vector3(glm::round(m_dirFront.GLM()*glm::vec3(4, 4, 4))));
+	_dirFront = VMath::normalizeApprox(Vector3(glm::round(m_dirFront.GLM() * glm::vec3(4, 4, 4))));
 	_posEye = Point3(int(_posEye.getX()), int(_posEye.getY()), int(_posEye.getZ()));
 	_matV = Matrix4::lookAt(_posEye, _posEye + _dirFront, _dirUp);
 #else
@@ -57,7 +57,7 @@ void Camera::UpdateFFP()
 
 Vector4 Camera::GetZNearFarEx() const
 {
-	return Vector4(_zNear, _zFar, _zFar / (_zFar - _zNear), _zFar*_zNear / (_zNear - _zFar));
+	return Vector4(_zNear, _zFar, _zFar / (_zFar - _zNear), _zFar * _zNear / (_zNear - _zFar));
 }
 
 void Camera::SetFrustumNear(float zNear)
@@ -72,7 +72,7 @@ void Camera::SetFrustumFar(float zFar)
 
 void Camera::SetFOVH(float x)
 {
-	SetFOV(2 * atan(tan(x*0.5f) / _aspectRatio));
+	SetFOV(2 * atan(tan(x * 0.5f) / _aspectRatio));
 }
 
 void Camera::GetClippingSpacePlane(RVector4 plane) const
@@ -171,8 +171,8 @@ void MainCamera::GetPickingRay(RPoint3 pos, RVector3 dir) const
 
 float MainCamera::ComputeMotionBlur(RcPoint3 pos, RcPoint3 posPrev) const
 {
-	Vector4 screenPos = GetMatrixVP()*pos;
-	Vector4 screenPosPrev = GetMatrixPrevVP()*posPrev;
+	Vector4 screenPos = GetMatrixVP() * pos;
+	Vector4 screenPosPrev = GetMatrixPrevVP() * posPrev;
 	screenPos /= screenPos.getW();
 	screenPos.setZ(0);
 	screenPos.setW(0);

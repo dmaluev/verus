@@ -5,7 +5,7 @@ VERUS_UBUFFER UB_PerFrame
 	matrix _matVP;
 };
 
-VERUS_UBUFFER UB_PerMaterial
+VERUS_UBUFFER UB_PerMaterialFS
 {
 	float4 _texEnableAlbedo;
 	float4 _texEnableNormal;
@@ -25,7 +25,7 @@ VERUS_UBUFFER UB_PerMaterial
 	float4 _bushEffect;
 };
 
-VERUS_UBUFFER UB_PerMesh
+VERUS_UBUFFER UB_PerMeshVS
 {
 	float4 _posDeqScale;
 	float4 _posDeqBias;
@@ -33,7 +33,7 @@ VERUS_UBUFFER UB_PerMesh
 	float4 _tc1DeqScaleBias;
 };
 
-VERUS_UBUFFER UB_Skinning
+VERUS_UBUFFER UB_SkeletonVS
 {
 	mataff _vMatBones[VERUS_MAX_NUM_BONES];
 };

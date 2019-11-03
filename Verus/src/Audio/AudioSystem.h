@@ -11,8 +11,8 @@ namespace verus
 			Vector3      _listenerDirection = Vector3(0, 0, 1);
 			Vector3      _listenerVelocity = Vector3(0);
 			Vector3      _listenerUp = Vector3(0, 1, 0);
-			ALCdevice*   _pDevice = nullptr;
-			ALCcontext*  _pContext = nullptr;
+			ALCdevice* _pDevice = nullptr;
+			ALCcontext* _pContext = nullptr;
 			String       _version;
 			String       _deviceSpecifier;
 			StreamPlayer _streamPlayers[4];

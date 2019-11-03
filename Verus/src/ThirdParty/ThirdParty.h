@@ -23,6 +23,10 @@ extern "C"
 #include "glm-0.9.9.6/glm/glm/gtx/norm.hpp"
 #include "glm-0.9.9.6/glm/glm/gtx/vector_angle.hpp"
 
+// Dear ImGui (https://github.com/ocornut/imgui):
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_sdl.h"
+
 // JSON for Modern C++ (https://github.com/nlohmann/json):
 #include "json.hpp"
 

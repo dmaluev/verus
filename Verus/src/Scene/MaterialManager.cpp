@@ -170,9 +170,9 @@ glm::vec4 Material::PickRound::ToPixels() const
 	{
 		const float r = sqrt(z);
 		return glm::vec4(
-			glm::round(x*w),
-			glm::round(y*w),
-			glm::round(r*w),
+			glm::round(x * w),
+			glm::round(y * w),
+			glm::round(r * w),
 			w);
 	}
 	else
@@ -373,9 +373,9 @@ void Material::BindDescriptorSetTextures()
 
 bool Material::UpdateMeshUniformBuffer(float motionBlur)
 {
-	Mesh::UB_PerMaterial& ub = Mesh::GetUbPerMaterial();
-	Mesh::UB_PerMaterial ubPrev;
-	memcpy(&ubPrev, &ub, sizeof(Mesh::UB_PerMaterial));
+	Mesh::UB_PerMaterialFS& ub = Mesh::GetUbPerMaterialFS();
+	Mesh::UB_PerMaterialFS ubPrev;
+	memcpy(&ubPrev, &ub, sizeof(Mesh::UB_PerMaterialFS));
 
 	ub._texEnableAlbedo = _texAlbedoEnable;
 	ub._texEnableNormal = _texNormalEnable;
@@ -401,7 +401,7 @@ bool Material::UpdateMeshUniformBuffer(float motionBlur)
 	ub._motionBlur_glossX.y = _glossX;
 	ub._bushEffect = _bushEffect;
 
-	return 0 != memcmp(&ubPrev, &ub, sizeof(Mesh::UB_PerMaterial));
+	return 0 != memcmp(&ubPrev, &ub, sizeof(Mesh::UB_PerMaterialFS));
 }
 
 void Material::IncludePart(float part)
@@ -559,7 +559,7 @@ float MaterialManager::ComputePart(float distSq, float objectRadius)
 	if (distSq < 200 * 200)
 	{
 		const float dist = Math::Max<float>(0, sqrt(distSq) - objectRadius);
-		return glm::log2(Math::Clamp<float>(dist*(2 / 25.f), 1, 18));
+		return glm::log2(Math::Clamp<float>(dist * (2 / 25.f), 1, 18));
 	}
 	return 4;
 }

@@ -246,7 +246,7 @@ void Async::ThreadProc()
 		VERUS_LOCK(*this);
 		_ex = e;
 	}
-	catch (const std::exception& e)
+	catch (const std::exception & e)
 	{
 		VERUS_LOCK(*this);
 		_ex = VERUS_RUNTIME_ERROR << e.what();

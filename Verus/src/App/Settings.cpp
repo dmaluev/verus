@@ -32,7 +32,6 @@ void Settings::Load()
 	_gapi = GetI("gapi", _gapi);
 	_gpuAnisotropyLevel = GetI("gpuAnisotropyLevel", _gpuAnisotropyLevel);
 	_gpuAntialiasingLevel = GetI("gpuAntialiasingLevel", _gpuAntialiasingLevel);
-	_gpuDepthTexture = GetI("gpuDepthTexture", _gpuDepthTexture);
 	_gpuForcedProfile = GetS("gpuForcedProfile", _C(_gpuForcedProfile));
 	_gpuOffscreenRender = GetB("gpuOffscreenRender", _gpuOffscreenRender);
 	_gpuParallaxMapping = GetB("gpuParallaxMapping", _gpuParallaxMapping);
@@ -61,7 +60,6 @@ void Settings::Save()
 	Set("gapi", _gapi);
 	Set("gpuAnisotropyLevel", _gpuAnisotropyLevel);
 	Set("gpuAntialiasingLevel", _gpuAntialiasingLevel);
-	Set("gpuDepthTexture", _gpuDepthTexture);
 	Set("gpuForcedProfile", _C(_gpuForcedProfile));
 	Set("gpuOffscreenRender", _gpuOffscreenRender);
 	Set("gpuParallaxMapping", _gpuParallaxMapping);
@@ -100,7 +98,7 @@ void Settings::Validate()
 	{
 		_postProcessMotionBlur = false;
 		_postProcessSSAO = false;
-		_sceneShadowQuality = Math::Min(_sceneShadowQuality, ShadowQuality::filtered);
+		_sceneShadowQuality = Math::Min(_sceneShadowQuality, ShadowQuality::linear);
 	}
 
 	if (!_gpuPerPixelLighting)
@@ -110,11 +108,8 @@ void Settings::Validate()
 	}
 	_postProcessBloom = _postProcessBloom && _gpuOffscreenRender;
 	_sceneGrassDensity = Math::Clamp(_sceneGrassDensity, 15, 1500);
-	_sceneShadowQuality = Math::Clamp(_sceneShadowQuality, ShadowQuality::none, ShadowQuality::cascaded);
+	_sceneShadowQuality = Math::Clamp(_sceneShadowQuality, ShadowQuality::none, ShadowQuality::ultra);
 	_sceneWaterQuality = Math::Clamp(_sceneWaterQuality, WaterQuality::solidColor, WaterQuality::trueWavesRefraction);
-
-	if (_sceneShadowQuality >= ShadowQuality::cascaded)
-		_gpuDepthTexture = 1;
 
 	if (_uiLang != "RU" && _uiLang != "EN")
 		_uiLang = "EN";
@@ -142,11 +137,11 @@ void Settings::ParseCommandLineArgs(int argc, char* argv[])
 
 	VERUS_FOR(i, argc)
 	{
-		_commandLine.normalMapOnlyLS = _commandLine.normalMapOnlyLS || IsArg(i, "--normal-map-only-ls");
-		_commandLine.physicsDebug = _commandLine.physicsDebug || IsArg(i, "--physics-debug");
-		_commandLine.physicsDebugFull = _commandLine.physicsDebugFull || IsArg(i, "--physics-debug-full");
-		_commandLine.profiler = _commandLine.profiler || IsArg(i, "--profiler");
-		_commandLine.testTexToPix = _commandLine.testTexToPix || IsArg(i, "--test-tex-to-pix");
+		_commandLine._normalMapOnlyLS = _commandLine._normalMapOnlyLS || IsArg(i, "--normal-map-only-ls");
+		_commandLine._physicsDebug = _commandLine._physicsDebug || IsArg(i, "--physics-debug");
+		_commandLine._physicsDebugFull = _commandLine._physicsDebugFull || IsArg(i, "--physics-debug-full");
+		_commandLine._profiler = _commandLine._profiler || IsArg(i, "--profiler");
+		_commandLine._testTexToPix = _commandLine._testTexToPix || IsArg(i, "--test-tex-to-pix");
 	}
 
 	VERUS_QREF_UTILS;
@@ -185,7 +180,6 @@ void Settings::SetQuality(Quality q)
 	_quality = q;
 	_gpuAnisotropyLevel = 0;
 	_gpuAntialiasingLevel = 0;
-	_gpuDepthTexture = 0;
 	_gpuForcedProfile = "";
 	_gpuOffscreenRender = true;
 	_gpuParallaxMapping = false;
@@ -197,7 +191,7 @@ void Settings::SetQuality(Quality q)
 	_postProcessMotionBlur = false;
 	_postProcessSSAO = false;
 	_sceneGrassDensity = 1000;
-	_sceneShadowQuality = ShadowQuality::sharp;
+	_sceneShadowQuality = ShadowQuality::multisampled;
 	_sceneWaterQuality = WaterQuality::distortedReflection;
 	_screenVSync = false;
 	_screenWindowed = true;
@@ -205,10 +199,9 @@ void Settings::SetQuality(Quality q)
 	switch (q)
 	{
 	case Quality::low:
-		_gpuDepthTexture = -1;
 		_gpuForcedProfile = "sm_3_0";
 		_sceneGrassDensity = 500;
-		_sceneShadowQuality = ShadowQuality::none;
+		_sceneShadowQuality = ShadowQuality::linear;
 		_sceneWaterQuality = WaterQuality::solidColor;
 		_screenSizeHeight = 600;
 		_screenSizeWidth = 800;
@@ -226,21 +219,20 @@ void Settings::SetQuality(Quality q)
 		_postProcessCinema = true;
 		_postProcessSSAO = true;
 		_sceneGrassDensity = 1500;
-		_sceneShadowQuality = ShadowQuality::filtered;
+		_sceneShadowQuality = ShadowQuality::cascaded;
 		_sceneWaterQuality = WaterQuality::trueWavesReflection;
 		_screenSizeHeight = 720;
 		_screenSizeWidth = 1280;
 		break;
 	case Quality::ultra:
 		_gpuAnisotropyLevel = 16;
-		_gpuDepthTexture = 1;
 		_gpuTrilinearFilter = true;
 		_postProcessBloom = true;
 		_postProcessCinema = true;
 		_postProcessMotionBlur = true;
 		_postProcessSSAO = true;
 		_sceneGrassDensity = 1500;
-		_sceneShadowQuality = ShadowQuality::cascaded;
+		_sceneShadowQuality = ShadowQuality::ultra;
 		_sceneWaterQuality = WaterQuality::trueWavesRefraction;
 		_screenSizeHeight = 1080;
 		_screenSizeWidth = 1980;

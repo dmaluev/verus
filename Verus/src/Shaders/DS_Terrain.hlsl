@@ -4,18 +4,19 @@
 
 #define HEIGHT_SCALE 0.01
 
-ConstantBuffer<UB_DrawDepth> g_ubDrawDepth : register(b0, space0);
+ConstantBuffer<UB_DrawDepth>     g_ubDrawDepth     : register(b0, space0);
+ConstantBuffer<UB_PerMaterialFS> g_ubPerMaterialFS : register(b0, space1);
 
 Texture2D      g_texHeight    : register(t1, space0);
 SamplerState   g_samHeight    : register(s1, space0);
-Texture2D      g_texNormal    : register(t2, space0);
-SamplerState   g_samNormal    : register(s2, space0);
-Texture2D      g_texBlend     : register(t3, space0);
-SamplerState   g_samBlend     : register(s3, space0);
-Texture2DArray g_texLayers    : register(t4, space0);
-SamplerState   g_samLayers    : register(s4, space0);
-Texture2DArray g_texLayersNM  : register(t5, space0);
-SamplerState   g_samLayersNM  : register(s5, space0);
+Texture2D      g_texNormal    : register(t1, space1);
+SamplerState   g_samNormal    : register(s1, space1);
+Texture2D      g_texBlend     : register(t2, space1);
+SamplerState   g_samBlend     : register(s2, space1);
+Texture2DArray g_texLayers    : register(t3, space1);
+SamplerState   g_samLayers    : register(s3, space1);
+Texture2DArray g_texLayersNM  : register(t4, space1);
+SamplerState   g_samLayersNM  : register(s4, space1);
 
 struct VSI
 {
@@ -28,7 +29,9 @@ struct VSI
 struct VSO
 {
 	float4 pos           : SV_Position;
+#ifndef DEF_DEPTH
 	float4 tcLayer_tcMap : TEXCOORD0;
+#endif
 	float2 depth         : TEXCOORD1;
 };
 
@@ -42,23 +45,25 @@ VSO mainVS(VSI si)
 
 	const float2 edgeCorrection = si.pos.yw;
 	si.pos.yw = 0.0;
-	float3 pos = si.pos.xyz + si.posPatch.xyz*float3(1, HEIGHT_SCALE, 1);
+	float3 pos = si.pos.xyz + si.posPatch.xyz * float3(1, HEIGHT_SCALE, 1);
 
 	const float bestPrecision = 50.0;
-	const float2 tcMap = pos.xz*mapSideInv + 0.5; // Range [0, 1).
+	const float2 tcMap = pos.xz * mapSideInv + 0.5; // Range [0, 1).
 	const float distToEye = distance(pos, posEye);
-	const float geomipsLod = log2(clamp(distToEye*(2.0 / 100.0), 1.0, 18.0));
+	const float geomipsLod = log2(clamp(distToEye * (2.0 / 100.0), 1.0, 18.0));
 	const float geomipsLodFrac = frac(geomipsLod);
 	const float geomipsLodBase = floor(geomipsLod);
 	const float geomipsLodNext = geomipsLodBase + 1.0;
-	const float2 halfTexelAB = (0.5*mapSideInv)*exp2(float2(geomipsLodBase, geomipsLodNext));
+	const float2 halfTexelAB = (0.5 * mapSideInv) * exp2(float2(geomipsLodBase, geomipsLodNext));
 	const float yA = g_texHeight.SampleLevel(g_samHeight, tcMap + halfTexelAB.xx, geomipsLodBase).r + bestPrecision;
 	const float yB = g_texHeight.SampleLevel(g_samHeight, tcMap + halfTexelAB.yy, geomipsLodNext).r + bestPrecision;
 	pos.y = lerp(yA, yB, geomipsLodFrac);
 
 	so.pos = mul(float4(pos, 1), g_ubDrawDepth._matVP);
+#ifndef DEF_DEPTH
 	so.tcLayer_tcMap.xy = pos.xz * (1.0 / 8.0);
-	so.tcLayer_tcMap.zw = (pos.xz + 0.5)*mapSideInv + 0.5; // Texel's center.
+	so.tcLayer_tcMap.zw = (pos.xz + 0.5) * mapSideInv + 0.5; // Texel's center.
+#endif
 	so.depth = so.pos.zw;
 
 	return so;
@@ -104,4 +109,5 @@ DS_FSO mainFS(VSO si)
 }
 #endif
 
-//@main:T
+//@main:#
+//@main:#Depth DEPTH (V)

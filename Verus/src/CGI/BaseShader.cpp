@@ -42,6 +42,7 @@ String BaseShader::Parse(
 	RString entryGS,
 	RString entryFS,
 	RString entryCS,
+	RString stages,
 	Vector<String>& vMacroName,
 	Vector<String>& vMacroValue,
 	CSZ prefix)
@@ -53,6 +54,7 @@ String BaseShader::Parse(
 	entryGS.clear();
 	entryFS.clear();
 	entryCS.clear();
+	stages = "(VF)";
 	vMacroName.clear();
 	vMacroValue.clear();
 
@@ -72,16 +74,23 @@ String BaseShader::Parse(
 			String macro;
 			space ? macro.assign(branchDesc, space) : macro.assign(branchDesc);
 
-			const size_t eq = macro.find('=');
-			if (eq != String::npos)
+			if (Str::StartsWith(_C(macro), "("))
 			{
-				vMacroName.push_back(prefix + macro.substr(0, eq));
-				vMacroValue.push_back(macro.substr(eq + 1));
+				stages = macro;
 			}
 			else
 			{
-				vMacroName.push_back(prefix + macro);
-				vMacroValue.push_back("1");
+				const size_t eq = macro.find('=');
+				if (eq != String::npos)
+				{
+					vMacroName.push_back(prefix + macro.substr(0, eq));
+					vMacroValue.push_back(macro.substr(eq + 1));
+				}
+				else
+				{
+					vMacroName.push_back(prefix + macro);
+					vMacroValue.push_back("1");
+				}
 			}
 
 			branchDesc = space;
@@ -114,18 +123,18 @@ String BaseShader::Parse(
 
 void BaseShader::TestParse()
 {
-	String entryVS, entryHS, entryDS, entryGS, entryFS, entryCS;
+	String entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages;
 	Vector<String> vMacroName;
 	Vector<String> vMacroValue;
 
 	Parse("",
-		entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, vMacroName, vMacroValue, "DEF_");
+		entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages, vMacroName, vMacroValue, "DEF_");
 	Parse("Foo",
-		entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, vMacroName, vMacroValue, "DEF_");
-	Parse("Bar FOO BAR XYZ",
-		entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, vMacroName, vMacroValue, "DEF_");
+		entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages, vMacroName, vMacroValue, "DEF_");
+	Parse("Bar FOO BAR XYZ (VGF)",
+		entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages, vMacroName, vMacroValue, "DEF_");
 	Parse("FooBar FOO=1 BAR=xyz XYZ= XYZ2=",
-		entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, vMacroName, vMacroValue, "DEF_");
+		entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages, vMacroName, vMacroValue, "DEF_");
 }
 
 bool BaseShader::IsInIgnoreList(CSZ name) const

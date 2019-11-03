@@ -19,13 +19,14 @@ namespace verus
 				VkBuffer           _buffer = VK_NULL_HANDLE;
 				VmaAllocation      _vmaAllocation = VK_NULL_HANDLE;
 				VkDescriptorSet    _descriptorSet = VK_NULL_HANDLE;
-				BYTE*              _pMappedData = nullptr;
-				const void*        _pSrc = nullptr;
+				BYTE* _pMappedData = nullptr;
+				const void* _pSrc = nullptr;
 				int                _size = 0;
 				int                _sizeAligned = 0;
 				int                _capacity = 1;
 				int                _capacityInBytes = 0;
 				int                _offset = 0;
+				int                _peakLoad = 0;
 				VkShaderStageFlags _stageFlags = 0;
 			};
 

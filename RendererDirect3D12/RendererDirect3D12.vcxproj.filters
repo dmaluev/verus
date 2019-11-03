@@ -22,6 +22,9 @@
     <Filter Include="src\ThirdParty">
       <UniqueIdentifier>{b963f27d-7c2e-4f6a-b947-d51591cf483a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\ThirdParty\imgui">
+      <UniqueIdentifier>{59ef798b-6265-43a3-a24a-39f2136959b4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\stdafx.h">
@@ -63,6 +66,9 @@
     <ClInclude Include="src\ThirdParty\D3D12MemAlloc.h">
       <Filter>src\ThirdParty</Filter>
     </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imgui_impl_dx12.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -100,6 +106,9 @@
     </ClCompile>
     <ClCompile Include="src\ThirdParty\D3D12MemAlloc.cpp">
       <Filter>src\ThirdParty</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_impl_dx12.cpp">
+      <Filter>src\ThirdParty\imgui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

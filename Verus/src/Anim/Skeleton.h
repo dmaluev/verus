@@ -46,8 +46,8 @@ namespace verus
 				Vector3            _boxSize = Vector3(0); //!< For a box shape.
 				String             _name;
 				String             _parentName;
-				btCollisionShape*  _pShape = nullptr;
-				btRigidBody*       _pBody = nullptr;
+				btCollisionShape* _pShape = nullptr;
+				btRigidBody* _pBody = nullptr;
 				btTypedConstraint* _pConstraint = nullptr;
 				float              _width = 0;
 				float              _length = 0;

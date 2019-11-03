@@ -164,12 +164,12 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 	{
 		const int index = subpass._vColor[i]._index;
 		RP::RcD3DAttachment attachment = renderPass._vAttachments[index];
-		gpsDesc.RTVFormats[i] = ToNativeFormat(attachment._format);
+		gpsDesc.RTVFormats[i] = ToNativeFormat(attachment._format, false);
 	}
 	if (subpass._depthStencil._index >= 0)
 	{
 		RP::RcD3DAttachment attachment = renderPass._vAttachments[subpass._depthStencil._index];
-		gpsDesc.DSVFormat = ToNativeFormat(attachment._format);
+		gpsDesc.DSVFormat = ToNativeFormat(attachment._format, false);
 	}
 
 	gpsDesc.SampleDesc.Count = desc._sampleCount;

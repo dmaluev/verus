@@ -52,8 +52,8 @@ void Skeleton::Draw(bool bindPose, int selected)
 			else
 			{
 				dr.AddLine(
-					(pParent->_matFinal*pParent->_matFromBoneSpace).getTranslation(),
-					(pBone->_matFinal*pBone->_matFromBoneSpace).getTranslation(),
+					(pParent->_matFinal * pParent->_matFromBoneSpace).getTranslation(),
+					(pBone->_matFinal * pBone->_matFromBoneSpace).getTranslation(),
 					VERUS_COLOR_WHITE);
 			}
 		}
@@ -61,7 +61,7 @@ void Skeleton::Draw(bool bindPose, int selected)
 	for (const auto& kv : _mapBones)
 	{
 		PcBone pBone = &kv.second;
-		const Transform3 mat = bindPose ? pBone->_matFromBoneSpace : pBone->_matFinal*pBone->_matFromBoneSpace;
+		const Transform3 mat = bindPose ? pBone->_matFromBoneSpace : pBone->_matFinal * pBone->_matFromBoneSpace;
 
 		const float scale = 0.04f;
 		Point3 a(0);
@@ -140,7 +140,7 @@ void Skeleton::ApplyMotion(RMotion motion, float time, int numAlphaMotions, PAlp
 			RBone bone = kv.second;
 			if (bone._pBody)
 			{
-				bone._matFinal = _matRagdollToWorldInv * Transform3(bone._pBody->getWorldTransform())*bone._matToActorSpace;
+				bone._matFinal = _matRagdollToWorldInv * Transform3(bone._pBody->getWorldTransform()) * bone._matToActorSpace;
 			}
 			else
 			{
@@ -152,7 +152,7 @@ void Skeleton::ApplyMotion(RMotion motion, float time, int numAlphaMotions, PAlp
 					{
 						if (pParent->_pBody)
 						{
-							bone._matFinal = _matRagdollToWorldInv * Transform3(pParent->_pBody->getWorldTransform())*pParent->_matToActorSpace;
+							bone._matFinal = _matRagdollToWorldInv * Transform3(pParent->_pBody->getWorldTransform()) * pParent->_matToActorSpace;
 							break;
 						}
 						pParent = FindBone(_C(pParent->_parentName));
@@ -242,7 +242,7 @@ void Skeleton::RecursiveBoneUpdate()
 			PMotion pAlphaMotion = _pAlphaMotions[i]._pMotion;
 			Motion::PBone pAlphaBone = pAlphaMotion->FindBone(_C(pCurrentBone->_name));
 			const float alpha = _pAlphaMotions[i]._alpha;
-			float time = _pAlphaMotions[i]._time*pAlphaMotion->GetPlaybackSpeed(); // To native time.
+			float time = _pAlphaMotions[i]._time * pAlphaMotion->GetPlaybackSpeed(); // To native time.
 			if (pAlphaMotion->IsReversed())
 				time = pAlphaMotion->GetNativeDuration() - time;
 			if (pAlphaBone && alpha > 0 &&
@@ -264,8 +264,8 @@ void Skeleton::RecursiveBoneUpdate()
 		}
 
 		const Transform3 matSRT = VMath::appendScale(Transform3(q, pos), scale);
-		const Transform3 matBone = pCurrentBone->_matExternal*matSRT;
-		mat = pCurrentBone->_matFromBoneSpace*matBone*pCurrentBone->_matToBoneSpace*pCurrentBone->_matAdapt;
+		const Transform3 matBone = pCurrentBone->_matExternal * matSRT;
+		mat = pCurrentBone->_matFromBoneSpace * matBone * pCurrentBone->_matToBoneSpace * pCurrentBone->_matAdapt;
 	}
 	else
 		mat = Transform3::identity();
@@ -501,7 +501,7 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 
 	// RagdollDemo values:
 	const float dampL = 0.05f;
-	const float dampA = 0.85f*1.15f;
+	const float dampA = 0.85f * 1.15f;
 	const float daTime = 0.8f;
 	const float sleepL = 1.6f;
 	const float sleepA = 2.5f;
@@ -519,7 +519,7 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			const Point3 a = pParent->_matFromBoneSpace.getTranslation();
 			const Point3 b = pBone->_matFromBoneSpace.getTranslation();
 
-			if (VMath::distSqr(a, b) < 0.01f*0.01f) // Too short, unsuitable?
+			if (VMath::distSqr(a, b) < 0.01f * 0.01f) // Too short, unsuitable?
 			{
 				pParent->_ready = false; // Mark it.
 				continue;
@@ -528,7 +528,7 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			// Pick the correct child bone:
 			if (0 == pParent->_length)
 			{
-				const Vector3 test = VMath::normalizeApprox(Vector3(pParent->_matToBoneSpace*b));
+				const Vector3 test = VMath::normalizeApprox(Vector3(pParent->_matToBoneSpace * b));
 				if (test.getX() < 0.9f) // Bone should point to child bone.
 					continue;
 			}
@@ -546,24 +546,24 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			else
 			{
 				if (0 == pParent->_boxSize.getY())
-					pParent->_boxSize.setY(len*0.5f);
+					pParent->_boxSize.setY(len * 0.5f);
 				pParent->_pShape = new btBoxShape(pParent->_boxSize.Bullet());
 			}
 
 			Transform3 matBody;
 			if (pParent->_rigRot.IsZero())
 			{
-				matBody = pParent->_matFromBoneSpace*
-					Transform3(Matrix3::rotationZ(Math::ToRadians(90)), Vector3(len*0.5f, 0, 0));
+				matBody = pParent->_matFromBoneSpace *
+					Transform3(Matrix3::rotationZ(Math::ToRadians(90)), Vector3(len * 0.5f, 0, 0));
 			}
 			else
 			{
 				const Transform3 matR = Transform3::rotationZYX(pParent->_rigRot);
-				const Transform3 matT = Transform3(Matrix3::rotationZ(Math::ToRadians(90)), Vector3(len*0.5f, 0, 0));
-				matBody = pParent->_matFromBoneSpace*matR*matT;
+				const Transform3 matT = Transform3(Matrix3::rotationZ(Math::ToRadians(90)), Vector3(len * 0.5f, 0, 0));
+				matBody = pParent->_matFromBoneSpace * matR * matT;
 			}
 			pParent->_matToActorSpace = VMath::inverse(matBody);
-			matBody = _matRagdollToWorld * pParent->_matFinal*matBody;
+			matBody = _matRagdollToWorld * pParent->_matFinal * matBody;
 
 			short group = 1, mask = -1;
 			if (pParent->_noCollision)
@@ -571,7 +571,7 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			const btTransform t = matBody.Bullet();
 			pParent->_pBody = bullet.AddNewRigidBody(pParent->_mass, t, pParent->_pShape, group, mask);
 			pParent->_pBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::leather));
-			pParent->_pBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::leather)*0.5f);
+			pParent->_pBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::leather) * 0.5f);
 			pParent->_pBody->setDamping(dampL, dampA);
 			pParent->_pBody->setDeactivationTime(daTime);
 			pParent->_pBody->setSleepingThresholds(sleepL, sleepA);
@@ -604,17 +604,17 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			Transform3 matBody;
 			if (pBone->_rigRot.IsZero())
 			{
-				matBody = pBone->_matFromBoneSpace*
-					Transform3(Matrix3::rotationZ(Math::ToRadians(90)), Vector3(len*0.5f, 0, 0));
+				matBody = pBone->_matFromBoneSpace *
+					Transform3(Matrix3::rotationZ(Math::ToRadians(90)), Vector3(len * 0.5f, 0, 0));
 			}
 			else
 			{
 				const Transform3 matR = Transform3::rotationZYX(pBone->_rigRot);
-				const Transform3 matT = Transform3(Matrix3::rotationZ(Math::ToRadians(90)), Vector3(len*0.5f, 0, 0));
-				matBody = pBone->_matFromBoneSpace*matR*matT;
+				const Transform3 matT = Transform3(Matrix3::rotationZ(Math::ToRadians(90)), Vector3(len * 0.5f, 0, 0));
+				matBody = pBone->_matFromBoneSpace * matR * matT;
 			}
 			pBone->_matToActorSpace = VMath::inverse(matBody);
-			matBody = _matRagdollToWorld * pBone->_matFinal*matBody;
+			matBody = _matRagdollToWorld * pBone->_matFinal * matBody;
 
 			short group = 1, mask = -1;
 			if (pBone->_noCollision)
@@ -622,7 +622,7 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			const btTransform t = matBody.Bullet();
 			pBone->_pBody = bullet.AddNewRigidBody(pBone->_mass, t, pBone->_pShape, group, mask);
 			pBone->_pBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::leather));
-			pBone->_pBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::leather)*0.5f);
+			pBone->_pBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::leather) * 0.5f);
 			pBone->_pBody->setDamping(dampL, dampA);
 			pBone->_pBody->setDeactivationTime(daTime);
 			pBone->_pBody->setSleepingThresholds(sleepL, sleepA);
@@ -633,12 +633,12 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 		if (pBone->_pShape && pParent && pParent->_pShape && pBone->_cLimits.getZ() > -99) // Connect bones?
 		{
 			btTransform localA, localB;
-			const Transform3 matToParentSpace = pParent->_matToActorSpace*VMath::inverse(pBone->_matToActorSpace);
+			const Transform3 matToParentSpace = pParent->_matToActorSpace * VMath::inverse(pBone->_matToActorSpace);
 
 			const Transform3 matR = Transform3::rotationZYX(pBone->_cRot);
-			const Transform3 matT = Transform3::translation(Vector3(0, pBone->_length*0.5f, 0));
-			localA = Transform3(matT*matInitC*matR).Bullet();
-			localB = Transform3(matToParentSpace*matT*matInitC*matR).Bullet();
+			const Transform3 matT = Transform3::translation(Vector3(0, pBone->_length * 0.5f, 0));
+			localA = Transform3(matT * matInitC * matR).Bullet();
+			localB = Transform3(matToParentSpace * matT * matInitC * matR).Bullet();
 
 			if (pBone->_hinge)
 			{
@@ -718,7 +718,7 @@ void Skeleton::BakeMotion(RMotion motion, int frame, bool kinect)
 		Transform3 matParent, matFromParentSpace;
 		if (pParent)
 		{
-			matParent = pParent->_matFinal*pParent->_matFromBoneSpace;
+			matParent = pParent->_matFinal * pParent->_matFromBoneSpace;
 			matFromParentSpace = pParent->_matFromBoneSpace;
 		}
 		else
@@ -734,8 +734,8 @@ void Skeleton::BakeMotion(RMotion motion, int frame, bool kinect)
 		// Actor in parent actor's space is transformed to bind pose space
 		// and then to bone space:
 		const Transform3 mat =
-			bone._matToBoneSpace*matFromParentSpace*VMath::inverse(matParent)*
-			bone._matFinal*bone._matFromBoneSpace;
+			bone._matToBoneSpace * matFromParentSpace * VMath::inverse(matParent) *
+			bone._matFinal * bone._matFromBoneSpace;
 
 		Quat q(mat.getUpper3x3());
 		Vector3 pos = mat.getTranslation();
@@ -813,10 +813,10 @@ void Skeleton::AdaptBindPoseOf(RcSkeleton that)
 
 		if (pParentDst && pParentSrc)
 		{
-			const Point3 d0 = pParentDst->_matFromBoneSpace*origin;
-			const Point3 d1 = boneDst._matFromBoneSpace*origin;
-			const Point3 s0 = pParentSrc->_matFromBoneSpace*origin;
-			const Point3 s1 = pBoneSrc->_matFromBoneSpace*origin;
+			const Point3 d0 = pParentDst->_matFromBoneSpace * origin;
+			const Point3 d1 = boneDst._matFromBoneSpace * origin;
+			const Point3 s0 = pParentSrc->_matFromBoneSpace * origin;
+			const Point3 s1 = pBoneSrc->_matFromBoneSpace * origin;
 
 			Vector3 vd = d1 - d0;
 			Vector3 vs = s1 - s0;
@@ -828,11 +828,11 @@ void Skeleton::AdaptBindPoseOf(RcSkeleton that)
 			vs /= ls;
 			const Matrix3 matWorldR = Matrix3::MakeRotateTo(vd, vs);
 
-			const Point3 offset = pParentDst->_matFromBoneSpace*origin;
+			const Point3 offset = pParentDst->_matFromBoneSpace * origin;
 			const Transform3 matToBoneOrigin = Transform3::translation(-Vector3(offset));
 			const Transform3 matFromBoneOrigin = Transform3::translation(Vector3(offset));
 
-			pParentDst->_matAdapt = matFromBoneOrigin * Transform3(matWorldR, Vector3(0))*matToBoneOrigin;
+			pParentDst->_matAdapt = matFromBoneOrigin * Transform3(matWorldR, Vector3(0)) * matToBoneOrigin;
 		}
 	}
 }
@@ -844,16 +844,16 @@ void Skeleton::SimpleIK(CSZ boneDriven, CSZ boneDriver, RcVector3 dirDriverSpace
 	if (boneDriver)
 	{
 		PBone pBoneDriver = FindBone(boneDriver);
-		dirActual = pBoneDriver->_matFinal.getUpper3x3()*pBoneDriver->_matFromBoneSpace.getUpper3x3()*dirDriverSpace;
+		dirActual = pBoneDriver->_matFinal.getUpper3x3() * pBoneDriver->_matFromBoneSpace.getUpper3x3() * dirDriverSpace;
 	}
 	Vector3 dirDesired = dirDesiredMeshSpace;
 	dirDesired.LimitDot(dirActual, limitDot);
 	const Matrix3 matR = Matrix3::MakeRotateTo(
 		dirActual,
 		VMath::normalizeApprox(VMath::lerp(alpha, dirActual, dirDesired)));
-	const Matrix3 matDrivenFrom = pBoneDriven->_matFinal.getUpper3x3()*pBoneDriven->_matFromBoneSpace.getUpper3x3();
+	const Matrix3 matDrivenFrom = pBoneDriven->_matFinal.getUpper3x3() * pBoneDriven->_matFromBoneSpace.getUpper3x3();
 	const Matrix3 matDrivenTo = VMath::inverse(matDrivenFrom);
-	pBoneDriven->_matExternal.setUpper3x3(matDrivenTo*matR*matDrivenFrom);
+	pBoneDriven->_matExternal.setUpper3x3(matDrivenTo * matR * matDrivenFrom);
 }
 
 void Skeleton::ProcessKinectData(const BYTE* p, RMotion motion, int frame)
@@ -962,17 +962,17 @@ void Skeleton::ProcessKinectData(const BYTE* p, RMotion motion, int frame)
 
 			// Twist:
 			const float twist = IsParentOf(_C(bone._parentName), "Spine") ? shTwist : hipTwist;
-			const float angle = kinePoseDir.getY()*twist;
+			const float angle = kinePoseDir.getY() * twist;
 			const Transform3 matTwist = Transform3(Quat::rotation(angle, kinePoseDir), Vector3(0));
 
 			// Kinect's bind pose correction:
-			const Transform3 m = matTwist * matR*pParent->_matToActorSpace;
+			const Transform3 m = matTwist * matR * pParent->_matToActorSpace;
 
 			const bool secondary =
 				strstr(_C(bone._name), "Left") ||
 				strstr(_C(bone._name), "Right");
 			if (!secondary || pParent->_matFinal.IsIdentity())
-				pParent->_matFinal = matOffset * m*VMath::inverse(matOffset)*matT;
+				pParent->_matFinal = matOffset * m * VMath::inverse(matOffset) * matT;
 		}
 	}
 
@@ -1013,7 +1013,7 @@ void Skeleton::ProcessKinectJoint(const BYTE* p, CSZ name, RcVector3 skeletonPos
 	pos -= skeletonPos;
 	pos += Vector3(0, 1, 0);
 
-	pos = Transform3::rotationY(VERUS_PI)*pos;
+	pos = Transform3::rotationY(VERUS_PI) * pos;
 
 	PBone pBone = FindBone(name);
 	if (pBone)
@@ -1136,10 +1136,10 @@ void Skeleton::FixateFeet(RMotion motion)
 	vPos.resize(motion.GetNumFrames());
 	VERUS_FOR(i, motion.GetNumFrames())
 	{
-		ApplyMotion(motion, i*motion.GetFpsInv());
+		ApplyMotion(motion, i * motion.GetFpsInv());
 
-		const Point3 posAnkleL = (pAnkleL->_matFinal*pAnkleL->_matFromBoneSpace).getTranslation();
-		const Point3 posAnkleR = (pAnkleR->_matFinal*pAnkleR->_matFromBoneSpace).getTranslation();
+		const Point3 posAnkleL = (pAnkleL->_matFinal * pAnkleL->_matFromBoneSpace).getTranslation();
+		const Point3 posAnkleR = (pAnkleR->_matFinal * pAnkleR->_matFromBoneSpace).getTranslation();
 
 		const Foot target = (posAnkleL.getY() < posAnkleR.getY()) ? Foot::left : Foot::right;
 		Point3 pos;
@@ -1157,7 +1157,7 @@ void Skeleton::FixateFeet(RMotion motion)
 		vPos[i] = posFixed - pos;
 
 		// Stabilize head position:
-		const Point3 posHead = (pHead->_matFinal*pHead->_matFromBoneSpace).getTranslation() + vPos[i];
+		const Point3 posHead = (pHead->_matFinal * pHead->_matFromBoneSpace).getTranslation() + vPos[i];
 		if (i)
 		{
 			Vector3 d = posHeadPrev - posHead;
@@ -1198,15 +1198,15 @@ Vector3 Skeleton::GetHighestSpeed(RMotion motion, CSZ name, RcVector3 scale, boo
 	Point3 prevPos(0);
 	VERUS_FOR(i, numFrames)
 	{
-		ApplyMotion(motion, i*dt);
+		ApplyMotion(motion, i * dt);
 		PBone pBone = FindBone(name);
 		Point3 pos = VMath::mulPerElem(pBone->_matFromBoneSpace.getTranslation(), scale);
-		pos = pBone->_matFinal*pos;
+		pos = pBone->_matFinal * pos;
 		if (i)
 		{
-			vDX.push_back((pos.getX() - prevPos.getX())*dti);
-			vDY.push_back((pos.getY() - prevPos.getY())*dti);
-			vDZ.push_back((pos.getZ() - prevPos.getZ())*dti);
+			vDX.push_back((pos.getX() - prevPos.getX()) * dti);
+			vDY.push_back((pos.getY() - prevPos.getY()) * dti);
+			vDZ.push_back((pos.getZ() - prevPos.getZ()) * dti);
 		}
 		prevPos = pos;
 	}
@@ -1228,7 +1228,7 @@ Vector3 Skeleton::GetHighestSpeed(RMotion motion, CSZ name, RcVector3 scale, boo
 	const int offC = motion.GetNumFrames() / 16;
 	const int offD = motion.GetNumFrames() / 8;
 	return Vector3(
-		0.25f*(vDX[offA] + vDX[offB] + vDX[offC] + vDX[offD]),
-		0.25f*(vDY[offA] + vDY[offB] + vDY[offC] + vDY[offD]),
-		0.25f*(vDZ[offA] + vDZ[offB] + vDZ[offC] + vDZ[offD]));
+		0.25f * (vDX[offA] + vDX[offB] + vDX[offC] + vDX[offD]),
+		0.25f * (vDY[offA] + vDY[offB] + vDY[offC] + vDY[offD]),
+		0.25f * (vDZ[offA] + vDZ[offB] + vDZ[offC] + vDZ[offD]));
 }

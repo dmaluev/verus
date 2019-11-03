@@ -83,7 +83,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	rasterizationState.cullMode = ToNativeCullMode(desc._rasterizationState._cullMode);
 	rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizationState.depthBiasEnable = desc._rasterizationState._depthBiasEnable;
-	rasterizationState.depthBiasConstantFactor = desc._rasterizationState._depthBiasConstantFactor;
+	rasterizationState.depthBiasConstantFactor = desc._rasterizationState._depthBiasConstantFactor * 0.5f; // Magic value to match D3D12.
 	rasterizationState.depthBiasClamp = desc._rasterizationState._depthBiasClamp;
 	rasterizationState.depthBiasSlopeFactor = desc._rasterizationState._depthBiasSlopeFactor;
 	rasterizationState.lineWidth = desc._rasterizationState._lineWidth;

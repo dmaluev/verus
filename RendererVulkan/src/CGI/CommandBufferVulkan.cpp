@@ -43,27 +43,18 @@ void CommandBufferVulkan::End()
 		throw VERUS_RUNTIME_ERROR << "vkEndCommandBuffer(), res=" << res;
 }
 
-void CommandBufferVulkan::BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, PcVector4 pRenderArea)
+void CommandBufferVulkan::BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 	VERUS_QREF_CONST_SETTINGS;
+	RendererVulkan::RcFramebuffer framebuffer = pRendererVulkan->GetFramebufferByID(framebufferID);
 	VkRenderPassBeginInfo vkrpbi = {};
 	vkrpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	vkrpbi.renderPass = pRendererVulkan->GetRenderPassByID(renderPassID);
-	vkrpbi.framebuffer = pRendererVulkan->GetFramebufferByID(framebufferID);
-	if (pRenderArea)
-	{
-		vkrpbi.renderArea.offset.x = static_cast<int32_t>(pRenderArea->getX());
-		vkrpbi.renderArea.offset.y = static_cast<int32_t>(pRenderArea->getY());
-		vkrpbi.renderArea.extent.width = static_cast<uint32_t>(pRenderArea->Width());
-		vkrpbi.renderArea.extent.height = static_cast<uint32_t>(pRenderArea->Height());
-	}
-	else
-	{
-		vkrpbi.renderArea.extent.width = settings._screenSizeWidth;
-		vkrpbi.renderArea.extent.height = settings._screenSizeHeight;
-	}
-	VkClearValue clearValue[VERUS_MAX_NUM_RT] = {};
+	vkrpbi.framebuffer = framebuffer._framebuffer;
+	vkrpbi.renderArea.extent.width = framebuffer._width;
+	vkrpbi.renderArea.extent.height = framebuffer._height;
+	VkClearValue clearValue[VERUS_MAX_NUM_FB_ATTACH] = {};
 	int num = 0;
 	for (const auto& x : ilClearValues)
 	{
@@ -73,6 +64,12 @@ void CommandBufferVulkan::BeginRenderPass(int renderPassID, int framebufferID, s
 	vkrpbi.clearValueCount = num;
 	vkrpbi.pClearValues = clearValue;
 	vkCmdBeginRenderPass(GetVkCommandBuffer(), &vkrpbi, VK_SUBPASS_CONTENTS_INLINE);
+	if (setViewportAndScissor)
+	{
+		const Vector4 rc(0, 0, static_cast<float>(framebuffer._width), static_cast<float>(framebuffer._height));
+		SetViewport({ rc }, 0, 1);
+		SetScissor({ rc });
+	}
 }
 
 void CommandBufferVulkan::NextSubpass()
@@ -128,9 +125,9 @@ void CommandBufferVulkan::SetViewport(std::initializer_list<Vector4> il, float m
 	for (const auto& rc : il)
 	{
 		vpVulkan[num].x = rc.getX();
-		vpVulkan[num].y = rc.getY();
+		vpVulkan[num].y = rc.getY() + rc.Height();
 		vpVulkan[num].width = rc.Width();
-		vpVulkan[num].height = rc.Height();
+		vpVulkan[num].height = -rc.Height();
 		vpVulkan[num].minDepth = minDepth;
 		vpVulkan[num].maxDepth = maxDepth;
 		num++;
@@ -191,8 +188,9 @@ void CommandBufferVulkan::PushConstants(ShaderPtr shader, int offset, int size, 
 void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, Range<int> mipLevels, int arrayLayer)
 {
 	auto& texVulkan = static_cast<RTextureVulkan>(*tex);
-	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Waiting for this stage to finish (TOP_OF_PIPE means wait for nothing).
+	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; // Which stage is waiting to start (BOTTOM_OF_PIPE means nothing is waiting).
+	const VkPipelineStageFlags dstStageMaskVS = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 	VkImageMemoryBarrier vkimb[16];
 	VERUS_RT_ASSERT(mipLevels.GetRange() < VERUS_ARRAY_LENGTH(vkimb));
 	int index = 0;
@@ -214,53 +212,83 @@ void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout
 		// See: https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples
 		if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_GENERAL)
 		{
+			// Storage image (UAV) initialization.
+			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 			vkimb[index].srcAccessMask = 0;
-			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-			srcStageMask = VK_PIPELINE_STAGE_HOST_BIT;
 			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 		}
 		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
 		{
-			vkimb[index].subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-			vkimb[index].srcAccessMask = 0;
-			vkimb[index].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+			// Depth texture initialization.
 			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			vkimb[index].srcAccessMask = 0;
 			dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+			vkimb[index].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+			vkimb[index].subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+			if (Format::unormD24uintS8 == tex->GetFormat())
+				vkimb[index].subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+		}
+		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
+		{
+			// Shadow map initialization.
+			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			vkimb[index].srcAccessMask = 0;
+			dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+			vkimb[index].subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+			if (Format::unormD24uintS8 == tex->GetFormat())
+				vkimb[index].subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
 		}
 		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 		{
+			// Render target initialization.
+			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 			vkimb[index].srcAccessMask = 0;
+			dstStageMask = (ImageLayout::vsReadOnly == newLayout) ? dstStageMaskVS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-			srcStageMask = VK_PIPELINE_STAGE_HOST_BIT;
-			dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 		}
 		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
 		{
-			vkimb[index].srcAccessMask = 0;
-			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			// Regular texture's first and only update (before transfer).
 			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			vkimb[index].srcAccessMask = 0;
 			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 		}
 		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_GENERAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
 		{
-			vkimb[index].srcAccessMask = 0;
-			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+			// To transfer data from storage image during mipmap generation.
 			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			vkimb[index].srcAccessMask = 0;
 			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		}
+		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+		{
+			// To support vertex texture fetch.
+			srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			vkimb[index].srcAccessMask = 0;
+			dstStageMask = (ImageLayout::vsReadOnly == newLayout) ? dstStageMaskVS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		}
 		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
 		{
-			vkimb[index].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			// To update regular texture during mipmap generation.
 			srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			vkimb[index].srcAccessMask = 0;
 			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 		}
 		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 		{
-			vkimb[index].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			// Regular texture's first and only update (after transfer).
 			srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-			dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			vkimb[index].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			dstStageMask = (ImageLayout::vsReadOnly == newLayout) ? dstStageMaskVS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		}
 		else
 		{

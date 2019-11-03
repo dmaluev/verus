@@ -6,11 +6,11 @@ using namespace verus::Scene;
 CGI::ShaderPwn       Mesh::s_shader;
 CGI::PipelinePwns<1> Mesh::s_pipe;
 
-Mesh::UB_PerFrame    Mesh::s_ubPerFrame;
-Mesh::UB_PerMaterial Mesh::s_ubPerMaterial;
-Mesh::UB_PerMesh     Mesh::s_ubPerMesh;
-Mesh::UB_Skinning    Mesh::s_ubSkinning;
-Mesh::UB_PerObject   Mesh::s_ubPerObject;
+Mesh::UB_PerFrame      Mesh::s_ubPerFrame;
+Mesh::UB_PerMaterialFS Mesh::s_ubPerMaterialFS;
+Mesh::UB_PerMeshVS     Mesh::s_ubPerMeshVS;
+Mesh::UB_SkeletonVS    Mesh::s_ubSkeletonVS;
+Mesh::UB_PerObject     Mesh::s_ubPerObject;
 
 // Mesh:
 
@@ -25,13 +25,17 @@ Mesh::~Mesh()
 
 void Mesh::InitStatic()
 {
-	CGI::ShaderDesc shaderDesc;
-	shaderDesc._url = "[Shaders]:DS_Mesh.hlsl";
-	s_shader.Init(shaderDesc);
-	s_shader->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame));
-	s_shader->CreateDescriptorSet(1, &s_ubPerMaterial, sizeof(s_ubPerMaterial), 1000, { CGI::Sampler::aniso, CGI::Sampler::aniso });
-	s_shader->CreateDescriptorSet(2, &s_ubPerMesh, sizeof(s_ubPerMesh), 1000);
-	s_shader->CreateDescriptorSet(3, &s_ubSkinning, sizeof(s_ubSkinning), 500);
+	VERUS_QREF_CONST_SETTINGS;
+
+	s_shader.Init("[Shaders]:DS_Mesh.hlsl");
+	s_shader->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame), settings.GetLimits()._mesh_ubPerFrameCapacity);
+	s_shader->CreateDescriptorSet(1, &s_ubPerMaterialFS, sizeof(s_ubPerMaterialFS), settings.GetLimits()._mesh_ubPerMaterialFSCapacity,
+		{
+			CGI::Sampler::aniso,
+			CGI::Sampler::aniso
+		}, CGI::ShaderStageFlags::fs);
+	s_shader->CreateDescriptorSet(2, &s_ubPerMeshVS, sizeof(s_ubPerMeshVS), settings.GetLimits()._mesh_ubPerMeshVSCapacity, {}, CGI::ShaderStageFlags::vs);
+	s_shader->CreateDescriptorSet(3, &s_ubSkeletonVS, sizeof(s_ubSkeletonVS), settings.GetLimits()._mesh_ubSkinningVSCapacity, {}, CGI::ShaderStageFlags::vs);
 	s_shader->CreateDescriptorSet(4, &s_ubPerObject, sizeof(s_ubPerObject), 0);
 	s_shader->CreatePipelineLayout();
 }
@@ -69,21 +73,21 @@ void Mesh::UpdateUniformBufferPerFrame()
 	s_ubPerFrame._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
 }
 
-void Mesh::UpdateUniformBufferPerMaterial()
+void Mesh::UpdateUniformBufferPerMaterialFS()
 {
 }
 
-void Mesh::UpdateUniformBufferPerMesh()
+void Mesh::UpdateUniformBufferPerMeshVS()
 {
-	memcpy(&s_ubPerMesh._posDeqScale, _posDeq + 0, 12);
-	memcpy(&s_ubPerMesh._posDeqBias, _posDeq + 3, 12);
-	memcpy(&s_ubPerMesh._tc0DeqScaleBias, _tc0Deq, 16);
-	memcpy(&s_ubPerMesh._tc1DeqScaleBias, _tc1Deq, 16);
+	memcpy(&s_ubPerMeshVS._posDeqScale, _posDeq + 0, 12);
+	memcpy(&s_ubPerMeshVS._posDeqBias, _posDeq + 3, 12);
+	memcpy(&s_ubPerMeshVS._tc0DeqScaleBias, _tc0Deq, 16);
+	memcpy(&s_ubPerMeshVS._tc1DeqScaleBias, _tc1Deq, 16);
 }
 
-void Mesh::UpdateUniformBufferSkinning()
+void Mesh::UpdateUniformBufferSkeletonVS()
 {
-	_skeleton.UpdateUniformBufferArray(s_ubSkinning._vMatBones);
+	_skeleton.UpdateUniformBufferArray(s_ubSkeletonVS._vMatBones);
 }
 
 void Mesh::UpdateUniformBufferPerObject(Point3 pos)
@@ -96,6 +100,8 @@ void Mesh::UpdateUniformBufferPerObject(Point3 pos)
 void Mesh::CreateDeviceBuffers()
 {
 	_bindingsMask = 0;
+
+	CGI::GeometryDesc geoDesc;
 	const CGI::InputElementDesc ied[] =
 	{
 		{0, offsetof(VertexInputBinding0, _pos), CGI::IeType::shorts, 4, CGI::IeUsage::position, 0},
@@ -114,8 +120,6 @@ void Mesh::CreateDeviceBuffers()
 		{-4, offsetof(PerInstanceData, _instData), CGI::IeType::floats, 4, CGI::IeUsage::texCoord, 11},
 		CGI::InputElementDesc::End()
 	};
-
-	CGI::GeometryDesc geoDesc;
 	geoDesc._pInputElementDesc = ied;
 	const int strides[] = { sizeof(VertexInputBinding0), sizeof(VertexInputBinding1), sizeof(VertexInputBinding2), sizeof(VertexInputBinding3), sizeof(PerInstanceData), 0 };
 	geoDesc._pStrides = strides;

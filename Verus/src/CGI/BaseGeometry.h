@@ -9,8 +9,9 @@ namespace verus
 		struct GeometryDesc
 		{
 			PcInputElementDesc _pInputElementDesc;
-			const int*         _pStrides = nullptr;
+			const int* _pStrides = nullptr;
 			bool               _32BitIndices = false;
+			bool               _dynamic = false;
 		};
 		VERUS_TYPEDEFS(GeometryDesc);
 
@@ -19,6 +20,7 @@ namespace verus
 		protected:
 			int  _bindingInstMask = 0;
 			bool _32BitIndices = false;
+			bool _dynamic = false;
 
 			BaseGeometry() = default;
 			virtual ~BaseGeometry() = default;

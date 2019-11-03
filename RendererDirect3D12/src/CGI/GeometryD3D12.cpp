@@ -18,6 +18,7 @@ void GeometryD3D12::Init(RcGeometryDesc desc)
 	VERUS_INIT();
 
 	_32BitIndices = desc._32BitIndices;
+	_dynamic = desc._dynamic;
 
 	_vInputElementDesc.reserve(GetNumInputElementDesc(desc._pInputElementDesc));
 	int i = 0;
@@ -90,7 +91,7 @@ void GeometryD3D12::CreateVertexBuffer(int num, int binding)
 	const int elementSize = _vStrides[binding];
 	vb._bufferSize = num * elementSize;
 
-	if ((_bindingInstMask >> binding) & 0x1)
+	if (((_bindingInstMask >> binding) & 0x1) || _dynamic)
 	{
 		D3D12MA::ALLOCATION_DESC allocDesc = {};
 		allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
@@ -135,7 +136,7 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, BaseCommandBu
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
 
-	if ((_bindingInstMask >> binding) & 0x1)
+	if (((_bindingInstMask >> binding) & 0x1) || _dynamic)
 	{
 		auto& vb = _vVertexBuffers[binding];
 		CD3DX12_RANGE readRange(0, 0);

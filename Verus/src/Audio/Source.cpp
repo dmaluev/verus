@@ -109,13 +109,13 @@ void Source::MoveTo(RcPoint3 pos, RcVector3 dir, RcVector3 vel)
 void Source::SetGain(float gain)
 {
 	if (_pSound && _pSound->IsLoaded())
-		alSourcef(_sid, AL_GAIN, gain*_pSound->GetGain().GetRandomValue());
+		alSourcef(_sid, AL_GAIN, gain * _pSound->GetGain().GetRandomValue());
 }
 
 void Source::SetPitch(float pitch)
 {
 	if (_pSound && _pSound->IsLoaded())
-		alSourcef(_sid, AL_PITCH, pitch*_pSound->GetPitch().GetRandomValue());
+		alSourcef(_sid, AL_PITCH, pitch * _pSound->GetPitch().GetRandomValue());
 }
 
 // SourcePtr:

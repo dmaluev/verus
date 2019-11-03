@@ -98,7 +98,7 @@ Bounds Bounds::MakeFromOrientedBox(RcBounds that, RcTransform3 tr)
 
 RBounds Bounds::ScaleBy(float scale)
 {
-	*this = MakeFromCenterExtents(GetCenter(), GetExtents()*scale);
+	*this = MakeFromCenterExtents(GetCenter(), GetExtents() * scale);
 	return *this;
 }
 

@@ -45,7 +45,7 @@ Matrix3 Matrix3::MakeAimZ(RcVector3 zAxis, PcVector3 pUp)
 	if (zNorm.getY() > 0.999f)
 		return Matrix3::rotationX(-VERUS_PI * 0.5f);
 	if (zNorm.getY() < -0.999f)
-		return Matrix3::rotationX(VERUS_PI*0.5f);
+		return Matrix3::rotationX(VERUS_PI * 0.5f);
 	return VMath::transpose(
 		Matrix4::lookAt(Point3(0), Point3(-zAxis), pUp ? *pUp : Vector3(0, 1, 0)).getUpper3x3());
 }
@@ -68,7 +68,7 @@ Matrix3 Matrix3::MakeRotateTo(RcVector3 v0, RcVector3 v1)
 	if (d < e - 1)
 	{
 		Vector3 axis = VMath::cross(Vector3(1, 0, 0), v0);
-		if (VMath::lengthSqr(axis) < e*e)
+		if (VMath::lengthSqr(axis) < e * e)
 			axis = VMath::cross(Vector3(0, 1, 0), v0);
 		axis = VMath::normalize(axis);
 		q = Quat::rotation(VERUS_PI, axis);
@@ -78,7 +78,7 @@ Matrix3 Matrix3::MakeRotateTo(RcVector3 v0, RcVector3 v1)
 		const float s = sqrt((1 + d) * 2);
 		const float invs = 1 / s;
 		const Vector3 c = VMath::cross(v0, v1);
-		q = Quat(c*invs, s*0.5f);
+		q = Quat(c * invs, s * 0.5f);
 		q = VMath::normalize(q);
 	}
 	return Matrix3(q);
@@ -154,34 +154,17 @@ Matrix4 Matrix4::MakePerspective(float fovY, float aspectRatio, float zNear, flo
 	VERUS_RT_ASSERT(fovY);
 	VERUS_RT_ASSERT(aspectRatio);
 	VERUS_RT_ASSERT(zNear < zFar);
-	if (CGI::Gapi::vulkan == CGI::Renderer::I()->GetGapi())
-	{
-		Matrix4 m;
-		const float yScale = 1 / tan(fovY*0.5f);
-		const float xScale = yScale / aspectRatio;
-		const float zScale = zFar / (zNear - zFar);
-		memset(&m, 0, sizeof(m));
-		m.setElem(0, 0, xScale);
-		m.setElem(1, 1, -yScale);
-		m.setElem(2, 2, zScale);
-		m.setElem(3, 2, zNear*zScale);
-		m.setElem(2, 3, -1);
-		return m;
-	}
-	else
-	{
-		Matrix4 m;
-		const float yScale = 1 / tan(fovY*0.5f);
-		const float xScale = yScale / aspectRatio;
-		const float zScale = zFar / (zNear - zFar);
-		memset(&m, 0, sizeof(m));
-		m.setElem(0, 0, xScale);
-		m.setElem(1, 1, yScale);
-		m.setElem(2, 2, zScale);
-		m.setElem(3, 2, zNear*zScale);
-		m.setElem(2, 3, -1);
-		return m;
-	}
+	Matrix4 m;
+	const float yScale = 1 / tan(fovY * 0.5f);
+	const float xScale = yScale / aspectRatio;
+	const float zScale = zFar / (zNear - zFar);
+	memset(&m, 0, sizeof(m));
+	m.setElem(0, 0, xScale);
+	m.setElem(1, 1, yScale);
+	m.setElem(2, 2, zScale);
+	m.setElem(3, 2, zNear * zScale);
+	m.setElem(2, 3, -1);
+	return m;
 }
 
 Matrix4 Matrix4::MakeOrtho(float w, float h, float zNear, float zFar)
@@ -189,30 +172,15 @@ Matrix4 Matrix4::MakeOrtho(float w, float h, float zNear, float zFar)
 	VERUS_RT_ASSERT(w);
 	VERUS_RT_ASSERT(h);
 	VERUS_RT_ASSERT(zNear < zFar);
-	if (CGI::Gapi::vulkan == CGI::Renderer::I()->GetGapi())
-	{
-		Matrix4 m;
-		const float zScale = 1 / (zNear - zFar);
-		memset(&m, 0, sizeof(m));
-		m.setElem(0, 0, 2 / w);
-		m.setElem(1, 1, -2 / h);
-		m.setElem(2, 2, zScale);
-		m.setElem(3, 3, 1);
-		m.setElem(3, 2, zNear*zScale);
-		return m;
-	}
-	else
-	{
-		Matrix4 m;
-		const float zScale = 1 / (zNear - zFar);
-		memset(&m, 0, sizeof(m));
-		m.setElem(0, 0, 2 / w);
-		m.setElem(1, 1, 2 / h);
-		m.setElem(2, 2, zScale);
-		m.setElem(3, 3, 1);
-		m.setElem(3, 2, zNear*zScale);
-		return m;
-	}
+	Matrix4 m;
+	const float zScale = 1 / (zNear - zFar);
+	memset(&m, 0, sizeof(m));
+	m.setElem(0, 0, 2 / w);
+	m.setElem(1, 1, 2 / h);
+	m.setElem(2, 2, zScale);
+	m.setElem(3, 3, 1);
+	m.setElem(3, 2, zNear * zScale);
+	return m;
 }
 
 // Transform3:

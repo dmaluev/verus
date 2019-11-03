@@ -83,7 +83,7 @@ void QuadtreeIntegral::AllocNodes()
 	const int numDepths = maxDepth + 1;
 	_numNodes = 0;
 	VERUS_FOR(i, numDepths)
-		_numNodes += (1 << i)*(1 << i);
+		_numNodes += (1 << i) * (1 << i);
 	_vNodes.resize(_numNodes);
 }
 

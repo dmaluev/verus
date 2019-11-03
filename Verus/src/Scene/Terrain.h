@@ -83,6 +83,8 @@ namespace verus
 			{
 				PIPE_LIST,
 				PIPE_STRIP,
+				PIPE_DEPTH_LIST,
+				PIPE_DEPTH_STRIP,
 				PIPE_MAX
 			};
 
@@ -112,8 +114,9 @@ namespace verus
 			};
 
 		protected:
-			static CGI::ShaderPwn s_shader;
-			static UB_DrawDepth   s_ubDrawDepth;
+			static CGI::ShaderPwn   s_shader;
+			static UB_DrawDepth     s_ubDrawDepth;
+			static UB_PerMaterialFS s_ubPerMaterialFS;
 
 			CGI::GeometryPwn            _geo;
 			CGI::PipelinePwns<PIPE_MAX> _pipe;
@@ -130,7 +133,9 @@ namespace verus
 			int                         _numVisiblePatches = 0;
 			int                         _numVerts = 0;
 			int                         _numIndices = 0;
-			int                         _csid = -1;
+			int                         _numInstances = 0;
+			int                         _csidVS = -1;
+			int                         _csidFS = -1;
 			TerrainLOD                  _lods[5]; // Level of detail data for (16x16, 8x8, 4x4, 2x2, 1x1).
 			LayerData                   _layerData[s_maxNumLayers];
 			TerrainPhysics              _physics;
@@ -159,6 +164,7 @@ namespace verus
 
 			virtual int UserPtr_GetType() override;
 
+			void ResetNumInstances();
 			void Layout();
 			void Draw();
 

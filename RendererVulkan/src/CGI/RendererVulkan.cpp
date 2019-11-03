@@ -35,6 +35,9 @@ CSZ RendererVulkan::s_requiredValidationLayers[] =
 
 CSZ RendererVulkan::s_requiredDeviceExtensions[] =
 {
+	VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
+	VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
+	VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
@@ -71,6 +74,7 @@ void RendererVulkan::Init()
 	CreateDevice();
 
 	VmaAllocatorCreateInfo vmaaci = {};
+	vmaaci.flags = VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT | VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT;
 	vmaaci.physicalDevice = _physicalDevice;
 	vmaaci.device = _device;
 	vmaaci.pAllocationCallbacks = GetAllocator();
@@ -236,8 +240,16 @@ void RendererVulkan::CreateInstance()
 	const int minor = (VERUS_SDK_VERSION >> 16) & 0xFF;
 	const int patch = (VERUS_SDK_VERSION) & 0xFFFF;
 
+	VkValidationFeatureEnableEXT enabledValidationFeatures[] = { VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT };
+	VkValidationFeaturesEXT vkvf = {};
+	vkvf.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+	vkvf.enabledValidationFeatureCount = VERUS_ARRAY_LENGTH(enabledValidationFeatures);
+	vkvf.pEnabledValidationFeatures = enabledValidationFeatures;
 	VkApplicationInfo vkai = {};
 	vkai.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+#if defined(_DEBUG) || defined(VERUS_DEBUG)
+	vkai.pNext = &vkvf;
+#endif
 	vkai.pApplicationName = "Game";
 	vkai.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 	vkai.pEngineName = "Verus";
@@ -385,6 +397,7 @@ void RendererVulkan::CreateDevice()
 	physicalDeviceFeatures.fillModeNonSolid = VK_TRUE;
 	physicalDeviceFeatures.multiViewport = VK_TRUE;
 	physicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
+	physicalDeviceFeatures.shaderImageGatherExtended = VK_TRUE;
 	VkDeviceCreateInfo vkdci = {};
 	vkdci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	vkdci.queueCreateInfoCount = Utils::Cast32(vDeviceQueueCreateInfos.size());
@@ -537,6 +550,8 @@ void RendererVulkan::CreateSamplers()
 {
 	VERUS_QREF_CONST_SETTINGS;
 
+	const bool tf = settings._gpuTrilinearFilter;
+
 	_vSamplers.resize(+Sampler::count);
 
 	VkSamplerCreateInfo vksci = {};
@@ -544,7 +559,7 @@ void RendererVulkan::CreateSamplers()
 	init.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 	init.magFilter = VK_FILTER_LINEAR;
 	init.minFilter = VK_FILTER_LINEAR;
-	init.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	init.mipmapMode = tf ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
 	init.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	init.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	init.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
@@ -565,6 +580,18 @@ void RendererVulkan::CreateSamplers()
 			throw VERUS_RUNTIME_ERROR << "vkCreateSampler(), res=" << res;
 		return sampler;
 	};
+
+	vksci = init;
+	if (settings._sceneShadowQuality <= App::Settings::ShadowQuality::nearest)
+	{
+		vksci.magFilter = VK_FILTER_NEAREST;
+		vksci.minFilter = VK_FILTER_NEAREST;
+	}
+	vksci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	vksci.addressModeU = vksci.addressModeV = vksci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	vksci.compareEnable = VK_TRUE;
+	vksci.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+	_vSamplers[+Sampler::shadow] = Create(vksci);
 
 	vksci = init;
 	vksci.anisotropyEnable = VK_TRUE;
@@ -593,25 +620,25 @@ void RendererVulkan::CreateSamplers()
 
 	// <Clamp>
 	vksci = init;
-	init.addressModeU = init.addressModeV = init.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	vksci.addressModeU = vksci.addressModeV = vksci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	_vSamplers[+Sampler::linearClamp3D] = Create(vksci);
 
 	vksci = init;
 	vksci.magFilter = VK_FILTER_NEAREST;
 	vksci.minFilter = VK_FILTER_NEAREST;
-	init.addressModeU = init.addressModeV = init.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	vksci.addressModeU = vksci.addressModeV = vksci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	_vSamplers[+Sampler::nearestClamp3D] = Create(vksci);
 
 	vksci = init;
 	vksci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-	init.addressModeU = init.addressModeV = init.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	vksci.addressModeU = vksci.addressModeV = vksci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	_vSamplers[+Sampler::linearClamp2D] = Create(vksci);
 
 	vksci = init;
 	vksci.magFilter = VK_FILTER_NEAREST;
 	vksci.minFilter = VK_FILTER_NEAREST;
 	vksci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-	init.addressModeU = init.addressModeV = init.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	vksci.addressModeU = vksci.addressModeV = vksci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	_vSamplers[+Sampler::nearestClamp2D] = Create(vksci);
 	// </Clamp>
 }
@@ -635,10 +662,104 @@ const VkSampler* RendererVulkan::GetImmutableSampler(Sampler s) const
 	return &_vSamplers[+s];
 }
 
+void RendererVulkan::ImGuiInit(int renderPassID)
+{
+	VkResult res = VK_SUCCESS;
+	VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+	{
+		VkDescriptorPoolSize pool_sizes[] =
+		{
+			{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+			{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+		};
+		VkDescriptorPoolCreateInfo pool_info = {};
+		pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+		pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+		pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
+		pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+		pool_info.pPoolSizes = pool_sizes;
+		res = vkCreateDescriptorPool(_device, &pool_info, GetAllocator(), &descriptorPool);
+	}
+
+	VERUS_QREF_RENDERER;
+	SDL_Window* pWnd = renderer.GetMainWindow()->GetSDL();
+
+	IMGUI_CHECKVERSION();
+	ImGuiContext* pContext = ImGui::CreateContext();
+	renderer.ImGuiSetCurrentContext(pContext);
+
+	ImGui::StyleColorsDark();
+
+	ImGui_ImplSDL2_InitForVulkan(pWnd);
+	ImGui_ImplVulkan_InitInfo info = {};
+	info.Instance = _instance;
+	info.PhysicalDevice = _physicalDevice;
+	info.Device = _device;
+	info.QueueFamily = _queueFamilyIndices._graphicsFamilyIndex;
+	info.Queue = _graphicsQueue;
+	info.PipelineCache = nullptr;
+	info.DescriptorPool = descriptorPool;
+	info.Allocator = GetAllocator();
+	info.MinImageCount = 2;
+	info.ImageCount = 2;
+	info.CheckVkResultFn = nullptr;
+	ImGui_ImplVulkan_Init(&info, _vRenderPasses[renderPassID]);
+
+	{
+		// Use any command queue
+		VkCommandPool command_pool = _commandPools[_ringBufferIndex];
+		VkCommandBuffer command_buffer = static_cast<CommandBufferVulkan*>(&(*renderer.GetCommandBuffer()))->GetVkCommandBuffer();
+
+		res = vkResetCommandPool(_device, command_pool, 0);
+
+		VkCommandBufferBeginInfo begin_info = {};
+		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+		res = vkBeginCommandBuffer(command_buffer, &begin_info);
+
+
+		ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+
+		VkSubmitInfo end_info = {};
+		end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		end_info.commandBufferCount = 1;
+		end_info.pCommandBuffers = &command_buffer;
+		res = vkEndCommandBuffer(command_buffer);
+
+		res = vkQueueSubmit(_graphicsQueue, 1, &end_info, VK_NULL_HANDLE);
+
+
+		res = vkDeviceWaitIdle(_device);
+
+		ImGui_ImplVulkan_DestroyFontUploadObjects();
+	}
+}
+
+void RendererVulkan::ImGuiRenderDrawData()
+{
+	VERUS_QREF_RENDERER;
+	VkCommandBuffer command_buffer = static_cast<CommandBufferVulkan*>(&(*renderer.GetCommandBuffer()))->GetVkCommandBuffer();
+	if (ImGui::GetDrawData())
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command_buffer);
+}
+
 void RendererVulkan::BeginFrame(bool present)
 {
 	VERUS_QREF_RENDERER;
 	VkResult res = VK_SUCCESS;
+
+	ImGui_ImplVulkan_NewFrame();
+	ImGui_ImplSDL2_NewFrame(renderer.GetMainWindow()->GetSDL());
+	ImGui::NewFrame();
 
 	if (VK_SUCCESS != (res = vkWaitForFences(_device, 1, &_queueSubmitFences[_ringBufferIndex], VK_TRUE, UINT64_MAX)))
 		throw VERUS_RUNTIME_ERROR << "vkWaitForFences(), res=" << res;
@@ -690,6 +811,8 @@ void RendererVulkan::EndFrame(bool present)
 		throw VERUS_RUNTIME_ERROR << "vkQueueSubmit(), res=" << res;
 
 	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
+
+	ImGui::EndFrame();
 }
 
 void RendererVulkan::Present()
@@ -932,18 +1055,23 @@ int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, 
 		{
 		case 0:
 		{
-			vksd.srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-			vksd.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-			vksd.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-			vksd.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-			vksd.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+			vksd.srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			vksd.srcAccessMask = 0;
+			vksd.dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+			vksd.dstAccessMask =
+				VK_ACCESS_INPUT_ATTACHMENT_READ_BIT |
+				VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+				VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+				VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+				VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+			vksd.dependencyFlags = 0;
 		}
 		break;
 		case 1:
 		{
 			vksd.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-			vksd.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 			vksd.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			vksd.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 			vksd.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 			vksd.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 		}
@@ -1003,10 +1131,14 @@ int RendererVulkan::CreateFramebuffer(int renderPassID, std::initializer_list<Te
 		throw VERUS_RUNTIME_ERROR << "vkCreateFramebuffer(), res=" << res;
 
 	const int id = GetNextFramebufferID();
+	Framebuffer fb;
+	fb._framebuffer = framebuffer;
+	fb._width = w;
+	fb._height = h;
 	if (id >= _vFramebuffers.size())
-		_vFramebuffers.push_back(framebuffer);
+		_vFramebuffers.push_back(fb);
 	else
-		_vFramebuffers[id] = framebuffer;
+		_vFramebuffers[id] = fb;
 
 	return id;
 }
@@ -1030,13 +1162,13 @@ void RendererVulkan::DeleteFramebuffer(int id)
 {
 	if (id >= 0)
 	{
-		vkDestroyFramebuffer(_device, _vFramebuffers[id], GetAllocator());
-		_vFramebuffers[id] = VK_NULL_HANDLE;
+		vkDestroyFramebuffer(_device, _vFramebuffers[id]._framebuffer, GetAllocator());
+		_vFramebuffers[id]._framebuffer = VK_NULL_HANDLE;
 	}
 	else
 	{
 		for (auto framebuffer : _vFramebuffers)
-			vkDestroyFramebuffer(_device, framebuffer, GetAllocator());
+			vkDestroyFramebuffer(_device, framebuffer._framebuffer, GetAllocator());
 		_vFramebuffers.clear();
 	}
 }
@@ -1057,7 +1189,7 @@ int RendererVulkan::GetNextFramebufferID() const
 	const int num = Utils::Cast32(_vFramebuffers.size());
 	VERUS_FOR(i, num)
 	{
-		if (VK_NULL_HANDLE == _vFramebuffers[i])
+		if (VK_NULL_HANDLE == _vFramebuffers[i]._framebuffer)
 			return i;
 	}
 	return num;
@@ -1068,7 +1200,7 @@ VkRenderPass RendererVulkan::GetRenderPassByID(int id) const
 	return _vRenderPasses[id];
 }
 
-VkFramebuffer RendererVulkan::GetFramebufferByID(int id) const
+RendererVulkan::RcFramebuffer RendererVulkan::GetFramebufferByID(int id) const
 {
 	return _vFramebuffers[id];
 }

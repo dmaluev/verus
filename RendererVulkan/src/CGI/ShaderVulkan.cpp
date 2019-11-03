@@ -70,10 +70,10 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 
 	while (*branches)
 	{
-		String entryVS, entryHS, entryDS, entryGS, entryFS, entryCS;
+		String entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages;
 		Vector<String> vMacroName;
 		Vector<String> vMacroValue;
-		const String entry = Parse(*branches, entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, vMacroName, vMacroValue, "DEF_");
+		const String entry = Parse(*branches, entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages, vMacroName, vMacroValue, "DEF_");
 
 		if (IsInIgnoreList(_C(entry)))
 		{
@@ -127,7 +127,7 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 
 		Compiled compiled;
 
-		if (strstr(source, " mainVS("))
+		if (strchr(_C(stages), 'V'))
 		{
 			compiled._numStages++;
 			vDefines[typeIndex] = "_VS";
@@ -136,7 +136,7 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::vs]);
 		}
 
-		if (strstr(source, " mainHS("))
+		if (strchr(_C(stages), 'H'))
 		{
 			compiled._numStages++;
 			vDefines[typeIndex] = "_HS";
@@ -145,7 +145,7 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::hs]);
 		}
 
-		if (strstr(source, " mainDS("))
+		if (strchr(_C(stages), 'D'))
 		{
 			compiled._numStages++;
 			vDefines[typeIndex] = "_DS";
@@ -154,7 +154,7 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::ds]);
 		}
 
-		if (strstr(source, " mainGS("))
+		if (strchr(_C(stages), 'G'))
 		{
 			compiled._numStages++;
 			vDefines[typeIndex] = "_GS";
@@ -163,7 +163,7 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::gs]);
 		}
 
-		if (strstr(source, " mainFS("))
+		if (strchr(_C(stages), 'F'))
 		{
 			compiled._numStages++;
 			vDefines[typeIndex] = "_FS";
@@ -172,7 +172,7 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::fs]);
 		}
 
-		if (strstr(source, " mainCS("))
+		if (strchr(_C(stages), 'C'))
 		{
 			compiled._numStages++;
 			vDefines[typeIndex] = "_CS";
@@ -230,7 +230,7 @@ void ShaderVulkan::CreateDescriptorSet(int setNumber, const void* pSrc, int size
 	dsd._size = size;
 	dsd._sizeAligned = Math::AlignUp(dsd._size, static_cast<int>(pPhysicalDeviceProperties->limits.minUniformBufferOffsetAlignment));
 	dsd._capacity = capacity;
-	dsd._capacityInBytes = dsd._sizeAligned*dsd._capacity;
+	dsd._capacityInBytes = dsd._sizeAligned * dsd._capacity;
 	dsd._stageFlags = ToNativeStageFlags(stageFlags);
 
 	if (capacity > 0)
@@ -393,11 +393,19 @@ int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list
 			vkdii.imageView = texVulkan.GetVkImageViewStorage(mip);
 			vkdii.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 		}
+		else if (Sampler::shadow == dsd._vSamplers[index])
+		{
+			vkdii.sampler = texVulkan.GetVkSampler();
+			vkdii.imageView = texVulkan.GetVkImageView();
+			vkdii.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		}
 		else
 		{
 			vkdii.sampler = texVulkan.GetVkSampler();
 			vkdii.imageView = texVulkan.GetVkImageView();
 			vkdii.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			if (BaseTexture::IsDepthFormat(texVulkan.GetFormat()))
+				vkdii.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 		}
 		vDescriptorImageInfo.push_back(vkdii);
 		index++;
@@ -589,12 +597,16 @@ int ShaderVulkan::UpdateUniformBuffer(int setNumber)
 
 	auto& dsd = _vDescriptorSetDesc[setNumber];
 	if (dsd._offset + dsd._sizeAligned > dsd._capacityInBytes)
+	{
+		VERUS_RT_FAIL("UniformBuffer is full.");
 		return -1;
+	}
 
 	VERUS_RT_ASSERT(dsd._pMappedData);
 	const int ret = dsd._capacityInBytes * pRendererVulkan->GetRingBufferIndex() + dsd._offset;
 	memcpy(dsd._pMappedData + dsd._offset, dsd._pSrc, dsd._size);
 	dsd._offset += dsd._sizeAligned;
+	dsd._peakLoad = Math::Max(dsd._peakLoad, dsd._offset);
 	return ret;
 }
 

@@ -66,7 +66,7 @@ namespace verus
 		{
 		public:
 			Vector<BYTE> _v;
-			BYTE*        _p = nullptr;
+			BYTE* _p = nullptr;
 			//ILuint     _name = 0;
 			int          _width = 0;
 			int          _height = 0;

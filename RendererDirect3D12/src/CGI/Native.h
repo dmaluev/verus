@@ -4,7 +4,8 @@ namespace verus
 {
 	namespace CGI
 	{
-		DXGI_FORMAT ToNativeFormat(Format format);
+		DXGI_FORMAT ToNativeFormat(Format format, bool typeless);
+		DXGI_FORMAT ToNativeSampledDepthFormat(Format format);
 
 		D3D12_CULL_MODE ToNativeCullMode(CullMode cullMode);
 

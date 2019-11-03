@@ -17,7 +17,7 @@ namespace verus
 			virtual void Begin() = 0;
 			virtual void End() = 0;
 
-			virtual void BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, PcVector4 pRenderArea = nullptr) = 0;
+			virtual void BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor = true) = 0;
 			virtual void NextSubpass() = 0;
 			virtual void EndRenderPass() = 0;
 

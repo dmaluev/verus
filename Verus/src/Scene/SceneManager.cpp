@@ -21,3 +21,14 @@ void SceneManager::Done()
 {
 	VERUS_DONE(SceneManager);
 }
+
+bool SceneManager::IsDrawingDepth(DrawDepth dd)
+{
+	if (DrawDepth::automatic == dd)
+	{
+		VERUS_QREF_ATMO;
+		return atmo.IsRenderingShadow();
+	}
+	else
+		return DrawDepth::yes == dd;
+}

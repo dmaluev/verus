@@ -40,6 +40,7 @@ namespace verus
 			UINT   _capacity = 0;
 			UINT   _offset = 0;
 			UINT64 _currentFrame = UINT64_MAX;
+			UINT64 _peakLoad = 0;
 
 		public:
 			void Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num, bool shaderVisible = false);

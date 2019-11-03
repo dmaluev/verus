@@ -140,7 +140,7 @@ void Vector3::LimitDot(RcVector3 v, float d)
 
 Vector3 Vector3::Reflect(RcVector3 normal, float bounce) const
 {
-	return (*this) - normal * ((1 + bounce)*VMath::dot(*this, normal));
+	return (*this) - normal * ((1 + bounce) * VMath::dot(*this, normal));
 }
 
 // Vector4:

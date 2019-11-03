@@ -48,7 +48,7 @@ void CommandBufferD3D12::End()
 		throw VERUS_RUNTIME_ERROR << "Close(), hr=" << VERUS_HR(hr);
 }
 
-void CommandBufferD3D12::BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, PcVector4 pRenderArea)
+void CommandBufferD3D12::BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
 {
 	VERUS_QREF_RENDERER_D3D12;
 
@@ -72,6 +72,13 @@ void CommandBufferD3D12::BeginRenderPass(int renderPassID, int framebufferID, st
 
 	_subpassIndex = 0;
 	PrepareSubpass();
+
+	if (setViewportAndScissor)
+	{
+		const Vector4 rc(0, 0, static_cast<float>(_pFramebuffer->_width), static_cast<float>(_pFramebuffer->_height));
+		SetViewport({ rc }, 0, 1);
+		SetScissor({ rc });
+	}
 }
 
 void CommandBufferD3D12::NextSubpass()
@@ -92,7 +99,7 @@ void CommandBufferD3D12::EndRenderPass()
 		if (_vAttachmentStates[index] != attachment._finalState)
 		{
 			const auto& resources = _pFramebuffer->_vResources[index];
-			barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(resources.Get(), _vAttachmentStates[index], attachment._finalState);
+			barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[index], attachment._finalState);
 		}
 		index++;
 		if (VERUS_MAX_NUM_RT == numBarriers)
@@ -268,7 +275,7 @@ void CommandBufferD3D12::PrepareSubpass()
 	RP::RcD3DFramebufferSubpass fs = _pFramebuffer->_vSubpasses[_subpassIndex];
 
 	// Resource transitions for this subpass:
-	CD3DX12_RESOURCE_BARRIER barriers[VERUS_MAX_NUM_RT * 2 + 1];
+	CD3DX12_RESOURCE_BARRIER barriers[VERUS_MAX_NUM_FB_ATTACH];
 	int resIndex = 0;
 	int numBarriers = 0;
 	VERUS_FOR(i, subpass._vInput.size())
@@ -277,7 +284,7 @@ void CommandBufferD3D12::PrepareSubpass()
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
 			const auto& resources = fs._vResources[resIndex];
-			barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(resources.Get(), _vAttachmentStates[ref._index], ref._state);
+			barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state);
 			_vAttachmentStates[ref._index] = ref._state;
 		}
 		resIndex++;
@@ -288,7 +295,7 @@ void CommandBufferD3D12::PrepareSubpass()
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
 			const auto& resources = fs._vResources[resIndex];
-			barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(resources.Get(), _vAttachmentStates[ref._index], ref._state);
+			barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state);
 			_vAttachmentStates[ref._index] = ref._state;
 		}
 		resIndex++;
@@ -298,7 +305,7 @@ void CommandBufferD3D12::PrepareSubpass()
 		const auto& ref = subpass._depthStencil;
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
-			barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(fs._vResources.back().Get(), _vAttachmentStates[ref._index], ref._state);
+			barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(fs._vResources.back(), _vAttachmentStates[ref._index], ref._state);
 			_vAttachmentStates[ref._index] = ref._state;
 		}
 	}

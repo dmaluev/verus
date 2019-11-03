@@ -131,10 +131,10 @@ SourcePtr Sound::NewSource(PSourcePtr pID, Source::RcDesc desc)
 			alSource3f(sid, AL_VELOCITY, 0, 0, 0);
 			alSourcef(sid, AL_ROLLOFF_FACTOR, 0);
 		}
-		alSourcef(sid, AL_PITCH, _pitch.GetRandomValue()*desc._pitch);
+		alSourcef(sid, AL_PITCH, _pitch.GetRandomValue() * desc._pitch);
 		alSourcei(sid, AL_LOOPING, IsFlagSet(SoundFlags::loop) ? 1 : 0);
 		alSourcei(sid, AL_BUFFER, _buffer);
-		alSourcef(sid, AL_GAIN, _gain.GetRandomValue()*desc._gain);
+		alSourcef(sid, AL_GAIN, _gain.GetRandomValue() * desc._gain);
 
 		if (desc._secOffset < 0)
 		{

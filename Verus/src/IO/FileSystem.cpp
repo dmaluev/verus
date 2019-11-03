@@ -35,7 +35,7 @@ void FileSystem::ReadHeaderPAK(RFile file, UINT32& magic, INT64& entriesOffset, 
 
 	file >> entriesOffset;
 	file >> entriesSize;
-	if (entriesSize%s_entrySize)
+	if (entriesSize % s_entrySize)
 		throw VERUS_RUNTIME_ERROR << "ReadHeaderPAK(), Invalid size of entries in PAK";
 }
 
@@ -246,6 +246,9 @@ void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc de
 		file >> header;
 		if (!header.Validate())
 			throw VERUS_RUNTIME_ERROR << "LoadResourceFromPAK(), Invalid DDS header: " << url;
+		DDSHeaderDXT10 header10;
+		if (header.IsDXT10())
+			file >> header10;
 		const int numParts = header.GetNumParts();
 		const int numPartsSkip = header.SkipParts(desc._texturePart);
 
@@ -309,13 +312,20 @@ void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc de
 
 void FileSystem::LoadTextureParts(RFile file, CSZ url, int texturePart, Vector<BYTE>& vData)
 {
+	int headerSize = sizeof(DDSHeader);
 	DDSHeader header;
 	file >> header;
 	if (!header.Validate())
 		throw VERUS_RUNTIME_ERROR << "LoadTextureParts(), Invalid DDS header: " << url;
+	DDSHeaderDXT10 header10;
+	if (header.IsDXT10())
+	{
+		file >> header10;
+		headerSize += sizeof(DDSHeaderDXT10);
+	}
 
-	const int maxW = header.width;
-	const int maxH = header.height;
+	const int maxW = header._width;
+	const int maxH = header._height;
 
 	const int numParts = header.GetNumParts();
 	const int numPartsCheck = numParts - 1;
@@ -326,7 +336,7 @@ void FileSystem::LoadTextureParts(RFile file, CSZ url, int texturePart, Vector<B
 	{
 		const int w = maxW >> part;
 		const int h = maxH >> part;
-		const size_t sizePart = DDSHeader::ComputeBcLevelSize(w, h, header.IsBC1());
+		const size_t sizePart = DDSHeader::ComputeBcLevelSize(w, h, header.Is4BitsBC());
 		if (part < numPartsSkip)
 			sizeSkip += sizePart;
 	}
@@ -334,8 +344,10 @@ void FileSystem::LoadTextureParts(RFile file, CSZ url, int texturePart, Vector<B
 	const INT64 size = file.GetSize();
 	vData.resize(size_t(size) - sizeSkip);
 	memcpy(vData.data(), &header, sizeof(header));
+	if (header.IsDXT10())
+		memcpy(vData.data() + sizeof(header), &header10, sizeof(header10));
 	file.Seek(sizeSkip, SEEK_CUR);
-	file.Read(vData.data() + sizeof(header), size - sizeof(header) - sizeSkip);
+	file.Read(vData.data() + headerSize, size - headerSize - sizeSkip);
 }
 
 String FileSystem::ConvertFilenameToPassword(CSZ fileEntry)
@@ -455,9 +467,9 @@ void FileSystem::SaveImage(CSZ pathName, const UINT32* p, int w, int h, bool ups
 	Vector<UINT32> vFlip;
 	if (!upsideDown)
 	{
-		vFlip.resize(w*h);
+		vFlip.resize(w * h);
 		VERUS_FOR(i, h)
-			memcpy(&vFlip[i*w], &p[(h - i - 1)*w], w * 4);
+			memcpy(&vFlip[i * w], &p[(h - i - 1) * w], w * 4);
 		p = vFlip.data();
 	}
 
@@ -465,7 +477,7 @@ void FileSystem::SaveImage(CSZ pathName, const UINT32* p, int w, int h, bool ups
 	ilBindImage(raii.name);
 	ilTexImage(w, h, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, (void*)p);
 	Vector<BYTE> v;
-	v.resize(w*h * 8);
+	v.resize(w * h * 8);
 	ilSaveL(type, v.data(), v.size());
 	const ILuint sizeOut = ilGetLumpPos();
 	IO::File file;
@@ -486,27 +498,27 @@ void FileSystem::SaveDDS(CSZ pathName, const UINT32* p, int w, int h, int d)
 		throw VERUS_RUNTIME_ERROR << "SaveDDS(), Open()";
 
 	DDSHeader header;
-	header.flags |= DDSHeader::Flags::linearSize;
-	header.height = h;
-	header.width = w;
-	header.pitchOrLinearSize = w * h * 4 * Math::Max(1, abs(d));
-	header.depth = abs(d);
-	header.pixelFormat.flags |= DDSHeader::PixelFormatFlags::alphaPixels | DDSHeader::PixelFormatFlags::rgb;
-	header.pixelFormat.rgbBitCount = 32;
-	header.pixelFormat.rBitMask = 0x00FF0000;
-	header.pixelFormat.gBitMask = 0x0000FF00;
-	header.pixelFormat.bBitMask = 0x000000FF;
-	header.pixelFormat.rgbAlphaBitMask = 0xFF000000;
+	header._flags |= DDSHeader::Flags::linearSize;
+	header._height = h;
+	header._width = w;
+	header._pitchOrLinearSize = w * h * 4 * Math::Max(1, abs(d));
+	header._depth = abs(d);
+	header._pixelFormat._flags |= DDSHeader::PixelFormatFlags::alphaPixels | DDSHeader::PixelFormatFlags::rgb;
+	header._pixelFormat._rgbBitCount = 32;
+	header._pixelFormat._rBitMask = 0x00FF0000;
+	header._pixelFormat._gBitMask = 0x0000FF00;
+	header._pixelFormat._bBitMask = 0x000000FF;
+	header._pixelFormat._rgbAlphaBitMask = 0xFF000000;
 	if (d > 0)
 	{
-		header.flags |= DDSHeader::Flags::depth;
-		header.caps.caps1 = DDSHeader::Caps1::complex;
-		header.caps.caps2 = DDSHeader::Caps2::volume;
+		header._flags |= DDSHeader::Flags::depth;
+		header._caps._caps1 = DDSHeader::Caps1::complex;
+		header._caps._caps2 = DDSHeader::Caps2::volume;
 	}
 	else if (-6 == d)
 	{
-		header.caps.caps1 = DDSHeader::Caps1::complex;
-		header.caps.caps2 = DDSHeader::Caps2::cubemap |
+		header._caps._caps1 = DDSHeader::Caps1::complex;
+		header._caps._caps2 = DDSHeader::Caps2::cubemap |
 			DDSHeader::Caps2::cubemapPositiveX |
 			DDSHeader::Caps2::cubemapNegativeX |
 			DDSHeader::Caps2::cubemapPositiveY |
@@ -515,7 +527,7 @@ void FileSystem::SaveDDS(CSZ pathName, const UINT32* p, int w, int h, int d)
 			DDSHeader::Caps2::cubemapNegativeZ;
 	}
 	file.Write(&header, sizeof(header));
-	file.Write(p, header.pitchOrLinearSize);
+	file.Write(p, header._pitchOrLinearSize);
 }
 
 void FileSystem::SaveString(CSZ pathName, CSZ s)

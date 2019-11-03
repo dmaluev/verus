@@ -40,7 +40,7 @@ namespace verus
 				typedef Map<int, int> TMapTrigger;
 
 				String      _name;
-				Motion*     _pMotion = nullptr;
+				Motion* _pMotion = nullptr;
 				TMapRot     _mapRot; //!< Rotation keyframes.
 				TMapPos     _mapPos; //!< Position keyframes.
 				TMapScale   _mapScale; //!< Scaling keyframes.
@@ -57,7 +57,7 @@ namespace verus
 						return 0;
 					}
 					float alpha;
-					const int frame = static_cast<int>(_pMotion->GetFps()*time); // Frame is before or at 'time'.
+					const int frame = static_cast<int>(_pMotion->GetFps() * time); // Frame is before or at 'time'.
 					typename TMap::const_iterator it = m.upper_bound(frame); // Find frame after 'time'.
 					if (it != m.end()) // There are frames greater (after 'time'):
 					{
@@ -65,8 +65,8 @@ namespace verus
 						{
 							typename TMap::const_iterator itPrev = it;
 							itPrev--;
-							const float prevTime = itPrev->first*_pMotion->GetFpsInv();
-							const float nextTime = it->first*_pMotion->GetFpsInv();
+							const float prevTime = itPrev->first * _pMotion->GetFpsInv();
+							const float nextTime = it->first * _pMotion->GetFpsInv();
 							const float delta = nextTime - prevTime;
 							const float offset = nextTime - time;
 							alpha = 1 - offset / delta;
@@ -75,7 +75,7 @@ namespace verus
 						}
 						else // But there are no less than:
 						{
-							const float nextTime = it->first*_pMotion->GetFpsInv();
+							const float nextTime = it->first * _pMotion->GetFpsInv();
 							const float delta = nextTime;
 							const float offset = time;
 							alpha = offset / delta;
@@ -168,7 +168,7 @@ namespace verus
 			typedef Map<String, Bone> TMapBones;
 
 			TMapBones _mapBones;
-			Motion*   _pBlendMotion = nullptr;
+			Motion* _pBlendMotion = nullptr;
 			int       _numFrames = 50;
 			int       _fps = 10;
 			float     _fpsInv = 0.1f;
@@ -193,7 +193,7 @@ namespace verus
 
 			int GetNumBones() const { return Utils::Cast32(_mapBones.size()); }
 
-			float GetDuration() const { return GetNativeDuration()*_playbackSpeedInv; }
+			float GetDuration() const { return GetNativeDuration() * _playbackSpeedInv; }
 			float GetNativeDuration() const { return _numFrames * _fpsInv; }
 
 			PBone GetBoneByIndex(int index);

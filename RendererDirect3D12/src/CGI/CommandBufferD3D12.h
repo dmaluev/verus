@@ -23,7 +23,7 @@ namespace verus
 			virtual void Begin() override;
 			virtual void End() override;
 
-			virtual void BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, PcVector4 pRenderArea) override;
+			virtual void BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor) override;
 			virtual void NextSubpass() override;
 			virtual void EndRenderPass() override;
 

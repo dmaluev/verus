@@ -27,8 +27,8 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	_desc = desc;
 	_desc._mipLevels = desc._mipLevels ? desc._mipLevels : Math::ComputeMipLevels(desc._width, desc._height, desc._depth);
 	_bytesPerPixel = FormatToBytesPerPixel(desc._format);
-	const bool depthFormat = IsDepthFormat(desc._format);
 	const bool renderTarget = (_desc._flags & TextureDesc::Flags::colorAttachment);
+	const bool depthFormat = IsDepthFormat(desc._format);
 	const bool inputAttach = (_desc._flags & TextureDesc::Flags::inputAttachment);
 
 	VkImageCreateInfo vkici = {};
@@ -45,13 +45,16 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	vkici.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	vkici.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	vkici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	if (depthFormat)
-		vkici.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 	if (renderTarget)
 		vkici.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	if (depthFormat)
+	{
+		vkici.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		if (_desc._flags & TextureDesc::Flags::depthSampled)
+			vkici.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+	}
 	if (inputAttach)
 		vkici.usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-
 	pRendererVulkan->CreateImage(&vkici, VMA_MEMORY_USAGE_GPU_ONLY, _image, _vmaAllocation);
 
 	if (_desc._flags & TextureDesc::Flags::generateMips)
@@ -95,22 +98,25 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	if (_desc._pSamplerDesc)
 		CreateSampler();
 
-	if (depthFormat)
-	{
-		CommandBufferVulkan commandBuffer;
-		commandBuffer.InitSingleTimeCommands();
-		commandBuffer.PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, ImageLayout::depthStencilAttachmentOptimal, 0, 0);
-		commandBuffer.DoneSingleTimeCommands();
-	}
 	if (renderTarget)
 	{
 		CommandBufferVulkan commandBuffer;
 		commandBuffer.InitSingleTimeCommands();
-		commandBuffer.PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, ImageLayout::shaderReadOnlyOptimal, 0, 0);
+		commandBuffer.PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, ImageLayout::fsReadOnly, 0, 0);
+		commandBuffer.DoneSingleTimeCommands();
+	}
+	if (depthFormat)
+	{
+		const ImageLayout layout = (_desc._flags & TextureDesc::Flags::depthSampled) ?
+			ImageLayout::depthStencilReadOnly :
+			ImageLayout::depthStencilAttachment;
+		CommandBufferVulkan commandBuffer;
+		commandBuffer.InitSingleTimeCommands();
+		commandBuffer.PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, layout, 0, 0);
 		commandBuffer.DoneSingleTimeCommands();
 	}
 
-	_vStagingBuffers.reserve(_desc._mipLevels*_desc._arrayLayers);
+	_vStagingBuffers.reserve(_desc._mipLevels * _desc._arrayLayers);
 }
 
 void TextureVulkan::Done()
@@ -158,9 +164,9 @@ void TextureVulkan::UpdateImage(int mipLevel, const void* p, int arrayLayer, Bas
 
 	if (!pCB)
 		pCB = &(*renderer.GetCommandBuffer());
-	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, ImageLayout::transferDstOptimal, mipLevel, arrayLayer);
+	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, ImageLayout::transferDst, mipLevel, arrayLayer);
 	pRendererVulkan->CopyBufferToImage(sb._buffer, _image, w, h, mipLevel, arrayLayer, pCB);
-	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::transferDstOptimal, ImageLayout::shaderReadOnlyOptimal, mipLevel, arrayLayer);
+	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::transferDst, ImageLayout::fsReadOnly, mipLevel, arrayLayer);
 
 	_destroyStagingBuffers.Schedule();
 }
@@ -179,7 +185,7 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 	std::swap(_image, _imageStorage);
 	pCB->PipelineImageMemoryBarrier(tex, ImageLayout::undefined, ImageLayout::general, Range<int>(0, _desc._mipLevels - 1));
 	std::swap(_image, _imageStorage);
-	pCB->PipelineImageMemoryBarrier(tex, ImageLayout::undefined, ImageLayout::shaderReadOnlyOptimal, Range<int>(1, _desc._mipLevels - 1));
+	pCB->PipelineImageMemoryBarrier(tex, ImageLayout::undefined, ImageLayout::vsReadOnly, Range<int>(1, _desc._mipLevels - 1));
 
 	pCB->BindPipeline(renderer.GetPipelineGenerateMips());
 
@@ -217,9 +223,9 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 
 		pCB->Dispatch(Math::DivideByMultiple(dstWidth, 8), Math::DivideByMultiple(dstHeight, 8));
 
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::shaderReadOnlyOptimal, ImageLayout::transferDstOptimal, Range<int>(srcMip + 1, srcMip + numMips));
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::vsReadOnly, ImageLayout::transferDst, Range<int>(srcMip + 1, srcMip + numMips));
 		std::swap(_image, _imageStorage);
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::general, ImageLayout::transferSrcOptimal, Range<int>(srcMip + 1, srcMip + numMips));
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::general, ImageLayout::transferSrc, Range<int>(srcMip + 1, srcMip + numMips));
 		std::swap(_image, _imageStorage);
 		VERUS_FOR(mip, numMips)
 		{
@@ -229,7 +235,7 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 			const int h = _desc._height >> dstMip;
 			pRendererVulkan->CopyImage(_imageStorage, _image, w, h, dstMip, 0, pCB);
 		}
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDstOptimal, ImageLayout::shaderReadOnlyOptimal, Range<int>(srcMip + 1, srcMip + numMips));
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::fsReadOnly, Range<int>(srcMip + 1, srcMip + numMips));
 
 		srcMip += numMips;
 	}
@@ -270,15 +276,15 @@ void TextureVulkan::CreateSampler()
 	{
 		vksci.compareEnable = VK_TRUE;
 		vksci.compareOp = VK_COMPARE_OP_LESS;
-		if (settings._sceneShadowQuality >= App::Settings::ShadowQuality::filtered)
-		{
-			vksci.magFilter = VK_FILTER_LINEAR;
-			vksci.minFilter = VK_FILTER_LINEAR;
-		}
-		else
+		if (settings._sceneShadowQuality <= App::Settings::ShadowQuality::nearest)
 		{
 			vksci.magFilter = VK_FILTER_NEAREST;
 			vksci.minFilter = VK_FILTER_NEAREST;
+		}
+		else
+		{
+			vksci.magFilter = VK_FILTER_LINEAR;
+			vksci.minFilter = VK_FILTER_LINEAR;
 		}
 	}
 	else

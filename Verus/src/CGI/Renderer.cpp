@@ -60,19 +60,17 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	geoDesc._pStrides = strides;
 	_geoQuad.Init(geoDesc);
 
-	ShaderDesc shaderDesc;
-	shaderDesc._url = "[Shaders]:GenerateMips.hlsl";
-	_shader[S_GENERATE_MIPS].Init(shaderDesc);
+	_shader[S_GENERATE_MIPS].Init("[Shaders]:GenerateMips.hlsl");
 	_shader[S_GENERATE_MIPS]->CreateDescriptorSet(0, &_ubGenerateMips, sizeof(_ubGenerateMips), 100,
 		{ Sampler::linearClamp2D, Sampler::storage, Sampler::storage, Sampler::storage, Sampler::storage }, ShaderStageFlags::cs);
 	_shader[S_GENERATE_MIPS]->CreatePipelineLayout();
 
-	shaderDesc._url = "[Shaders]:Quad.hlsl";
-	_shader[S_QUAD].Init(shaderDesc);
-	_shader[S_QUAD]->CreateDescriptorSet(0, &_ubQuad, sizeof(_ubQuad), 100, { Sampler::linearClamp2D });
+	_shader[S_QUAD].Init("[Shaders]:Quad.hlsl");
+	_shader[S_QUAD]->CreateDescriptorSet(0, &_ubQuadVS, sizeof(_ubQuadVS), 100, {}, ShaderStageFlags::vs);
+	_shader[S_QUAD]->CreateDescriptorSet(1, &_ubQuadFS, sizeof(_ubQuadFS), 100, { Sampler::linearClamp2D }, ShaderStageFlags::fs);
 	_shader[S_QUAD]->CreatePipelineLayout();
 
-	PipelineDesc pipeDesc(_shader[S_GENERATE_MIPS], "T");
+	PipelineDesc pipeDesc(_shader[S_GENERATE_MIPS], "#");
 	_pipeGenerateMips.Init(pipeDesc);
 
 	TextureDesc texDesc;
@@ -84,18 +82,18 @@ void Renderer::Init(PRendererDelegate pDelegate)
 
 	_rpSwapChain = _pBaseRenderer->CreateRenderPass(
 		{ RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().Layout(ImageLayout::undefined, ImageLayout::presentSrc) },
-		{ RP::Subpass("Sp0").Color({RP::Ref("Color", ImageLayout::colorAttachmentOptimal)}) },
+		{ RP::Subpass("Sp0").Color({RP::Ref("Color", ImageLayout::colorAttachment)}) },
 		{});
 	_rpSwapChainDepth = _pBaseRenderer->CreateRenderPass(
 		{
 			RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().Layout(ImageLayout::undefined, ImageLayout::presentSrc),
-			RP::Attachment("Depth", Format::unormD24uintS8).LoadOpClear().Layout(ImageLayout::depthStencilAttachmentOptimal),
+			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilAttachment),
 		},
 		{
 			RP::Subpass("Sp0").Color(
 			{
-				RP::Ref("Color", ImageLayout::colorAttachmentOptimal)
-			}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachmentOptimal)),
+				RP::Ref("Color", ImageLayout::colorAttachment)
+			}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachment)),
 		},
 		{});
 	_fbSwapChain.resize(_pBaseRenderer->GetNumSwapChainBuffers());
@@ -104,6 +102,8 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	_fbSwapChainDepth.resize(_pBaseRenderer->GetNumSwapChainBuffers());
 	VERUS_FOR(i, _fbSwapChainDepth.size())
 		_fbSwapChainDepth[i] = _pBaseRenderer->CreateFramebuffer(_rpSwapChainDepth, { _texDepthStencil }, settings._screenSizeWidth, settings._screenSizeHeight, i);
+
+	_pBaseRenderer->ImGuiInit(_rpSwapChainDepth);
 
 	_ds.Init();
 }
@@ -158,7 +158,7 @@ void Renderer::Present()
 	_numFrames++;
 
 	VERUS_QREF_TIMER;
-	_fps = _fps * 0.75f + timer.GetDeltaTimeInv()*0.25f;
+	_fps = _fps * 0.75f + timer.GetDeltaTimeInv() * 0.25f;
 }
 
 void Renderer::DrawQuad(PBaseCommandBuffer pCB)
@@ -183,4 +183,9 @@ float Renderer::GetWindowAspectRatio() const
 {
 	VERUS_QREF_CONST_SETTINGS;
 	return static_cast<float>(settings._screenSizeWidth) / static_cast<float>(settings._screenSizeHeight);
+}
+
+void Renderer::ImGuiSetCurrentContext(ImGuiContext* pContext)
+{
+	ImGui::SetCurrentContext(pContext);
 }

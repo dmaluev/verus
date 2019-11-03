@@ -9,7 +9,7 @@ namespace verus
 			struct ResourceEx
 			{
 				ComPtr<ID3D12Resource> _pResource;
-				D3D12MA::Allocation*   _pMaAllocation = nullptr;
+				D3D12MA::Allocation* _pMaAllocation = nullptr;
 			};
 
 			ResourceEx         _resource;

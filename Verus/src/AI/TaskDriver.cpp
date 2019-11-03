@@ -39,7 +39,7 @@ void TaskDriver::Update()
 					_pDelegate->TaskDriver_OnTask(_C(task._name), _C(_currentMode));
 				_cooldownTimer = _cooldown;
 			}
-			task._deadline = task._intervalMin + task._intervalSize*utils.GetRandom().NextFloat();
+			task._deadline = task._intervalMin + task._intervalSize * utils.GetRandom().NextFloat();
 			task._time = 0;
 		}
 	}
@@ -66,7 +66,7 @@ void TaskDriver::AddTask(CSZ name, float chance, float intervalMin, float interv
 	task._chance = chance;
 	task._intervalMin = intervalMin;
 	task._intervalSize = intervalMax - intervalMin;
-	task._deadline = task._intervalMin + task._intervalSize*utils.GetRandom().NextFloat();
+	task._deadline = task._intervalMin + task._intervalSize * utils.GetRandom().NextFloat();
 
 	thisMode._mapTasks[name] = task;
 }

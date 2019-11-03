@@ -7,7 +7,7 @@ namespace verus
 		class BaseGame : public Input::KeyMapperDelegate
 		{
 			struct Pimpl;
-			Pimpl*           _p = nullptr;
+			Pimpl* _p = nullptr;
 			AlignedAllocator _alloc;
 			EngineInit       _engineInit;
 			App::Window      _window;

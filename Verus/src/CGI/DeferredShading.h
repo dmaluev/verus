@@ -45,10 +45,13 @@ namespace verus
 				TEX_MAX
 			};
 
-			static UB_PerFrame         s_ubPerFrame;
-			static UB_PerMesh          s_ubPerMesh;
-			static UB_PerObject        s_ubPerObject;
-			static UB_ComposePerObject s_ubComposePerObject;
+			static UB_PerFrame   s_ubPerFrame;
+			static UB_TexturesFS s_ubTexturesFS;
+			static UB_PerMeshVS  s_ubPerMeshVS;
+			static UB_ShadowFS   s_ubShadowFS;
+			static UB_PerObject  s_ubPerObject;
+			static UB_ComposeVS  s_ubComposeVS;
+			static UB_ComposeFS  s_ubComposeFS;
 
 			ShaderPwns<S_MAX>      _shader;
 			PipelinePwns<PIPE_MAX> _pipe;
@@ -71,6 +74,7 @@ namespace verus
 
 			void Init();
 			void InitGBuffers(int w, int h);
+			void InitByAtmosphere(TexturePtr texShadow);
 			void Done();
 
 			static bool IsLoaded();
@@ -93,10 +97,10 @@ namespace verus
 			void AntiAliasing();
 
 			static bool IsLightUrl(CSZ url);
-			static UB_PerMesh& GetUbPerMesh() { return s_ubPerMesh; }
+			static UB_PerMeshVS& GetUbPerMeshVS() { return s_ubPerMeshVS; }
 			void OnNewLightType(LightType type, bool wireframe = false);
 			void UpdateUniformBufferPerFrame();
-			void BindDescriptorsPerMesh();
+			void BindDescriptorsPerMeshVS();
 
 			void Load();
 

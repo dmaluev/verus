@@ -47,7 +47,8 @@ namespace verus
 			Vector<int>       _fbSwapChain;
 			Vector<int>       _fbSwapChainDepth;
 			UB_GenerateMips   _ubGenerateMips;
-			UB_Quad           _ubQuad;
+			UB_QuadVS         _ubQuadVS;
+			UB_QuadFS         _ubQuadFS;
 
 		public:
 			Renderer();
@@ -80,6 +81,8 @@ namespace verus
 			App::PWindow SetMainWindow(App::PWindow p) { return Utils::Swap(_pMainWindow, p); }
 			float GetWindowAspectRatio() const;
 
+			virtual void ImGuiSetCurrentContext(ImGuiContext* pContext);
+
 			// Frame rate:
 			float GetFps() const { return _fps; }
 			UINT64 GetNumFrames() const { return _numFrames; }
@@ -94,7 +97,8 @@ namespace verus
 			UB_GenerateMips& GetUbGenerateMips() { return _ubGenerateMips; }
 
 			ShaderPtr GetShaderQuad() { return _shader[S_QUAD]; }
-			UB_Quad& GetUbQuad() { return _ubQuad; }
+			UB_QuadVS& GetUbQuadVS() { return _ubQuadVS; }
+			UB_QuadFS& GetUbQuadFS() { return _ubQuadFS; }
 		};
 		VERUS_TYPEDEFS(Renderer);
 	}

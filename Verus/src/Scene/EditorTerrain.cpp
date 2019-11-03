@@ -8,7 +8,7 @@ using namespace verus::Scene;
 void EditorTerrain::SmoothHeight(short stepSize)
 {
 	Vector<short> vCache;
-	vCache.resize(_mapSide*_mapSide);
+	vCache.resize(_mapSide * _mapSide);
 
 	// Horizontal, result goes to cache:
 	VERUS_P_FOR(i, _mapSide)
@@ -143,7 +143,7 @@ void EditorTerrain::SetHeightAt(const float xz[2], int amount, int radius)
 			const int rr = di * di + dj * dj;
 			if (rr < r2)
 			{
-				const int delta = amount + 3 * amount*(r2 - rr) / r2;
+				const int delta = amount + 3 * amount * (r2 - rr) / r2;
 				const int ij[] = { i, j };
 				short h;
 				GetHeightAt(ij, 0, &h);
@@ -513,8 +513,8 @@ void EditorTerrain::SplatAt(const float xz[2], int layer, float amount, int radi
 				if (rr < r2)
 				{
 					const int ij[2] = { i, j };
-					const float value = float(gen() % 3)*0.5f;
-					SplatTileAtEx(ij, layer, amount*value);
+					const float value = float(gen() % 3) * 0.5f;
+					SplatTileAtEx(ij, layer, amount * value);
 				}
 				jZero++;
 			}
@@ -542,7 +542,7 @@ void EditorTerrain::SplatAt(const float xz[2], int layer, float amount, int radi
 						maskValue = pMask[(iMask << 4) + jMask];
 					const float falloff = (TerrainSplatMode::grad == mode) ? 1 - float(rr) / r2 : 1;
 					const int ij[2] = { i, j };
-					SplatTileAtEx(ij, layer, amount*maskValue*falloff);
+					SplatTileAtEx(ij, layer, amount * maskValue * falloff);
 				}
 				jZero++;
 			}
@@ -574,7 +574,7 @@ void EditorTerrain::SplatFromFile(CSZ url, int layer)
 	{
 		VERUS_FOR(j, _mapSide)
 		{
-			const BYTE value = image._p[((i << _mapShift) + j)*image._bytesPerPixel];
+			const BYTE value = image._p[((i << _mapShift) + j) * image._bytesPerPixel];
 			const int amount = value >> 4;
 			const int ij[] = { i, j };
 			VERUS_FOR(k, amount)

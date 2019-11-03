@@ -3,7 +3,7 @@
 using namespace verus;
 using namespace verus::CGI;
 
-DXGI_FORMAT CGI::ToNativeFormat(Format format)
+DXGI_FORMAT CGI::ToNativeFormat(Format format, bool typeless)
 {
 	switch (format)
 	{
@@ -27,18 +27,32 @@ DXGI_FORMAT CGI::ToNativeFormat(Format format)
 	case Format::floatR32G32:       return DXGI_FORMAT_R32G32_FLOAT;
 	case Format::floatR32G32B32A32: return DXGI_FORMAT_R32G32B32A32_FLOAT;
 
-	case Format::unormD16:          return DXGI_FORMAT_D16_UNORM;
-	case Format::unormD24uintS8:    return DXGI_FORMAT_D24_UNORM_S8_UINT;
-	case Format::floatD32:          return DXGI_FORMAT_D32_FLOAT;
+	case Format::unormD16:          return typeless ? DXGI_FORMAT_R16_TYPELESS : DXGI_FORMAT_D16_UNORM;
+	case Format::unormD24uintS8:    return typeless ? DXGI_FORMAT_R24G8_TYPELESS : DXGI_FORMAT_D24_UNORM_S8_UINT;
+	case Format::floatD32:          return typeless ? DXGI_FORMAT_R32_TYPELESS : DXGI_FORMAT_D32_FLOAT;
 
 	case Format::unormBC1:          return DXGI_FORMAT_BC1_UNORM;
 	case Format::unormBC2:          return DXGI_FORMAT_BC2_UNORM;
 	case Format::unormBC3:          return DXGI_FORMAT_BC3_UNORM;
+	case Format::unormBC7:          return DXGI_FORMAT_BC7_UNORM;
 	case Format::srgbBC1:           return DXGI_FORMAT_BC1_UNORM_SRGB;
 	case Format::srgbBC2:           return DXGI_FORMAT_BC2_UNORM_SRGB;
 	case Format::srgbBC3:           return DXGI_FORMAT_BC3_UNORM_SRGB;
+	case Format::srgbBC7:           return DXGI_FORMAT_BC7_UNORM_SRGB;
 
 	default: throw VERUS_RECOVERABLE << "ToNativeFormat()";
+	};
+}
+
+DXGI_FORMAT CGI::ToNativeSampledDepthFormat(Format format)
+{
+	switch (format)
+	{
+	case Format::unormD16:       return DXGI_FORMAT_R16_UNORM;
+	case Format::unormD24uintS8: return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+	case Format::floatD32:       return DXGI_FORMAT_R32_FLOAT;
+
+	default: throw VERUS_RECOVERABLE << "ToNativeSampledDepthFormat()";
 	};
 }
 
@@ -57,15 +71,16 @@ D3D12_RESOURCE_STATES CGI::ToNativeImageLayout(ImageLayout layout)
 {
 	switch (layout)
 	{
-	case ImageLayout::undefined:                     return D3D12_RESOURCE_STATE_COMMON;
-	case ImageLayout::general:                       return D3D12_RESOURCE_STATE_COMMON;
-	case ImageLayout::colorAttachmentOptimal:        return D3D12_RESOURCE_STATE_RENDER_TARGET;
-	case ImageLayout::depthStencilAttachmentOptimal: return D3D12_RESOURCE_STATE_DEPTH_WRITE;
-	case ImageLayout::depthStencilReadOnlyOptimal:   return D3D12_RESOURCE_STATE_DEPTH_READ;
-	case ImageLayout::shaderReadOnlyOptimal:         return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	case ImageLayout::transferSrcOptimal:            return D3D12_RESOURCE_STATE_COPY_SOURCE;
-	case ImageLayout::transferDstOptimal:            return D3D12_RESOURCE_STATE_COPY_DEST;
-	case ImageLayout::presentSrc:                    return D3D12_RESOURCE_STATE_PRESENT;
+	case ImageLayout::undefined:              return D3D12_RESOURCE_STATE_COMMON;
+	case ImageLayout::general:                return D3D12_RESOURCE_STATE_COMMON;
+	case ImageLayout::colorAttachment:        return D3D12_RESOURCE_STATE_RENDER_TARGET;
+	case ImageLayout::depthStencilAttachment: return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+	case ImageLayout::depthStencilReadOnly:   return D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	case ImageLayout::vsReadOnly:             return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	case ImageLayout::fsReadOnly:             return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	case ImageLayout::transferSrc:            return D3D12_RESOURCE_STATE_COPY_SOURCE;
+	case ImageLayout::transferDst:            return D3D12_RESOURCE_STATE_COPY_DEST;
+	case ImageLayout::presentSrc:             return D3D12_RESOURCE_STATE_PRESENT;
 	default: throw VERUS_RECOVERABLE << "ToNativeImageLayout()";
 	}
 }

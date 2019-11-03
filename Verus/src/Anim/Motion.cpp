@@ -194,7 +194,7 @@ void Motion::Bone::ComputeTriggerAt(float time, int& state) const
 		state = 0;
 		return;
 	}
-	const int frame = int(_pMotion->GetFps()*time);
+	const int frame = int(_pMotion->GetFps() * time);
 	TMapTrigger::const_iterator it = _mapTrigger.upper_bound(frame); // Find frame after 'time'.
 	if (it != _mapTrigger.begin())
 	{
@@ -559,7 +559,7 @@ void Motion::Bone::Fix(bool speedLimit)
 			{
 				Quat qPrev;
 				Vector3 euler;
-				ComputeRotationAt((it->first - 1)*_pMotion->GetFpsInv(), euler, qPrev);
+				ComputeRotationAt((it->first - 1) * _pMotion->GetFpsInv(), euler, qPrev);
 				const float threshold = 0.5f;
 				const Quat qPrevInv = VMath::inverse(Matrix3(qPrev));
 				const Quat qD = q * qPrevInv;
@@ -822,7 +822,7 @@ void Motion::ProcessTriggers(float time, PMotionDelegate p, int* pUserTriggerSta
 	{
 		PBone pBone = &kv.second;
 		int state = 0;
-		if (!(_reversed && nativeTime < _fpsInv*0.5f)) // Avoid edge case for the first frame in reverse.
+		if (!(_reversed && nativeTime < _fpsInv * 0.5f)) // Avoid edge case for the first frame in reverse.
 			pBone->ComputeTriggerAt(nativeTime, state);
 		const int last = pUserTriggerStates ? pUserTriggerStates[i] : pBone->GetLastTriggerState();
 		if (state != last)

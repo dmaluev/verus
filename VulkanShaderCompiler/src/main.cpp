@@ -26,7 +26,7 @@ public:
 };
 
 bool                                   g_init = false;
-thread_local ShaderInclude*            g_pShaderInclude = nullptr;
+thread_local ShaderInclude* g_pShaderInclude = nullptr;
 thread_local std::string               g_ret;
 thread_local std::vector<unsigned int> g_vSpirv;
 
@@ -140,7 +140,7 @@ extern "C"
 				ssDefines << "\r\n";
 			}
 		}
-		std::string preamble = ssDefines.str();
+		const std::string preamble = ssDefines.str();
 
 		const int clientInputSemanticsVersion = 100;
 		const int defaultVersion = 110;
@@ -150,8 +150,8 @@ extern "C"
 		shader.setPreamble(preamble.c_str());
 		shader.setEntryPoint(entryPoint);
 		shader.setEnvInput(glslang::EShSourceHlsl, stage, glslang::EShClientVulkan, clientInputSemanticsVersion);
-		shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_0);
-		shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
+		shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_1);
+		shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
 
 		const TBuiltInResource builtInResources = glslang::DefaultTBuiltInResource;
 		const EShMessages messages = static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules | EShMsgReadHlsl);

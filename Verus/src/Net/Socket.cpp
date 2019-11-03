@@ -245,7 +245,7 @@ void Socket::ThreadProc()
 void Socket::GetLatestClientBuffer(int id, BYTE* p)
 {
 	VERUS_LOCK(*this);
-	if ((int)_vClients.size() > id && _vClients[id] && _vClients[id]->_pListener)
+	if ((int)_vClients.size() > id&& _vClients[id] && _vClients[id]->_pListener)
 		memcpy(p, _vClients[id]->_vBuffer.data(), _clientBufferSize);
 }
 
@@ -277,7 +277,7 @@ void Socket::CloseAllClients()
 	VERUS_FOREACH(Vector<PClient>, _vClients, it)
 	{
 		if (*it)
-			delete *it;
+			delete* it;
 	}
 	_vClients.clear();
 }

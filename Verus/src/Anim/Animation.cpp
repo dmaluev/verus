@@ -215,7 +215,7 @@ void Animation::BlendTo(CSZ name, Range<float> duration, int randTime, PMotion p
 	}
 
 	// Reset time:
-	_time = (randTime >= 0 && pMotion) ? (randTime / 255.f)*pMotion->GetDuration() : 0;
+	_time = (randTime >= 0 && pMotion) ? (randTime / 255.f) * pMotion->GetDuration() : 0;
 	if (_time)
 		pMotion->SkipTriggers(_time, GetTriggerStatesArray());
 }
@@ -305,5 +305,5 @@ bool Animation::IsNearEdge(float t, Edge edge)
 	if (!pMotion)
 		return false;
 	const float at = _time / pMotion->GetDuration();
-	return ((edge&Edge::begin) && at < t) || ((edge&Edge::end) && at >= 1 - t);
+	return ((edge & Edge::begin) && at < t) || ((edge & Edge::end) && at >= 1 - t);
 }

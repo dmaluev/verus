@@ -21,13 +21,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -198,9 +198,17 @@
     <ClInclude Include="src\Scene\Mesh.h" />
     <ClInclude Include="src\Scene\Scene.h" />
     <ClInclude Include="src\Scene\SceneManager.h" />
+    <ClInclude Include="src\Scene\ShadowMap.h" />
     <ClInclude Include="src\Scene\Terrain.h" />
     <ClInclude Include="src\Security\CipherRC4.h" />
     <ClInclude Include="src\Security\Security.h" />
+    <ClInclude Include="src\ThirdParty\imgui\imconfig.h" />
+    <ClInclude Include="src\ThirdParty\imgui\imgui.h" />
+    <ClInclude Include="src\ThirdParty\imgui\imgui_impl_sdl.h" />
+    <ClInclude Include="src\ThirdParty\imgui\imgui_internal.h" />
+    <ClInclude Include="src\ThirdParty\imgui\imstb_rectpack.h" />
+    <ClInclude Include="src\ThirdParty\imgui\imstb_textedit.h" />
+    <ClInclude Include="src\ThirdParty\imgui\imstb_truetype.h" />
     <ClInclude Include="src\ThirdParty\json.hpp" />
     <ClInclude Include="src\ThirdParty\libb64\cdecode.h" />
     <ClInclude Include="src\ThirdParty\libb64\cencode.h" />
@@ -306,7 +314,28 @@
     <ClCompile Include="src\Scene\Mesh.cpp" />
     <ClCompile Include="src\Scene\Scene.cpp" />
     <ClCompile Include="src\Scene\SceneManager.cpp" />
+    <ClCompile Include="src\Scene\ShadowMap.cpp" />
     <ClCompile Include="src\Scene\Terrain.cpp" />
+    <ClCompile Include="src\ThirdParty\imgui\imgui.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_demo.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_draw.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_impl_sdl.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_widgets.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\ThirdParty\libb64\cdecode.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
@@ -501,8 +530,17 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <Natvis Include="src\ThirdParty\imgui\imgui.natvis" />
     <Natvis Include="src\ThirdParty\pugixml-1.10\pugixml.natvis" />
     <Natvis Include="src\ThirdParty\pugixml-1.10\pugixml_compact.natvis" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\DebugDraw.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DebugDraw.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
