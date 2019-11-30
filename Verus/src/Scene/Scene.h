@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Camera.h"
+#include "CameraOrbit.h"
 #include "BaseMesh.h"
 #include "Mesh.h"
 #include "Terrain.h"

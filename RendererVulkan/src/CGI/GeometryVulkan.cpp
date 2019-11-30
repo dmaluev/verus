@@ -16,8 +16,8 @@ void GeometryVulkan::Init(RcGeometryDesc desc)
 {
 	VERUS_INIT();
 
+	_dynBindingsMask = desc._dynBindingsMask;
 	_32BitIndices = desc._32BitIndices;
-	_dynamic = desc._dynamic;
 
 	const int numBindings = GetNumBindings(desc._pInputElementDesc);
 	_vVertexInputBindingDesc.reserve(numBindings);
@@ -30,7 +30,7 @@ void GeometryVulkan::Init(RcGeometryDesc desc)
 		if (binding < 0)
 		{
 			binding = -binding;
-			_bindingInstMask |= (1 << binding);
+			_instBindingsMask |= (1 << binding);
 			inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
 		}
 
@@ -97,7 +97,7 @@ void GeometryVulkan::CreateVertexBuffer(int num, int binding)
 	const int elementSize = _vStrides[binding];
 	vb._bufferSize = num * elementSize;
 
-	if (((_bindingInstMask >> binding) & 0x1) || _dynamic)
+	if (((_instBindingsMask | _dynBindingsMask) >> binding) & 0x1)
 	{
 		pRendererVulkan->CreateBuffer(vb._bufferSize * BaseRenderer::s_ringBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,
 			vb._buffer, vb._vmaAllocation);
@@ -114,7 +114,7 @@ void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, BaseCommandB
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
-	if (((_bindingInstMask >> binding) & 0x1) || _dynamic)
+	if (((_instBindingsMask | _dynBindingsMask) >> binding) & 0x1)
 	{
 		auto& vb = _vVertexBuffers[binding];
 		void* pData = nullptr;
@@ -240,7 +240,7 @@ VkPipelineVertexInputStateCreateInfo GeometryVulkan::GetVkPipelineVertexInputSta
 
 VkDeviceSize GeometryVulkan::GetVkVertexBufferOffset(int binding) const
 {
-	if ((_bindingInstMask >> binding) & 0x1)
+	if (((_instBindingsMask | _dynBindingsMask) >> binding) & 0x1)
 	{
 		VERUS_QREF_RENDERER_VULKAN;
 		auto& vb = _vVertexBuffers[binding];

@@ -12,11 +12,6 @@ struct MyRendererDelegate : CGI::RendererDelegate
 
 	virtual void Renderer_OnDraw() override
 	{
-		//VERUS_QREF_RENDERER;
-		//VERUS_QREF_TIMER;
-		//const float x = fmod(timer.GetTime(), 1.f);
-		//renderer.SetClearColor(Vector4(x, 0.5f, 0.25f, 1.f));
-		//renderer->Clear(0);
 		_p->BaseGame_Draw();
 	}
 
@@ -42,11 +37,12 @@ struct BaseGame::Pimpl : AllocatorAware
 	PBaseGame         _p = nullptr;
 	Scene::MainCamera _camera;
 	Spirit            _cameraSpirit;
+	bool              _bulletDebugDrawEnabled = false;
 	bool              _defaultCameraMovement = true;
-	bool              _showFPS = true;
-	bool              _debugBullet = false;
 	bool              _escapeKeyExitGame = true;
 	bool              _minimized = false;
+	bool              _rawInputEvents = false;
+	bool              _showFPS = true;
 
 	Pimpl(PBaseGame p) : _p(p)
 	{
@@ -54,15 +50,6 @@ struct BaseGame::Pimpl : AllocatorAware
 
 	~Pimpl()
 	{
-	}
-
-	bool HandleUserEvents(SDL_Event* pEvent)
-	{
-		switch (pEvent->user.code)
-		{
-		case 0: return true; // Exit.
-		}
-		return false;
 	}
 };
 
@@ -83,7 +70,7 @@ BaseGame::~BaseGame()
 	//CGL::CRender::DoneWin32();
 }
 
-void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS)
+void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
 {
 	VERUS_SDL_CENTERED;
 
@@ -91,6 +78,7 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS)
 	VERUS_QREF_SETTINGS;
 	settings.ParseCommandLineArgs(argc, argv);
 	//settings.LoadValidateSave();
+	BaseGame_UpdateSettings();
 
 	const int ret = SDL_Init(SDL_INIT_EVERYTHING);
 	if (ret)
@@ -103,15 +91,16 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS)
 	//Utils::TestAll();
 #endif
 
-	_window.Init();
+	_window.Init(desc);
 	CGI::Renderer::I().SetMainWindow(&_window);
 	_engineInit.Init(this, new MyRendererDelegate(this));
 
 	// Configure:
 	VERUS_QREF_RENDERER;
-	//VERUS_QREF_SM;
+	VERUS_QREF_SM;
 	_p->_camera.SetAspectRatio(renderer.GetWindowAspectRatio());
-	//sm.SetCamera(&_p->_camera);
+	_p->_camera.Update();
+	sm.SetCamera(&_p->_camera);
 
 	renderer->BeginFrame(false); // Begin recording a command buffer.
 	renderer.InitCmd();
@@ -119,22 +108,23 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS)
 	renderer->EndFrame(false); // End recording a command buffer.
 }
 
-void BaseGame::Run()
+void BaseGame::Run(bool relativeMouseMode)
 {
-	VERUS_QREF_TIMER;
-	VERUS_QREF_KM;
-	VERUS_QREF_BULLET;
-	VERUS_QREF_RENDERER;
 	VERUS_QREF_ASYNC;
 	VERUS_QREF_ASYS;
+	VERUS_QREF_BULLET;
+	VERUS_QREF_KM;
+	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
+	VERUS_QREF_TIMER;
 
-	SDL_SetRelativeMouseMode(SDL_TRUE);
+	if (relativeMouseMode)
+		SDL_SetRelativeMouseMode(SDL_TRUE);
 
 	timer.Update();
 
 	SDL_Event event;
-	bool done = false;
+	bool quit = false;
 
 	do // The Game Loop.
 	{
@@ -144,37 +134,73 @@ void BaseGame::Run()
 		while (SDL_PollEvent(&event))
 		{
 			ImGui_ImplSDL2_ProcessEvent(&event);
+
+			if (_p->_rawInputEvents && !ImGui::GetIO().WantCaptureMouse)
+			{
+				switch (event.type)
+				{
+				case SDL_MOUSEMOTION:
+				{
+					BaseGame_SDL_OnMouseMotion(event.motion.xrel, event.motion.yrel);
+				}
+				break;
+				case SDL_MOUSEBUTTONDOWN:
+				{
+					if (1 == event.button.clicks)
+						BaseGame_SDL_OnMouseButtonDown(event.button.button);
+					else if (2 == event.button.clicks)
+						BaseGame_SDL_OnMouseDoubleClick(event.button.button);
+				}
+				break;
+				case SDL_MOUSEBUTTONUP:
+				{
+					if (1 == event.button.clicks)
+						BaseGame_SDL_OnMouseButtonUp(event.button.button);
+				}
+				break;
+				case SDL_MOUSEWHEEL:
+				{
+					BaseGame_SDL_OnMouseWheel(event.wheel.y);
+				}
+				break;
+				}
+			}
+
 			if (!km.HandleSdlEvent(event))
 			{
 				switch (event.type)
 				{
 				case SDL_QUIT:
 				{
-					done = true;
+					if (BaseGame_CanQuitEventLoop())
+						quit = true;
 				}
 				break;
 				case SDL_WINDOWEVENT:
 				{
 					switch (event.window.event)
 					{
+					case SDL_WINDOWEVENT_RESIZED:
+					{
+						renderer.OnWindowResized(event.window.data1, event.window.data2);
+						sm.GetCamera()->SetAspectRatio(renderer.GetWindowAspectRatio());
+						sm.GetCamera()->Update();
+						BaseGame_OnWindowResized();
+					}
+					break;
 					case SDL_WINDOWEVENT_MINIMIZED:
+					{
 						_p->_minimized = true;
 						BaseGame_OnDeactivated();
 						renderer->WaitIdle();
-						break;
+					}
+					break;
 					case SDL_WINDOWEVENT_RESTORED:
+					{
 						_p->_minimized = false;
 						BaseGame_OnActivated();
-						break;
 					}
-				}
-				break;
-				case SDL_USEREVENT:
-				{
-					if (_p->HandleUserEvents(&event))
-					{
-						SDL_Delay(100);
-						done = true;
+					break;
 					}
 				}
 				break;
@@ -185,7 +211,7 @@ void BaseGame::Run()
 		if (_p->_minimized)
 			continue;
 
-		if (done)
+		if (quit)
 			break;
 
 		//
@@ -227,8 +253,8 @@ void BaseGame::Run()
 				//		_p->_camera.ExcludeWaterLine();
 			}
 			_p->_camera.Update();
+			sm.SetCamera(&_p->_camera);
 		}
-		sm.SetCamera(&_p->_camera);
 
 		BaseGame_Update();
 
@@ -253,20 +279,24 @@ void BaseGame::Run()
 			sprintf_s(title, "[%s] - %.1f FPS", gapi, renderer.GetFps());
 			SDL_SetWindowTitle(renderer.GetMainWindow()->GetSDL(), title);
 		}
-	} while (!done); // The Game Loop.
+	} while (!quit); // The Game Loop.
 
 	BaseGame_UnloadContent();
 
-	SDL_SetRelativeMouseMode(SDL_FALSE);
+	if (relativeMouseMode)
+		SDL_SetRelativeMouseMode(SDL_FALSE);
 }
 
 void BaseGame::Exit()
 {
-	Utils::ExitSdlLoop();
+	Utils::PushQuitEvent();
 }
 
 void BaseGame::KeyMapper_OnMouseMove(int x, int y)
 {
+	if (!SDL_GetRelativeMouseMode())
+		return;
+
 	VERUS_QREF_CONST_SETTINGS;
 
 	const float rad = (VERUS_2PI / 360.f) / 3.f; // 3 pixels = 1 degree.
@@ -303,9 +333,24 @@ RSpirit BaseGame::GetCameraSpirit()
 	return _p->_cameraSpirit;
 }
 
-void BaseGame::ActivateDefaultCameraMovement(bool b)
+void BaseGame::EnableBulletDebugDraw(bool b)
+{
+	_p->_bulletDebugDrawEnabled = b;
+}
+
+void BaseGame::EnableDefaultCameraMovement(bool b)
 {
 	_p->_defaultCameraMovement = b;
+}
+
+void BaseGame::EnableEscapeKeyExitGame(bool b)
+{
+	_p->_escapeKeyExitGame = b;
+}
+
+void BaseGame::EnableRawInputEvents(bool b)
+{
+	_p->_rawInputEvents = b;
 }
 
 void BaseGame::ShowFPS(bool b)
@@ -313,12 +358,18 @@ void BaseGame::ShowFPS(bool b)
 	_p->_showFPS = b;
 }
 
-void BaseGame::DebugBullet(bool b)
+bool BaseGame::IsBulletDebugDrawEnabled() const
 {
-	_p->_debugBullet = b;
+	return _p->_bulletDebugDrawEnabled;
 }
 
-bool BaseGame::IsDebugBulletMode() const
+void BaseGame::BulletDebugDraw()
 {
-	return _p->_debugBullet;
+#ifdef VERUS_DEBUG
+	if (_p->_bulletDebugDrawEnabled)
+	{
+		VERUS_QREF_BULLET;
+		bullet.DebugDraw();
+	}
+#endif
 }

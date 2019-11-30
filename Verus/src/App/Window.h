@@ -11,11 +11,13 @@ namespace verus
 		public:
 			struct Desc
 			{
-				CSZ  _title = nullptr;
-				int  _width = 0;
-				int  _height = 0;
-				bool _fullscreen = false;
-				bool _useSettings = true;
+				CSZ    _title = nullptr;
+				int    _width = 0;
+				int    _height = 0;
+				Uint32 _flags = 0;
+				bool   _fullscreen = false;
+				bool   _resizable = false;
+				bool   _useSettings = true;
 
 				void ApplySettings();
 			};
@@ -27,7 +29,7 @@ namespace verus
 			void Init(RcDesc desc = Desc());
 			void Done();
 
-			SDL_Window* GetSDL() { return _pWnd; }
+			SDL_Window* GetSDL() const { return _pWnd; }
 		};
 		VERUS_TYPEDEFS(Window);
 	}

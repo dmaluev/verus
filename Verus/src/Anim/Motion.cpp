@@ -716,26 +716,26 @@ void Motion::Deserialize(IO::RStream stream)
 	UINT32 magic = 0;
 	stream >> magic;
 	if ('2NAX' != magic)
-		throw VERUS_RECOVERABLE << "Deserialize(), Invalid XAN format";
+		throw VERUS_RECOVERABLE << "Deserialize(), invalid XAN format";
 
 	UINT16 version = 0;
 	stream >> version;
 	if (s_xanVersion != version)
-		throw VERUS_RECOVERABLE << "Deserialize(), Invalid XAN version";
+		throw VERUS_RECOVERABLE << "Deserialize(), invalid XAN version";
 
 	stream >> _numFrames;
 	stream >> _fps;
 	if (_numFrames < 0 || _numFrames > s_maxNumFrames)
-		throw VERUS_RECOVERABLE << "Deserialize(), Invalid number of frames in XAN";
+		throw VERUS_RECOVERABLE << "Deserialize(), invalid number of frames in XAN";
 	if (_fps <= 0 || _fps > s_maxFps)
-		throw VERUS_RECOVERABLE << "Deserialize(), Invalid FPS in XAN";
+		throw VERUS_RECOVERABLE << "Deserialize(), invalid FPS in XAN";
 
 	SetFps(_fps);
 
 	int numBones = 0;
 	stream >> numBones;
 	if (numBones < 0 || numBones > s_maxNumBones)
-		throw VERUS_RECOVERABLE << "Deserialize(), Invalid number of bones in XAN";
+		throw VERUS_RECOVERABLE << "Deserialize(), invalid number of bones in XAN";
 
 	char buffer[IO::Stream::s_bufferSize] = {};
 	VERUS_FOR(i, numBones)

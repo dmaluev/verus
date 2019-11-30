@@ -141,7 +141,7 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 	gpsDesc.RasterizerState.SlopeScaledDepthBias = desc._rasterizationState._depthBiasSlopeFactor;
 	gpsDesc.RasterizerState.DepthClipEnable = desc._rasterizationState._depthClampEnable;
 	gpsDesc.RasterizerState.MultisampleEnable = FALSE;
-	gpsDesc.RasterizerState.AntialiasedLineEnable = FALSE;
+	gpsDesc.RasterizerState.AntialiasedLineEnable = TRUE;
 	gpsDesc.RasterizerState.ForcedSampleCount = 0;
 	gpsDesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 

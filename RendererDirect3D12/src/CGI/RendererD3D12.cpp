@@ -31,6 +31,15 @@ void RendererD3D12::Init()
 void RendererD3D12::Done()
 {
 	WaitIdle();
+
+	if (ImGui::GetCurrentContext())
+	{
+		ImGui_ImplDX12_Shutdown();
+		ImGui_ImplSDL2_Shutdown();
+		ImGui::DestroyContext();
+		Renderer::I().ImGuiSetCurrentContext(nullptr);
+	}
+
 	DeleteFramebuffer(-1);
 	DeleteRenderPass(-1);
 
@@ -190,8 +199,8 @@ void RendererD3D12::InitD3D()
 	_pFence = CreateFence();
 	_hFence = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
-	_dhCbvSrvUav.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, settings.GetLimits()._d3d12_dhCbvSrvUavCapacity, true);
-	_dhSamplers.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, settings.GetLimits()._d3d12_dhSamplersCapacity, true);
+	_dhCbvSrvUav.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, settings.GetLimits()._d3d12_dhCbvSrvUavCapacity, 16, true);
+	_dhSamplers.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, settings.GetLimits()._d3d12_dhSamplersCapacity, 0, true);
 
 	CreateSamplers();
 }
@@ -350,16 +359,73 @@ D3D12_STATIC_SAMPLER_DESC RendererD3D12::GetStaticSamplerDesc(Sampler s) const
 
 void RendererD3D12::ImGuiInit(int renderPassID)
 {
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_CONST_SETTINGS;
+
+	IMGUI_CHECKVERSION();
+	ImGuiContext* pContext = ImGui::CreateContext();
+	renderer.ImGuiSetCurrentContext(pContext);
+	ImGuiIO& io = ImGui::GetIO();
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	io.ConfigWindowsMoveFromTitleBarOnly = true;
+	if (!settings._imguiFont.empty())
+	{
+		Vector<BYTE> vData;
+		IO::FileSystem::LoadResource(_C(settings._imguiFont), vData);
+		void* pFontData = IM_ALLOC(vData.size());
+		memcpy(pFontData, vData.data(), vData.size());
+		io.Fonts->AddFontFromMemoryTTF(pFontData, Utils::Cast32(vData.size()), 15);
+	}
+
+	ImGui::StyleColorsDark();
+
+	ImGui_ImplSDL2_InitForD3D(renderer.GetMainWindow()->GetSDL());
+	auto hp = _dhCbvSrvUav.GetStaticHandlePair(0);
+	ImGui_ImplDX12_Init(
+		_pDevice.Get(),
+		s_ringBufferSize,
+		DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
+		_dhCbvSrvUav.GetD3DDescriptorHeap(),
+		hp._hCPU,
+		hp._hGPU);
 }
 
 void RendererD3D12::ImGuiRenderDrawData()
 {
+	VERUS_QREF_RENDERER;
+	ImGui::Render();
+	auto pCmdList = static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList();
+	if (ImGui::GetDrawData())
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCmdList);
+}
+
+void RendererD3D12::ResizeSwapChain()
+{
+	VERUS_QREF_RENDERER;
+
+	_dhSwapChainBuffersRTVs.Reset();
+	_vSwapChainBuffers.clear();
+
+	_pSwapChain->ResizeBuffers(
+		_swapChainDesc.BufferCount,
+		renderer.GetSwapChainWidth(),
+		renderer.GetSwapChainHeight(),
+		_swapChainDesc.Format,
+		_swapChainDesc.Flags);
+
+	_swapChainBufferIndex = _pSwapChain->GetCurrentBackBufferIndex();
+
+	CreateSwapChainBuffersRTVs();
 }
 
 void RendererD3D12::BeginFrame(bool present)
 {
 	VERUS_QREF_RENDERER;
 	HRESULT hr = 0;
+
+	ImGui_ImplDX12_NewFrame();
+	ImGui_ImplSDL2_NewFrame(renderer.GetMainWindow()->GetSDL());
+	ImGui::NewFrame();
 
 	WaitForFenceValue(_fenceValues[_ringBufferIndex]);
 
@@ -391,6 +457,8 @@ void RendererD3D12::EndFrame(bool present)
 		_fenceValues[_ringBufferIndex] = QueueSignal();
 		_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
 	}
+
+	ImGui::EndFrame();
 }
 
 void RendererD3D12::Present()
@@ -495,7 +563,7 @@ int RendererD3D12::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, s
 				return index;
 			index++;
 		}
-		throw VERUS_RECOVERABLE << "CreateRenderPass(), Attachment not found";
+		throw VERUS_RECOVERABLE << "CreateRenderPass(), attachment not found";
 	};
 
 	renderPass._vSubpasses.reserve(ilS.size());

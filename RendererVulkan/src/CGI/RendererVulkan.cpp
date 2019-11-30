@@ -91,12 +91,22 @@ void RendererVulkan::Init()
 void RendererVulkan::Done()
 {
 	WaitIdle();
+
+	if (ImGui::GetCurrentContext())
+	{
+		ImGui_ImplVulkan_Shutdown();
+		ImGui_ImplSDL2_Shutdown();
+		ImGui::DestroyContext();
+		Renderer::I().ImGuiSetCurrentContext(nullptr);
+	}
+
 	DeleteFramebuffer(-1);
 	DeleteRenderPass(-1);
 
 	for (auto sampler : _vSamplers)
 		VERUS_VULKAN_DESTROY(sampler, vkDestroySampler(_device, sampler, GetAllocator()));
 	_vSamplers.clear();
+	VERUS_VULKAN_DESTROY(_descriptorPoolImGui, vkDestroyDescriptorPool(_device, _descriptorPoolImGui, GetAllocator()));
 	VERUS_FOR(i, s_ringBufferSize)
 	{
 		VERUS_VULKAN_DESTROY(_acquireNextImageSemaphores[i], vkDestroySemaphore(_device, _acquireNextImageSemaphores[i], GetAllocator()));
@@ -378,6 +388,10 @@ void RendererVulkan::CreateDevice()
 {
 	VkResult res = VK_SUCCESS;
 
+	VkPhysicalDeviceLineRasterizationFeaturesEXT lineRasterizationFeatures = {};
+	lineRasterizationFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT;
+	lineRasterizationFeatures.smoothLines = VK_TRUE;
+
 	_queueFamilyIndices = FindQueueFamilyIndices(_physicalDevice);
 	VERUS_RT_ASSERT(_queueFamilyIndices.IsComplete());
 	Set<int> setUniqueQueueFamilies = { _queueFamilyIndices._graphicsFamilyIndex, _queueFamilyIndices._presentFamilyIndex };
@@ -400,6 +414,7 @@ void RendererVulkan::CreateDevice()
 	physicalDeviceFeatures.shaderImageGatherExtended = VK_TRUE;
 	VkDeviceCreateInfo vkdci = {};
 	vkdci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	vkdci.pNext = &lineRasterizationFeatures;
 	vkdci.queueCreateInfoCount = Utils::Cast32(vDeviceQueueCreateInfos.size());
 	vkdci.pQueueCreateInfos = vDeviceQueueCreateInfos.data();
 #if defined(_DEBUG) || defined(VERUS_DEBUG)
@@ -441,8 +456,9 @@ RendererVulkan::SwapChainInfo RendererVulkan::GetSwapChainInfo(VkPhysicalDevice 
 	return swapChainInfo;
 }
 
-void RendererVulkan::CreateSwapChain()
+void RendererVulkan::CreateSwapChain(VkSwapchainKHR oldSwapchain)
 {
+	VERUS_QREF_RENDERER;
 	VERUS_QREF_CONST_SETTINGS;
 
 	VkResult res = VK_SUCCESS;
@@ -457,15 +473,15 @@ void RendererVulkan::CreateSwapChain()
 	vksci.minImageCount = _numSwapChainBuffers;
 	vksci.imageFormat = VK_FORMAT_B8G8R8A8_SRGB;
 	vksci.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-	vksci.imageExtent.width = settings._screenSizeWidth;
-	vksci.imageExtent.height = settings._screenSizeHeight;
+	vksci.imageExtent.width = renderer.GetSwapChainWidth();
+	vksci.imageExtent.height = renderer.GetSwapChainHeight();
 	vksci.imageArrayLayers = 1;
 	vksci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 	vksci.preTransform = swapChainInfo._surfaceCapabilities.currentTransform;
 	vksci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 	vksci.presentMode = settings._screenVSync ? VK_PRESENT_MODE_MAILBOX_KHR : VK_PRESENT_MODE_FIFO_KHR;
 	vksci.clipped = VK_TRUE;
-	vksci.oldSwapchain = VK_NULL_HANDLE;
+	vksci.oldSwapchain = oldSwapchain;
 	const uint32_t queueFamilyIndicesArray[] =
 	{
 		static_cast<uint32_t>(_queueFamilyIndices._graphicsFamilyIndex),
@@ -662,44 +678,45 @@ const VkSampler* RendererVulkan::GetImmutableSampler(Sampler s) const
 	return &_vSamplers[+s];
 }
 
+void RendererVulkan::ImGuiCheckVkResultFn(VkResult res)
+{
+	if (VK_SUCCESS != res)
+		throw VERUS_RUNTIME_ERROR << "ImGuiCheckVkResultFn(), res=" << res;
+}
+
 void RendererVulkan::ImGuiInit(int renderPassID)
 {
 	VkResult res = VK_SUCCESS;
-	VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
-	{
-		VkDescriptorPoolSize pool_sizes[] =
-		{
-			{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-			{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-		};
-		VkDescriptorPoolCreateInfo pool_info = {};
-		pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-		pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-		pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
-		pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
-		pool_info.pPoolSizes = pool_sizes;
-		res = vkCreateDescriptorPool(_device, &pool_info, GetAllocator(), &descriptorPool);
-	}
+	VkDescriptorPoolSize vkdps = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 };
+	VkDescriptorPoolCreateInfo vkdpci = {};
+	vkdpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	vkdpci.maxSets = 1;
+	vkdpci.poolSizeCount = 1;
+	vkdpci.pPoolSizes = &vkdps;
+	if (VK_SUCCESS != (res = vkCreateDescriptorPool(_device, &vkdpci, GetAllocator(), &_descriptorPoolImGui)))
+		throw VERUS_RUNTIME_ERROR << "vkCreateDescriptorPool(), res=" << res;
 
 	VERUS_QREF_RENDERER;
-	SDL_Window* pWnd = renderer.GetMainWindow()->GetSDL();
+	VERUS_QREF_CONST_SETTINGS;
 
 	IMGUI_CHECKVERSION();
 	ImGuiContext* pContext = ImGui::CreateContext();
 	renderer.ImGuiSetCurrentContext(pContext);
+	ImGuiIO& io = ImGui::GetIO();
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	io.ConfigWindowsMoveFromTitleBarOnly = true;
+	if (!settings._imguiFont.empty())
+	{
+		Vector<BYTE> vData;
+		IO::FileSystem::LoadResource(_C(settings._imguiFont), vData);
+		void* pFontData = IM_ALLOC(vData.size());
+		memcpy(pFontData, vData.data(), vData.size());
+		io.Fonts->AddFontFromMemoryTTF(pFontData, Utils::Cast32(vData.size()), 15);
+	}
 
 	ImGui::StyleColorsDark();
 
-	ImGui_ImplSDL2_InitForVulkan(pWnd);
+	ImGui_ImplSDL2_InitForVulkan(renderer.GetMainWindow()->GetSDL());
 	ImGui_ImplVulkan_InitInfo info = {};
 	info.Instance = _instance;
 	info.PhysicalDevice = _physicalDevice;
@@ -707,49 +724,40 @@ void RendererVulkan::ImGuiInit(int renderPassID)
 	info.QueueFamily = _queueFamilyIndices._graphicsFamilyIndex;
 	info.Queue = _graphicsQueue;
 	info.PipelineCache = nullptr;
-	info.DescriptorPool = descriptorPool;
+	info.DescriptorPool = _descriptorPoolImGui;
 	info.Allocator = GetAllocator();
-	info.MinImageCount = 2;
-	info.ImageCount = 2;
-	info.CheckVkResultFn = nullptr;
+	info.MinImageCount = settings._screenVSync ? 3 : 2;;
+	info.ImageCount = s_ringBufferSize;
+	info.CheckVkResultFn = ImGuiCheckVkResultFn;
 	ImGui_ImplVulkan_Init(&info, _vRenderPasses[renderPassID]);
 
-	{
-		// Use any command queue
-		VkCommandPool command_pool = _commandPools[_ringBufferIndex];
-		VkCommandBuffer command_buffer = static_cast<CommandBufferVulkan*>(&(*renderer.GetCommandBuffer()))->GetVkCommandBuffer();
-
-		res = vkResetCommandPool(_device, command_pool, 0);
-
-		VkCommandBufferBeginInfo begin_info = {};
-		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-		res = vkBeginCommandBuffer(command_buffer, &begin_info);
-
-
-		ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
-
-		VkSubmitInfo end_info = {};
-		end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		end_info.commandBufferCount = 1;
-		end_info.pCommandBuffers = &command_buffer;
-		res = vkEndCommandBuffer(command_buffer);
-
-		res = vkQueueSubmit(_graphicsQueue, 1, &end_info, VK_NULL_HANDLE);
-
-
-		res = vkDeviceWaitIdle(_device);
-
-		ImGui_ImplVulkan_DestroyFontUploadObjects();
-	}
+	CommandBufferVulkan commandBuffer;
+	commandBuffer.InitOneTimeSubmit();
+	ImGui_ImplVulkan_CreateFontsTexture(commandBuffer.GetVkCommandBuffer());
+	commandBuffer.DoneOneTimeSubmit();
+	ImGui_ImplVulkan_DestroyFontUploadObjects();
 }
 
 void RendererVulkan::ImGuiRenderDrawData()
 {
 	VERUS_QREF_RENDERER;
-	VkCommandBuffer command_buffer = static_cast<CommandBufferVulkan*>(&(*renderer.GetCommandBuffer()))->GetVkCommandBuffer();
+	ImGui::Render();
+	VkCommandBuffer commandBuffer = static_cast<CommandBufferVulkan*>(&(*renderer.GetCommandBuffer()))->GetVkCommandBuffer();
 	if (ImGui::GetDrawData())
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command_buffer);
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+}
+
+void RendererVulkan::ResizeSwapChain()
+{
+	for (auto swapChainImageViews : _vSwapChainImageViews)
+		vkDestroyImageView(_device, swapChainImageViews, GetAllocator());
+	_vSwapChainImageViews.clear();
+	_vSwapChainImages.clear();
+
+	VkSwapchainKHR oldSwapchain = _swapChain;
+	CreateSwapChain(oldSwapchain);
+	CreateImageViews();
+	VERUS_VULKAN_DESTROY(oldSwapchain, vkDestroySwapchainKHR(_device, oldSwapchain, GetAllocator()));
 }
 
 void RendererVulkan::BeginFrame(bool present)
@@ -944,7 +952,7 @@ int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, 
 				return index;
 			index++;
 		}
-		throw VERUS_RECOVERABLE << "CreateRenderPass(), Attachment not found";
+		throw VERUS_RECOVERABLE << "CreateRenderPass(), attachment not found";
 	};
 
 	struct SubpassMetadata
@@ -1014,7 +1022,7 @@ int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, 
 
 	// vAttachmentRef is ready, convert indices to actual pointers:
 	if (vAttachmentRef.empty())
-		throw VERUS_RECOVERABLE << "CreateRenderPass(), No attachment references";
+		throw VERUS_RECOVERABLE << "CreateRenderPass(), no attachment references";
 	int index = 0;
 	for (auto& sd : vSubpassDesc)
 	{
@@ -1041,7 +1049,7 @@ int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, 
 				return index;
 			index++;
 		}
-		throw VERUS_RECOVERABLE << "CreateRenderPass(), Subpass not found";
+		throw VERUS_RECOVERABLE << "CreateRenderPass(), subpass not found";
 	};
 
 	Vector<VkSubpassDependency> vSubpassDependency;

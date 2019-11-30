@@ -26,6 +26,8 @@ namespace verus
 			btConstraintSolver* _pConstraintSolver = nullptr;
 			btCollisionConfiguration* _pCollisionConfiguration = nullptr;
 			btDiscreteDynamicsWorld* _pDiscreteDynamicsWorld = nullptr;
+			btGhostPairCallback _ghostPairCallback;
+			BulletDebugDraw _debugDraw;
 
 		public:
 			Bullet();

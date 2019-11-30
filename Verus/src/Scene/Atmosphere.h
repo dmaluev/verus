@@ -53,14 +53,7 @@ namespace verus
 			// Shadow:
 			void BeginShadow(int split);
 			void EndShadow(int split);
-			RShadowMap GetShadowMap() { return _shadowMap; }
-			bool IsRenderingShadow() const { return _shadowMap.IsRendering(); }
-			int GetCurrentSplit() const { return _shadowMap.GetCurrentSplit(); }
-			PCamera GetSunCameraCSM() { return _shadowMap.GetCameraCSM(); }
-			RcVector4       GetSunShadowSplitRanges()       const { return _shadowMap.GetSplitRanges(); }
-			RcMatrix4       GetSunShadowMatrix(int split)   const { return _shadowMap.GetShadowMatrix(split); }
-			RcMatrix4       GetSunShadowMatrixDS(int split) const { return _shadowMap.GetShadowMatrixDS(split); }
-			CGI::TexturePtr GetSunShadowTexture()           const { return _shadowMap.GetTexture(); }
+			RCascadedShadowMap GetShadowMap() { return _shadowMap; }
 
 			RcPoint3 GetEyePosition(PVector3 pDirFront = nullptr);
 		};

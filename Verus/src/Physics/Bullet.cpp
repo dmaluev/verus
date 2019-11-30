@@ -21,7 +21,7 @@ void Bullet::Init()
 	_pBroadphaseInterface = new btDbvtBroadphase();
 	_pConstraintSolver = new btSequentialImpulseConstraintSolver();
 
-	//_pBroadphaseInterface->getOverlappingPairCache()->setInternalGhostPairCallback(&m_ghostPairCallback);
+	_pBroadphaseInterface->getOverlappingPairCache()->setInternalGhostPairCallback(&_ghostPairCallback);
 
 	_pDiscreteDynamicsWorld = new btDiscreteDynamicsWorld(
 		_pDispatcher,
@@ -31,7 +31,7 @@ void Bullet::Init()
 
 #ifdef VERUS_DEBUG
 	_pDiscreteDynamicsWorld->setDebugDrawer(&_debugDraw);
-	_pDiscreteDynamicsWorld->getDebugDrawer()->setDebugMode(btIDebugDraw::DBG_NoDebug);
+	EnableDebugDraw(true);
 #endif
 
 	// See: http://bulletphysics.org/Bullet/phpBB3/viewtopic.php?t=6773:
@@ -131,13 +131,15 @@ void Bullet::Simulate()
 
 void Bullet::DebugDraw()
 {
+#ifdef VERUS_DEBUG
 	if (!_pDiscreteDynamicsWorld)
 		return;
 
-	//VERUS_QREF_DR;
-	//dr.Begin(CGL::CDebugRender::T_LINES, nullptr, false);
-	//_pDiscreteDynamicsWorld->debugDrawWorld();
-	//dr.End();
+	VERUS_QREF_DD;
+	dd.Begin(CGI::DebugDraw::Type::lines, nullptr, false);
+	_pDiscreteDynamicsWorld->debugDrawWorld();
+	dd.End();
+#endif
 }
 
 void Bullet::EnableDebugDraw(bool b)

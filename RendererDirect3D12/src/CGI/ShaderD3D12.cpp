@@ -436,6 +436,16 @@ int ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_list<
 	return complexSetID;
 }
 
+void ShaderD3D12::FreeDescriptorSet(int complexSetID)
+{
+	if (complexSetID >= 0 && complexSetID < _vComplexSets.size())
+	{
+		_vComplexSets[complexSetID]._vTextures.clear();
+		_vComplexSets[complexSetID]._dhSrvUav.Reset();
+		_vComplexSets[complexSetID]._dhSamplers.Reset();
+	}
+}
+
 void ShaderD3D12::BeginBindDescriptors()
 {
 	VERUS_QREF_RENDERER;

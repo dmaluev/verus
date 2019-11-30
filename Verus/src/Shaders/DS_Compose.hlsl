@@ -65,6 +65,8 @@ FSO mainFS(VSO si)
 
 	const float4 rawAccDiff = g_texAccDiff.Sample(g_samAccDiff, si.tc0);
 	const float4 rawAccSpec = g_texAccSpec.Sample(g_samAccSpec, si.tc0);
+	const float4 accDiff = HDRColorToLinear(rawAccDiff);
+	const float4 accSpec = HDRColorToLinear(rawAccSpec);
 
 	const float ssaoDiff = 1.0;
 	const float ssaoSpec = 1.0;
@@ -79,12 +81,15 @@ FSO mainFS(VSO si)
 	const float gray = Grayscale(colorAmbient);
 	const float3 colorGround = lerp(colorAmbient, float3(1, 0.88, 0.47) * gray, saturate(gray * 14.0));
 	const float3 colorAmbientFinal = lerp(colorGround, colorAmbient, saturate(normalW.y * 2.0 + 0.5));
-	const float3 color = lerp(
-		ApplyEmission(albedo, emission.x) * saturate(rawAccDiff.rgb * ssaoDiff + colorAmbientFinal * ssaoAmb) + rawAccSpec.rgb * ssaoSpec,
-		g_ubComposeFS._fogColor.rgb,
-		fog);
 
-	so.color.rgb = color;
+	const float3 color =
+		albedo * saturate(accDiff.rgb * ssaoDiff + colorAmbientFinal * ssaoAmb) +
+		accSpec.rgb * ssaoSpec +
+		albedo * emission.x;
+
+	const float3 colorWithFog = lerp(color, g_ubComposeFS._fogColor.rgb, fog);
+
+	so.color.rgb = lerp(colorWithFog, g_ubComposeFS._colorBackground.rgb, floor(rawGBuffer1) * g_ubComposeFS._colorBackground.a);
 	so.color.a = 1.0;
 
 	return so;

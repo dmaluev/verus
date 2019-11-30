@@ -1,4 +1,5 @@
 #include "Lib.hlsl"
+#include "LibColor.hlsl"
 #include "LibDeferredShading.hlsl"
 #include "DS_Terrain.inc.hlsl"
 

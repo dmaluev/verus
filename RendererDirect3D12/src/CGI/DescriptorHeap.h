@@ -43,9 +43,10 @@ namespace verus
 			UINT64 _peakLoad = 0;
 
 		public:
-			void Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num, bool shaderVisible = false);
+			void Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num, UINT numStatic = 0, bool shaderVisible = false);
 
 			HandlePair GetNextHandlePair(int num = 1);
+			HandlePair GetStaticHandlePair(int index);
 
 			UINT GetCapacity() const { return _capacity; }
 			UINT GetOffset() const { return _offset; }

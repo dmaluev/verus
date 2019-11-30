@@ -17,8 +17,8 @@ void GeometryD3D12::Init(RcGeometryDesc desc)
 {
 	VERUS_INIT();
 
+	_dynBindingsMask = desc._dynBindingsMask;
 	_32BitIndices = desc._32BitIndices;
-	_dynamic = desc._dynamic;
 
 	_vInputElementDesc.reserve(GetNumInputElementDesc(desc._pInputElementDesc));
 	int i = 0;
@@ -30,7 +30,7 @@ void GeometryD3D12::Init(RcGeometryDesc desc)
 		if (binding < 0)
 		{
 			binding = -binding;
-			_bindingInstMask |= (1 << binding);
+			_instBindingsMask |= (1 << binding);
 			inputClassification = D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA;
 			instanceDataStepRate = 1;
 		}
@@ -91,7 +91,7 @@ void GeometryD3D12::CreateVertexBuffer(int num, int binding)
 	const int elementSize = _vStrides[binding];
 	vb._bufferSize = num * elementSize;
 
-	if (((_bindingInstMask >> binding) & 0x1) || _dynamic)
+	if (((_instBindingsMask | _dynBindingsMask) >> binding) & 0x1)
 	{
 		D3D12MA::ALLOCATION_DESC allocDesc = {};
 		allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
@@ -136,7 +136,7 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, BaseCommandBu
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
 
-	if (((_bindingInstMask >> binding) & 0x1) || _dynamic)
+	if (((_instBindingsMask | _dynBindingsMask) >> binding) & 0x1)
 	{
 		auto& vb = _vVertexBuffers[binding];
 		CD3DX12_RANGE readRange(0, 0);
@@ -289,7 +289,7 @@ D3D12_INPUT_LAYOUT_DESC GeometryD3D12::GetD3DInputLayoutDesc(UINT32 bindingsFilt
 
 const D3D12_VERTEX_BUFFER_VIEW* GeometryD3D12::GetD3DVertexBufferView(int binding) const
 {
-	if ((_bindingInstMask >> binding) & 0x1)
+	if (((_instBindingsMask | _dynBindingsMask) >> binding) & 0x1)
 	{
 		VERUS_QREF_RENDERER_D3D12;
 		return &_vVertexBuffers[binding]._bufferView[pRendererD3D12->GetRingBufferIndex()];

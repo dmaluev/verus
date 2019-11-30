@@ -451,6 +451,19 @@ int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list
 	return complexSetID;
 }
 
+void ShaderVulkan::FreeDescriptorSet(int complexSetID)
+{
+	VERUS_QREF_RENDERER_VULKAN;
+	VkResult res = VK_SUCCESS;
+
+	if (complexSetID >= 0 && complexSetID < _vComplexDescriptorSets.size() && _vComplexDescriptorSets[complexSetID] != VK_NULL_HANDLE)
+	{
+		if (VK_SUCCESS != (res = vkFreeDescriptorSets(pRendererVulkan->GetVkDevice(), _descriptorPool, 1, &_vComplexDescriptorSets[complexSetID])))
+			throw VERUS_RUNTIME_ERROR << "vkFreeDescriptorSets(), res=" << res;
+		_vComplexDescriptorSets[complexSetID] = VK_NULL_HANDLE;
+	}
+}
+
 void ShaderVulkan::BeginBindDescriptors()
 {
 	VERUS_QREF_RENDERER;
@@ -496,32 +509,26 @@ void ShaderVulkan::CreateDescriptorPool()
 
 	VkDescriptorPoolCreateInfo vkdpci = {};
 	vkdpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	vkdpci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 	vkdpci.poolSizeCount = 1;
 	VkDescriptorPoolSize vkdps[4] = {};
-	vkdps[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-	vkdps[0].descriptorCount = _poolComplexUniformBuffers + Utils::Cast32(_vDescriptorSetLayouts.size());
+	vkdps[0] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, _poolComplexUniformBuffers + Utils::Cast32(_vDescriptorSetLayouts.size()) };
 	vkdpci.maxSets = vkdps[0].descriptorCount;
 	int index = 1;
 	if (_poolComplexImageSamplers > 0)
 	{
-		vkdps[index].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		vkdps[index].descriptorCount = _poolComplexImageSamplers;
+		vkdps[index++] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, _poolComplexImageSamplers };
 		vkdpci.poolSizeCount++;
-		index++;
 	}
 	if (_poolComplexStorageImages > 0)
 	{
-		vkdps[index].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-		vkdps[index].descriptorCount = _poolComplexStorageImages;
+		vkdps[index++] = { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, _poolComplexStorageImages };
 		vkdpci.poolSizeCount++;
-		index++;
 	}
 	if (_poolComplexInputAttachments > 0)
 	{
-		vkdps[index].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-		vkdps[index].descriptorCount = _poolComplexInputAttachments;
+		vkdps[index++] = { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, _poolComplexInputAttachments };
 		vkdpci.poolSizeCount++;
-		index++;
 	}
 	vkdpci.pPoolSizes = vkdps;
 	if (VK_SUCCESS != (res = vkCreateDescriptorPool(pRendererVulkan->GetVkDevice(), &vkdpci, pRendererVulkan->GetAllocator(), &_descriptorPool)))

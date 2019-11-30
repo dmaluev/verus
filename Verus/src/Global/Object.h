@@ -8,14 +8,8 @@
 #	define VERUS_UPDATE_ONCE_CHECK_DRAW
 #endif
 
-#define VERUS_INIT()\
-	Object::Init();
-
-#define VERUS_DONE(x)\
-	if(Object::IsInitialized()) {\
-	Object::Done();\
-	this->~x();\
-	new(this) x();}
+#define VERUS_INIT() Object::Init();
+#define VERUS_DONE(x) if (Object::IsInitialized()) { Object::Done(); this->~x(); new(this) x(); }
 
 namespace verus
 {
@@ -32,7 +26,7 @@ namespace verus
 	{
 		std::atomic_uint _flags;
 #ifdef VERUS_DEBUG
-		UINT32 _updateOnceFrame = 0;
+		UINT64 _updateOnceFrame = 0;
 #endif
 
 	protected:

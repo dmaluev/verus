@@ -9,6 +9,7 @@ namespace verus
 		protected:
 			Matrix4         _matShadow;
 			Matrix4         _matShadowDS;
+			Vector4         _config = Vector4(0);
 			CGI::TexturePwn _tex;
 			Camera          _camera;
 			PCamera         _pSceneCamera = nullptr;
@@ -36,6 +37,8 @@ namespace verus
 
 			RcMatrix4 GetShadowMatrix() const;
 			RcMatrix4 GetShadowMatrixDS() const;
+
+			RcVector4 GetConfig() { return _config; }
 
 			CGI::TexturePtr GetTexture() const;
 

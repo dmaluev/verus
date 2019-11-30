@@ -16,7 +16,7 @@ int RendererParser::Expect(CSZ& p, CSZ* ppOptions)
 	CSZ option = ppOptions[index];
 	while (option)
 	{
-		size_t len = strlen(option);
+		const size_t len = strlen(option);
 		if (!strncmp(p, option, len))
 		{
 			p += len;

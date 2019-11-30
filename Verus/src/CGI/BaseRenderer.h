@@ -25,10 +25,10 @@ namespace verus
 		class BaseRenderer : public Object
 		{
 		protected:
-			BaseRendererDesc   _desc;
-			UINT32             _numSwapChainBuffers = 0;
-			UINT32             _swapChainBufferIndex = 0;
-			UINT32             _ringBufferIndex = 0;
+			BaseRendererDesc _desc;
+			UINT32           _numSwapChainBuffers = 0;
+			UINT32           _swapChainBufferIndex = 0;
+			UINT32           _ringBufferIndex = 0;
 
 			BaseRenderer();
 			virtual ~BaseRenderer();
@@ -37,7 +37,6 @@ namespace verus
 			static const int s_ringBufferSize = 3;
 
 			static BaseRenderer* Load(CSZ dll, RBaseRendererDesc desc);
-
 			virtual void ReleaseMe() = 0;
 
 			void SetDesc(RBaseRendererDesc desc) { _desc = desc; }
@@ -49,6 +48,8 @@ namespace verus
 			virtual void ImGuiInit(int renderPassID) = 0;
 			virtual void ImGuiRenderDrawData() = 0;
 
+			virtual void ResizeSwapChain() = 0;
+
 			// Which graphics API?
 			virtual Gapi GetGapi() = 0;
 
@@ -56,7 +57,6 @@ namespace verus
 			virtual void BeginFrame(bool present = true) = 0;
 			virtual void EndFrame(bool present = true) = 0;
 			virtual void Present() = 0;
-
 			virtual void WaitIdle() = 0;
 
 			// Resources:

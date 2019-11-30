@@ -103,106 +103,135 @@ void DeferredShading::Init()
 		_pipe[PIPE_QUAD].Init(pipeDesc);
 	}
 
-	InitGBuffers(settings._screenSizeWidth, settings._screenSizeHeight);
-
-	TextureDesc texDesc;
-
-	// Light accumulation buffers:
-	texDesc._format = Format::unormR10G10B10A2;
-	texDesc._width = settings._screenSizeWidth;
-	texDesc._height = settings._screenSizeHeight;
-	texDesc._flags = TextureDesc::Flags::colorAttachment;
-	_tex[TEX_LIGHT_ACC_DIFF].Init(texDesc);
-	texDesc._format = Format::unormR10G10B10A2;
-	texDesc._width = settings._screenSizeWidth;
-	texDesc._height = settings._screenSizeHeight;
-	texDesc._flags = TextureDesc::Flags::colorAttachment;
-	_tex[TEX_LIGHT_ACC_SPEC].Init(texDesc);
-
-	_fb = renderer->CreateFramebuffer(_rp,
-		{
-			_tex[TEX_GBUFFER_0],
-			_tex[TEX_GBUFFER_1],
-			_tex[TEX_GBUFFER_2],
-			_tex[TEX_GBUFFER_3],
-			_tex[TEX_LIGHT_ACC_DIFF],
-			_tex[TEX_LIGHT_ACC_SPEC],
-			renderer.GetTexDepthStencil()
-		},
-		settings._screenSizeWidth,
-		settings._screenSizeHeight);
-
-	_csidCompose = _shader[S_COMPOSE]->BindDescriptorSetTextures(1,
-		{
-			_tex[TEX_GBUFFER_0],
-			_tex[TEX_GBUFFER_1],
-			_tex[TEX_GBUFFER_2],
-			_tex[TEX_GBUFFER_3],
-			_tex[TEX_LIGHT_ACC_DIFF],
-			_tex[TEX_LIGHT_ACC_SPEC]
-		});
-	VERUS_FOR(i, VERUS_ARRAY_LENGTH(_csidQuad))
-		_csidQuad[i] = renderer.GetShaderQuad()->BindDescriptorSetTextures(1, { _tex[TEX_GBUFFER_0 + i] });
+	OnSwapChainResized(true, false);
 
 	VERUS_LOG_INFO("</DeferredShadingInit>");
 }
 
 void DeferredShading::InitGBuffers(int w, int h)
 {
-	_width = w;
-	_height = h;
-
 	TextureDesc texDesc;
 
 	// GB0:
 	texDesc._clearValue = Vector4(0, 0, 0, 1);
 	texDesc._format = Format::srgbR8G8B8A8;
-	texDesc._width = _width;
-	texDesc._height = _height;
+	texDesc._width = w;
+	texDesc._height = h;
 	texDesc._flags = TextureDesc::Flags::colorAttachment | TextureDesc::Flags::inputAttachment;
 	_tex[TEX_GBUFFER_0].Init(texDesc);
 
 	// GB1:
 	texDesc._clearValue = Vector4(1);
 	texDesc._format = Format::floatR32;
-	texDesc._width = _width;
-	texDesc._height = _height;
+	texDesc._width = w;
+	texDesc._height = h;
 	texDesc._flags = TextureDesc::Flags::colorAttachment | TextureDesc::Flags::inputAttachment;
 	_tex[TEX_GBUFFER_1].Init(texDesc);
 
 	// GB2:
-	texDesc._clearValue = Vector4(0.5f, 0.5f, 0.5f, 0.5f);
+	texDesc._clearValue = Vector4(0.5f, 0.5f, 0.25f, 0.5f);
 	texDesc._format = Format::unormR10G10B10A2;
-	texDesc._width = _width;
-	texDesc._height = _height;
+	texDesc._width = w;
+	texDesc._height = h;
 	texDesc._flags = TextureDesc::Flags::colorAttachment | TextureDesc::Flags::inputAttachment;
 	_tex[TEX_GBUFFER_2].Init(texDesc);
 
 	// GB3:
 	texDesc._clearValue = Vector4(1, 1, 1, 1);
 	texDesc._format = Format::unormR8G8B8A8;
-	texDesc._width = _width;
-	texDesc._height = _height;
+	texDesc._width = w;
+	texDesc._height = h;
 	texDesc._flags = TextureDesc::Flags::colorAttachment | TextureDesc::Flags::inputAttachment;
 	_tex[TEX_GBUFFER_3].Init(texDesc);
 }
 
 void DeferredShading::InitByAtmosphere(TexturePtr texShadow)
 {
+	_texShadowAtmo = texShadow;
 	_csidLight = _shader[S_LIGHT]->BindDescriptorSetTextures(1,
 		{
 			_tex[TEX_GBUFFER_0],
 			_tex[TEX_GBUFFER_1],
 			_tex[TEX_GBUFFER_2],
 			_tex[TEX_GBUFFER_3],
-			texShadow,
-			texShadow
+			_texShadowAtmo,
+			_texShadowAtmo
 		});
 }
 
 void DeferredShading::Done()
 {
 	VERUS_DONE(DeferredShading);
+}
+
+void DeferredShading::OnSwapChainResized(bool init, bool done)
+{
+	VERUS_QREF_RENDERER;
+
+	if (done)
+	{
+		_shader[S_LIGHT]->FreeDescriptorSet(_csidLight);
+
+		VERUS_FOR(i, VERUS_ARRAY_LENGTH(_csidQuad))
+			renderer.GetShaderQuad()->FreeDescriptorSet(_csidQuad[i]);
+		_shader[S_COMPOSE]->FreeDescriptorSet(_csidCompose);
+
+		renderer->DeleteFramebuffer(_fb);
+
+		_tex[TEX_LIGHT_ACC_SPEC].Done();
+		_tex[TEX_LIGHT_ACC_DIFF].Done();
+		_tex[TEX_GBUFFER_3].Done();
+		_tex[TEX_GBUFFER_2].Done();
+		_tex[TEX_GBUFFER_1].Done();
+		_tex[TEX_GBUFFER_0].Done();
+	}
+
+	if (init)
+	{
+		InitGBuffers(renderer.GetSwapChainWidth(), renderer.GetSwapChainHeight());
+
+		TextureDesc texDesc;
+
+		// Light accumulation buffers:
+		texDesc._format = Format::unormR10G10B10A2;
+		texDesc._width = renderer.GetSwapChainWidth();
+		texDesc._height = renderer.GetSwapChainHeight();
+		texDesc._flags = TextureDesc::Flags::colorAttachment;
+		_tex[TEX_LIGHT_ACC_DIFF].Init(texDesc);
+		texDesc._format = Format::unormR10G10B10A2;
+		texDesc._width = renderer.GetSwapChainWidth();
+		texDesc._height = renderer.GetSwapChainHeight();
+		texDesc._flags = TextureDesc::Flags::colorAttachment;
+		_tex[TEX_LIGHT_ACC_SPEC].Init(texDesc);
+
+		_fb = renderer->CreateFramebuffer(_rp,
+			{
+				_tex[TEX_GBUFFER_0],
+				_tex[TEX_GBUFFER_1],
+				_tex[TEX_GBUFFER_2],
+				_tex[TEX_GBUFFER_3],
+				_tex[TEX_LIGHT_ACC_DIFF],
+				_tex[TEX_LIGHT_ACC_SPEC],
+				renderer.GetTexDepthStencil()
+			},
+			renderer.GetSwapChainWidth(),
+			renderer.GetSwapChainHeight());
+
+		_csidCompose = _shader[S_COMPOSE]->BindDescriptorSetTextures(1,
+			{
+				_tex[TEX_GBUFFER_0],
+				_tex[TEX_GBUFFER_1],
+				_tex[TEX_GBUFFER_2],
+				_tex[TEX_GBUFFER_3],
+				_tex[TEX_LIGHT_ACC_DIFF],
+				_tex[TEX_LIGHT_ACC_SPEC]
+			});
+		VERUS_FOR(i, VERUS_ARRAY_LENGTH(_csidQuad))
+			_csidQuad[i] = renderer.GetShaderQuad()->BindDescriptorSetTextures(1, { _tex[TEX_GBUFFER_0 + i] });
+
+		if (_texShadowAtmo)
+			InitByAtmosphere(_texShadowAtmo);
+	}
 }
 
 bool DeferredShading::IsLoaded()
@@ -308,6 +337,14 @@ void DeferredShading::EndGeometryPass(bool resetRT)
 
 bool DeferredShading::BeginLightingPass()
 {
+	VERUS_QREF_RENDERER;
+	VERUS_RT_ASSERT(renderer.GetNumFrames() == _frame);
+	VERUS_RT_ASSERT(!_activeGeometryPass && !_activeLightingPass);
+	_activeLightingPass = true;
+
+	renderer.GetCommandBuffer()->NextSubpass();
+	_shader[S_LIGHT]->BeginBindDescriptors();
+
 	if (!IsLoaded())
 		return false;
 
@@ -348,15 +385,6 @@ bool DeferredShading::BeginLightingPass()
 		}
 	}
 
-	VERUS_QREF_RENDERER;
-	VERUS_RT_ASSERT(renderer.GetNumFrames() == _frame);
-	VERUS_RT_ASSERT(!_activeGeometryPass && !_activeLightingPass);
-	_activeLightingPass = true;
-
-	renderer.GetCommandBuffer()->NextSubpass();
-
-	_shader[S_LIGHT]->BeginBindDescriptors();
-
 	return true;
 }
 
@@ -371,7 +399,7 @@ void DeferredShading::EndLightingPass()
 	renderer.GetCommandBuffer()->EndRenderPass();
 }
 
-void DeferredShading::Compose()
+void DeferredShading::Compose(RcVector4 bgColor)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
@@ -383,6 +411,7 @@ void DeferredShading::Compose()
 	s_ubComposeVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 	s_ubComposeFS._matInvV = sm.GetCamera()->GetMatrixVi().UniformBufferFormat();
 	s_ubComposeFS._colorAmbient = Vector4(0.1f, 0.1f, 0.2f, 1).GLM();
+	s_ubComposeFS._colorBackground = bgColor.GLM();
 	s_ubComposeFS._fogColor = Vector4(0.5f, 0.5f, 0.5f, 0.002f).GLM();
 	s_ubComposeFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
 	renderer.GetCommandBuffer()->BindDescriptors(_shader[S_COMPOSE], 0);
@@ -432,13 +461,12 @@ void DeferredShading::OnNewLightType(LightType type, bool wireframe)
 	renderer.GetCommandBuffer()->BindDescriptors(_shader[S_LIGHT], 1, _csidLight);
 
 	// Shadow:
-	if (atmo.GetSunShadowTexture())
-		s_ubShadowFS._shadowTexSize = atmo.GetSunShadowTexture()->GetSize().GLM();
-	s_ubShadowFS._matSunShadow = atmo.GetSunShadowMatrixDS(0).UniformBufferFormat();
-	s_ubShadowFS._matSunShadowCSM1 = atmo.GetSunShadowMatrixDS(1).UniformBufferFormat();
-	s_ubShadowFS._matSunShadowCSM2 = atmo.GetSunShadowMatrixDS(2).UniformBufferFormat();
-	s_ubShadowFS._matSunShadowCSM3 = atmo.GetSunShadowMatrixDS(3).UniformBufferFormat();
-	s_ubShadowFS._splitRanges = atmo.GetSunShadowSplitRanges().GLM();
+	s_ubShadowFS._matSunShadow = atmo.GetShadowMap().GetShadowMatrixDS(0).UniformBufferFormat();
+	s_ubShadowFS._matSunShadowCSM1 = atmo.GetShadowMap().GetShadowMatrixDS(1).UniformBufferFormat();
+	s_ubShadowFS._matSunShadowCSM2 = atmo.GetShadowMap().GetShadowMatrixDS(2).UniformBufferFormat();
+	s_ubShadowFS._matSunShadowCSM3 = atmo.GetShadowMap().GetShadowMatrixDS(3).UniformBufferFormat();
+	s_ubShadowFS._shadowConfig = atmo.GetShadowMap().GetConfig().GLM();
+	s_ubShadowFS._splitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
 	renderer.GetCommandBuffer()->BindDescriptors(_shader[S_LIGHT], 3);
 }
 

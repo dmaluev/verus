@@ -82,6 +82,12 @@
     <Filter Include="src\ThirdParty\imgui">
       <UniqueIdentifier>{3ee2005e-b456-4f4f-95cd-ad3ac11aaccb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\ThirdParty\nativefiledialog">
+      <UniqueIdentifier>{91530a5d-5ad0-4b0a-b2af-b48fa807a91d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Extra">
+      <UniqueIdentifier>{a3579964-dc6d-460a-82fb-b3b35746fcf1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\CGI\BaseGeometry.h">
@@ -516,6 +522,30 @@
     <ClInclude Include="src\ThirdParty\imgui\imgui_impl_sdl.h">
       <Filter>src\ThirdParty\imgui</Filter>
     </ClInclude>
+    <ClInclude Include="src\Physics\BulletDebugDraw.h">
+      <Filter>src\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Physics\CharacterController.h">
+      <Filter>src\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Physics\KinematicCharacterController.h">
+      <Filter>src\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\CameraOrbit.h">
+      <Filter>src\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Input\DragController.h">
+      <Filter>src\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\nativefiledialog\nfd.h">
+      <Filter>src\ThirdParty\nativefiledialog</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Extra\Extra.h">
+      <Filter>src\Extra</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Extra\FileParser.h">
+      <Filter>src\Extra</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -838,6 +868,36 @@
     </ClCompile>
     <ClCompile Include="src\ThirdParty\imgui\imgui_impl_sdl.cpp">
       <Filter>src\ThirdParty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Physics\BulletDebugDraw.cpp">
+      <Filter>src\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Physics\CharacterController.cpp">
+      <Filter>src\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Physics\KinematicCharacterController.cpp">
+      <Filter>src\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\CameraOrbit.cpp">
+      <Filter>src\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Input\DragController.cpp">
+      <Filter>src\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\nativefiledialog\nfd_win.cpp">
+      <Filter>src\ThirdParty\nativefiledialog</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\nativefiledialog\nfd_common.c">
+      <Filter>src\ThirdParty\nativefiledialog</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Extra\Extra.cpp">
+      <Filter>src\Extra</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Extra\FileParser.cpp">
+      <Filter>src\Extra</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\fast_atof.c">
+      <Filter>src\ThirdParty</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

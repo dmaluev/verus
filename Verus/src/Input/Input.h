@@ -1,6 +1,7 @@
 #pragma once
 
 #include "KeyMapper.h"
+#include "DragController.h"
 
 namespace verus
 {

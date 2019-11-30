@@ -57,7 +57,7 @@ void BaseMesh::Load(RcBlob blob)
 		}
 		else
 		{
-			throw VERUS_RECOVERABLE << "Load(), Invalid magic number";
+			throw VERUS_RECOVERABLE << "Load(), invalid magic number";
 		}
 	}
 	VERUS_LOG_WARN("Load(), Old X3D version");
@@ -90,6 +90,7 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 		{
 			sp.ReadString(buffer);
 			_numFaces = atoi(buffer);
+			_indexCount = _numFaces * 3;
 			VERUS_RT_ASSERT(_vIndices.empty());
 			_vIndices.resize(_numFaces * 3);
 			UINT16* pIB = _vIndices.data();
@@ -113,22 +114,18 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 				vPolyCheck.push_back(tag);
 			}
 			std::sort(vPolyCheck.begin(), vPolyCheck.end());
-			if (std::adjacent_find(vPolyCheck.begin(), vPolyCheck.end()) != vPolyCheck.end())
-				VERUS_LOG_SESSION(_C("WARNING: Duplicate triangle in " + _url));
+			if (vPolyCheck.end() != std::adjacent_find(vPolyCheck.begin(), vPolyCheck.end()))
+				VERUS_LOG_WARN("Duplicate triangle in " << _url);
 			Vector<UINT16> vSorted;
 			vSorted.assign(_vIndices.begin(), _vIndices.end());
 			std::sort(vSorted.begin(), vSorted.end());
 			bool isolatedVertex = false;
-			std::adjacent_find(vSorted.begin(), vSorted.end(), [&isolatedVertex](const UINT16& a, const UINT16& b)
-				{
-					if (b - a > 1)
-						isolatedVertex = true;
-					return false;
-				});
+			if (vSorted.end() != std::adjacent_find(vSorted.begin(), vSorted.end(), [](const UINT16& a, const UINT16& b) {return b - a > 1; }))
+				isolatedVertex = true;
 			if (isolatedVertex)
-				VERUS_LOG_SESSION(_C("WARNING: Isolated vertex in " + _url));
+				VERUS_LOG_WARN("Isolated vertex in " << _url);
 			if (_numVerts <= vSorted.back())
-				VERUS_LOG_SESSION(_C("WARNING: Index out of bounds in " + _url));
+				VERUS_LOG_WARN("Index out of bounds in " << _url);
 #endif
 			sp.Read(&_posDeq[0], 12);
 			sp.Read(&_posDeq[3], 12);
@@ -142,8 +139,8 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 #ifdef VERUS_DEBUG
 				const short* pMin = std::min_element(pVB[i]._pos, pVB[i]._pos + 3);
 				const short* pMax = std::max_element(pVB[i]._pos, pVB[i]._pos + 3);
-				mn = CMath::Min(mn, *pMin);
-				mx = CMath::Max(mx, *pMax);
+				mn = Math::Min(mn, *pMin);
+				mx = Math::Max(mx, *pMax);
 #endif
 			}
 #ifdef VERUS_DEBUG
@@ -210,8 +207,8 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 #ifdef VERUS_DEBUG
 				const short* pMin = std::min_element(pVB[i]._tc0, pVB[i]._tc0 + 2);
 				const short* pMax = std::max_element(pVB[i]._tc0, pVB[i]._tc0 + 2);
-				mn = CMath::Min(mn, *pMin);
-				mx = CMath::Max(mx, *pMax);
+				mn = Math::Min(mn, *pMin);
+				mx = Math::Max(mx, *pMax);
 #endif
 			}
 #ifdef VERUS_DEBUG

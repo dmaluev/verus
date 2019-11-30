@@ -67,6 +67,8 @@ namespace verus
 			virtual void ImGuiInit(int renderPassID) override;
 			virtual void ImGuiRenderDrawData() override;
 
+			virtual void ResizeSwapChain() override;
+
 			// Which graphics API?
 			virtual Gapi GetGapi() override { return Gapi::direct3D12; }
 
@@ -74,7 +76,6 @@ namespace verus
 			virtual void BeginFrame(bool present) override;
 			virtual void EndFrame(bool present) override;
 			virtual void Present() override;
-
 			virtual void WaitIdle() override;
 
 			// Resources:

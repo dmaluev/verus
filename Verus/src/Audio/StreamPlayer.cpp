@@ -274,7 +274,7 @@ void StreamPlayer::ThreadProc()
 	}
 	catch (D::RcRuntimeError e)
 	{
-		//Utils::CLog::Error(e.what(), e.GetThreadID(), e.GetFile(), e.GetLine());
+		D::Log::I().Write(e.what(), e.GetThreadID(), e.GetFile(), e.GetLine(), D::Log::Severity::error);
 	}
 	catch (const std::exception & e)
 	{

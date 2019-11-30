@@ -41,6 +41,8 @@ namespace verus
 			DeferredShading   _ds;
 			UINT64            _numFrames = 0;
 			Gapi              _gapi = Gapi::unknown;
+			int               _swapChainWidth = 0;
+			int               _swapChainHeight = 0;
 			float             _fps = 30;
 			int               _rpSwapChain = 0;
 			int               _rpSwapChainDepth = 0;
@@ -66,6 +68,11 @@ namespace verus
 			void Draw();
 			void Present();
 
+			void OnWindowResized(int w, int h);
+			VERUS_P(void OnSwapChainResized(bool init, bool done));
+			int GetSwapChainWidth() const { return _swapChainWidth; }
+			int GetSwapChainHeight() const { return _swapChainHeight; }
+
 			// Simple (fullscreen) quad:
 			void DrawQuad(PBaseCommandBuffer pCB = nullptr);
 
@@ -82,6 +89,7 @@ namespace verus
 			float GetWindowAspectRatio() const;
 
 			virtual void ImGuiSetCurrentContext(ImGuiContext* pContext);
+			void ImGuiUpdateStyle();
 
 			// Frame rate:
 			float GetFps() const { return _fps; }

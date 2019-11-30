@@ -75,8 +75,12 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	viewportState.viewportCount = desc._multiViewport;
 	viewportState.scissorCount = desc._multiViewport;
 
+	VkPipelineRasterizationLineStateCreateInfoEXT rasterizationLineState = {};
+	rasterizationLineState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_LINE_STATE_CREATE_INFO_EXT;
+	rasterizationLineState.lineRasterizationMode = VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH_EXT;
 	VkPipelineRasterizationStateCreateInfo rasterizationState = {};
 	rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizationState.pNext = &rasterizationLineState;
 	rasterizationState.depthClampEnable = desc._rasterizationState._depthClampEnable;
 	rasterizationState.rasterizerDiscardEnable = desc._rasterizationState._rasterizerDiscardEnable;
 	rasterizationState.polygonMode = ToNativePolygonMode(desc._rasterizationState._polygonMode);
@@ -86,7 +90,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	rasterizationState.depthBiasConstantFactor = desc._rasterizationState._depthBiasConstantFactor * 0.5f; // Magic value to match D3D12.
 	rasterizationState.depthBiasClamp = desc._rasterizationState._depthBiasClamp;
 	rasterizationState.depthBiasSlopeFactor = desc._rasterizationState._depthBiasSlopeFactor;
-	rasterizationState.lineWidth = desc._rasterizationState._lineWidth;
+	rasterizationState.lineWidth = 1;
 
 	VkPipelineMultisampleStateCreateInfo multisampleState = {};
 	multisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;

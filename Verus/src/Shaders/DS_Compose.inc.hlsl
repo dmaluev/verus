@@ -8,6 +8,7 @@ VERUS_UBUFFER UB_ComposeFS
 {
 	mataff _matInvV;
 	float4 _colorAmbient;
+	float4 _colorBackground;
 	float4 _fogColor;
 	float4 _zNearFarEx;
 };

@@ -146,6 +146,7 @@ void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc d
 		if (shader)
 		{
 			strUrl.replace(0, strlen(s_shaderPAK), "/");
+			pathNameProject = String(_C(Utils::I().GetProjectPath())) + strUrl;
 			StringStream ss;
 			ss << _C(Utils::I().GetShaderPath()) << strUrl;
 			strUrl = ss.str();
@@ -154,6 +155,7 @@ void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc d
 		{
 			String folder = strUrl.substr(1, pakPos - 1);
 			const String name = strUrl.substr(pakPos + 2);
+			pathNameProject = String(_C(Utils::I().GetProjectPath())) + s_dataFolder + folder + "/" + name;
 			StringStream ss;
 			ss << _C(Utils::I().GetModulePath()) << s_dataFolder << folder << "/" << name;
 			strUrl = ss.str();

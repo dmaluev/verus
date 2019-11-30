@@ -37,10 +37,10 @@ namespace verus
 			VkDescriptorPool              _descriptorPool = VK_NULL_HANDLE;
 			VkPipelineLayout              _pipelineLayout = VK_NULL_HANDLE;
 			UINT64                        _currentFrame = UINT64_MAX;
-			int                           _poolComplexUniformBuffers = 0;
-			int                           _poolComplexImageSamplers = 0;
-			int                           _poolComplexStorageImages = 0;
-			int                           _poolComplexInputAttachments = 0;
+			uint32_t                      _poolComplexUniformBuffers = 0;
+			uint32_t                      _poolComplexImageSamplers = 0;
+			uint32_t                      _poolComplexStorageImages = 0;
+			uint32_t                      _poolComplexInputAttachments = 0;
 			bool                          _compute = false;
 
 		public:
@@ -53,6 +53,7 @@ namespace verus
 			virtual void CreateDescriptorSet(int setNumber, const void* pSrc, int size, int capacity, std::initializer_list<Sampler> il, ShaderStageFlags stageFlags) override;
 			virtual void CreatePipelineLayout() override;
 			virtual int BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips) override;
+			virtual void FreeDescriptorSet(int complexSetID) override;
 
 			virtual void BeginBindDescriptors() override;
 			virtual void EndBindDescriptors() override;

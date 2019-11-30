@@ -101,9 +101,9 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	if (renderTarget)
 	{
 		CommandBufferVulkan commandBuffer;
-		commandBuffer.InitSingleTimeCommands();
+		commandBuffer.InitOneTimeSubmit();
 		commandBuffer.PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, ImageLayout::fsReadOnly, 0, 0);
-		commandBuffer.DoneSingleTimeCommands();
+		commandBuffer.DoneOneTimeSubmit();
 	}
 	if (depthFormat)
 	{
@@ -111,9 +111,9 @@ void TextureVulkan::Init(RcTextureDesc desc)
 			ImageLayout::depthStencilReadOnly :
 			ImageLayout::depthStencilAttachment;
 		CommandBufferVulkan commandBuffer;
-		commandBuffer.InitSingleTimeCommands();
+		commandBuffer.InitOneTimeSubmit();
 		commandBuffer.PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, layout, 0, 0);
-		commandBuffer.DoneSingleTimeCommands();
+		commandBuffer.DoneOneTimeSubmit();
 	}
 
 	_vStagingBuffers.reserve(_desc._mipLevels * _desc._arrayLayers);
@@ -328,7 +328,7 @@ void TextureVulkan::CreateSampler()
 		}
 	}
 	vksci.mipLodBias = _desc._pSamplerDesc->_mipLodBias;
-	vksci.maxAnisotropy = settings._gpuAnisotropyLevel;
+	vksci.maxAnisotropy = static_cast<float>(settings._gpuAnisotropyLevel);
 	vksci.minLod = _desc._pSamplerDesc->_minLod;
 	vksci.maxLod = _desc._pSamplerDesc->_maxLod;
 	if (_desc._pSamplerDesc->_borderColor.getX() < 0.5f)

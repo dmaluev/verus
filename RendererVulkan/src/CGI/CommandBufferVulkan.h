@@ -7,6 +7,7 @@ namespace verus
 		class CommandBufferVulkan : public BaseCommandBuffer
 		{
 			VkCommandBuffer _commandBuffers[BaseRenderer::s_ringBufferSize] = {};
+			bool            _oneTimeSubmit = false;
 
 		public:
 			CommandBufferVulkan();
@@ -46,8 +47,8 @@ namespace verus
 
 			VkCommandBuffer GetVkCommandBuffer() const;
 
-			void InitSingleTimeCommands();
-			void DoneSingleTimeCommands();
+			void InitOneTimeSubmit();
+			void DoneOneTimeSubmit();
 		};
 		VERUS_TYPEDEFS(CommandBufferVulkan);
 	}

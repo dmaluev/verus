@@ -55,10 +55,10 @@ void Utils::InitPaths()
 	VERUS_LOG_INFO("Writable path: " << _writablePath);
 }
 
-void Utils::ExitSdlLoop()
+void Utils::PushQuitEvent()
 {
 	SDL_Event event = {};
-	event.type = SDL_USEREVENT;
+	event.type = SDL_QUIT;
 	SDL_PushEvent(&event);
 }
 

@@ -34,7 +34,7 @@ void DebugDraw::Init()
 	geoDesc._pInputElementDesc = ied;
 	const int strides[] = { sizeof(Vertex), 0 };
 	geoDesc._pStrides = strides;
-	geoDesc._dynamic = true;
+	geoDesc._dynBindingsMask = 0x1;
 	_geo.Init(geoDesc);
 	_geo->CreateVertexBuffer(_maxNumVert, 0);
 
@@ -44,7 +44,7 @@ void DebugDraw::Init()
 
 	{
 		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPass_SwapChainDepth());
-		pipeDesc._rasterizationState._polygonMode = PolygonMode::line;
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		pipeDesc._topology = PrimitiveTopology::pointList;
 		_pipe[PIPE_POINTS].Init(pipeDesc);
 		pipeDesc._depthTestEnable = false;
@@ -52,7 +52,7 @@ void DebugDraw::Init()
 	}
 	{
 		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPass_SwapChainDepth());
-		pipeDesc._rasterizationState._polygonMode = PolygonMode::line;
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		pipeDesc._topology = PrimitiveTopology::lineList;
 		_pipe[PIPE_LINES].Init(pipeDesc);
 		pipeDesc._depthTestEnable = false;
@@ -60,6 +60,7 @@ void DebugDraw::Init()
 	}
 	{
 		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPass_SwapChainDepth());
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		pipeDesc._rasterizationState._polygonMode = PolygonMode::line;
 		pipeDesc._topology = PrimitiveTopology::triangleList;
 		_pipe[PIPE_POLY].Init(pipeDesc);
@@ -114,11 +115,13 @@ void DebugDraw::Begin(Type type, PcTransform3 pMat, bool zEnable)
 
 void DebugDraw::End()
 {
+	if (!_numVert)
+		return;
 	VERUS_QREF_RENDERER;
 
 	_geo->UpdateVertexBuffer(_vDynamicBuffer.data(), 0);
 	renderer.GetCommandBuffer()->Draw(_numVert, 1, _offset);
-	_offset = _numVert;
+	_offset += _numVert;
 	_numVert = 0;
 }
 

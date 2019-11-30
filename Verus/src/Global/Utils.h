@@ -8,6 +8,7 @@ namespace verus
 		String         _modulePath;
 		String         _shaderPath;
 		String         _writablePath;
+		String         _projectPath;
 		PBaseAllocator _pAllocator;
 
 	public:
@@ -26,6 +27,8 @@ namespace verus
 		void SetShaderPath(CSZ path) { _shaderPath = path; }
 		Str  GetWritablePath() const { return _C(_writablePath); }
 		void SetWritablePath(CSZ path) { _writablePath = path; }
+		Str  GetProjectPath() const { return _C(_projectPath); }
+		void SetProjectPath(CSZ path) { _projectPath = path; }
 
 		RRandom GetRandom() { return _random; }
 
@@ -33,7 +36,7 @@ namespace verus
 		PBaseAllocator GetAllocator() { return _pAllocator; }
 		void           SetAllocator(PBaseAllocator p) { _pAllocator = p; }
 
-		static void ExitSdlLoop();
+		static void PushQuitEvent();
 
 		static INT32 Cast32(INT64 x);
 		static UINT32 Cast32(UINT64 x);

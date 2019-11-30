@@ -12,8 +12,14 @@ extern "C"
 #	include "libb64/cdecode.h"
 #endif
 
+// fast_atof (http://www.leapsecond.com/tools/fast_atof.c)
+extern "C"
+{
+	double fast_atof(const char* p);
+}
+
 // GLM (https://github.com/g-truc/glm):
-#define GLM_ENABLE_EXPERIMENTAL
+#define GLM_FORCE_CTOR_INIT
 #include "glm-0.9.9.6/glm/glm/glm.hpp"
 #include "glm-0.9.9.6/glm/glm/gtc/packing.hpp"
 #include "glm-0.9.9.6/glm/glm/gtc/quaternion.hpp"
@@ -32,6 +38,9 @@ extern "C"
 
 // MD5:
 #include "md5.h"
+
+// Native File Dialog (https://github.com/mlabbe/nativefiledialog):
+#include "nativefiledialog/nfd.h"
 
 // pugixml (https://pugixml.org/):
 #include "pugixml-1.10/pugixml.hpp"

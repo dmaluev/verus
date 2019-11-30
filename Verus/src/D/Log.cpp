@@ -5,79 +5,14 @@ using namespace verus::D;
 
 std::mutex D::Log::s_mutex;
 
-void Log::Error(CSZ txt, std::thread::id tid, CSZ filename, UINT32 line)
-{
-	std::lock_guard<std::mutex> lock(s_mutex);
-
-	const time_t t = time(0);
-	const tm* pTM = localtime(&t);
-	char timestamp[80];
-	strftime(timestamp, sizeof(timestamp), "%Y.%m.%d %H:%M:%S", pTM);
-
-	CSZ p = strrchr(filename, '/');
-	if (!p)
-		p = strrchr(filename, '\\');
-	filename = p ? p + 1 : filename;
-
-	String pathName;
-	//if (Global::IsValidSingleton())
-	//{
-	//	pathName = Global::I().GetWritablePath() + "/Errors.txt";
-	//}
-	//else
-	{
-		String temp = getenv("TEMP");
-		pathName = temp + "/CorrErrors.txt";
-	}
-
-	IO::File file;
-	if (file.Open(_C(pathName), "a"))
-	{
-		if (file.GetSize() > 100 * 1024)
-		{
-			file.Close();
-			file.Open(_C(pathName), "w");
-		}
-		StringStream ss;
-		ss << timestamp << " " << tid << " " << filename << ":" << line << " ERROR: " << txt << "\n";
-		file.Write(_C(ss.str()), ss.str().length());
-	}
-}
-
-void Log::Session(CSZ txt)
-{
-	/*
-	std::lock_guard<std::mutex> lock(s_mutex);
-
-	String pathName(Global::I().GetWritablePath());
-	pathName += "/SessionLog.txt";
-	IO::File file;
-	if (file.Create(_C(pathName), "a"))
-	{
-		StringStream ss;
-		ss.fill('0');
-		ss << '[';
-		ss.width(8);
-		ss << SDL_GetTicks() << "ms] " << txt << "\n";
-		file.Write(_C(ss.str()), ss.str().length());
-	}
-	*/
-}
-
-void Log::DebugString(CSZ txt)
-{
-	/*
-	StringStream ss;
-	ss << verus::Global::GetNextCounterValue() << ": " << txt << "\n";
-
-#ifdef _WIN32
-	OutputDebugStringA(_C(ss.str()));
-#endif
-	*/
-}
-
 void Log::Write(CSZ txt, std::thread::id tid, CSZ filename, UINT32 line, Severity severity)
 {
+#ifdef _DEBUG
+	if (severity <= Severity::error)
+	{
+		SDL_TriggerBreakpoint();
+	}
+#endif
 	char timestamp[40];
 	FormatTime(timestamp, sizeof(timestamp));
 	CSZ severityLetter = GetSeverityLetter(severity);

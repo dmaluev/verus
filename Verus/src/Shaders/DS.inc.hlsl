@@ -21,11 +21,11 @@ VERUS_UBUFFER UB_PerMeshVS
 
 VERUS_UBUFFER UB_ShadowFS
 {
-	float4 _shadowTexSize;
 	matrix _matSunShadow;
 	matrix _matSunShadowCSM1;
 	matrix _matSunShadowCSM2;
 	matrix _matSunShadowCSM3;
+	float4 _shadowConfig;
 	float4 _splitRanges;
 };
 

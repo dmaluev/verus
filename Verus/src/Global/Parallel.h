@@ -2,6 +2,12 @@
 
 namespace verus
 {
+	template<typename F, typename... Ts>
+	inline auto Async(F&& f, Ts&&... params)
+	{
+		return std::async(std::launch::async, std::forward<F>(f), std::forward<Ts>(params)...);
+	}
+
 	class Parallel
 	{
 	public:

@@ -236,6 +236,7 @@ DS_ACC_FSO mainFS(VSO si)
 			g_texShadow,
 			g_samShadow,
 			tcShadow,
+			g_ubShadowFS._shadowConfig,
 			g_ubShadowFS._splitRanges,
 			g_ubShadowFS._matSunShadow,
 			g_ubShadowFS._matSunShadowCSM1,
@@ -277,10 +278,12 @@ DS_ACC_FSO mainFS(VSO si)
 		so.target0.rgb = maxDiff * litRet.y; // Lambert's cosine law.
 		so.target1.rgb = maxSpec * saturate(litRet.z * intensitySpec) + diffBoost;
 #endif
-		so.target0.rgb = max(so.target0.rgb, emission.x * GetEmissionScale());
-		so.target1.rgb = min(so.target1.rgb, 1.0 - emission.x * GetEmissionScale());
+		so.target0.rgb = max(so.target0.rgb, emission.x);
+		so.target1.rgb = min(so.target1.rgb, 1.0 - emission.x);
 		so.target0.a = 1.0;
 		so.target1.a = 1.0;
+		so.target0 = HDRColorToSRGB(so.target0);
+		so.target1 = HDRColorToSRGB(so.target1);
 	}
 #if defined(DEF_OMNI) || defined(DEF_SPOT)
 	else

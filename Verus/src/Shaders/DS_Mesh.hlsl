@@ -155,9 +155,9 @@ void mainFS(VSO si)
 }
 #endif
 #else
-_DS_FSO mainFS(VSO si)
+DS_FSO mainFS(VSO si)
 {
-	_DS_FSO so;
+	DS_FSO so;
 
 #ifdef DEF_SOLID
 	DS_Reset(so);

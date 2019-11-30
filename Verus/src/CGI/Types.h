@@ -47,7 +47,6 @@ namespace verus
 			float       _depthBiasConstantFactor = 0;
 			float       _depthBiasClamp = 0;
 			float       _depthBiasSlopeFactor = 0;
-			float       _lineWidth = 1;
 			bool        _depthClampEnable = false;
 			bool        _depthBiasEnable = false;
 			bool        _rasterizerDiscardEnable = false;

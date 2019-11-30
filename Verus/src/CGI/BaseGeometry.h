@@ -10,17 +10,17 @@ namespace verus
 		{
 			PcInputElementDesc _pInputElementDesc;
 			const int* _pStrides = nullptr;
+			UINT32             _dynBindingsMask = 0;
 			bool               _32BitIndices = false;
-			bool               _dynamic = false;
 		};
 		VERUS_TYPEDEFS(GeometryDesc);
 
 		class BaseGeometry : public Object
 		{
 		protected:
-			int  _bindingInstMask = 0;
-			bool _32BitIndices = false;
-			bool _dynamic = false;
+			UINT32 _instBindingsMask = 0;
+			UINT32 _dynBindingsMask = 0;
+			bool   _32BitIndices = false;
 
 			BaseGeometry() = default;
 			virtual ~BaseGeometry() = default;

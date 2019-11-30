@@ -43,8 +43,13 @@ void TerrainPhysics::Init(Physics::PUserPtr p, int w, int h, float heightScale)
 	pBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::wood));
 	pBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::wood));
 	pBody->setUserPointer(p);
-	const int f = pBody->getCollisionFlags();
-	pBody->setCollisionFlags(f | btCollisionObject::CF_DISABLE_VISUALIZE_OBJECT);
+#ifndef _DEBUG
+	if (w >= 128 || h >= 128)
+#endif
+	{
+		const int f = pBody->getCollisionFlags();
+		pBody->setCollisionFlags(f | btCollisionObject::CF_DISABLE_VISUALIZE_OBJECT);
+	}
 }
 
 void TerrainPhysics::Done()
@@ -432,6 +437,7 @@ void Terrain::Init(RcDesc desc)
 	_csidVS = s_shader->BindDescriptorSetTextures(0, { _tex[TEX_HEIGHTMAP] });
 
 	OnHeightModified();
+	AddNewRigidBody();
 
 	_vLayerUrls.reserve(s_maxNumLayers);
 }
@@ -470,9 +476,9 @@ void Terrain::Layout()
 	PCamera pPrevCamera = nullptr;
 	Camera cam;
 	// For CSM we need to create geometry beyond the view frustum (1st slice):
-	if (settings._sceneShadowQuality >= App::Settings::ShadowQuality::cascaded && atmo.IsRenderingShadow())
+	if (settings._sceneShadowQuality >= App::Settings::ShadowQuality::cascaded && atmo.GetShadowMap().IsRendering())
 	{
-		PCamera pCameraCSM = atmo.GetSunCameraCSM();
+		PCamera pCameraCSM = atmo.GetShadowMap().GetCameraCSM();
 		if (pCameraCSM)
 			pPrevCamera = sm.SetCamera(pCameraCSM);
 	}
@@ -905,16 +911,15 @@ void Terrain::OnHeightModified()
 	UpdateHeightmapTexture();
 	UpdateNormalsTexture();
 	//UpdateLandTexture();
-	//UpdateRigidBody();
+	UpdateRigidBodyData();
 }
 
 void Terrain::AddNewRigidBody()
 {
-	UpdateRigidBody();
 	_physics.Init(this, _mapSide, _mapSide, ConvertHeight(static_cast<short>(1)));
 }
 
-void Terrain::UpdateRigidBody()
+void Terrain::UpdateRigidBodyData()
 {
 	auto& v = _physics.GetData();
 	v.resize(_mapSide * _mapSide);

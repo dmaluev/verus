@@ -295,20 +295,6 @@ void Skeleton::RecursiveBoneUpdate()
 	pCurrentBone->_ready = true;
 }
 
-void Skeleton::VisitBones(std::function<Continue(RBone)> fn)
-{
-	for (auto& kv : _mapBones)
-		if (Continue::yes != fn(kv.second))
-			return;
-}
-
-void Skeleton::VisitBones(std::function<Continue(RcBone)> fn) const
-{
-	for (const auto& kv : _mapBones)
-		if (Continue::yes != fn(kv.second))
-			return;
-}
-
 void Skeleton::InsertBonesIntoMotion(RMotion motion) const
 {
 	for (const auto& kv : _mapBones)

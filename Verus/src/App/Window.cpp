@@ -33,9 +33,11 @@ void Window::Init(RcDesc descConst)
 	if (desc._useSettings)
 		desc.ApplySettings();
 
-	Uint32 flags = 0;
+	Uint32 flags = desc._flags;
 	if (desc._fullscreen)
 		flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+	if (desc._resizable)
+		flags |= SDL_WINDOW_RESIZABLE;
 	if (0 == settings._gapi)
 		flags |= SDL_WINDOW_VULKAN;
 

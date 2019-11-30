@@ -26,14 +26,14 @@ void Object::Done()
 #ifdef VERUS_DEBUG
 void Object::UpdateOnceCheck()
 {
-	const UINT32 numFrames = CGL::CRender::I().GetNumFrames();
+	const UINT64 numFrames = CGI::Renderer::I().GetNumFrames();
 	VERUS_RT_ASSERT(_updateOnceFrame <= numFrames);
 	_updateOnceFrame = numFrames + 1;
 }
 
 void Object::UpdateOnceCheckDraw()
 {
-	const UINT32 numFrames = CGL::CRender::I().GetNumFrames();
+	const UINT64 numFrames = CGI::Renderer::I().GetNumFrames();
 	VERUS_RT_ASSERT(_updateOnceFrame > numFrames);
 }
 #endif

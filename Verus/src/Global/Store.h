@@ -51,7 +51,7 @@ namespace verus
 
 		int GetNumStored() const
 		{
-			return _list.size();
+			return static_cast<int>(_list.size());
 		}
 	};
 
@@ -108,7 +108,7 @@ namespace verus
 
 		int GetNumStored() const
 		{
-			return _map.size();
+			return static_cast<int>(_map.size());
 		}
 	};
 

@@ -67,7 +67,7 @@ void BaseRenderer::SetAlphaBlendHelper(
 	{
 	case 0: break;
 	case 1: colorBlendOp = BLENDOP_REVSUBTRACT; break;
-	default: VERUS_RT_FAIL("FAIL: color s/d not found.");
+	default: VERUS_RT_FAIL("Color s/d not found.");
 	}
 	srcColorBlendFactor = RendererParser::ExpectBlendOp(p);
 	p += VERUS_LITERAL_LENGTH(")");
@@ -77,7 +77,7 @@ void BaseRenderer::SetAlphaBlendHelper(
 	case 0: if (-1 == colorBlendOp) colorBlendOp = BLENDOP_ADD; break;
 	case 1: if (-1 == colorBlendOp) colorBlendOp = BLENDOP_SUBTRACT; break;
 	case 2: break;
-	default: VERUS_RT_FAIL("FAIL: invalid color op.");
+	default: VERUS_RT_FAIL("Invalid color op.");
 	}
 	p += VERUS_LITERAL_LENGTH("d*(");
 	dstColorBlendFactor = RendererParser::ExpectBlendOp(p);
@@ -99,7 +99,7 @@ void BaseRenderer::SetAlphaBlendHelper(
 		{
 		case 0: break;
 		case 1: alphaBlendOp = BLENDOP_REVSUBTRACT; break;
-		default: VERUS_RT_FAIL("FAIL: alpha s/d not found.");
+		default: VERUS_RT_FAIL("Alpha s/d not found.");
 		}
 		srcAlphaBlendFactor = RendererParser::ExpectBlendOp(p);
 		p += VERUS_LITERAL_LENGTH(")");
@@ -108,7 +108,7 @@ void BaseRenderer::SetAlphaBlendHelper(
 		case 0: if (-1 == alphaBlendOp) alphaBlendOp = BLENDOP_ADD; break;
 		case 1: if (-1 == alphaBlendOp) alphaBlendOp = BLENDOP_SUBTRACT; break;
 		case 2: break;
-		default: VERUS_RT_FAIL("FAIL: invalid alpha op.");
+		default: VERUS_RT_FAIL("Invalid alpha op.");
 		}
 		p += VERUS_LITERAL_LENGTH("d*(");
 		dstAlphaBlendFactor = RendererParser::ExpectBlendOp(p);

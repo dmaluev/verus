@@ -5,15 +5,6 @@ struct DS_FSO
 	float4 target2 : SV_Target2; // {normal, emission, motion}
 	float4 target3 : SV_Target3; // {lam, metal, gloss}
 };
-struct DS_FSO_DEPTH
-{
-	float4 color : SV_Target0;
-};
-#ifdef DEF_DEPTH
-#	define _DS_FSO DS_FSO_DEPTH
-#else
-#	define _DS_FSO DS_FSO
-#endif
 
 struct DS_ACC_FSO
 {
@@ -37,16 +28,6 @@ float3 DecodeNormal(float2 enc)
 	return float3(fenc * g, f2.y);
 }
 
-float GetEmissionScale()
-{
-	return 4.0;
-}
-
-float3 ApplyEmission(float3 color, float emission)
-{
-	return color * (1.0 + emission * GetEmissionScale());
-}
-
 void DS_Reset(out DS_FSO so)
 {
 	so.target0 = 0.0;
@@ -59,7 +40,7 @@ void DS_Test(out DS_FSO so, float3 normal, float spec, float gloss)
 {
 	so.target0 = float4(0.5, 0.5, 0.5, spec);
 	so.target1 = 0.0;
-	so.target2 = float4(EncodeNormal(normal), 0.5, 0.5);
+	so.target2 = float4(EncodeNormal(normal), 0.25, 0.5);
 	so.target3 = float4(1.0 / 8.0, 0.5, 0.5, gloss * (1.0 / 64.0));
 }
 
@@ -90,15 +71,14 @@ void DS_SetNormal(inout DS_FSO so, float3 normal)
 
 float2 DS_GetEmission(float4 gbuffer)
 {
-	const float x2 = gbuffer.b * 2.0;
-	return float2(
-		saturate(x2 - 1.0),
-		saturate(1.0 - x2));
+	const float2 em_skin = saturate((gbuffer.b - 0.25) * float2(1.0 / 0.75, -1.0 / 0.25));
+	return float2(HDRColorToLinear(em_skin.x).r, em_skin.y);
 }
 
 void DS_SetEmission(inout DS_FSO so, float emission, float skin)
 {
-	so.target2.b = (emission - skin) * 0.5 + 0.5;
+	const float em = HDRColorToSRGB(emission).r;
+	so.target2.b = (3.0 * em - skin) * 0.25 + 0.25;
 }
 
 float2 DS_GetLamScaleBias(float4 gbuffer)

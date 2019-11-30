@@ -111,8 +111,20 @@ namespace verus
 
 			int GetNumBones() const { return _numPrimaryBones ? _numPrimaryBones : Utils::Cast32(_mapBones.size()); }
 
-			void VisitBones(std::function<Continue(RBone)> fn);
-			void VisitBones(std::function<Continue(RcBone)> fn) const;
+			template<typename F>
+			void VisitBones(const F& fn)
+			{
+				for (auto& kv : _mapBones)
+					if (Continue::yes != fn(kv.second))
+						return;
+			}
+			template<typename F>
+			void VisitBones(const F& fn) const
+			{
+				for (const auto& kv : _mapBones)
+					if (Continue::yes != fn(kv.second))
+						return;
+			}
 
 			//! Adds skeleton's bones to motion object (Motion).
 			void InsertBonesIntoMotion(RMotion motion) const;

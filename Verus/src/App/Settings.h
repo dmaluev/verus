@@ -82,6 +82,7 @@ namespace verus
 			String        _uiLang = "EN";
 			CommandLine   _commandLine;
 			Limits        _limits;
+			String        _imguiFont;
 
 			Settings();
 			~Settings();

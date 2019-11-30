@@ -58,21 +58,29 @@ bool KeyMapper::HandleSdlEvent(SDL_Event& event)
 		// Keyboard:
 	case SDL_KEYDOWN:
 	{
+		if (ImGui::GetIO().WantCaptureKeyboard)
+			return false;
+#if defined(_DEBUG) || defined(VERUS_DEBUG)
 		if (settings._screenWindowed && SDL_SCANCODE_KP_ENTER == event.key.keysym.scancode)
 		{
 			const SDL_bool rel = SDL_GetRelativeMouseMode();
 			SDL_SetRelativeMouseMode(rel ? SDL_FALSE : SDL_TRUE);
 		}
+#endif
 		OnKeyDown(event.key.keysym.scancode);
 	}
 	break;
 	case SDL_KEYUP:
 	{
+		if (ImGui::GetIO().WantCaptureKeyboard)
+			return false;
 		OnKeyUp(event.key.keysym.scancode);
 	}
 	break;
 	case SDL_TEXTINPUT:
 	{
+		if (ImGui::GetIO().WantCaptureKeyboard)
+			return false;
 		wchar_t wide[4];
 		Str::Utf8ToWide(event.text.text, wide, 4);
 		OnChar(wide[0]);
@@ -90,6 +98,8 @@ bool KeyMapper::HandleSdlEvent(SDL_Event& event)
 	break;
 	case SDL_MOUSEBUTTONDOWN:
 	{
+		if (ImGui::GetIO().WantCaptureMouse)
+			return false;
 		if (1 == event.button.clicks)
 		{
 			if (event.button.button < VERUS_BUTTON_WHEELUP)
@@ -104,6 +114,8 @@ bool KeyMapper::HandleSdlEvent(SDL_Event& event)
 	break;
 	case SDL_MOUSEBUTTONUP:
 	{
+		if (ImGui::GetIO().WantCaptureMouse)
+			return false;
 		if (1 == event.button.clicks)
 		{
 			if (event.button.button < VERUS_BUTTON_WHEELUP)
@@ -113,6 +125,8 @@ bool KeyMapper::HandleSdlEvent(SDL_Event& event)
 	break;
 	case SDL_MOUSEWHEEL:
 	{
+		if (ImGui::GetIO().WantCaptureMouse)
+			return false;
 		if (event.wheel.y >= 0)
 		{
 			OnMouseDown(VERUS_BUTTON_WHEELUP);

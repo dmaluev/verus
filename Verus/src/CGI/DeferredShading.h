@@ -56,9 +56,8 @@ namespace verus
 			ShaderPwns<S_MAX>      _shader;
 			PipelinePwns<PIPE_MAX> _pipe;
 			TexturePwns<TEX_MAX>   _tex;
+			TexturePtr             _texShadowAtmo;
 			UINT64                 _frame = 0;
-			int                    _width = 0;
-			int                    _height = 0;
 			int                    _rp = -1;
 			int                    _fb = -1;
 			int                    _csidLight = -1;
@@ -77,12 +76,11 @@ namespace verus
 			void InitByAtmosphere(TexturePtr texShadow);
 			void Done();
 
+			void OnSwapChainResized(bool init, bool done);
+
 			static bool IsLoaded();
 
 			void Draw(int gbuffer);
-
-			int GetWidth() const { return _width; }
-			int GetHeight() const { return _height; }
 
 			bool IsActiveGeometryPass() const { return _activeGeometryPass; }
 			bool IsActiveLightingPass() const { return _activeLightingPass; }
@@ -93,7 +91,7 @@ namespace verus
 			void EndGeometryPass(bool resetRT = false);
 			bool BeginLightingPass();
 			void EndLightingPass();
-			void Compose();
+			void Compose(RcVector4 bgColor = Vector4(0));
 			void AntiAliasing();
 
 			static bool IsLightUrl(CSZ url);

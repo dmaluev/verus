@@ -44,7 +44,8 @@ float PCF(
 	SamplerComparisonState samCmp,
 	Texture2D tex,
 	SamplerState sam,
-	float3 tc)
+	float3 tc,
+	float4 config)
 {
 #if _SHADOW_QUALITY <= 2
 	return texCmp.SampleCmpLevelZero(samCmp, tc.xy, tc.z).r;
@@ -72,14 +73,10 @@ float PCF(
 	const float ret = sum * (1.0 / num);
 	if (dzBlockers_numBlockers.y > 0.0)
 	{
-#if _SHADOW_QUALITY <= 3
-		const float scale = 655.36;
-#else
-		const float scale = 20000.0;
-#endif
+		const float penumbraScale = config.x;
 		const float dzBlockers = dzBlockers_numBlockers.x / dzBlockers_numBlockers.y;
 		const float penumbra = saturate(dzFrag - dzBlockers);
-		const float contrast = 1.0 + max(0.0, 3.0 - penumbra * scale);
+		const float contrast = 1.0 + max(0.0, 3.0 - penumbra * penumbraScale);
 		return saturate((ret - 0.5) * contrast + 0.5);
 	}
 	else
@@ -94,12 +91,13 @@ float ShadowMap(
 	SamplerComparisonState samCmp,
 	Texture2D tex,
 	SamplerState sam,
-	float4 tc)
+	float4 tc,
+	float4 config)
 {
 #if _SHADOW_QUALITY <= 0
 	return 1.0;
 #else
-	const float ret = PCF(texCmp, samCmp, tex, sam, tc.xyz);
+	const float ret = PCF(texCmp, samCmp, tex, sam, tc.xyz, config);
 	const float2 center = tc.xy * 2.0 - 1.0;
 	return max(ret, saturate(dot(center, center) * (9.0 / 4.0) - 1.0));
 #endif
@@ -111,6 +109,7 @@ float ShadowMapCSM(
 	Texture2D tex,
 	SamplerState sam,
 	float4 pos,
+	float4 config,
 	float4 ranges,
 	matrix mat0,
 	matrix mat1,
@@ -130,28 +129,28 @@ float ShadowMapCSM(
 
 		contrast = contrastScale * contrastScale * contrastScale;
 		const float3 tc = mul(p, mat0).xyz;
-		ret = max(PCF(texCmp, samCmp, tex, sam, tc), fade);
+		ret = max(PCF(texCmp, samCmp, tex, sam, tc, config), fade);
 	}
 	else if (pos.w > ranges.y)
 	{
 		contrast = contrastScale * contrastScale;
 		const float3 tc = mul(p, mat1).xyz;
-		ret = PCF(texCmp, samCmp, tex, sam, tc);
+		ret = PCF(texCmp, samCmp, tex, sam, tc, config);
 	}
 	else if (pos.w > ranges.z)
 	{
 		contrast = contrastScale;
 		const float3 tc = mul(p, mat2).xyz;
-		ret = PCF(texCmp, samCmp, tex, sam, tc);
+		ret = PCF(texCmp, samCmp, tex, sam, tc, config);
 	}
 	else
 	{
 		const float3 tc = mul(p, mat3).xyz;
-		ret = PCF(texCmp, samCmp, tex, sam, tc);
+		ret = PCF(texCmp, samCmp, tex, sam, tc, config);
 	}
 
 	return saturate((ret - 0.5) * contrast + 0.5);
 #else
-	return ShadowMap(texCmp, samCmp, tex, sam, pos);
+	return ShadowMap(texCmp, samCmp, tex, sam, pos, config);
 #endif
 }

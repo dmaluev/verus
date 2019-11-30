@@ -20,8 +20,8 @@ void Helpers::Init()
 
 	// Grid:
 	_vGrid.reserve(92);
-	const UINT32 colorMain = VERUS_COLOR_RGBA(0, 0, 0, 255);
-	const UINT32 colorExtra = VERUS_COLOR_RGBA(80, 80, 80, 255);
+	const UINT32 colorMain = VERUS_COLOR_RGBA(32, 32, 32, 255);
+	const UINT32 colorExtra = VERUS_COLOR_RGBA(64, 64, 64, 255);
 	const int edgeMin = 5, edgeMax = 55;
 	for (int i = -edgeMin; i <= edgeMin; ++i)
 	{
@@ -157,7 +157,7 @@ void Helpers::Done()
 void Helpers::DrawGrid()
 {
 	CGI::DebugDraw::I().Begin(CGI::DebugDraw::Type::lines);
-	const int numLines = _vGrid.size() >> 1;
+	const int numLines = Utils::Cast32(_vGrid.size() >> 1);
 	VERUS_FOR(i, numLines)
 	{
 		CGI::DebugDraw::I().AddLine(
@@ -177,7 +177,7 @@ void Helpers::DrawBasis(PcTransform3 pMat, int axis, bool overlay)
 		axis = 2;
 	const UINT32 hover = VERUS_COLOR_RGBA(200, 200, 0, 255);
 	CGI::DebugDraw::I().Begin(CGI::DebugDraw::Type::lines, pMat, !overlay);
-	const int numLines = (int)_vBasis.size() >> 1;
+	const int numLines = Utils::Cast32(_vBasis.size() >> 1);
 	VERUS_FOR(i, numLines)
 	{
 		const bool isHover = (i / 5 == axis);
@@ -192,7 +192,7 @@ void Helpers::DrawBasis(PcTransform3 pMat, int axis, bool overlay)
 void Helpers::DrawCircle(RcPoint3 pos, float radius, UINT32 color, Scene::RTerrain terrain)
 {
 	CGI::DebugDraw::I().Begin(CGI::DebugDraw::Type::lines, nullptr, false);
-	const int numLines = _vCircle.size() >> 1;
+	const int numLines = Utils::Cast32(_vCircle.size() >> 1);
 	Point3 a = VMath::scale(_vCircle[0]._pos, radius) + Vector3(pos);
 	float xz[2] = { a.getX(), a.getZ() };
 	a.setY(terrain.GetHeightAt(xz));
@@ -211,7 +211,7 @@ void Helpers::DrawCircle(RcPoint3 pos, float radius, UINT32 color, Scene::RTerra
 void Helpers::DrawBox(PcTransform3 pMat, UINT32 color)
 {
 	CGI::DebugDraw::I().Begin(CGI::DebugDraw::Type::lines, pMat);
-	const int numLines = _vBox.size() >> 1;
+	const int numLines = Utils::Cast32(_vBox.size() >> 1);
 	VERUS_FOR(i, numLines)
 	{
 		CGI::DebugDraw::I().AddLine(
@@ -226,7 +226,7 @@ void Helpers::DrawLight(RcPoint3 pos, UINT32 color, PcPoint3 pTarget)
 {
 	Transform3 matW = Transform3::translation(Vector3(pos));
 	CGI::DebugDraw::I().Begin(CGI::DebugDraw::Type::lines, &matW);
-	const int numLines = _vLight.size() >> 1;
+	const int numLines = Utils::Cast32(_vLight.size() >> 1);
 	VERUS_FOR(i, numLines)
 	{
 		CGI::DebugDraw::I().AddLine(

@@ -34,12 +34,12 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE DescriptorHeap::AtGPU(INT index) const
 
 // DynamicDescriptorHeap:
 
-void DynamicDescriptorHeap::Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num, bool shaderVisible)
+void DynamicDescriptorHeap::Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num, UINT numStatic, bool shaderVisible)
 {
 	VERUS_CT_ASSERT(sizeof(*this) == 56);
 	_capacity = num;
 	_offset = 0;
-	DescriptorHeap::Create(pDevice, type, _capacity * BaseRenderer::s_ringBufferSize, shaderVisible);
+	DescriptorHeap::Create(pDevice, type, _capacity * BaseRenderer::s_ringBufferSize + numStatic, shaderVisible);
 }
 
 HandlePair DynamicDescriptorHeap::GetNextHandlePair(int num)
@@ -62,4 +62,10 @@ HandlePair DynamicDescriptorHeap::GetNextHandlePair(int num)
 	}
 	VERUS_RT_FAIL("DynamicDescriptorHeap is full.");
 	return HandlePair();
+}
+
+HandlePair DynamicDescriptorHeap::GetStaticHandlePair(int index)
+{
+	const INT indexAt = _capacity * BaseRenderer::s_ringBufferSize + index;
+	return HandlePair(AtCPU(indexAt), AtGPU(indexAt));
 }

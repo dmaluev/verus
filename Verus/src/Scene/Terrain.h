@@ -208,7 +208,7 @@ namespace verus
 
 			// Physics:
 			void AddNewRigidBody();
-			void UpdateRigidBody();
+			void UpdateRigidBodyData();
 		};
 		VERUS_TYPEDEFS(Terrain);
 	}

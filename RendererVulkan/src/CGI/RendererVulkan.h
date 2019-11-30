@@ -74,6 +74,7 @@ namespace verus
 			VkSemaphore              _queueSubmitSemaphore = VK_NULL_HANDLE;
 			VkFence                  _queueSubmitFences[s_ringBufferSize] = {};
 			QueueFamilyIndices       _queueFamilyIndices;
+			VkDescriptorPool         _descriptorPoolImGui = VK_NULL_HANDLE;
 			Vector<VkSampler>        _vSamplers;
 			Vector<VkRenderPass>     _vRenderPasses;
 			Vector<Framebuffer>      _vFramebuffers;
@@ -109,7 +110,7 @@ namespace verus
 			void PickPhysicalDevice();
 			void CreateDevice();
 			SwapChainInfo GetSwapChainInfo(VkPhysicalDevice device);
-			void CreateSwapChain();
+			void CreateSwapChain(VkSwapchainKHR oldSwapchain = VK_NULL_HANDLE);
 			void CreateImageViews();
 			void CreateCommandPools();
 			void CreateSyncObjects();
@@ -125,8 +126,11 @@ namespace verus
 			VkCommandPool GetVkCommandPool(int ringBufferIndex) const { return _commandPools[ringBufferIndex]; }
 			const VkSampler* GetImmutableSampler(Sampler s) const;
 
+			static void ImGuiCheckVkResultFn(VkResult res);
 			virtual void ImGuiInit(int renderPassID) override;
 			virtual void ImGuiRenderDrawData() override;
+
+			virtual void ResizeSwapChain() override;
 
 			// Which graphics API?
 			virtual Gapi GetGapi() override { return Gapi::vulkan; }
@@ -135,7 +139,6 @@ namespace verus
 			virtual void BeginFrame(bool present) override;
 			virtual void EndFrame(bool present) override;
 			virtual void Present() override;
-
 			virtual void WaitIdle() override;
 
 			// Resources:

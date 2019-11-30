@@ -31,7 +31,8 @@ void CommandBufferVulkan::Begin()
 	VkResult res = VK_SUCCESS;
 	VkCommandBufferBeginInfo vkcbbi = {};
 	vkcbbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	vkcbbi.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+	if (_oneTimeSubmit)
+		vkcbbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 	if (VK_SUCCESS != (res = vkBeginCommandBuffer(GetVkCommandBuffer(), &vkcbbi)))
 		throw VERUS_RUNTIME_ERROR << "vkBeginCommandBuffer(), res=" << res;
 }
@@ -324,10 +325,11 @@ VkCommandBuffer CommandBufferVulkan::GetVkCommandBuffer() const
 	return _commandBuffers[renderer->GetRingBufferIndex()];
 }
 
-void CommandBufferVulkan::InitSingleTimeCommands()
+void CommandBufferVulkan::InitOneTimeSubmit()
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_VULKAN;
+	_oneTimeSubmit = true;
 	auto commandPool = pRendererVulkan->GetVkCommandPool(renderer->GetRingBufferIndex());
 	auto commandBuffer = pRendererVulkan->CreateCommandBuffer(commandPool);
 	VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
@@ -335,7 +337,7 @@ void CommandBufferVulkan::InitSingleTimeCommands()
 	Begin();
 }
 
-void CommandBufferVulkan::DoneSingleTimeCommands()
+void CommandBufferVulkan::DoneOneTimeSubmit()
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_VULKAN;
@@ -348,4 +350,5 @@ void CommandBufferVulkan::DoneSingleTimeCommands()
 	vkQueueWaitIdle(pRendererVulkan->GetVkGraphicsQueue());
 	auto commandPool = pRendererVulkan->GetVkCommandPool(renderer->GetRingBufferIndex());
 	vkFreeCommandBuffers(pRendererVulkan->GetVkDevice(), commandPool, 1, _commandBuffers);
+	_oneTimeSubmit = false;
 }

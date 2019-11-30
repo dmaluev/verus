@@ -28,6 +28,9 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	VERUS_INIT();
 	VERUS_QREF_CONST_SETTINGS;
 
+	_swapChainWidth = settings._screenSizeWidth;
+	_swapChainHeight = settings._screenSizeHeight;
+
 	_pRendererDelegate = pDelegate;
 
 	CSZ dll = "RendererVulkan.dll";
@@ -73,13 +76,6 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	PipelineDesc pipeDesc(_shader[S_GENERATE_MIPS], "#");
 	_pipeGenerateMips.Init(pipeDesc);
 
-	TextureDesc texDesc;
-	texDesc._clearValue = Vector4(1);
-	texDesc._format = Format::unormD24uintS8;
-	texDesc._width = settings._screenSizeWidth;
-	texDesc._height = settings._screenSizeHeight;
-	_texDepthStencil.Init(texDesc);
-
 	_rpSwapChain = _pBaseRenderer->CreateRenderPass(
 		{ RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().Layout(ImageLayout::undefined, ImageLayout::presentSrc) },
 		{ RP::Subpass("Sp0").Color({RP::Ref("Color", ImageLayout::colorAttachment)}) },
@@ -96,14 +92,11 @@ void Renderer::Init(PRendererDelegate pDelegate)
 			}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachment)),
 		},
 		{});
-	_fbSwapChain.resize(_pBaseRenderer->GetNumSwapChainBuffers());
-	VERUS_FOR(i, _fbSwapChain.size())
-		_fbSwapChain[i] = _pBaseRenderer->CreateFramebuffer(_rpSwapChain, {}, settings._screenSizeWidth, settings._screenSizeHeight, i);
-	_fbSwapChainDepth.resize(_pBaseRenderer->GetNumSwapChainBuffers());
-	VERUS_FOR(i, _fbSwapChainDepth.size())
-		_fbSwapChainDepth[i] = _pBaseRenderer->CreateFramebuffer(_rpSwapChainDepth, { _texDepthStencil }, settings._screenSizeWidth, settings._screenSizeHeight, i);
+
+	OnSwapChainResized(true, false);
 
 	_pBaseRenderer->ImGuiInit(_rpSwapChainDepth);
+	ImGuiUpdateStyle();
 
 	_ds.Init();
 }
@@ -161,6 +154,48 @@ void Renderer::Present()
 	_fps = _fps * 0.75f + timer.GetDeltaTimeInv() * 0.25f;
 }
 
+void Renderer::OnWindowResized(int w, int h)
+{
+	_pBaseRenderer->WaitIdle();
+
+	_swapChainWidth = w;
+	_swapChainHeight = h;
+	_pBaseRenderer->ResizeSwapChain();
+
+	OnSwapChainResized(true, true);
+	_ds.OnSwapChainResized(true, true);
+}
+
+void Renderer::OnSwapChainResized(bool init, bool done)
+{
+	if (done)
+	{
+		VERUS_FOR(i, _fbSwapChainDepth.size())
+			_pBaseRenderer->DeleteFramebuffer(_fbSwapChainDepth[i]);
+		VERUS_FOR(i, _fbSwapChain.size())
+			_pBaseRenderer->DeleteFramebuffer(_fbSwapChain[i]);
+
+		_texDepthStencil.Done();
+	}
+
+	if (init)
+	{
+		TextureDesc texDesc;
+		texDesc._clearValue = Vector4(1);
+		texDesc._format = Format::unormD24uintS8;
+		texDesc._width = _swapChainWidth;
+		texDesc._height = _swapChainHeight;
+		_texDepthStencil.Init(texDesc);
+
+		_fbSwapChain.resize(_pBaseRenderer->GetNumSwapChainBuffers());
+		VERUS_FOR(i, _fbSwapChain.size())
+			_fbSwapChain[i] = _pBaseRenderer->CreateFramebuffer(_rpSwapChain, {}, _swapChainWidth, _swapChainHeight, i);
+		_fbSwapChainDepth.resize(_pBaseRenderer->GetNumSwapChainBuffers());
+		VERUS_FOR(i, _fbSwapChainDepth.size())
+			_fbSwapChainDepth[i] = _pBaseRenderer->CreateFramebuffer(_rpSwapChainDepth, { _texDepthStencil }, _swapChainWidth, _swapChainHeight, i);
+	}
+}
+
 void Renderer::DrawQuad(PBaseCommandBuffer pCB)
 {
 	if (!pCB)
@@ -182,10 +217,79 @@ void Renderer::OnShaderWarning(CSZ s)
 float Renderer::GetWindowAspectRatio() const
 {
 	VERUS_QREF_CONST_SETTINGS;
-	return static_cast<float>(settings._screenSizeWidth) / static_cast<float>(settings._screenSizeHeight);
+	return static_cast<float>(_swapChainWidth) / static_cast<float>(_swapChainHeight);
 }
 
 void Renderer::ImGuiSetCurrentContext(ImGuiContext* pContext)
 {
 	ImGui::SetCurrentContext(pContext);
+}
+
+void Renderer::ImGuiUpdateStyle()
+{
+	ImGuiStyle& style = ImGui::GetStyle();
+
+	style.WindowRounding = 4;
+	style.WindowTitleAlign.x = 0.5f;
+	style.ChildRounding = 2;
+	style.PopupRounding = 2;
+	style.FramePadding.y = 4;
+	style.FrameRounding = 2;
+	style.FrameBorderSize = 1;
+	style.ScrollbarSize = 16;
+	style.ScrollbarRounding = 2;
+	style.GrabMinSize = 12;
+	style.GrabRounding = 2;
+	style.TabRounding = 0;
+	style.TabBorderSize = 1;
+
+	ImVec4* colors = style.Colors;
+	colors[ImGuiCol_Text] = ImVec4(0.82f, 0.82f, 0.82f, 1.00f);
+	colors[ImGuiCol_TextDisabled] = ImVec4(0.39f, 0.39f, 0.39f, 1.00f);
+	colors[ImGuiCol_WindowBg] = ImVec4(0.02f, 0.02f, 0.02f, 0.99f);
+	colors[ImGuiCol_ChildBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.50f);
+	colors[ImGuiCol_PopupBg] = ImVec4(0.02f, 0.02f, 0.02f, 0.99f);
+	colors[ImGuiCol_Border] = ImVec4(0.05f, 0.05f, 0.05f, 1.00f);
+	colors[ImGuiCol_BorderShadow] = ImVec4(0.05f, 0.05f, 0.05f, 0.08f);
+	colors[ImGuiCol_FrameBg] = ImVec4(0.01f, 0.01f, 0.01f, 1.00f);
+	colors[ImGuiCol_FrameBgHovered] = ImVec4(0.02f, 0.02f, 0.02f, 1.00f);
+	colors[ImGuiCol_FrameBgActive] = ImVec4(0.05f, 0.05f, 0.05f, 1.00f);
+	colors[ImGuiCol_TitleBg] = ImVec4(0.01f, 0.01f, 0.01f, 1.00f);
+	colors[ImGuiCol_TitleBgActive] = ImVec4(0.19f, 0.03f, 0.00f, 1.00f);
+	colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.01f, 0.01f, 0.01f, 1.00f);
+	colors[ImGuiCol_MenuBarBg] = ImVec4(0.01f, 0.01f, 0.01f, 1.00f);
+	colors[ImGuiCol_ScrollbarBg] = ImVec4(0.02f, 0.02f, 0.02f, 1.00f);
+	colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.05f, 0.05f, 0.05f, 1.00f);
+	colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.09f, 0.09f, 0.09f, 1.00f);
+	colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.92f, 0.43f, 0.02f, 1.00f);
+	colors[ImGuiCol_CheckMark] = ImVec4(0.92f, 0.43f, 0.02f, 1.00f);
+	colors[ImGuiCol_SliderGrab] = ImVec4(0.09f, 0.09f, 0.09f, 1.00f);
+	colors[ImGuiCol_SliderGrabActive] = ImVec4(0.92f, 0.43f, 0.02f, 1.00f);
+	colors[ImGuiCol_Button] = ImVec4(0.05f, 0.05f, 0.05f, 1.00f);
+	colors[ImGuiCol_ButtonHovered] = ImVec4(1.00f, 1.00f, 1.00f, 0.13f);
+	colors[ImGuiCol_ButtonActive] = ImVec4(1.00f, 1.00f, 1.00f, 0.25f);
+	colors[ImGuiCol_Header] = ImVec4(0.05f, 0.05f, 0.05f, 1.00f);
+	colors[ImGuiCol_HeaderHovered] = ImVec4(0.09f, 0.09f, 0.09f, 1.00f);
+	colors[ImGuiCol_HeaderActive] = ImVec4(0.19f, 0.19f, 0.19f, 1.00f);
+	colors[ImGuiCol_Separator] = ImVec4(0.05f, 0.05f, 0.05f, 1.00f);
+	colors[ImGuiCol_SeparatorHovered] = ImVec4(0.09f, 0.09f, 0.09f, 1.00f);
+	colors[ImGuiCol_SeparatorActive] = ImVec4(0.89f, 0.13f, 0.00f, 1.00f);
+	colors[ImGuiCol_ResizeGrip] = ImVec4(0.05f, 0.05f, 0.05f, 1.00f);
+	colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.09f, 0.09f, 0.09f, 1.00f);
+	colors[ImGuiCol_ResizeGripActive] = ImVec4(0.89f, 0.13f, 0.00f, 1.00f);
+	colors[ImGuiCol_Tab] = ImVec4(0.02f, 0.02f, 0.02f, 1.00f);
+	colors[ImGuiCol_TabHovered] = ImVec4(0.89f, 0.13f, 0.00f, 1.00f);
+	colors[ImGuiCol_TabActive] = ImVec4(0.19f, 0.03f, 0.00f, 1.00f);
+	colors[ImGuiCol_TabUnfocused] = ImVec4(0.01f, 0.01f, 0.01f, 1.00f);
+	colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.05f, 0.05f, 0.05f, 1.00f);
+	colors[ImGuiCol_PlotLines] = ImVec4(0.39f, 0.39f, 0.39f, 1.00f);
+	colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.89f, 0.13f, 0.00f, 1.00f);
+	colors[ImGuiCol_PlotHistogram] = ImVec4(0.39f, 0.39f, 0.39f, 1.00f);
+	colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.89f, 0.13f, 0.00f, 1.00f);
+	colors[ImGuiCol_TextSelectedBg] = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
+	colors[ImGuiCol_DragDropTarget] = ImVec4(0.89f, 0.13f, 0.00f, 1.00f);
+	colors[ImGuiCol_NavHighlight] = ImVec4(0.89f, 0.13f, 0.00f, 1.00f);
+	colors[ImGuiCol_NavWindowingHighlight] = ImVec4(0.89f, 0.13f, 0.00f, 1.00f);
+	colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.50f);
+	colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.50f);
 }

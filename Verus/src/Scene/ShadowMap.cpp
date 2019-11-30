@@ -91,6 +91,8 @@ void ShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar)
 	_camera.Update();
 	_pSceneCamera = sm.SetCamera(&_camera);
 
+	_config.setX((zFar - zNear) * 2);
+
 	renderer.GetCommandBuffer()->BeginRenderPass(_rp, _fb,
 		{
 			_tex->GetClearValue()
@@ -355,6 +357,8 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 	_camera.Update();
 	_pSceneCamera = sm.SetCamera(&_camera);
 
+	_config.setX((zFar - zNear) * 2);
+
 	if (0 == _currentSplit)
 	{
 		renderer.GetCommandBuffer()->BeginRenderPass(_rp, _fb,
@@ -363,7 +367,7 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 			});
 	}
 
-	const int s = _side / 2;
+	const float s = static_cast<float>(_side / 2);
 	switch (_currentSplit)
 	{
 	case 0: renderer.GetCommandBuffer()->SetViewport({ Vector4(0, 0, s, s) }); break;

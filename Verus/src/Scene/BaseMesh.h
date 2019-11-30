@@ -43,6 +43,7 @@ namespace verus
 			int                         _numVerts = 0;
 			int                         _numFaces = 0;
 			int                         _numBones = 0;
+			int                         _indexCount = 0;
 			float                       _posDeq[6];
 			float                       _tc0Deq[4];
 			float                       _tc1Deq[4];
@@ -61,6 +62,7 @@ namespace verus
 			int GetNumVerts() const { return _numVerts; }
 			int GetNumFaces() const { return _numFaces; }
 			int GetNumBones() const { return _numBones; }
+			int GetIndexCount() const { return _indexCount; }
 
 			virtual void Async_Run(CSZ url, RcBlob blob) override;
 
@@ -101,6 +103,7 @@ namespace verus
 			void VisitVertices(std::function<Continue(RcPoint3, int)> fn);
 
 			Anim::RSkeleton GetSkeleton() { return _skeleton; }
+			Anim::RcSkeleton GetSkeleton() const { return _skeleton; }
 
 			String ToXmlString() const;
 			String ToObjString() const;

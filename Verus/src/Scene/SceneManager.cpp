@@ -27,7 +27,7 @@ bool SceneManager::IsDrawingDepth(DrawDepth dd)
 	if (DrawDepth::automatic == dd)
 	{
 		VERUS_QREF_ATMO;
-		return atmo.IsRenderingShadow();
+		return atmo.GetShadowMap().IsRendering();
 	}
 	else
 		return DrawDepth::yes == dd;

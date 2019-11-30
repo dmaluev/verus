@@ -3,8 +3,8 @@
 using namespace verus;
 using namespace verus::Scene;
 
-CGI::ShaderPwn       Mesh::s_shader;
-CGI::PipelinePwns<1> Mesh::s_pipe;
+CGI::ShaderPwn                    Mesh::s_shader;
+CGI::PipelinePwns<Mesh::PIPE_MAX> Mesh::s_pipe;
 
 Mesh::UB_PerFrame      Mesh::s_ubPerFrame;
 Mesh::UB_PerMaterialFS Mesh::s_ubPerMaterialFS;
@@ -42,6 +42,7 @@ void Mesh::InitStatic()
 
 void Mesh::DoneStatic()
 {
+	s_pipe.Done();
 	s_shader.Done();
 }
 
@@ -56,10 +57,48 @@ void Mesh::Init(RcDesc desc)
 
 void Mesh::Done()
 {
-	BaseMesh::Done();
+	VERUS_DONE(Mesh);
 }
 
-void Mesh::Bind(CGI::CommandBufferPtr cb, UINT32 bindingsFilter)
+void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
+{
+	VERUS_QREF_RENDERER;
+	if (!s_pipe[pipe])
+	{
+		static CSZ branches[] =
+		{
+			"#",
+			"#DepthRobotic",
+			"#DepthSkinned",
+			"#Instanced",
+			"#Robotic",
+			"#Skinned"
+		};
+		CGI::PipelineDesc pipeDesc(_geo, s_shader, branches[pipe], renderer.GetDS().GetRenderPassID());
+		switch (pipe)
+		{
+		case PIPE_DEPTH_ROBOTIC:
+		case PIPE_DEPTH_SKINNED:
+			pipeDesc._colorAttachBlendEqs[0] = "";
+			pipeDesc.DepthBiasEnable();
+		default:
+			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+			pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
+			pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
+			pipeDesc._colorAttachBlendEqs[3] = VERUS_COLOR_BLEND_OFF;
+		}
+		pipeDesc._vertexInputBindingsFilter = _bindingsMask;
+		s_pipe[pipe].Init(pipeDesc);
+	}
+	cb->BindPipeline(s_pipe[pipe]);
+}
+
+void Mesh::BindGeo(CGI::CommandBufferPtr cb)
+{
+	BindGeo(cb, _bindingsMask);
+}
+
+void Mesh::BindGeo(CGI::CommandBufferPtr cb, UINT32 bindingsFilter)
 {
 	cb->BindVertexBuffers(_geo, bindingsFilter);
 	cb->BindIndexBuffer(_geo);
@@ -88,6 +127,12 @@ void Mesh::UpdateUniformBufferPerMeshVS()
 void Mesh::UpdateUniformBufferSkeletonVS()
 {
 	_skeleton.UpdateUniformBufferArray(s_ubSkeletonVS._vMatBones);
+}
+
+void Mesh::UpdateUniformBufferPerObject(RcTransform3 tr)
+{
+	s_ubPerObject._matW = tr.UniformBufferFormat();
+	s_ubPerObject._userColor = Vector4(1, 0, 0, 1).GLM();
 }
 
 void Mesh::UpdateUniformBufferPerObject(Point3 pos)

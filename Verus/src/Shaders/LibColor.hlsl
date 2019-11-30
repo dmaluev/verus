@@ -10,6 +10,27 @@ float4 ColorToSRGB(float4 x)
 	return float4(rgb, x.a);
 }
 
+// HDR from 0.0 to 12.0, where 1.0 - night, 10.0 - bright daylight, 11.0 - sky, 12.0 - ultra bright sun:
+float4 HDRColorToLinear(float4 x)
+{
+	return float4(x.rgb * x.rgb * 12.0, x.a);
+}
+float4 HDRColorToSRGB(float4 x)
+{
+	return float4(sqrt(saturate(x.rgb * (1.0 / 12.0))), x.a);
+}
+
+// See: https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
+float3 ToneMappingACES(float3 x)
+{
+	const float a = 2.51f;
+	const float b = 0.03f;
+	const float c = 2.43f;
+	const float d = 0.59f;
+	const float e = 0.14f;
+	return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
 // See: https://en.wikipedia.org/wiki/Grayscale
 float Grayscale(float3 color)
 {
@@ -20,6 +41,12 @@ float3 Desaturate(float3 color, float alpha, float lum = 1.0)
 {
 	const float gray = Grayscale(color) * lum;
 	return lerp(color, gray, alpha);
+}
+
+float3 DesaturateFilmic(float3 color)
+{
+	const float gray = Grayscale(color);
+	return lerp(color, gray, saturate(gray * gray * gray));
 }
 
 // See: http://www.chilliant.com/rgb2hsv.html

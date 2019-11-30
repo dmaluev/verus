@@ -20,8 +20,8 @@ void EngineInit::Make()
 		Make_Physics();
 	//if (_makeEffects)
 	//	Make_Effects();
-	//if (_makeExtra)
-	//	Make_Extra();
+	if (_makeExtra)
+		Make_Extra();
 	if (_makeScene)
 		Make_Scene();
 	//if (_makeGUI)
@@ -34,8 +34,8 @@ void EngineInit::Free()
 	//	Free_GUI();
 	if (_makeScene)
 		Free_Scene();
-	//if (_makeExtra)
-	//	Free_Extra();
+	if (_makeExtra)
+		Free_Extra();
 	//if (_makeEffects)
 	//	Free_Effects();
 	if (_makePhysics)

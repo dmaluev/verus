@@ -62,6 +62,7 @@ namespace verus
 				int capacity = 1, std::initializer_list<Sampler> il = {}, ShaderStageFlags stageFlags = ShaderStageFlags::vs_fs) = 0;
 			virtual void CreatePipelineLayout() = 0;
 			virtual int BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips = nullptr) = 0;
+			virtual void FreeDescriptorSet(int complexSetID) = 0;
 
 			virtual void BeginBindDescriptors() = 0;
 			virtual void EndBindDescriptors() = 0;

@@ -24,7 +24,7 @@ extern "C"
 
 		if (VERUS_SDK_VERSION != version)
 		{
-			VERUS_RT_FAIL("VerusCreateRenderer(), Wrong version");
+			VERUS_RT_FAIL("VerusCreateRenderer(), Wrong version.");
 			return nullptr;
 		}
 

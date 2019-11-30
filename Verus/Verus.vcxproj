@@ -15,7 +15,7 @@
     <ProjectGuid>{B154D670-E4B1-4D8A-885C-69546A5BD833}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>Verus</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -126,6 +126,8 @@
     <ClInclude Include="src\D\Log.h" />
     <ClInclude Include="src\D\Recoverable.h" />
     <ClInclude Include="src\D\RuntimeError.h" />
+    <ClInclude Include="src\Extra\Extra.h" />
+    <ClInclude Include="src\Extra\FileParser.h" />
     <ClInclude Include="src\Game\BaseGame.h" />
     <ClInclude Include="src\Game\Spirit.h" />
     <ClInclude Include="src\Game\Game.h" />
@@ -153,6 +155,7 @@
     <ClInclude Include="src\Global\Utils.h" />
     <ClInclude Include="src\Input\Input.h" />
     <ClInclude Include="src\Input\KeyMapper.h" />
+    <ClInclude Include="src\Input\DragController.h" />
     <ClInclude Include="src\IO\Async.h" />
     <ClInclude Include="src\IO\DDSHeader.h" />
     <ClInclude Include="src\IO\File.h" />
@@ -186,12 +189,16 @@
     <ClInclude Include="src\Net\Net.h" />
     <ClInclude Include="src\Net\Socket.h" />
     <ClInclude Include="src\Physics\Bullet.h" />
+    <ClInclude Include="src\Physics\BulletDebugDraw.h" />
+    <ClInclude Include="src\Physics\CharacterController.h" />
     <ClInclude Include="src\Physics\Groups.h" />
+    <ClInclude Include="src\Physics\KinematicCharacterController.h" />
     <ClInclude Include="src\Physics\Physics.h" />
     <ClInclude Include="src\Physics\UserPtr.h" />
     <ClInclude Include="src\Scene\Atmosphere.h" />
     <ClInclude Include="src\Scene\BaseMesh.h" />
     <ClInclude Include="src\Scene\Camera.h" />
+    <ClInclude Include="src\Scene\CameraOrbit.h" />
     <ClInclude Include="src\Scene\EditorTerrain.h" />
     <ClInclude Include="src\Scene\Helpers.h" />
     <ClInclude Include="src\Scene\MaterialManager.h" />
@@ -213,6 +220,7 @@
     <ClInclude Include="src\ThirdParty\libb64\cdecode.h" />
     <ClInclude Include="src\ThirdParty\libb64\cencode.h" />
     <ClInclude Include="src\ThirdParty\md5.h" />
+    <ClInclude Include="src\ThirdParty\nativefiledialog\nfd.h" />
     <ClInclude Include="src\ThirdParty\pugixml-1.10\pugiconfig.hpp" />
     <ClInclude Include="src\ThirdParty\pugixml-1.10\pugixml.hpp" />
     <ClInclude Include="src\ThirdParty\ThirdParty.h" />
@@ -263,6 +271,8 @@
     <ClCompile Include="src\CGI\RendererParser.cpp" />
     <ClCompile Include="src\CGI\RenderPass.cpp" />
     <ClCompile Include="src\D\Log.cpp" />
+    <ClCompile Include="src\Extra\Extra.cpp" />
+    <ClCompile Include="src\Extra\FileParser.cpp" />
     <ClCompile Include="src\Game\BaseGame.cpp" />
     <ClCompile Include="src\Game\Spirit.cpp" />
     <ClCompile Include="src\Game\State.cpp" />
@@ -279,6 +289,7 @@
     <ClCompile Include="src\Global\Utils.cpp" />
     <ClCompile Include="src\Input\Input.cpp" />
     <ClCompile Include="src\Input\KeyMapper.cpp" />
+    <ClCompile Include="src\Input\DragController.cpp" />
     <ClCompile Include="src\IO\Async.cpp" />
     <ClCompile Include="src\IO\DDSHeader.cpp" />
     <ClCompile Include="src\IO\File.cpp" />
@@ -304,10 +315,17 @@
     <ClCompile Include="src\Net\Net.cpp" />
     <ClCompile Include="src\Net\Socket.cpp" />
     <ClCompile Include="src\Physics\Bullet.cpp" />
+    <ClCompile Include="src\Physics\BulletDebugDraw.cpp" />
+    <ClCompile Include="src\Physics\CharacterController.cpp" />
+    <ClCompile Include="src\Physics\KinematicCharacterController.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\Physics\Physics.cpp" />
     <ClCompile Include="src\Scene\Atmosphere.cpp" />
     <ClCompile Include="src\Scene\BaseMesh.cpp" />
     <ClCompile Include="src\Scene\Camera.cpp" />
+    <ClCompile Include="src\Scene\CameraOrbit.cpp" />
     <ClCompile Include="src\Scene\EditorTerrain.cpp" />
     <ClCompile Include="src\Scene\Helpers.cpp" />
     <ClCompile Include="src\Scene\MaterialManager.cpp" />
@@ -316,6 +334,10 @@
     <ClCompile Include="src\Scene\SceneManager.cpp" />
     <ClCompile Include="src\Scene\ShadowMap.cpp" />
     <ClCompile Include="src\Scene\Terrain.cpp" />
+    <ClCompile Include="src\ThirdParty\fast_atof.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\ThirdParty\imgui\imgui.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
@@ -355,6 +377,14 @@
       <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4267</DisableSpecificWarnings>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\nativefiledialog\nfd_common.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\nativefiledialog\nfd_win.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\ThirdParty\pugixml-1.10\pugixml.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>

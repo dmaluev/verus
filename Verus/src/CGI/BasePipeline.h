@@ -25,6 +25,7 @@ namespace verus
 			bool                       _primitiveRestartEnable = false; // Special index value is 0xFFFFFFFF for 32-bit and 0xFFFF for 16-bit indices.
 			bool                       _compute = false; // Compute pipeline, use PipelineDesc(ShaderPtr, CSZ) to set this to true.
 
+			// What to draw (geo)? How to draw (shader)? Where to draw (render pass)?
 			PipelineDesc(GeometryPtr geo, ShaderPtr shader, CSZ branch, int renderPassID, int subpass = 0) :
 				_geometry(geo), _shader(shader), _shaderBranch(branch), _renderPassID(renderPassID), _subpass(subpass)
 			{
