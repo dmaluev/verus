@@ -82,8 +82,8 @@ void TextureD3D12::Init(RcTextureDesc desc)
 			&resDesc,
 			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
 			nullptr,
-			&_resourceUAV._pMaAllocation,
-			IID_PPV_ARGS(&_resourceUAV._pResource))))
+			&_uavResource._pMaAllocation,
+			IID_PPV_ARGS(&_uavResource._pResource))))
 			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
 
 		_dhUAV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, _desc._mipLevels);
@@ -93,7 +93,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 			uavDesc.Format = resDesc.Format;
 			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 			uavDesc.Texture2D.MipSlice = i;
-			pRendererD3D12->GetD3DDevice()->CreateUnorderedAccessView(_resourceUAV._pResource.Get(), nullptr, &uavDesc, _dhUAV.AtCPU(i));
+			pRendererD3D12->GetD3DDevice()->CreateUnorderedAccessView(_uavResource._pResource.Get(), nullptr, &uavDesc, _dhUAV.AtCPU(i));
 		}
 	}
 
@@ -144,9 +144,9 @@ void TextureD3D12::Done()
 	_dhDSV.Reset();
 	_dhRTV.Reset();
 	_dhSRV.Reset();
-	VERUS_SMART_RELEASE(_resourceUAV._pMaAllocation);
-	VERUS_COM_RELEASE_CHECK(_resourceUAV._pResource.Get());
-	_resourceUAV._pResource.Reset();
+	VERUS_SMART_RELEASE(_uavResource._pMaAllocation);
+	VERUS_COM_RELEASE_CHECK(_uavResource._pResource.Get());
+	_uavResource._pResource.Reset();
 	VERUS_SMART_RELEASE(_resource._pMaAllocation);
 	VERUS_COM_RELEASE_CHECK(_resource._pResource.Get());
 	_resource._pResource.Reset();
@@ -164,7 +164,7 @@ void TextureD3D12::UpdateImage(int mipLevel, const void* p, int arrayLayer, PBas
 	const int h = Math::Max(1, _desc._height >> mipLevel);
 	UINT64 bufferSize = Math::AlignUp(_bytesPerPixel * w, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT) * h;
 	if (IsBC(_desc._format))
-		bufferSize = Math::AlignUp(IO::DDSHeader::ComputeBcPitch(w, h, IsBC1(_desc._format)), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT) * Math::Max(h / 4, 1);
+		bufferSize = Math::AlignUp(IO::DDSHeader::ComputeBcPitch(w, h, Is4BitsBC(_desc._format)), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT) * Math::Max(h / 4, 1);
 
 	const int sbIndex = arrayLayer * _desc._mipLevels + mipLevel;
 	if (_vStagingBuffers.size() <= sbIndex)
@@ -189,8 +189,8 @@ void TextureD3D12::UpdateImage(int mipLevel, const void* p, int arrayLayer, PBas
 	sd.pData = p;
 	if (IsBC(_desc._format))
 	{
-		sd.RowPitch = IO::DDSHeader::ComputeBcPitch(w, h, IsBC1(_desc._format));
-		sd.SlicePitch = IO::DDSHeader::ComputeBcLevelSize(w, h, IsBC1(_desc._format));
+		sd.RowPitch = IO::DDSHeader::ComputeBcPitch(w, h, Is4BitsBC(_desc._format));
+		sd.SlicePitch = IO::DDSHeader::ComputeBcLevelSize(w, h, Is4BitsBC(_desc._format));
 	}
 	else
 	{
@@ -230,7 +230,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 	shader->BeginBindDescriptors();
 
 	auto& ub = renderer.GetUbGenerateMips();
-	ub._isSRGB = false;
+	ub._srgb = false;
 
 	for (int srcMip = 0; srcMip < _desc._mipLevels - 1;)
 	{
@@ -241,17 +241,17 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 
 		ub._srcDimensionCase = (srcHeight & 1) << 1 | (srcWidth & 1);
 
-		int numMips = 4;
-		numMips = Math::Min(4, numMips + 1);
-		numMips = ((srcMip + numMips) >= _desc._mipLevels) ? _desc._mipLevels - srcMip - 1 : numMips;
+		int mipCount = 4;
+		mipCount = Math::Min(4, mipCount + 1);
+		mipCount = ((srcMip + mipCount) >= _desc._mipLevels) ? _desc._mipLevels - srcMip - 1 : mipCount;
 
 		ub._srcMipLevel = srcMip;
-		ub._numMipLevels = numMips;
+		ub._mipLevelCount = mipCount;
 		ub._texelSize.x = 1.f / dstWidth;
 		ub._texelSize.y = 1.f / dstHeight;
 
 		int mips[5] = {};
-		VERUS_FOR(mip, numMips)
+		VERUS_FOR(mip, mipCount)
 			mips[mip + 1] = srcMip + mip + 1;
 
 		const int complexDescSetID = shader->BindDescriptorSetTextures(0, { tex, tex, tex, tex, tex }, mips);
@@ -260,24 +260,24 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 
 		pCB->Dispatch(Math::DivideByMultiple(dstWidth, 8), Math::DivideByMultiple(dstHeight, 8));
 
-		auto rb = CD3DX12_RESOURCE_BARRIER::UAV(_resourceUAV._pResource.Get());
+		auto rb = CD3DX12_RESOURCE_BARRIER::UAV(_uavResource._pResource.Get());
 		pCmdList->ResourceBarrier(1, &rb);
 
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::vsReadOnly, ImageLayout::transferDst, Range<int>(srcMip + 1, srcMip + numMips));
-		VERUS_FOR(mip, numMips)
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::vsReadOnly, ImageLayout::transferDst, Range<int>(srcMip + 1, srcMip + mipCount));
+		VERUS_FOR(mip, mipCount)
 		{
 			const int sub = srcMip + mip + 1;
-			auto rb = CD3DX12_RESOURCE_BARRIER::Transition(_resourceUAV._pResource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE, sub);
+			auto rb = CD3DX12_RESOURCE_BARRIER::Transition(_uavResource._pResource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE, sub);
 			pCmdList->ResourceBarrier(1, &rb);
 			pCmdList->CopyTextureRegion(
 				&CD3DX12_TEXTURE_COPY_LOCATION(_resource._pResource.Get(), sub),
 				0, 0, 0,
-				&CD3DX12_TEXTURE_COPY_LOCATION(_resourceUAV._pResource.Get(), sub),
+				&CD3DX12_TEXTURE_COPY_LOCATION(_uavResource._pResource.Get(), sub),
 				nullptr);
 		}
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::vsReadOnly, Range<int>(srcMip + 1, srcMip + numMips));
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::vsReadOnly, Range<int>(srcMip + 1, srcMip + mipCount));
 
-		srcMip += numMips;
+		srcMip += mipCount;
 	}
 
 	pCB->PipelineImageMemoryBarrier(tex, ImageLayout::vsReadOnly, ImageLayout::fsReadOnly, Range<int>(0, _desc._mipLevels - 1));

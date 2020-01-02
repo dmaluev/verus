@@ -45,7 +45,7 @@ float4 LoadColor(uint index)
 
 float4 PackColor(float4 x)
 {
-	if (g_ub._isSRGB)
+	if (g_ub._srgb)
 	{
 		return ColorToSRGB(x);
 	}
@@ -112,7 +112,7 @@ void mainCS(CSI si)
 
 	g_uavOutMip1[si._DispatchThreadID.xy] = PackColor(srcColor1);
 
-	if (1 == g_ub._numMipLevels)
+	if (1 == g_ub._mipLevelCount)
 		return;
 
 	StoreColor(si._GroupIndex, srcColor1);
@@ -130,7 +130,7 @@ void mainCS(CSI si)
 		StoreColor(si._GroupIndex, srcColor1);
 	}
 
-	if (2 == g_ub._numMipLevels)
+	if (2 == g_ub._mipLevelCount)
 		return;
 
 	GroupMemoryBarrierWithGroupSync();
@@ -146,7 +146,7 @@ void mainCS(CSI si)
 		StoreColor(si._GroupIndex, srcColor1);
 	}
 
-	if (3 == g_ub._numMipLevels)
+	if (3 == g_ub._mipLevelCount)
 		return;
 
 	GroupMemoryBarrierWithGroupSync();

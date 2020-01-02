@@ -68,7 +68,7 @@ void AudioSystem::Update()
 
 	VERUS_QREF_TIMER;
 
-	VERUS_FOR(i, VERUS_ARRAY_LENGTH(_streamPlayers))
+	VERUS_FOR(i, VERUS_COUNT_OF(_streamPlayers))
 		_streamPlayers[i].Update();
 
 	// Update every frame:
@@ -102,7 +102,7 @@ void AudioSystem::Update()
 
 void AudioSystem::DeleteAllStreams()
 {
-	VERUS_FOR(i, VERUS_ARRAY_LENGTH(_streamPlayers))
+	VERUS_FOR(i, VERUS_COUNT_OF(_streamPlayers))
 		_streamPlayers[i].Done();
 }
 

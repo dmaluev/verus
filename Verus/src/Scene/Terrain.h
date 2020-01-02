@@ -34,8 +34,8 @@ namespace verus
 		public:
 			Vector<UINT16> _vIB;
 			int            _side = 0;
-			int            _numVerts = 0;
-			int            _numIndices = 0;
+			int            _vertCount = 0;
+			int            _indexCount = 0;
 			int            _firstIndex = 0;
 
 			void Init(int sidePoly, int step);
@@ -62,7 +62,7 @@ namespace verus
 			int    _distToCameraSq = 0;
 			short  _patchHeight = 0;
 			char   _quadtreeLOD = 0;
-			char   _numChannelsUsed = 1;
+			char   _usedChannelCount = 1;
 			short  _height[16 * 16];
 			char   _mainLayer[16 * 16];
 
@@ -99,7 +99,7 @@ namespace verus
 				TEX_MAX
 			};
 
-			static const int s_maxNumLayers = 16;
+			static const int s_maxLayers = 16;
 
 			struct PerInstanceData
 			{
@@ -130,14 +130,14 @@ namespace verus
 			float                       _quadtreeFatten = 0.5f;
 			int                         _mapSide = 0;
 			int                         _mapShift = 0;
-			int                         _numVisiblePatches = 0;
-			int                         _numVerts = 0;
-			int                         _numIndices = 0;
-			int                         _numInstances = 0;
+			int                         _visiblePatchCount = 0;
+			int                         _vertCount = 0;
+			int                         _indexCount = 0;
+			int                         _instanceCount = 0;
 			int                         _csidVS = -1;
 			int                         _csidFS = -1;
 			TerrainLOD                  _lods[5]; // Level of detail data for (16x16, 8x8, 4x4, 2x2, 1x1).
-			LayerData                   _layerData[s_maxNumLayers];
+			LayerData                   _layerData[s_maxLayers];
 			TerrainPhysics              _physics;
 			Math::QuadtreeIntegral      _quadtree;
 

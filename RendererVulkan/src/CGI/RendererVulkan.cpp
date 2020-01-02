@@ -63,10 +63,10 @@ void RendererVulkan::Init()
 	_vRenderPasses.reserve(20);
 	_vFramebuffers.reserve(40);
 
-	VerusCompilerInit();
+	VulkanCompilerInit();
 
 	CreateInstance();
-#if defined(_DEBUG) || defined(VERUS_DEBUG)
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	CreateDebugUtilsMessenger();
 #endif
 	CreateSurface();
@@ -124,53 +124,53 @@ void RendererVulkan::Done()
 	VERUS_VULKAN_DESTROY(_vmaAllocator, vmaDestroyAllocator(_vmaAllocator));
 	VERUS_VULKAN_DESTROY(_device, vkDestroyDevice(_device, GetAllocator()));
 	VERUS_VULKAN_DESTROY(_surface, vkDestroySurfaceKHR(_instance, _surface, GetAllocator()));
-#if defined(_DEBUG) || defined(VERUS_DEBUG)
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	VERUS_VULKAN_DESTROY(_debugUtilsMessenger, DestroyDebugUtilsMessengerEXT(_instance, _debugUtilsMessenger, GetAllocator()));
 #endif
 	VERUS_VULKAN_DESTROY(_instance, vkDestroyInstance(_instance, GetAllocator()));
 
-	VerusCompilerDone();
+	VulkanCompilerDone();
 
 	VERUS_DONE(RendererVulkan);
 }
 
-void RendererVulkan::VerusCompilerInit()
+void RendererVulkan::VulkanCompilerInit()
 {
 #ifdef _WIN32
-	PFNVERUSCOMPILERINIT VerusCompilerInit = reinterpret_cast<PFNVERUSCOMPILERINIT>(
-		GetProcAddress(LoadLibraryA("VulkanShaderCompiler.dll"), "VerusCompilerInit"));
-	VerusCompilerInit();
+	PFNVULKANCOMPILERINIT VulkanCompilerInit = reinterpret_cast<PFNVULKANCOMPILERINIT>(
+		GetProcAddress(LoadLibraryA("VulkanShaderCompiler.dll"), "VulkanCompilerInit"));
+	VulkanCompilerInit();
 #else
-	PFNVERUSCOMPILERINIT VerusCompilerInit = reinterpret_cast<PFNVERUSCOMPILERINIT>(
-		dlsym(dlopen("./libVulkanShaderCompiler.so", RTLD_LAZY), "VerusCompilerInit"));
-	VerusCompilerInit();
+	PFNVULKANCOMPILERINIT VulkanCompilerInit = reinterpret_cast<PFNVULKANCOMPILERINIT>(
+		dlsym(dlopen("./libVulkanShaderCompiler.so", RTLD_LAZY), "VulkanCompilerInit"));
+	VulkanCompilerInit();
 #endif
 }
 
-void RendererVulkan::VerusCompilerDone()
+void RendererVulkan::VulkanCompilerDone()
 {
 #ifdef _WIN32
-	PFNVERUSCOMPILERDONE VerusCompilerDone = reinterpret_cast<PFNVERUSCOMPILERDONE>(
-		GetProcAddress(LoadLibraryA("VulkanShaderCompiler.dll"), "VerusCompilerDone"));
-	VerusCompilerDone();
+	PFNVULKANCOMPILERDONE VulkanCompilerDone = reinterpret_cast<PFNVULKANCOMPILERDONE>(
+		GetProcAddress(LoadLibraryA("VulkanShaderCompiler.dll"), "VulkanCompilerDone"));
+	VulkanCompilerDone();
 #else
-	PFNVERUSCOMPILERDONE VerusCompilerDone = reinterpret_cast<PFNVERUSCOMPILERDONE>(
-		dlsym(dlopen("./libVulkanShaderCompiler.so", RTLD_LAZY), "VerusCompilerDone"));
-	VerusCompilerDone();
+	PFNVULKANCOMPILERDONE VulkanCompilerDone = reinterpret_cast<PFNVULKANCOMPILERDONE>(
+		dlsym(dlopen("./libVulkanShaderCompiler.so", RTLD_LAZY), "VulkanCompilerDone"));
+	VulkanCompilerDone();
 #endif
 }
 
-bool RendererVulkan::VerusCompile(CSZ source, CSZ sourceName, CSZ* defines, BaseShaderInclude* pInclude,
+bool RendererVulkan::VulkanCompile(CSZ source, CSZ sourceName, CSZ* defines, BaseShaderInclude* pInclude,
 	CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs)
 {
 #ifdef _WIN32
-	PFNVERUSCOMPILE VerusCompile = reinterpret_cast<PFNVERUSCOMPILE>(
-		GetProcAddress(LoadLibraryA("VulkanShaderCompiler.dll"), "VerusCompile"));
-	return VerusCompile(source, sourceName, defines, pInclude, entryPoint, target, flags, ppCode, pSize, ppErrorMsgs);
+	PFNVULKANCOMPILE VulkanCompile = reinterpret_cast<PFNVULKANCOMPILE>(
+		GetProcAddress(LoadLibraryA("VulkanShaderCompiler.dll"), "VulkanCompile"));
+	return VulkanCompile(source, sourceName, defines, pInclude, entryPoint, target, flags, ppCode, pSize, ppErrorMsgs);
 #else
-	PFNVERUSCOMPILE VerusCompile = reinterpret_cast<VerusCompile>(
-		dlsym(dlopen("./libVulkanShaderCompiler.so", RTLD_LAZY), "VerusCompile"));
-	return VerusCompile(source, sourceName, defines, pInclude, entryPoint, target, flags, ppCode, pSize, ppErrorMsgs);
+	PFNVULKANCOMPILE VulkanCompile = reinterpret_cast<VulkanCompile>(
+		dlsym(dlopen("./libVulkanShaderCompiler.so", RTLD_LAZY), "VulkanCompile"));
+	return VulkanCompile(source, sourceName, defines, pInclude, entryPoint, target, flags, ppCode, pSize, ppErrorMsgs);
 #endif
 }
 
@@ -229,7 +229,7 @@ Vector<CSZ> RendererVulkan::GetRequiredExtensions()
 	vExtensions.resize(count);
 	if (!SDL_Vulkan_GetInstanceExtensions(pWnd, &count, vExtensions.data()))
 		throw VERUS_RUNTIME_ERROR << "SDL_Vulkan_GetInstanceExtensions()";
-#if defined(_DEBUG) || defined(VERUS_DEBUG)
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	vExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
 	return vExtensions;
@@ -239,7 +239,7 @@ void RendererVulkan::CreateInstance()
 {
 	VkResult res = VK_SUCCESS;
 
-#if defined(_DEBUG) || defined(VERUS_DEBUG)
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	if (!CheckRequiredValidationLayers())
 		throw VERUS_RUNTIME_ERROR << "CheckRequiredValidationLayers()";
 #endif
@@ -253,11 +253,11 @@ void RendererVulkan::CreateInstance()
 	VkValidationFeatureEnableEXT enabledValidationFeatures[] = { VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT };
 	VkValidationFeaturesEXT vkvf = {};
 	vkvf.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
-	vkvf.enabledValidationFeatureCount = VERUS_ARRAY_LENGTH(enabledValidationFeatures);
+	vkvf.enabledValidationFeatureCount = VERUS_COUNT_OF(enabledValidationFeatures);
 	vkvf.pEnabledValidationFeatures = enabledValidationFeatures;
 	VkApplicationInfo vkai = {};
 	vkai.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-#if defined(_DEBUG) || defined(VERUS_DEBUG)
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	vkai.pNext = &vkvf;
 #endif
 	vkai.pApplicationName = "Game";
@@ -268,8 +268,8 @@ void RendererVulkan::CreateInstance()
 	VkInstanceCreateInfo vkici = {};
 	vkici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	vkici.pApplicationInfo = &vkai;
-#if defined(_DEBUG) || defined(VERUS_DEBUG)
-	vkici.enabledLayerCount = VERUS_ARRAY_LENGTH(s_requiredValidationLayers);
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
+	vkici.enabledLayerCount = VERUS_COUNT_OF(s_requiredValidationLayers);
 	vkici.ppEnabledLayerNames = s_requiredValidationLayers;
 #endif
 	vkici.enabledExtensionCount = Utils::Cast32(vExtensions.size());
@@ -284,7 +284,7 @@ void RendererVulkan::CreateDebugUtilsMessenger()
 	VkDebugUtilsMessengerCreateInfoEXT vkdumci = {};
 	vkdumci.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 	vkdumci.messageSeverity =
-#if defined(_DEBUG) || defined(VERUS_DEBUG)
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 		VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
 		VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
 #endif
@@ -417,11 +417,11 @@ void RendererVulkan::CreateDevice()
 	vkdci.pNext = &lineRasterizationFeatures;
 	vkdci.queueCreateInfoCount = Utils::Cast32(vDeviceQueueCreateInfos.size());
 	vkdci.pQueueCreateInfos = vDeviceQueueCreateInfos.data();
-#if defined(_DEBUG) || defined(VERUS_DEBUG)
-	vkdci.enabledLayerCount = VERUS_ARRAY_LENGTH(s_requiredValidationLayers);
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
+	vkdci.enabledLayerCount = VERUS_COUNT_OF(s_requiredValidationLayers);
 	vkdci.ppEnabledLayerNames = s_requiredValidationLayers;
 #endif
-	vkdci.enabledExtensionCount = VERUS_ARRAY_LENGTH(s_requiredDeviceExtensions);
+	vkdci.enabledExtensionCount = VERUS_COUNT_OF(s_requiredDeviceExtensions);
 	vkdci.ppEnabledExtensionNames = s_requiredDeviceExtensions;
 	vkdci.pEnabledFeatures = &physicalDeviceFeatures;
 	if (VK_SUCCESS != (res = vkCreateDevice(_physicalDevice, &vkdci, GetAllocator(), &_device)))
@@ -463,14 +463,14 @@ void RendererVulkan::CreateSwapChain(VkSwapchainKHR oldSwapchain)
 
 	VkResult res = VK_SUCCESS;
 
-	_numSwapChainBuffers = settings._screenVSync ? 3 : 2;
+	_swapChainBufferCount = settings._screenVSync ? 3 : 2;
 
 	const SwapChainInfo swapChainInfo = GetSwapChainInfo(_physicalDevice);
 
 	VkSwapchainCreateInfoKHR vksci = {};
 	vksci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	vksci.surface = _surface;
-	vksci.minImageCount = _numSwapChainBuffers;
+	vksci.minImageCount = _swapChainBufferCount;
 	vksci.imageFormat = VK_FORMAT_B8G8R8A8_SRGB;
 	vksci.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 	vksci.imageExtent.width = renderer.GetSwapChainWidth();
@@ -494,22 +494,22 @@ void RendererVulkan::CreateSwapChain(VkSwapchainKHR oldSwapchain)
 	else
 	{
 		vksci.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-		vksci.queueFamilyIndexCount = VERUS_ARRAY_LENGTH(queueFamilyIndicesArray);
+		vksci.queueFamilyIndexCount = VERUS_COUNT_OF(queueFamilyIndicesArray);
 		vksci.pQueueFamilyIndices = queueFamilyIndicesArray;
 	}
 	if (VK_SUCCESS != (res = vkCreateSwapchainKHR(_device, &vksci, GetAllocator(), &_swapChain)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateSwapchainKHR(), res=" << res;
 
-	vkGetSwapchainImagesKHR(_device, _swapChain, &_numSwapChainBuffers, nullptr);
-	_vSwapChainImages.resize(_numSwapChainBuffers);
-	vkGetSwapchainImagesKHR(_device, _swapChain, &_numSwapChainBuffers, _vSwapChainImages.data());
+	vkGetSwapchainImagesKHR(_device, _swapChain, &_swapChainBufferCount, nullptr);
+	_vSwapChainImages.resize(_swapChainBufferCount);
+	vkGetSwapchainImagesKHR(_device, _swapChain, &_swapChainBufferCount, _vSwapChainImages.data());
 }
 
 void RendererVulkan::CreateImageViews()
 {
 	VkResult res = VK_SUCCESS;
-	_vSwapChainImageViews.resize(_numSwapChainBuffers);
-	VERUS_U_FOR(i, _numSwapChainBuffers)
+	_vSwapChainImageViews.resize(_swapChainBufferCount);
+	VERUS_U_FOR(i, _swapChainBufferCount)
 	{
 		VkImageViewCreateInfo vkivci = {};
 		vkivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -610,7 +610,7 @@ void RendererVulkan::CreateSamplers()
 	_vSamplers[+Sampler::shadow] = Create(vksci);
 
 	vksci = init;
-	vksci.anisotropyEnable = VK_TRUE;
+	vksci.anisotropyEnable = (settings._gpuAnisotropyLevel > 0) ? VK_TRUE : VK_FALSE;
 	vksci.maxAnisotropy = static_cast<float>(settings._gpuAnisotropyLevel);
 	_vSamplers[+Sampler::aniso] = Create(vksci);
 
@@ -702,16 +702,17 @@ void RendererVulkan::ImGuiInit(int renderPassID)
 	IMGUI_CHECKVERSION();
 	ImGuiContext* pContext = ImGui::CreateContext();
 	renderer.ImGuiSetCurrentContext(pContext);
-	ImGuiIO& io = ImGui::GetIO();
+	auto& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 	io.ConfigWindowsMoveFromTitleBarOnly = true;
+	io.IniFilename = nullptr;
 	if (!settings._imguiFont.empty())
 	{
 		Vector<BYTE> vData;
 		IO::FileSystem::LoadResource(_C(settings._imguiFont), vData);
 		void* pFontData = IM_ALLOC(vData.size());
 		memcpy(pFontData, vData.data(), vData.size());
-		io.Fonts->AddFontFromMemoryTTF(pFontData, Utils::Cast32(vData.size()), 15);
+		io.Fonts->AddFontFromMemoryTTF(pFontData, Utils::Cast32(vData.size()), settings.GetFontSize(), nullptr, io.Fonts->GetGlyphRangesCyrillic());
 	}
 
 	ImGui::StyleColorsDark();
@@ -774,7 +775,7 @@ void RendererVulkan::BeginFrame(bool present)
 	if (VK_SUCCESS != (res = vkResetFences(_device, 1, &_queueSubmitFences[_ringBufferIndex])))
 		throw VERUS_RUNTIME_ERROR << "vkResetFences(), res=" << res;
 
-	vmaSetCurrentFrameIndex(_vmaAllocator, static_cast<uint32_t>(renderer.GetNumFrames()));
+	vmaSetCurrentFrameIndex(_vmaAllocator, static_cast<uint32_t>(renderer.GetFrameCount()));
 
 	if (present)
 	{
@@ -836,7 +837,7 @@ void RendererVulkan::Present()
 		vkpi.waitSemaphoreCount = 1;
 		vkpi.pWaitSemaphores = &_queueSubmitSemaphore;
 	}
-	vkpi.swapchainCount = VERUS_ARRAY_LENGTH(swapChains);
+	vkpi.swapchainCount = VERUS_COUNT_OF(swapChains);
 	vkpi.pSwapchains = swapChains;
 	vkpi.pImageIndices = &_swapChainBufferIndex;
 	if (VK_SUCCESS != (res = vkQueuePresentKHR(_presentQueue, &vkpi)))
@@ -1113,24 +1114,24 @@ int RendererVulkan::CreateFramebuffer(int renderPassID, std::initializer_list<Te
 {
 	VkResult res = VK_SUCCESS;
 
-	VkImageView imageViews[VERUS_MAX_NUM_RT] = {};
+	VkImageView imageViews[VERUS_MAX_RT] = {};
 	VkFramebuffer framebuffer = VK_NULL_HANDLE;
 	VkFramebufferCreateInfo vkfci = {};
 	vkfci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	vkfci.renderPass = GetRenderPassByID(renderPassID);
-	int num = 0;
+	int count = 0;
 	if (swapChainBufferIndex >= 0)
 	{
-		imageViews[num] = _vSwapChainImageViews[swapChainBufferIndex];
-		num++;
+		imageViews[count] = _vSwapChainImageViews[swapChainBufferIndex];
+		count++;
 	}
 	for (const auto& x : il)
 	{
 		auto& texVulkan = static_cast<RTextureVulkan>(*x);
-		imageViews[num] = texVulkan.GetVkImageView();
-		num++;
+		imageViews[count] = texVulkan.GetVkImageView();
+		count++;
 	}
-	vkfci.attachmentCount = num;
+	vkfci.attachmentCount = count;
 	vkfci.pAttachments = imageViews;
 	vkfci.width = w;
 	vkfci.height = h;
@@ -1183,24 +1184,24 @@ void RendererVulkan::DeleteFramebuffer(int id)
 
 int RendererVulkan::GetNextRenderPassID() const
 {
-	const int num = Utils::Cast32(_vRenderPasses.size());
-	VERUS_FOR(i, num)
+	const int count = Utils::Cast32(_vRenderPasses.size());
+	VERUS_FOR(i, count)
 	{
 		if (VK_NULL_HANDLE == _vRenderPasses[i])
 			return i;
 	}
-	return num;
+	return count;
 }
 
 int RendererVulkan::GetNextFramebufferID() const
 {
-	const int num = Utils::Cast32(_vFramebuffers.size());
-	VERUS_FOR(i, num)
+	const int count = Utils::Cast32(_vFramebuffers.size());
+	VERUS_FOR(i, count)
 	{
 		if (VK_NULL_HANDLE == _vFramebuffers[i]._framebuffer)
 			return i;
 	}
-	return num;
+	return count;
 }
 
 VkRenderPass RendererVulkan::GetRenderPassByID(int id) const

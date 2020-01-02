@@ -80,8 +80,8 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		// <User defines>
 		Vector<D3D_SHADER_MACRO> vDefines;
 		vDefines.reserve(20);
-		const int num = Utils::Cast32(vMacroName.size());
-		VERUS_FOR(i, num)
+		const int count = Utils::Cast32(vMacroName.size());
+		VERUS_FOR(i, count)
 		{
 			D3D_SHADER_MACRO sm;
 			sm.Name = _C(vMacroName[i]);
@@ -108,8 +108,8 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		}
 		char defMaxNumBones[64] = {};
 		{
-			sprintf_s(defMaxNumBones, "%d", VERUS_MAX_NUM_BONES);
-			vDefines.push_back({ "VERUS_MAX_NUM_BONES", defMaxNumBones });
+			sprintf_s(defMaxNumBones, "%d", VERUS_MAX_BONES);
+			vDefines.push_back({ "VERUS_MAX_BONES", defMaxNumBones });
 		}
 		vDefines.push_back({ "_DIRECT3D", "1" });
 		const int typeIndex = Utils::Cast32(vDefines.size());
@@ -121,7 +121,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 
 		if (strchr(_C(stages), 'V'))
 		{
-			compiled._numStages++;
+			compiled._stageCount++;
 			vDefines[typeIndex].Name = "_VS";
 			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(entryVS), _C("vs_" + version), flags, 0, &compiled._pBlobs[+Stage::vs], &pErrorMsgs);
 			CheckErrorMsgs(pErrorMsgs);
@@ -129,7 +129,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 
 		if (strchr(_C(stages), 'H'))
 		{
-			compiled._numStages++;
+			compiled._stageCount++;
 			vDefines[typeIndex].Name = "_HS";
 			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(entryHS), _C("hs_" + version), flags, 0, &compiled._pBlobs[+Stage::hs], &pErrorMsgs);
 			CheckErrorMsgs(pErrorMsgs);
@@ -137,7 +137,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 
 		if (strchr(_C(stages), 'D'))
 		{
-			compiled._numStages++;
+			compiled._stageCount++;
 			vDefines[typeIndex].Name = "_DS";
 			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(entryDS), _C("ds_" + version), flags, 0, &compiled._pBlobs[+Stage::ds], &pErrorMsgs);
 			CheckErrorMsgs(pErrorMsgs);
@@ -145,7 +145,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 
 		if (strchr(_C(stages), 'G'))
 		{
-			compiled._numStages++;
+			compiled._stageCount++;
 			vDefines[typeIndex].Name = "_GS";
 			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(entryGS), _C("gs_" + version), flags, 0, &compiled._pBlobs[+Stage::gs], &pErrorMsgs);
 			CheckErrorMsgs(pErrorMsgs);
@@ -153,7 +153,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 
 		if (strchr(_C(stages), 'F'))
 		{
-			compiled._numStages++;
+			compiled._stageCount++;
 			vDefines[typeIndex].Name = "_FS";
 			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(entryFS), _C("ps_" + version), flags, 0, &compiled._pBlobs[+Stage::fs], &pErrorMsgs);
 			CheckErrorMsgs(pErrorMsgs);
@@ -161,7 +161,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 
 		if (strchr(_C(stages), 'C'))
 		{
-			compiled._numStages++;
+			compiled._stageCount++;
 			vDefines[typeIndex].Name = "_CS";
 			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(entryCS), _C("cs_" + version), flags, 0, &compiled._pBlobs[+Stage::cs], &pErrorMsgs);
 			CheckErrorMsgs(pErrorMsgs);
@@ -212,9 +212,9 @@ void ShaderD3D12::CreateDescriptorSet(int setNumber, const void* pSrc, int size,
 	dsd._vSamplers.assign(il);
 	dsd._pSrc = pSrc;
 	dsd._size = size;
-	dsd._sizeAligned = Math::AlignUp(size, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+	dsd._alignedSize = Math::AlignUp(size, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 	dsd._capacity = capacity;
-	dsd._capacityInBytes = dsd._sizeAligned * dsd._capacity;
+	dsd._capacityInBytes = dsd._alignedSize * dsd._capacity;
 	dsd._stageFlags = stageFlags;
 
 	if (capacity > 0)
@@ -231,15 +231,15 @@ void ShaderD3D12::CreateDescriptorSet(int setNumber, const void* pSrc, int size,
 			IID_PPV_ARGS(&dsd._pConstantBuffer))))
 			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
 
-		const int num = dsd._capacity * BaseRenderer::s_ringBufferSize;
-		dsd._dhDynamicOffsets.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, num);
-		VERUS_FOR(i, num)
+		const int count = dsd._capacity * BaseRenderer::s_ringBufferSize;
+		dsd._dhDynamicOffsets.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, count);
+		VERUS_FOR(i, count)
 		{
-			const int offset = i * dsd._sizeAligned;
+			const int offset = i * dsd._alignedSize;
 			auto handle = dsd._dhDynamicOffsets.AtCPU(i);
 			D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
 			desc.BufferLocation = dsd._pConstantBuffer->GetGPUVirtualAddress() + offset;
-			desc.SizeInBytes = dsd._sizeAligned;
+			desc.SizeInBytes = dsd._alignedSize;
 			pRendererD3D12->GetD3DDevice()->CreateConstantBufferView(&desc, handle);
 		}
 	}
@@ -252,9 +252,9 @@ void ShaderD3D12::CreatePipelineLayout()
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
 
-	int numAllTextures = 0;
+	int allTextureCount = 0;
 	for (const auto& dsd : _vDescriptorSetDesc)
-		numAllTextures += Utils::Cast32(dsd._vSamplers.size());
+		allTextureCount += Utils::Cast32(dsd._vSamplers.size());
 
 	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureSupportData = {};
 	featureSupportData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
@@ -265,20 +265,20 @@ void ShaderD3D12::CreatePipelineLayout()
 		D3D12_ROOT_SIGNATURE_FLAG_NONE : D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	Vector<CD3DX12_DESCRIPTOR_RANGE1> vDescRanges;
-	vDescRanges.reserve(_vDescriptorSetDesc.size() + numAllTextures); // Must not reallocate.
+	vDescRanges.reserve(_vDescriptorSetDesc.size() + allTextureCount); // Must not reallocate.
 	Vector<CD3DX12_DESCRIPTOR_RANGE1> vDescRangesSamplers;
-	vDescRangesSamplers.reserve(numAllTextures);
+	vDescRangesSamplers.reserve(allTextureCount);
 	Vector<CD3DX12_ROOT_PARAMETER1> vRootParams;
 	vRootParams.reserve(_vDescriptorSetDesc.size() + 1);
 	Vector<D3D12_STATIC_SAMPLER_DESC> vStaticSamplers;
-	vStaticSamplers.reserve(numAllTextures);
+	vStaticSamplers.reserve(allTextureCount);
 	if (!_vDescriptorSetDesc.empty())
 	{
 		ShaderStageFlags stageFlags = _vDescriptorSetDesc.front()._stageFlags;
 		// Reverse order:
-		const int num = Utils::Cast32(_vDescriptorSetDesc.size());
-		int space = num - 1;
-		for (int i = num - 1; i >= 0; --i)
+		const int count = Utils::Cast32(_vDescriptorSetDesc.size());
+		int space = count - 1;
+		for (int i = count - 1; i >= 0; --i)
 		{
 			auto& dsd = _vDescriptorSetDesc[i];
 			stageFlags |= dsd._stageFlags;
@@ -288,8 +288,8 @@ void ShaderD3D12::CreatePipelineLayout()
 				descRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, space);
 				vDescRanges.push_back(descRange);
 				const auto pDescriptorRanges = &vDescRanges.back();
-				const int numTextures = Utils::Cast32(dsd._vSamplers.size());
-				VERUS_FOR(i, numTextures)
+				const int textureCount = Utils::Cast32(dsd._vSamplers.size());
+				VERUS_FOR(i, textureCount)
 				{
 					if (Sampler::storage == dsd._vSamplers[i])
 					{
@@ -326,7 +326,7 @@ void ShaderD3D12::CreatePipelineLayout()
 				if (ShaderStageFlags::fs == dsd._stageFlags)
 					visibility = D3D12_SHADER_VISIBILITY_PIXEL;
 				CD3DX12_ROOT_PARAMETER1 rootParam;
-				rootParam.InitAsDescriptorTable(1 + numTextures, pDescriptorRanges, visibility);
+				rootParam.InitAsDescriptorTable(1 + textureCount, pDescriptorRanges, visibility);
 				vRootParams.push_back(rootParam);
 			}
 			else
@@ -452,8 +452,8 @@ void ShaderD3D12::BeginBindDescriptors()
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
 
-	const bool resetOffset = _currentFrame != renderer.GetNumFrames();
-	_currentFrame = renderer.GetNumFrames();
+	const bool resetOffset = _currentFrame != renderer.GetFrameCount();
+	_currentFrame = renderer.GetFrameCount();
 
 	for (auto& dsd : _vDescriptorSetDesc)
 	{
@@ -517,7 +517,7 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, in
 		at = dsd._capacity * pRendererD3D12->GetRingBufferIndex();
 	else
 	{
-		if (dsd._offset + dsd._sizeAligned > dsd._capacityInBytes)
+		if (dsd._offset + dsd._alignedSize > dsd._capacityInBytes)
 		{
 			VERUS_RT_FAIL("UniformBuffer is full.");
 			return CD3DX12_GPU_DESCRIPTOR_HANDLE();
@@ -526,7 +526,7 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, in
 		VERUS_RT_ASSERT(dsd._pMappedData);
 		at = dsd._capacity * pRendererD3D12->GetRingBufferIndex() + dsd._index;
 		memcpy(dsd._pMappedData + dsd._offset, dsd._pSrc, dsd._size);
-		dsd._offset += dsd._sizeAligned;
+		dsd._offset += dsd._alignedSize;
 		dsd._peakLoad = Math::Max(dsd._peakLoad, dsd._offset);
 		dsd._index++;
 	}
@@ -542,9 +542,9 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, in
 	{
 		// Copy SRVs:
 		const auto& complexSet = _vComplexSets[complexSetID];
-		const int num = Utils::Cast32(complexSet._vTextures.size());
-		pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(num,
-			pRendererD3D12->GetHeapCbvSrvUav().GetNextHandlePair(num)._hCPU,
+		const int count = Utils::Cast32(complexSet._vTextures.size());
+		pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(count,
+			pRendererD3D12->GetHeapCbvSrvUav().GetNextHandlePair(count)._hCPU,
 			complexSet._dhSrvUav.AtCPU(0),
 			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
@@ -562,9 +562,9 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateSamplers(int setNumber, int com
 		return CD3DX12_GPU_DESCRIPTOR_HANDLE();
 
 	const auto& complexSet = _vComplexSets[complexSetID];
-	const int num = Utils::Cast32(complexSet._vTextures.size());
-	auto hpSampler = pRendererD3D12->GetHeapSampler().GetNextHandlePair(num);
-	pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(num,
+	const int count = Utils::Cast32(complexSet._vTextures.size());
+	auto hpSampler = pRendererD3D12->GetHeapSampler().GetNextHandlePair(count);
+	pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(count,
 		hpSampler._hCPU,
 		complexSet._dhSamplers.AtCPU(0),
 		D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);

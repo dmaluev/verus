@@ -104,8 +104,8 @@ namespace verus
 			bool IsBGR8() const;
 			static int ComputeBcLevelSize(int w, int h, bool is4Bits);
 			static int ComputeBcPitch(int w, int h, bool is4Bits);
-			int GetNumParts() const;
-			int SkipParts(int numSkip);
+			int GetPartCount() const;
+			int SkipParts(int skipCount);
 		};
 
 		struct DDSHeaderDXT10

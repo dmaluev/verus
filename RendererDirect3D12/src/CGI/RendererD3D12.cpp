@@ -83,7 +83,7 @@ ComPtr<IDXGIFactory6> RendererD3D12::CreateDXGIFactory()
 	HRESULT hr = 0;
 	ComPtr<IDXGIFactory6> pFactory;
 	UINT flags = 0;
-#if defined(_DEBUG) || defined(VERUS_DEBUG)
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	flags = DXGI_CREATE_FACTORY_DEBUG;
 #endif
 	if (FAILED(hr = CreateDXGIFactory2(flags, IID_PPV_ARGS(&pFactory))))
@@ -111,9 +111,9 @@ bool RendererD3D12::CheckFeatureSupportAllowTearing(ComPtr<IDXGIFactory6> pFacto
 void RendererD3D12::CreateSwapChainBuffersRTVs()
 {
 	HRESULT hr = 0;
-	_vSwapChainBuffers.resize(_numSwapChainBuffers);
-	_dhSwapChainBuffersRTVs.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, _numSwapChainBuffers);
-	VERUS_U_FOR(i, _numSwapChainBuffers)
+	_vSwapChainBuffers.resize(_swapChainBufferCount);
+	_dhSwapChainBuffersRTVs.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, _swapChainBufferCount);
+	VERUS_U_FOR(i, _swapChainBufferCount)
 	{
 		ComPtr<ID3D12Resource> pBuffer;
 		if (FAILED(hr = _pSwapChain->GetBuffer(i, IID_PPV_ARGS(&pBuffer))))
@@ -133,7 +133,7 @@ void RendererD3D12::InitD3D()
 
 	HRESULT hr = 0;
 
-#if defined(_DEBUG) || defined(VERUS_DEBUG)
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	EnableDebugLayer();
 #endif
 
@@ -149,7 +149,7 @@ void RendererD3D12::InitD3D()
 	if (FAILED(hr = D3D12MA::CreateAllocator(&allocatorDesc, &_pMaAllocator)))
 		throw VERUS_RUNTIME_ERROR << "CreateAllocator(), hr=" << VERUS_HR(hr);
 
-#if defined(_DEBUG) || defined(VERUS_DEBUG)
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	ComPtr<ID3D12InfoQueue> pInfoQueue;
 	if (SUCCEEDED(_pDevice.As(&pInfoQueue)))
 	{
@@ -161,7 +161,7 @@ void RendererD3D12::InitD3D()
 
 	_pCommandQueue = CreateCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-	_numSwapChainBuffers = settings._screenVSync ? 3 : 2;
+	_swapChainBufferCount = settings._screenVSync ? 3 : 2;
 
 	_swapChainDesc.Width = settings._screenSizeWidth;
 	_swapChainDesc.Height = settings._screenSizeHeight;
@@ -170,7 +170,7 @@ void RendererD3D12::InitD3D()
 	_swapChainDesc.SampleDesc.Count = 1;
 	_swapChainDesc.SampleDesc.Quality = 0;
 	_swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	_swapChainDesc.BufferCount = _numSwapChainBuffers;
+	_swapChainDesc.BufferCount = _swapChainBufferCount;
 	_swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
 	_swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	_swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
@@ -365,16 +365,17 @@ void RendererD3D12::ImGuiInit(int renderPassID)
 	IMGUI_CHECKVERSION();
 	ImGuiContext* pContext = ImGui::CreateContext();
 	renderer.ImGuiSetCurrentContext(pContext);
-	ImGuiIO& io = ImGui::GetIO();
+	auto& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 	io.ConfigWindowsMoveFromTitleBarOnly = true;
+	io.IniFilename = nullptr;
 	if (!settings._imguiFont.empty())
 	{
 		Vector<BYTE> vData;
 		IO::FileSystem::LoadResource(_C(settings._imguiFont), vData);
 		void* pFontData = IM_ALLOC(vData.size());
 		memcpy(pFontData, vData.data(), vData.size());
-		io.Fonts->AddFontFromMemoryTTF(pFontData, Utils::Cast32(vData.size()), 15);
+		io.Fonts->AddFontFromMemoryTTF(pFontData, Utils::Cast32(vData.size()), settings.GetFontSize(), nullptr, io.Fonts->GetGlyphRangesCyrillic());
 	}
 
 	ImGui::StyleColorsDark();
@@ -450,7 +451,7 @@ void RendererD3D12::EndFrame(bool present)
 	renderer.GetCommandBuffer()->End();
 
 	ID3D12CommandList* ppCommandLists[] = { static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList() };
-	_pCommandQueue->ExecuteCommandLists(VERUS_ARRAY_LENGTH(ppCommandLists), ppCommandLists);
+	_pCommandQueue->ExecuteCommandLists(VERUS_COUNT_OF(ppCommandLists), ppCommandLists);
 
 	if (!present)
 	{
@@ -692,10 +693,10 @@ int RendererD3D12::CreateFramebuffer(int renderPassID, std::initializer_list<Tex
 	{
 		RP::D3DFramebufferSubpass fs;
 
-		int numRes = Utils::Cast32(subpass._vInput.size() + subpass._vColor.size());
+		int resCount = Utils::Cast32(subpass._vInput.size() + subpass._vColor.size());
 		if (subpass._depthStencil._index >= 0)
-			numRes++;
-		fs._vResources.reserve(numRes);
+			resCount++;
+		fs._vResources.reserve(resCount);
 
 		if (!subpass._vInput.empty())
 		{
@@ -754,24 +755,24 @@ void RendererD3D12::DeleteFramebuffer(int id)
 
 int RendererD3D12::GetNextRenderPassID() const
 {
-	const int num = Utils::Cast32(_vRenderPasses.size());
-	VERUS_FOR(i, num)
+	const int count = Utils::Cast32(_vRenderPasses.size());
+	VERUS_FOR(i, count)
 	{
 		if (_vRenderPasses[i]._vSubpasses.empty())
 			return i;
 	}
-	return num;
+	return count;
 }
 
 int RendererD3D12::GetNextFramebufferID() const
 {
-	const int num = Utils::Cast32(_vFramebuffers.size());
-	VERUS_FOR(i, num)
+	const int count = Utils::Cast32(_vFramebuffers.size());
+	VERUS_FOR(i, count)
 	{
 		if (_vFramebuffers[i]._vSubpasses.empty())
 			return i;
 	}
-	return num;
+	return count;
 }
 
 RP::RcD3DRenderPass RendererD3D12::GetRenderPassByID(int id) const

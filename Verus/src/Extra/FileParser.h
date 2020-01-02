@@ -102,9 +102,9 @@ namespace verus
 				Vector<Vec2Short>  _vZipTc0;
 				Vector<Vec2Short>  _vZipTc1;
 				Vector<Bone>       _vBones;
-				int                _numVerts = 0;
-				int                _numFaces = 0;
-				int                _numBones = 0;
+				int                _vertCount = 0;
+				int                _faceCount = 0;
+				int                _boneCount = 0;
 				glm::vec3          _posScale;
 				glm::vec3          _posBias;
 				glm::vec2          _tc0Scale;
@@ -139,12 +139,12 @@ namespace verus
 				const glm::mat4& GetWorldSpaceMatrix() const { return _worldSpace; }
 				void             SetWorldSpaceMatrix(const glm::mat4& mat) { _worldSpace = mat; }
 
-				int GetNumVerts() const { return _numVerts; }
-				int GetNumFaces() const { return _numFaces; }
-				int GetNumBones() const { return _numBones; }
-				void SetNumVerts(int num) { _numVerts = num; }
-				void SetNumFaces(int num) { _numFaces = num; }
-				void SetNumBones(int num) { _numBones = num; }
+				int GetVertCount() const { return _vertCount; }
+				int GetFaceCount() const { return _faceCount; }
+				int GetBoneCount() const { return _boneCount; }
+				void SetVertCount(int count) { _vertCount = count; }
+				void SetFaceCount(int count) { _faceCount = count; }
+				void SetBoneCount(int count) { _boneCount = count; }
 
 				void ResizeVertsArray(int size) { _vUberVerts.resize(size); }
 				void ResizeFacesArray(int size) { _vFaces.resize(size); }
@@ -154,7 +154,7 @@ namespace verus
 
 				void AddFoundFlag(Found flag) { _found |= flag; }
 
-				int GetNextBoneIndex() const { return _vBones.size(); }
+				int GetNextBoneIndex() const { return Utils::Cast32(_vBones.size()); }
 				void AddBone(RcBone bone) { _vBones.push_back(bone); }
 
 				bool IsCopyOf(Mesh& that);
@@ -199,7 +199,7 @@ namespace verus
 			{
 				Vector<SubKey> _vFrame;
 				int            _type = 0;
-				int            _numLogicFrames = 0;
+				int            _logicFrameCount = 0;
 
 				void DetectRedundantFrames(float threshold = 0.001f);
 			};

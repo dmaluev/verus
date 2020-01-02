@@ -9,8 +9,8 @@ namespace verus
 			GeometryPtr                _geometry;
 			ShaderPtr                  _shader;
 			CSZ                        _shaderBranch = nullptr;
-			String                     _colorAttachBlendEqs[VERUS_MAX_NUM_RT];
-			String                     _colorAttachWriteMasks[VERUS_MAX_NUM_RT];
+			String                     _colorAttachBlendEqs[VERUS_MAX_RT];
+			String                     _colorAttachWriteMasks[VERUS_MAX_RT];
 			PipelineRasterizationState _rasterizationState;
 			PrimitiveTopology          _topology = PrimitiveTopology::triangleList;
 			int                        _sampleCount = 1;
@@ -30,13 +30,13 @@ namespace verus
 				_geometry(geo), _shader(shader), _shaderBranch(branch), _renderPassID(renderPassID), _subpass(subpass)
 			{
 				_colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
-				VERUS_FOR(i, VERUS_ARRAY_LENGTH(_colorAttachWriteMasks))
+				VERUS_FOR(i, VERUS_COUNT_OF(_colorAttachWriteMasks))
 					_colorAttachWriteMasks[i] = "rgba";
 			}
 			PipelineDesc(ShaderPtr shader, CSZ branch) :
 				_shader(shader), _shaderBranch(branch), _compute(true) {}
 
-			void DepthBiasEnable()
+			void EnableDepthBias()
 			{
 				_rasterizationState._depthBiasEnable = true;
 				_rasterizationState._depthBiasConstantFactor = 14;

@@ -94,14 +94,14 @@ int Str::ReplaceAll(RString s, CSZ was, CSZ with)
 	const size_t len = strlen(was);
 	const size_t lenNew = strlen(with);
 	size_t pos = s.find(was);
-	int num = 0;
+	int count = 0;
 	while (pos < 1024 * 1024)
 	{
 		s.replace(pos, len, with);
 		pos = s.find(was, pos + lenNew);
-		num++;
+		count++;
 	}
-	return num;
+	return count;
 }
 
 void Str::ReplaceExtension(RString s, CSZ ext)
@@ -109,8 +109,8 @@ void Str::ReplaceExtension(RString s, CSZ ext)
 	size_t d = s.rfind(".");
 	if (d != String::npos)
 	{
-		size_t num = s.length() - d;
-		s.replace(d, num, ext);
+		size_t count = s.length() - d;
+		s.replace(d, count, ext);
 	}
 }
 
@@ -119,8 +119,8 @@ void Str::ReplaceFilename(RString s, CSZ name)
 	size_t d = s.rfind("/");
 	if (d != String::npos)
 	{
-		size_t num = s.length() - d;
-		s.replace(d + 1, num, name);
+		size_t count = s.length() - d;
+		s.replace(d + 1, count, name);
 	}
 }
 

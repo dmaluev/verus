@@ -66,17 +66,17 @@ void Quadtree::Build(int currentNode, int level)
 	const int maxLevel = Math::Max(maxLevelX, maxLevelY);
 	if (!currentNode)
 	{
-		const int numLevels = maxLevel + 1;
-		int numNodes = 0;
-		VERUS_FOR(i, numLevels)
+		const int levelCount = maxLevel + 1;
+		int nodeCount = 0;
+		VERUS_FOR(i, levelCount)
 		{
-			numNodes +=
+			nodeCount +=
 				(1 << Math::Min(i, maxLevelX)) *
 				(1 << Math::Min(i, maxLevelY));
 		}
-		_vNodes.resize(numNodes);
+		_vNodes.resize(nodeCount);
 		_vNodes[0].SetBounds(_bounds);
-		_numNodes = 1;
+		_nodeCount = 1;
 	}
 
 	if (level < maxLevel)
@@ -101,7 +101,7 @@ void Quadtree::Build(int currentNode, int level)
 					continue;
 			}
 
-			const int index = _numNodes++;
+			const int index = _nodeCount++;
 			_vNodes[currentNode].SetChildIndex(i, index);
 			_vNodes[index].SetBounds(bounds);
 
@@ -151,19 +151,19 @@ void Quadtree::UnbindEntity(int index)
 
 bool Quadtree::MustBind(int currentNode, RcBounds bounds) const
 {
-	int num = 0;
+	int count = 0;
 	VERUS_FOR(i, 4)
 	{
 		const int index = _vNodes[currentNode].GetChildIndex(i);
 		if (index >= 0)
 		{
 			if (_vNodes[index].GetBounds().IsOverlappingWith2D(bounds, 2))
-				num++;
-			if (num > 1)
+				count++;
+			if (count > 1)
 				return true;
 		}
 	}
-	if (!num)
+	if (!count)
 		return _vNodes[currentNode].GetBounds().IsOverlappingWith2D(bounds, 2);
 	return false;
 }
@@ -175,26 +175,26 @@ Continue Quadtree::TraverseProper(RcPoint3 point, PResult pResult, int currentNo
 
 	if (!currentNode)
 	{
-		pResult->_numTests = 0;
-		pResult->_numTestsPassed = 0;
+		pResult->_testCount = 0;
+		pResult->_passedTestCount = 0;
 		pResult->_lastFoundIndex = -1;
 	}
 
-	pResult->_numTests++;
+	pResult->_testCount++;
 
 	if (_vNodes[currentNode].GetBounds().IsInside2D(point))
 	{
 		{
 			RcNode node = _vNodes[currentNode];
-			const int num = node.GetNumEntities();
-			VERUS_FOR(i, num)
+			const int count = node.GetEntityCount();
+			VERUS_FOR(i, count)
 			{
 				RcEntity entity = node.GetEntityAt(i);
-				pResult->_numTests++;
+				pResult->_testCount++;
 				if (entity._bounds.IsInside2D(point))
 				{
 					pResult->_lastFoundIndex = entity._userIndex;
-					pResult->_numTestsPassed++;
+					pResult->_passedTestCount++;
 					if (Continue::no == _pDelegate->Quadtree_ProcessNode(pResult->_lastFoundIndex, pUser))
 						return Continue::no;
 				}

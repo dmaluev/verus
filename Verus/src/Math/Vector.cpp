@@ -123,17 +123,17 @@ void Vector3::EulerToQuaternion(RQuat q) const
 
 void Vector3::LimitDot(RcVector3 v, float d)
 {
-	const float dWas = VMath::dot(*this, v);
-	if (dWas >= d)
+	const float wasDot = VMath::dot(*this, v);
+	if (wasDot >= d)
 		return;
-	const float delta = d - dWas;
+	const float delta = d - wasDot;
 	const Point3 p0 = *this + v * delta;
 	const Point3 p1 = v * d;
 	const float len = VMath::dist(p0, p1);
 	if (len < VERUS_FLOAT_THRESHOLD)
 		return;
-	const float lenTarget = sqrt(1 - d * d);
-	const float ratio = lenTarget / len;
+	const float targetLen = sqrt(1 - d * d);
+	const float ratio = targetLen / len;
 	const Vector3 perp = p0 - p1;
 	*this = p1 + perp * ratio;
 }

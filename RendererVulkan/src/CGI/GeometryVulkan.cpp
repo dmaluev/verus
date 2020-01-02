@@ -19,9 +19,9 @@ void GeometryVulkan::Init(RcGeometryDesc desc)
 	_dynBindingsMask = desc._dynBindingsMask;
 	_32BitIndices = desc._32BitIndices;
 
-	const int numBindings = GetNumBindings(desc._pInputElementDesc);
-	_vVertexInputBindingDesc.reserve(numBindings);
-	_vVertexInputAttributeDesc.reserve(GetNumInputElementDesc(desc._pInputElementDesc));
+	const int bindingCount = GetBindingCount(desc._pInputElementDesc);
+	_vVertexInputBindingDesc.reserve(bindingCount);
+	_vVertexInputAttributeDesc.reserve(GetInputElementDescCount(desc._pInputElementDesc));
 	int i = 0;
 	while (desc._pInputElementDesc[i]._offset >= 0)
 	{
@@ -61,7 +61,7 @@ void GeometryVulkan::Init(RcGeometryDesc desc)
 		i++;
 	}
 
-	_vStrides.reserve(numBindings);
+	_vStrides.reserve(bindingCount);
 	i = 0;
 	while (desc._pStrides[i] > 0)
 	{
@@ -86,7 +86,7 @@ void GeometryVulkan::Done()
 	VERUS_DONE(GeometryVulkan);
 }
 
-void GeometryVulkan::CreateVertexBuffer(int num, int binding)
+void GeometryVulkan::CreateVertexBuffer(int count, int binding)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 
@@ -95,7 +95,7 @@ void GeometryVulkan::CreateVertexBuffer(int num, int binding)
 
 	auto& vb = _vVertexBuffers[binding];
 	const int elementSize = _vStrides[binding];
-	vb._bufferSize = num * elementSize;
+	vb._bufferSize = count * elementSize;
 
 	if (((_instBindingsMask | _dynBindingsMask) >> binding) & 0x1)
 	{
@@ -146,12 +146,12 @@ void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, BaseCommandB
 	}
 }
 
-void GeometryVulkan::CreateIndexBuffer(int num)
+void GeometryVulkan::CreateIndexBuffer(int count)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 
 	const int elementSize = _32BitIndices ? sizeof(UINT32) : sizeof(UINT16);
-	_indexBuffer._bufferSize = num * elementSize;
+	_indexBuffer._bufferSize = count * elementSize;
 
 	pRendererVulkan->CreateBuffer(_indexBuffer._bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
 		_indexBuffer._buffer, _indexBuffer._vmaAllocation);
@@ -201,9 +201,9 @@ VkPipelineVertexInputStateCreateInfo GeometryVulkan::GetVkPipelineVertexInputSta
 		return vertexInputState;
 	}
 
-	uint32_t replaceBinding[VERUS_MAX_NUM_VB] = {}; // For bindings compaction.
+	uint32_t replaceBinding[VERUS_MAX_VB] = {}; // For bindings compaction.
 	int binding = 0;
-	VERUS_FOR(i, VERUS_MAX_NUM_VB)
+	VERUS_FOR(i, VERUS_MAX_VB)
 	{
 		replaceBinding[i] = binding;
 		if ((bindingsFilter >> i) & 0x1)

@@ -23,7 +23,7 @@ namespace verus
 			SOCKET          _socket = INVALID_SOCKET;
 			std::thread     _thread;
 			Vector<PClient> _vClients;
-			int             _maxNumOfClients = 1;
+			int             _maxClients = 1;
 			int             _clientBufferSize = 0;
 
 		public:
@@ -43,7 +43,7 @@ namespace verus
 			int     Recv(void* p, int size) const;
 			int RecvFrom(void* p, int size, RAddr addr) const;
 
-			void SetMaxNumberOfClients(int num) { _maxNumOfClients = num; }
+			void SetMaxClients(int count) { _maxClients = count; }
 			void SetClientBufferSize(int size) { _clientBufferSize = size; }
 
 			VERUS_P(void ThreadProc());

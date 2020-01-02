@@ -1,6 +1,6 @@
 #include "verus.h"
 
-int g_numSingletonAlloc;
+int g_singletonAllocCount;
 
 namespace verus
 {

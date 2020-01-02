@@ -39,7 +39,7 @@ bool Sound::Done()
 	if (_refCount <= 0)
 	{
 		IO::Async::Cancel(this);
-		VERUS_FOR(i, VERUS_ARRAY_LENGTH(_sources))
+		VERUS_FOR(i, VERUS_COUNT_OF(_sources))
 			_sources[i].Done();
 		if (_buffer)
 			alDeleteBuffers(1, &_buffer);
@@ -75,12 +75,12 @@ void Sound::Async_Run(CSZ url, RcBlob blob)
 	Vector<BYTE> vRaw;
 	vRaw.resize(pcmSize);
 	int bitstream, offset = 0;
-	long num = ov_read(&ovf, reinterpret_cast<char*>(vRaw.data()), Utils::Cast32(vRaw.size()), 0, 2, 1, &bitstream);
+	long count = ov_read(&ovf, reinterpret_cast<char*>(vRaw.data()), Utils::Cast32(vRaw.size()), 0, 2, 1, &bitstream);
 	do
 	{
-		offset += num;
-		num = ov_read(&ovf, reinterpret_cast<char*>(&vRaw[offset]), Utils::Cast32(vRaw.size()) - offset, 0, 2, 1, &bitstream);
-	} while (num > 0);
+		offset += count;
+		count = ov_read(&ovf, reinterpret_cast<char*>(&vRaw[offset]), Utils::Cast32(vRaw.size()) - offset, 0, 2, 1, &bitstream);
+	} while (count > 0);
 	alBufferData(_buffer, format, vRaw.data(), offset, povi->rate);
 	ov_clear(&ovf);
 
@@ -93,7 +93,7 @@ void Sound::Update()
 		return;
 	VERUS_UPDATE_ONCE_CHECK;
 
-	VERUS_FOR(i, VERUS_ARRAY_LENGTH(_sources))
+	VERUS_FOR(i, VERUS_COUNT_OF(_sources))
 		_sources[i].Update();
 }
 
@@ -102,7 +102,7 @@ void Sound::UpdateHRTF()
 	if (!IsLoaded())
 		return;
 	const bool is3D = IsFlagSet(SoundFlags::is3D);
-	VERUS_FOR(i, VERUS_ARRAY_LENGTH(_sources))
+	VERUS_FOR(i, VERUS_COUNT_OF(_sources))
 		_sources[i].UpdateHRTF(is3D);
 }
 
@@ -112,7 +112,7 @@ SourcePtr Sound::NewSource(PSourcePtr pID, Source::RcDesc desc)
 	if (IsLoaded())
 	{
 		source.Attach(_sources + _next, this);
-		VERUS_CIRCULAR_ADD(_next, VERUS_ARRAY_LENGTH(_sources));
+		VERUS_CIRCULAR_ADD(_next, VERUS_COUNT_OF(_sources));
 
 		if (source->_sid) // Delete existing?
 			alDeleteSources(1, &source->_sid);

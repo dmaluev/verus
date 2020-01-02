@@ -1,6 +1,6 @@
 #pragma once
 
-extern int g_numSingletonAlloc;
+extern int g_singletonAllocCount;
 
 namespace verus
 {
@@ -28,14 +28,14 @@ namespace verus
 			if (s_pSingleton)
 				return;
 			new T();
-			g_numSingletonAlloc++;
+			g_singletonAllocCount++;
 		}
 
 		static inline void Free()
 		{
 			if (s_pSingleton)
 			{
-				g_numSingletonAlloc--;
+				g_singletonAllocCount--;
 				delete s_pSingleton;
 			}
 			s_pSingleton = nullptr;
@@ -67,7 +67,7 @@ namespace verus
 
 		static inline void TestAllocCount()
 		{
-			//VERUS_RT_ASSERT(!g_numSingletonAlloc);
+			//VERUS_RT_ASSERT(!g_singletonAllocCount);
 		}
 	};
 	template<typename T> T* Singleton<T>::s_pSingleton = nullptr;

@@ -29,10 +29,10 @@ namespace verus
 			virtual void Init(RcGeometryDesc desc) override;
 			virtual void Done() override;
 
-			virtual void CreateVertexBuffer(int num, int binding) override;
+			virtual void CreateVertexBuffer(int count, int binding) override;
 			virtual void UpdateVertexBuffer(const void* p, int binding, PBaseCommandBuffer pCB) override;
 
-			virtual void CreateIndexBuffer(int num) override;
+			virtual void CreateIndexBuffer(int count) override;
 			virtual void UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB) override;
 
 			//
@@ -44,7 +44,7 @@ namespace verus
 			VkPipelineVertexInputStateCreateInfo GetVkPipelineVertexInputStateCreateInfo(UINT32 bindingsFilter,
 				Vector<VkVertexInputBindingDescription>& vVertexInputBindingDesc, Vector<VkVertexInputAttributeDescription>& vVertexInputAttributeDesc) const;
 
-			int GetNumVertexBuffers() const { return Utils::Cast32(_vVertexBuffers.size()); }
+			int GetVertexBufferCount() const { return Utils::Cast32(_vVertexBuffers.size()); }
 			VkBuffer GetVkVertexBuffer(int binding) const { return _vVertexBuffers[binding]._buffer; }
 			VkBuffer GetVkIndexBuffer() const { return _indexBuffer._buffer; }
 			VkDeviceSize GetVkVertexBufferOffset(int binding) const;

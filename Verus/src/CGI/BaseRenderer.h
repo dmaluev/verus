@@ -26,7 +26,7 @@ namespace verus
 		{
 		protected:
 			BaseRendererDesc _desc;
-			UINT32           _numSwapChainBuffers = 0;
+			UINT32           _swapChainBufferCount = 0;
 			UINT32           _swapChainBufferIndex = 0;
 			UINT32           _ringBufferIndex = 0;
 
@@ -41,7 +41,7 @@ namespace verus
 
 			void SetDesc(RBaseRendererDesc desc) { _desc = desc; }
 
-			UINT32 GetNumSwapChainBuffers() const { return _numSwapChainBuffers; }
+			UINT32 GetSwapChainBufferCount() const { return _swapChainBufferCount; }
 			UINT32 GetSwapChainBufferIndex() const { return _swapChainBufferIndex; }
 			UINT32 GetRingBufferIndex() const { return _ringBufferIndex; }
 
@@ -91,6 +91,6 @@ namespace verus
 
 	extern "C"
 	{
-		typedef CGI::PBaseRenderer(*PFNVERUSCREATERENDERER)(UINT32 version, CGI::BaseRendererDesc* pDesc);
+		typedef CGI::PBaseRenderer(*PFNCREATERENDERER)(UINT32 version, CGI::BaseRendererDesc* pDesc);
 	}
 }

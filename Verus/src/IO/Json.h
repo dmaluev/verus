@@ -14,8 +14,8 @@ namespace verus
 			Json(CSZ pathName);
 			~Json();
 
-			Str GetFilename() const { return _C(_pathName); }
-			void SetFilename(CSZ name);
+			Str GetFileName() const { return _C(_pathName); }
+			void SetFileName(CSZ name);
 			void Load(bool fromCache = false);
 			void Save();
 

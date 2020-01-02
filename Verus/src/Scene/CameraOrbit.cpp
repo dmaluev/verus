@@ -6,7 +6,7 @@ using namespace verus::Scene;
 void CameraOrbit::Update()
 {
 	const Vector3 toEye = Matrix3::rotationZYX(Vector3(_pitch, _yaw, 0)) * Vector3(0, 0, _radius);
-	MoveEyeTo(_posAt + toEye);
+	MoveEyeTo(_atPos + toEye);
 	MainCamera::Update();
 }
 
@@ -40,13 +40,13 @@ void CameraOrbit::SaveState(int slot)
 	StringStream ss;
 	ss << _C(Utils::I().GetWritablePath()) << "/CameraState.xml";
 	IO::Xml xml;
-	xml.SetFilename(_C(ss.str()));
+	xml.SetFileName(_C(ss.str()));
 	xml.Load();
 	char txt[16];
 	sprintf_s(txt, "slot%d", slot);
 	char params[40];
 	sprintf_s(params, "|%f %f %f", _pitch, _yaw, _radius);
-	xml.Set(txt, _C(_posAt.ToString() + params));
+	xml.Set(txt, _C(_atPos.ToString() + params));
 }
 
 void CameraOrbit::LoadState(int slot)
@@ -54,7 +54,7 @@ void CameraOrbit::LoadState(int slot)
 	StringStream ss;
 	ss << _C(Utils::I().GetWritablePath()) << "/CameraState.xml";
 	IO::Xml xml;
-	xml.SetFilename(_C(ss.str()));
+	xml.SetFileName(_C(ss.str()));
 	xml.Load();
 	char txt[16];
 	sprintf_s(txt, "slot%d", slot);
@@ -62,7 +62,7 @@ void CameraOrbit::LoadState(int slot)
 	if (v)
 	{
 		CSZ p = strchr(v, '|');
-		_posAt.FromString(v);
+		_atPos.FromString(v);
 		sscanf(p + 1, "%f %f %f", &_pitch, &_yaw, &_radius);
 		_update |= Update::v;
 		Update();

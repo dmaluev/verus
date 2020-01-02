@@ -255,10 +255,10 @@ float Bounds::GetDiagonal() const
 	return VMath::length(GetDimensions());
 }
 
-float Bounds::GetSmartSize() const
+float Bounds::GetAverageSize() const
 {
-	const float num = 1 / 3.f;
-	return VMath::dot(GetDimensions(), Vector3(num, num, num));
+	const float scale = 1 / 3.f;
+	return VMath::dot(GetDimensions(), Vector3::Replicate(scale));
 }
 
 float Bounds::GetMaxSide() const

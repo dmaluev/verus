@@ -30,10 +30,10 @@ namespace verus
 			virtual void Init(RcGeometryDesc desc) override;
 			virtual void Done() override;
 
-			virtual void CreateVertexBuffer(int num, int binding) override;
+			virtual void CreateVertexBuffer(int count, int binding) override;
 			virtual void UpdateVertexBuffer(const void* p, int binding, PBaseCommandBuffer pCB) override;
 
-			virtual void CreateIndexBuffer(int num) override;
+			virtual void CreateIndexBuffer(int count) override;
 			virtual void UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB) override;
 
 			//
@@ -44,7 +44,7 @@ namespace verus
 
 			D3D12_INPUT_LAYOUT_DESC GetD3DInputLayoutDesc(UINT32 bindingsFilter, Vector<D3D12_INPUT_ELEMENT_DESC>& vInputElementDesc) const;
 
-			int GetNumVertexBuffers() const { return Utils::Cast32(_vVertexBuffers.size()); }
+			int GetVertexBufferCount() const { return Utils::Cast32(_vVertexBuffers.size()); }
 			const D3D12_VERTEX_BUFFER_VIEW* GetD3DVertexBufferView(int binding) const;
 			const D3D12_INDEX_BUFFER_VIEW* GetD3DIndexBufferView() const;
 		};

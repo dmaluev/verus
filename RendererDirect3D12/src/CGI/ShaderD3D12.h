@@ -22,7 +22,7 @@ namespace verus
 			struct Compiled
 			{
 				ComPtr<ID3DBlob> _pBlobs[+Stage::count];
-				int              _numStages = 0;
+				int              _stageCount = 0;
 			};
 			typedef Map<String, Compiled> TMapCompiled;
 
@@ -35,7 +35,7 @@ namespace verus
 				BYTE* _pMappedData = nullptr;
 				const void* _pSrc = nullptr;
 				int                    _size = 0;
-				int                    _sizeAligned = 0;
+				int                    _alignedSize = 0;
 				int                    _capacity = 1;
 				int                    _capacityInBytes = 0;
 				int                    _offset = 0;
@@ -80,7 +80,7 @@ namespace verus
 			//
 
 			ID3DBlob* GetD3DBlob(CSZ branch, Stage stage) const { return _mapCompiled.at(branch)._pBlobs[+stage].Get(); }
-			int GetNumStages(CSZ branch) const { return _mapCompiled.at(branch)._numStages; }
+			int GetStageCount(CSZ branch) const { return _mapCompiled.at(branch)._stageCount; }
 
 			ID3D12RootSignature* GetD3DRootSignature() const { return _pRootSignature.Get(); }
 
@@ -88,7 +88,7 @@ namespace verus
 			bool TryRootConstants(int setNumber, RBaseCommandBuffer cb);
 			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateUniformBuffer(int setNumber, int complexSetID, bool copyDescOnly = false);
 			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateSamplers(int setNumber, int complexSetID);
-			int GetNumDescriptorSets() const { return static_cast<int>(_vDescriptorSetDesc.size()); }
+			int GetDescriptorSetCount() const { return static_cast<int>(_vDescriptorSetDesc.size()); }
 			bool IsCompute() const { return _compute; }
 
 			void OnError(CSZ s);

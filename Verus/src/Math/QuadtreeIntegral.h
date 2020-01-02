@@ -27,7 +27,7 @@ namespace verus
 				~Node();
 
 				static int GetChildIndex(int currentNode, int child);
-				static bool HasChildren(int currentNode, int numNodes);
+				static bool HasChildren(int currentNode, int nodeCount);
 
 				const short* GetOffsetIJ() const { return _ijOffset; }
 				int GetWidth() const { return _xzMax[0] - _xzMin[0]; }
@@ -48,9 +48,9 @@ namespace verus
 			Vector<Node>              _vNodes;
 			PQuadtreeIntegralDelegate _pDelegate = nullptr;
 			float                     _fattenBy = 0.5f;
-			int                       _numNodes = 0;
-			int                       _numTests = 0;
-			int                       _numTestsPassed = 0;
+			int                       _nodeCount = 0;
+			int                       _testCount = 0;
+			int                       _passedTestCount = 0;
 			int                       _limit = 0;
 			int                       _mapSide = 0;
 
@@ -68,8 +68,8 @@ namespace verus
 
 			void TraverseVisible(int currentNode = 0);
 
-			int GetNumTests()       const { return _numTests; }
-			int GetNumTestsPassed() const { return _numTestsPassed; }
+			int GetTestCount()       const { return _testCount; }
+			int GetPassedTestCount() const { return _passedTestCount; }
 		};
 		VERUS_TYPEDEFS(QuadtreeIntegral);
 	}

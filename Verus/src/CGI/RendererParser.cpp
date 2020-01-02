@@ -49,13 +49,13 @@ int RendererParser::ExpectBlendOp(CSZ& p)
 
 	const ptrdiff_t len = strchr(p, ')') - p;
 	char text[8];
-	VERUS_RT_ASSERT(len > 0 && len < VERUS_ARRAY_LENGTH(text));
+	VERUS_RT_ASSERT(len > 0 && len < VERUS_COUNT_OF(text));
 	strncpy(text, p, len);
 	text[len] = 0;
 	p += len;
 
-	const ptrdiff_t index = static_cast<CSZ*>(bsearch(text, blends, VERUS_ARRAY_LENGTH(blends), sizeof(CSZ), StrCompare)) - blends;
-	VERUS_RT_ASSERT(index >= 0 && index < VERUS_ARRAY_LENGTH(blends));
+	const ptrdiff_t index = static_cast<CSZ*>(bsearch(text, blends, VERUS_COUNT_OF(blends), sizeof(CSZ), StrCompare)) - blends;
+	VERUS_RT_ASSERT(index >= 0 && index < VERUS_COUNT_OF(blends));
 	return Utils::Cast32(index);
 }
 
@@ -78,7 +78,7 @@ int RendererParser::ExpectCompFunc(CSZ& p, char end, bool skipSpace)
 
 	const ptrdiff_t len = strchr(p, end) - p;
 	char text[8];
-	VERUS_RT_ASSERT(len > 0 && len < VERUS_ARRAY_LENGTH(text));
+	VERUS_RT_ASSERT(len > 0 && len < VERUS_COUNT_OF(text));
 	strncpy(text, p, len);
 	text[len] = 0;
 	p += len;
@@ -86,8 +86,8 @@ int RendererParser::ExpectCompFunc(CSZ& p, char end, bool skipSpace)
 	if (skipSpace)
 		SkipSpace(p);
 
-	const ptrdiff_t index = static_cast<CSZ*>(bsearch(text, cmp, VERUS_ARRAY_LENGTH(cmp), sizeof(CSZ), StrCompare)) - cmp;
-	VERUS_RT_ASSERT(index >= 0 && index < VERUS_ARRAY_LENGTH(cmp));
+	const ptrdiff_t index = static_cast<CSZ*>(bsearch(text, cmp, VERUS_COUNT_OF(cmp), sizeof(CSZ), StrCompare)) - cmp;
+	VERUS_RT_ASSERT(index >= 0 && index < VERUS_COUNT_OF(cmp));
 	return Utils::Cast32(index);
 }
 
@@ -110,7 +110,7 @@ int RendererParser::ExpectStencilOp(CSZ& p, char end, bool skipSpace)
 
 	const ptrdiff_t len = strchr(p, end) - p;
 	char text[8];
-	VERUS_RT_ASSERT(len > 0 && len < VERUS_ARRAY_LENGTH(text));
+	VERUS_RT_ASSERT(len > 0 && len < VERUS_COUNT_OF(text));
 	strncpy(text, p, len);
 	text[len] = 0;
 	p += len;
@@ -118,8 +118,8 @@ int RendererParser::ExpectStencilOp(CSZ& p, char end, bool skipSpace)
 	if (skipSpace)
 		SkipSpace(p);
 
-	const ptrdiff_t index = static_cast<CSZ*>(bsearch(text, ops, VERUS_ARRAY_LENGTH(ops), sizeof(CSZ), StrCompare)) - ops;
-	VERUS_RT_ASSERT(index >= 0 && index < VERUS_ARRAY_LENGTH(ops));
+	const ptrdiff_t index = static_cast<CSZ*>(bsearch(text, ops, VERUS_COUNT_OF(ops), sizeof(CSZ), StrCompare)) - ops;
+	VERUS_RT_ASSERT(index >= 0 && index < VERUS_COUNT_OF(ops));
 	return Utils::Cast32(index);
 }
 

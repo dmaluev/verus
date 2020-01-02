@@ -57,13 +57,13 @@ RcPoint3 Atmosphere::GetEyePosition(PVector3 pDirFront)
 	if (_shadowMap.GetSceneCamera())
 	{
 		if (pDirFront)
-			*pDirFront = _shadowMap.GetSceneCamera()->GetDirectionFront();
-		return _shadowMap.GetSceneCamera()->GetPositionEye();
+			*pDirFront = _shadowMap.GetSceneCamera()->GetFrontDirection();
+		return _shadowMap.GetSceneCamera()->GetEyePosition();
 	}
 	else
 	{
 		if (pDirFront)
-			*pDirFront = sm.GetCamera()->GetDirectionFront();
-		return sm.GetCamera()->GetPositionEye();
+			*pDirFront = sm.GetCamera()->GetFrontDirection();
+		return sm.GetCamera()->GetEyePosition();
 	}
 }

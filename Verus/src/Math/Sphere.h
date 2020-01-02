@@ -22,7 +22,7 @@ namespace verus
 			bool IsInside(RcPoint3 point) const;
 			bool IsOverlappingWith(const Sphere& that) const;
 
-			static void EvenlyDistPoints(int num, Vector<Point3>& vPoints);
+			static void EvenlyDistPoints(int count, Vector<Point3>& vPoints);
 		};
 		VERUS_TYPEDEFS(Sphere);
 	}

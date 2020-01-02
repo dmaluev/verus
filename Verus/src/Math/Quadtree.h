@@ -46,7 +46,7 @@ namespace verus
 				void BindEntity(RcEntity entity);
 				void UnbindEntity(int index);
 
-				int GetNumEntities() const { return Utils::Cast32(_vEntities.size()); }
+				int GetEntityCount() const { return Utils::Cast32(_vEntities.size()); }
 				RcEntity GetEntityAt(int i) const { return _vEntities[i]; }
 			};
 			VERUS_TYPEDEFS(Node);
@@ -55,14 +55,14 @@ namespace verus
 			Vector3           _limit = Vector3(0);
 			Vector<Node>      _vNodes;
 			PQuadtreeDelegate _pDelegate = nullptr;
-			int               _numNodes = 0;
+			int               _nodeCount = 0;
 
 		public:
 			class Result
 			{
 			public:
-				int _numTests = 0;
-				int _numTestsPassed = 0;
+				int _testCount = 0;
+				int _passedTestCount = 0;
 				int _lastFoundIndex = -1;
 			};
 			VERUS_TYPEDEFS(Result);

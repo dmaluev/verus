@@ -9,17 +9,17 @@ void NormalComputer::ComputeNormals(
 	Vector<glm::vec3>& vNormals,
 	float areaBasedNormals)
 {
-	const int numVerts = Utils::Cast32(vPositions.size());
-	const int numFaces = Utils::Cast32(vIndices.size() / 3);
-	vNormals.resize(numVerts);
+	const int vertCount = Utils::Cast32(vPositions.size());
+	const int faceCount = Utils::Cast32(vIndices.size() / 3);
+	vNormals.resize(vertCount);
 
 	Vector<glm::vec3> vFaceNormals;
-	vFaceNormals.resize(numFaces);
+	vFaceNormals.resize(faceCount);
 
 	Vector<float> vFaceAreas;
-	vFaceAreas.resize(numFaces);
+	vFaceAreas.resize(faceCount);
 
-	VERUS_P_FOR(i, numFaces)
+	VERUS_P_FOR(i, faceCount)
 	{
 		const int a = vIndices[i * 3 + 0];
 		const int b = vIndices[i * 3 + 1];
@@ -36,11 +36,11 @@ void NormalComputer::ComputeNormals(
 		vFaceNormals[i] = glm::normalize(n) * vFaceAreas[i];
 	});
 
-	VERUS_P_FOR(i, numVerts)
+	VERUS_P_FOR(i, vertCount)
 	{
-		const int numFaces = Utils::Cast32(vIndices.size() / 3);
+		const int faceCount = Utils::Cast32(vIndices.size() / 3);
 		const float threshold = 0.001f * 0.001f; // 1 mm.
-		VERUS_FOR(j, numFaces)
+		VERUS_FOR(j, faceCount)
 		{
 			const int a = vIndices[j * 3 + 0];
 			const int b = vIndices[j * 3 + 1];
@@ -79,14 +79,14 @@ void NormalComputer::ComputeTangentSpace(
 	Vector<glm::vec3>& vTan,
 	Vector<glm::vec3>& vBin)
 {
-	const int numVerts = Utils::Cast32(vPositions.size());
-	const int numFaces = Utils::Cast32(vIndices.size() / 3);
-	vTan.resize(numVerts);
-	vBin.resize(numVerts);
+	const int vertCount = Utils::Cast32(vPositions.size());
+	const int faceCount = Utils::Cast32(vIndices.size() / 3);
+	vTan.resize(vertCount);
+	vBin.resize(vertCount);
 	std::mutex m;
 	const float degree = cos(glm::radians(1.f));
 
-	VERUS_P_FOR(i, numFaces)
+	VERUS_P_FOR(i, faceCount)
 	{
 		const int a = vIndices[i * 3 + 0];
 		const int b = vIndices[i * 3 + 1];
@@ -125,7 +125,7 @@ void NormalComputer::ComputeTangentSpace(
 		}
 	});
 
-	VERUS_P_FOR(i, numVerts)
+	VERUS_P_FOR(i, vertCount)
 	{
 		vTan[i] = glm::normalize(vTan[i]);
 		vBin[i] = glm::normalize(vBin[i]);

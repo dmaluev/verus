@@ -33,7 +33,8 @@ namespace verus
 				colorAttachment = (1 << 0),
 				inputAttachment = (1 << 1),
 				depthSampled = (1 << 2),
-				generateMips = (1 << 3)
+				generateMips = (1 << 3),
+				sync = (1 << 4)
 			};
 
 			Vector4       _clearValue = Vector4(0);
@@ -79,8 +80,8 @@ namespace verus
 			int GetWidth() const { return _desc._width; }
 			int GetHeight() const { return _desc._height; }
 			int GetDepth() const { return _desc._depth; }
-			int GetNumMipLevels() const { return _desc._mipLevels; }
-			int GetNumArrayLayers() const { return _desc._arrayLayers; }
+			int GetMipLevelCount() const { return _desc._mipLevels; }
+			int GetArrayLayerCount() const { return _desc._arrayLayers; }
 
 			int GetPart() const { return _part; }
 			RcVector4 GetSize() const { return _size; }
@@ -98,7 +99,7 @@ namespace verus
 
 			static int FormatToBytesPerPixel(Format format);
 			static bool IsBC(Format format);
-			static bool IsBC1(Format format);
+			static bool Is4BitsBC(Format format);
 			static bool IsDepthFormat(Format format);
 		};
 		VERUS_TYPEDEFS(BaseTexture);

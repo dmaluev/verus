@@ -40,10 +40,10 @@ namespace verus
 			Vector<VertexInputBinding3> _vBinding3;
 			Anim::Skeleton              _skeleton;
 			String                      _url;
-			int                         _numVerts = 0;
-			int                         _numFaces = 0;
-			int                         _numBones = 0;
+			int                         _vertCount = 0;
+			int                         _faceCount = 0;
 			int                         _indexCount = 0;
+			int                         _boneCount = 0;
 			float                       _posDeq[6];
 			float                       _tc0Deq[4];
 			float                       _tc1Deq[4];
@@ -59,16 +59,16 @@ namespace verus
 
 			Str GetUrl() const { return _C(_url); }
 
-			int GetNumVerts() const { return _numVerts; }
-			int GetNumFaces() const { return _numFaces; }
-			int GetNumBones() const { return _numBones; }
+			int GetVertCount() const { return _vertCount; }
+			int GetFaceCount() const { return _faceCount; }
 			int GetIndexCount() const { return _indexCount; }
+			int GetBoneCount() const { return _boneCount; }
 
 			virtual void Async_Run(CSZ url, RcBlob blob) override;
 
 			VERUS_P(void Load(RcBlob blob));
 			VERUS_P(void LoadX3D3(RcBlob blob));
-			bool IsLoaded() const { return !!_numVerts; }
+			bool IsLoaded() const { return !!_vertCount; }
 
 			// Load extra:
 			VERUS_P(void LoadPrimaryBones());
@@ -100,7 +100,7 @@ namespace verus
 			void GetBounds(RPoint3 mn, RPoint3 mx) const;
 			Math::Bounds GetBounds() const;
 
-			void VisitVertices(std::function<Continue(RcPoint3, int)> fn);
+			void ForEachVertex(std::function<Continue(RcPoint3, int)> fn);
 
 			Anim::RSkeleton GetSkeleton() { return _skeleton; }
 			Anim::RcSkeleton GetSkeleton() const { return _skeleton; }

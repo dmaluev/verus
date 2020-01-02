@@ -70,7 +70,7 @@ public:
 
 extern "C"
 {
-	VERUS_DLL_EXPORT void VerusCompilerInit()
+	VERUS_DLL_EXPORT void VulkanCompilerInit()
 	{
 		if (!g_init)
 		{
@@ -79,7 +79,7 @@ extern "C"
 		}
 	}
 
-	VERUS_DLL_EXPORT void VerusCompilerDone()
+	VERUS_DLL_EXPORT void VulkanCompilerDone()
 	{
 		if (g_init)
 		{
@@ -88,7 +88,7 @@ extern "C"
 		}
 	}
 
-	VERUS_DLL_EXPORT bool VerusCompile(CSZ source, CSZ sourceName, CSZ* defines, ShaderInclude* pInclude,
+	VERUS_DLL_EXPORT bool VulkanCompile(CSZ source, CSZ sourceName, CSZ* defines, ShaderInclude* pInclude,
 		CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs)
 	{
 		if (!g_init)

@@ -9,7 +9,7 @@ namespace verus
 			struct Compiled
 			{
 				VkShaderModule _shaderModules[+Stage::count] = {};
-				int            _numStages = 0;
+				int            _stageCount = 0;
 			};
 			typedef Map<String, Compiled> TMapCompiled;
 
@@ -22,7 +22,7 @@ namespace verus
 				BYTE* _pMappedData = nullptr;
 				const void* _pSrc = nullptr;
 				int                _size = 0;
-				int                _sizeAligned = 0;
+				int                _alignedSize = 0;
 				int                _capacity = 1;
 				int                _capacityInBytes = 0;
 				int                _offset = 0;
@@ -68,7 +68,7 @@ namespace verus
 			VkDescriptorSet GetComplexVkDescriptorSet(int descSetID);
 
 			VkShaderModule GetVkShaderModule(CSZ branch, Stage stage) const { return _mapCompiled.at(branch)._shaderModules[+stage]; }
-			int GetNumStages(CSZ branch) const { return _mapCompiled.at(branch)._numStages; }
+			int GetStageCount(CSZ branch) const { return _mapCompiled.at(branch)._stageCount; }
 
 			VkPipelineLayout GetVkPipelineLayout() const { return _pipelineLayout; }
 

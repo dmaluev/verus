@@ -49,7 +49,7 @@ namespace verus
 			return *it;
 		}
 
-		int GetNumStored() const
+		int GetStoredCount() const
 		{
 			return static_cast<int>(_list.size());
 		}
@@ -106,7 +106,7 @@ namespace verus
 			return *it;
 		}
 
-		int GetNumStored() const
+		int GetStoredCount() const
 		{
 			return static_cast<int>(_map.size());
 		}

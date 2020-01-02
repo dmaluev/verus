@@ -18,9 +18,9 @@ int Octree::Node::GetChildIndex(int currentNode, int child)
 	return 1 + (currentNode << 3) + child;
 }
 
-bool Octree::Node::HasChildren(int currentNode, int numNodes)
+bool Octree::Node::HasChildren(int currentNode, int nodeCount)
 {
-	return GetChildIndex(currentNode, 7) < numNodes;
+	return GetChildIndex(currentNode, 7) < nodeCount;
 }
 
 void Octree::Node::BindEntity(RcEntity entity)
@@ -87,16 +87,16 @@ void Octree::Build(int currentNode, int depth)
 	const int maxDepth = Math::Max(Math::Max(maxDepthX, maxDepthY), maxDepthZ);
 	if (!currentNode)
 	{
-		const int numDepths = maxDepth + 1;
-		int numNodes = 0;
-		VERUS_FOR(i, numDepths)
+		const int depthCount = maxDepth + 1;
+		int nodeCount = 0;
+		VERUS_FOR(i, depthCount)
 		{
-			numNodes +=
+			nodeCount +=
 				(1 << Math::Min(i, maxDepthX)) *
 				(1 << Math::Min(i, maxDepthY)) *
 				(1 << Math::Min(i, maxDepthZ));
 		}
-		_vNodes.resize(numNodes);
+		_vNodes.resize(nodeCount);
 		_vNodes[0].SetBounds(_bounds);
 	}
 
@@ -186,13 +186,13 @@ bool Octree::MustBind(int currentNode, RcBounds bounds) const
 {
 	if (Node::HasChildren(currentNode, Utils::Cast32(_vNodes.size())))
 	{
-		int num = 0;
+		int count = 0;
 		VERUS_FOR(i, 8)
 		{
 			const int childIndex = Node::GetChildIndex(currentNode, i);
 			if (_vNodes[childIndex].GetBounds().IsOverlappingWith(bounds))
-				num++;
-			if (num > 1)
+				count++;
+			if (count > 1)
 				return true;
 		}
 		return false;
@@ -207,13 +207,13 @@ Continue Octree::TraverseProper(RcFrustum frustum, PResult pResult, int currentN
 
 	if (!currentNode)
 	{
-		pResult->_numTests = 0;
-		pResult->_numTestsPassed = 0;
+		pResult->_testCount = 0;
+		pResult->_passedTestCount = 0;
 		pResult->_pLastFoundToken = nullptr;
 		pResult->_depth = Scene::SceneManager::IsDrawingDepth(Scene::DrawDepth::automatic);
 	}
 
-	pResult->_numTests++;
+	pResult->_testCount++;
 	const float onePixel = Math::ComputeOnePixelDistance(
 		_vNodes[currentNode].GetSphere().GetRadius());
 	const bool notTooSmall = pResult->_depth || VMath::distSqr(
@@ -225,12 +225,12 @@ Continue Octree::TraverseProper(RcFrustum frustum, PResult pResult, int currentN
 	{
 		{
 			RcNode node = _vNodes[currentNode];
-			const int num = node.GetNumEntities();
-			VERUS_FOR(i, num)
+			const int count = node.GetEntityCount();
+			VERUS_FOR(i, count)
 			{
 				RcEntity entity = node.GetEntityAt(i);
 
-				pResult->_numTests++;
+				pResult->_testCount++;
 				const float onePixel = Math::ComputeOnePixelDistance(
 					entity._sphere.GetRadius());
 				const bool notTooSmall = pResult->_depth || VMath::distSqr(
@@ -241,7 +241,7 @@ Continue Octree::TraverseProper(RcFrustum frustum, PResult pResult, int currentN
 					Relation::outside != frustum.ContainsAabb(entity._bounds))
 				{
 					pResult->_pLastFoundToken = entity._pToken;
-					pResult->_numTestsPassed++;
+					pResult->_passedTestCount++;
 					if (Continue::no == _pDelegate->Octree_ProcessNode(pResult->_pLastFoundToken, pUser))
 						return Continue::no;
 				}
@@ -268,25 +268,25 @@ Continue Octree::TraverseProper(RcPoint3 point, PResult pResult, int currentNode
 
 	if (!currentNode)
 	{
-		pResult->_numTests = 0;
-		pResult->_numTestsPassed = 0;
+		pResult->_testCount = 0;
+		pResult->_passedTestCount = 0;
 		pResult->_pLastFoundToken = nullptr;
 	}
 
-	pResult->_numTests++;
+	pResult->_testCount++;
 	if (_vNodes[currentNode].GetBounds().IsInside(point))
 	{
 		{
 			RcNode node = _vNodes[currentNode];
-			const int num = node.GetNumEntities();
-			VERUS_FOR(i, num)
+			const int count = node.GetEntityCount();
+			VERUS_FOR(i, count)
 			{
 				RcEntity entity = node.GetEntityAt(i);
-				pResult->_numTests++;
+				pResult->_testCount++;
 				if (entity._bounds.IsInside(point))
 				{
 					pResult->_pLastFoundToken = entity._pToken;
-					pResult->_numTestsPassed++;
+					pResult->_passedTestCount++;
 					if (Continue::no == _pDelegate->Octree_ProcessNode(pResult->_pLastFoundToken, pUser))
 						return Continue::no;
 				}

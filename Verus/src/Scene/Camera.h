@@ -21,10 +21,10 @@ namespace verus
 			Transform3       _matVi = Transform3::identity();
 			Matrix4          _matP = Matrix4::identity();
 			Matrix4          _matVP = Matrix4::identity();
-			VERUS_PD(Point3  _posEye = Point3(0));
-			VERUS_PD(Point3  _posAt = Point3(0, 0, -1));
-			VERUS_PD(Vector3 _dirUp = Vector3(0, 1, 0));
-			VERUS_PD(Vector3 _dirFront = Vector3(0, 0, -1));
+			VERUS_PD(Point3  _eyePos = Point3(0));
+			VERUS_PD(Point3  _atPos = Point3(0, 0, -1));
+			VERUS_PD(Vector3 _upDir = Vector3(0, 1, 0));
+			VERUS_PD(Vector3 _frontDir = Vector3(0, 0, -1));
 			float            _fovY = VERUS_PI / 4; // Zero FOV means ortho.
 			float            _aspectRatio = 1;
 			float            _zNear = 0.1f; // 10 cm.
@@ -38,7 +38,6 @@ namespace verus
 			virtual void Update();
 			void UpdateView();
 			void UpdateVP();
-			void UpdateFFP();
 
 			Vector4 GetZNearFarEx() const;
 
@@ -48,15 +47,15 @@ namespace verus
 			Math::RFrustum GetFrustum() { return _frustum; }
 
 			// Positions:
-			RcPoint3 GetPositionEye() const { return _posEye; }
-			RcPoint3 GetPositionAt() const { return _posAt; }
-			void MoveEyeTo(RcPoint3 pos) { _update |= Update::v; _posEye = pos; }
-			void MoveAtTo(RcPoint3 pos) { _update |= Update::v; _posAt = pos; }
+			RcPoint3 GetEyePosition() const { return _eyePos; }
+			RcPoint3 GetAtPosition() const { return _atPos; }
+			void MoveEyeTo(RcPoint3 pos) { _update |= Update::v; _eyePos = pos; }
+			void MoveAtTo(RcPoint3 pos) { _update |= Update::v; _atPos = pos; }
 
 			// Directions:
-			RcVector3 GetDirectionFront() const { return _dirFront; }
-			RcVector3 GetDirectionUp() const { return _dirUp; }
-			void SetDirectionUp(RcVector3 dir) { _update |= Update::v; _dirUp = dir; }
+			RcVector3 GetFrontDirection() const { return _frontDir; }
+			RcVector3 GetUpDirection() const { return _upDir; }
+			void SetUpDirection(RcVector3 dir) { _update |= Update::v; _upDir = dir; }
 
 			// Matrices:
 			RcTransform3 GetMatrixV() const { return _matV; }

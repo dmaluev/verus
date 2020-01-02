@@ -55,14 +55,14 @@ void CommandBufferVulkan::BeginRenderPass(int renderPassID, int framebufferID, s
 	vkrpbi.framebuffer = framebuffer._framebuffer;
 	vkrpbi.renderArea.extent.width = framebuffer._width;
 	vkrpbi.renderArea.extent.height = framebuffer._height;
-	VkClearValue clearValue[VERUS_MAX_NUM_FB_ATTACH] = {};
-	int num = 0;
+	VkClearValue clearValue[VERUS_MAX_FB_ATTACH] = {};
+	int count = 0;
 	for (const auto& x : ilClearValues)
 	{
-		memcpy(clearValue[num].color.float32, x.ToPointer(), sizeof(clearValue[num].color.float32));
-		num++;
+		memcpy(clearValue[count].color.float32, x.ToPointer(), sizeof(clearValue[count].color.float32));
+		count++;
 	}
-	vkrpbi.clearValueCount = num;
+	vkrpbi.clearValueCount = count;
 	vkrpbi.pClearValues = clearValue;
 	vkCmdBeginRenderPass(GetVkCommandBuffer(), &vkrpbi, VK_SUBPASS_CONTENTS_INLINE);
 	if (setViewportAndScissor)
@@ -87,11 +87,11 @@ void CommandBufferVulkan::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilt
 {
 	auto& geoVulkan = static_cast<RGeometryVulkan>(*geo);
 	geoVulkan.DestroyStagingBuffers();
-	VkBuffer buffers[VERUS_MAX_NUM_VB];
-	VkDeviceSize offsets[VERUS_MAX_NUM_VB];
-	const int num = geoVulkan.GetNumVertexBuffers();
+	VkBuffer buffers[VERUS_MAX_VB];
+	VkDeviceSize offsets[VERUS_MAX_VB];
+	const int count = geoVulkan.GetVertexBufferCount();
 	int at = 0;
-	VERUS_FOR(i, num)
+	VERUS_FOR(i, count)
 	{
 		if ((bindingsFilter >> i) & 0x1)
 		{
@@ -121,34 +121,34 @@ void CommandBufferVulkan::BindPipeline(PipelinePtr pipe)
 
 void CommandBufferVulkan::SetViewport(std::initializer_list<Vector4> il, float minDepth, float maxDepth)
 {
-	VkViewport vpVulkan[VERUS_MAX_NUM_RT];
-	int num = 0;
+	VkViewport vpVulkan[VERUS_MAX_RT];
+	int count = 0;
 	for (const auto& rc : il)
 	{
-		vpVulkan[num].x = rc.getX();
-		vpVulkan[num].y = rc.getY() + rc.Height();
-		vpVulkan[num].width = rc.Width();
-		vpVulkan[num].height = -rc.Height();
-		vpVulkan[num].minDepth = minDepth;
-		vpVulkan[num].maxDepth = maxDepth;
-		num++;
+		vpVulkan[count].x = rc.getX();
+		vpVulkan[count].y = rc.getY() + rc.Height();
+		vpVulkan[count].width = rc.Width();
+		vpVulkan[count].height = -rc.Height();
+		vpVulkan[count].minDepth = minDepth;
+		vpVulkan[count].maxDepth = maxDepth;
+		count++;
 	}
-	vkCmdSetViewport(GetVkCommandBuffer(), 0, num, vpVulkan);
+	vkCmdSetViewport(GetVkCommandBuffer(), 0, count, vpVulkan);
 }
 
 void CommandBufferVulkan::SetScissor(std::initializer_list<Vector4> il)
 {
-	VkRect2D rcVulkan[VERUS_MAX_NUM_RT];
-	int num = 0;
+	VkRect2D rcVulkan[VERUS_MAX_RT];
+	int count = 0;
 	for (const auto& rc : il)
 	{
-		rcVulkan[num].offset.x = static_cast<int32_t>(rc.getX());
-		rcVulkan[num].offset.y = static_cast<int32_t>(rc.getY());
-		rcVulkan[num].extent.width = static_cast<uint32_t>(rc.Width());
-		rcVulkan[num].extent.height = static_cast<uint32_t>(rc.Height());
-		num++;
+		rcVulkan[count].offset.x = static_cast<int32_t>(rc.getX());
+		rcVulkan[count].offset.y = static_cast<int32_t>(rc.getY());
+		rcVulkan[count].extent.width = static_cast<uint32_t>(rc.Width());
+		rcVulkan[count].extent.height = static_cast<uint32_t>(rc.Height());
+		count++;
 	}
-	vkCmdSetScissor(GetVkCommandBuffer(), 0, num, rcVulkan);
+	vkCmdSetScissor(GetVkCommandBuffer(), 0, count, rcVulkan);
 }
 
 void CommandBufferVulkan::SetBlendConstants(const float* p)
@@ -193,7 +193,7 @@ void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout
 	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; // Which stage is waiting to start (BOTTOM_OF_PIPE means nothing is waiting).
 	const VkPipelineStageFlags dstStageMaskVS = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 	VkImageMemoryBarrier vkimb[16];
-	VERUS_RT_ASSERT(mipLevels.GetRange() < VERUS_ARRAY_LENGTH(vkimb));
+	VERUS_RT_ASSERT(mipLevels.GetRange() < VERUS_COUNT_OF(vkimb));
 	int index = 0;
 	for (int mip : mipLevels)
 	{

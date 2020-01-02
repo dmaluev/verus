@@ -114,7 +114,7 @@ void Socket::Listen(int port)
 		throw VERUS_RECOVERABLE << "listen(), " << WSAGetLastError();
 	}
 
-	_vClients.resize(_maxNumOfClients);
+	_vClients.resize(_maxClients);
 	_thread = std::thread(&Socket::ThreadProc, this);
 }
 
@@ -251,7 +251,7 @@ void Socket::GetLatestClientBuffer(int id, BYTE* p)
 
 int Socket::GetFreeClientSlot() const
 {
-	VERUS_FOR(i, _maxNumOfClients)
+	VERUS_FOR(i, _maxClients)
 	{
 		if (!_vClients[i])
 			return i;

@@ -17,7 +17,7 @@ void Skeleton::operator=(RcSkeleton that)
 	Init();
 	for (const auto& kv : that._mapBones)
 		_mapBones[kv.first] = kv.second;
-	_numPrimaryBones = that._numPrimaryBones;
+	_primaryBoneCount = that._primaryBoneCount;
 }
 
 void Skeleton::Init()
@@ -33,9 +33,8 @@ void Skeleton::Done()
 
 void Skeleton::Draw(bool bindPose, int selected)
 {
-#if 0
-	VERUS_QREF_DR;
-	dr.Begin(CGL::CDebugRender::T_LINES, nullptr, false);
+	VERUS_QREF_DD;
+	dd.Begin(CGI::DebugDraw::Type::lines, nullptr, false);
 	for (const auto& kv : _mapBones)
 	{
 		PcBone pBone = &kv.second;
@@ -44,14 +43,14 @@ void Skeleton::Draw(bool bindPose, int selected)
 		{
 			if (bindPose)
 			{
-				dr.AddLine(
+				dd.AddLine(
 					pParent->_matFromBoneSpace.getTranslation(),
 					pBone->_matFromBoneSpace.getTranslation(),
 					VERUS_COLOR_WHITE);
 			}
 			else
 			{
-				dr.AddLine(
+				dd.AddLine(
 					(pParent->_matFinal * pParent->_matFromBoneSpace).getTranslation(),
 					(pBone->_matFinal * pBone->_matFromBoneSpace).getTranslation(),
 					VERUS_COLOR_WHITE);
@@ -73,9 +72,9 @@ void Skeleton::Draw(bool bindPose, int selected)
 		y = mat * y;
 		z = mat * z;
 
-		dr.AddLine(a, x, VERUS_COLOR_RGBA(255, 0, 0, 255));
-		dr.AddLine(a, y, VERUS_COLOR_RGBA(0, 255, 0, 255));
-		dr.AddLine(a, z, VERUS_COLOR_RGBA(0, 0, 255, 255));
+		dd.AddLine(a, x, VERUS_COLOR_RGBA(255, 10, 10, 255));
+		dd.AddLine(a, y, VERUS_COLOR_RGBA(10, 180, 10, 255));
+		dd.AddLine(a, z, VERUS_COLOR_RGBA(99, 99, 255, 255));
 
 		if (pBone->_shaderIndex == selected)
 		{
@@ -87,13 +86,12 @@ void Skeleton::Draw(bool bindPose, int selected)
 			y = mat * y;
 			z = mat * z;
 
-			dr.AddLine(x, y, VERUS_COLOR_RGBA(255, 255, 0, 255));
-			dr.AddLine(y, z, VERUS_COLOR_RGBA(255, 255, 0, 255));
-			dr.AddLine(z, x, VERUS_COLOR_RGBA(255, 255, 0, 255));
+			dd.AddLine(x, y, VERUS_COLOR_RGBA(255, 255, 0, 255));
+			dd.AddLine(y, z, VERUS_COLOR_RGBA(255, 255, 0, 255));
+			dd.AddLine(z, x, VERUS_COLOR_RGBA(255, 255, 0, 255));
 		}
 	}
-	dr.End();
-#endif
+	dd.End();
 }
 
 Skeleton::PBone Skeleton::InsertBone(RBone bone)
@@ -131,7 +129,7 @@ Skeleton::PBone Skeleton::FindBoneByIndex(int index)
 	return nullptr;
 }
 
-void Skeleton::ApplyMotion(RMotion motion, float time, int numAlphaMotions, PAlphaMotion pAlphaMotions)
+void Skeleton::ApplyMotion(RMotion motion, float time, int alphaMotionCount, PAlphaMotion pAlphaMotions)
 {
 	if (_ragdollMode)
 	{
@@ -169,7 +167,7 @@ void Skeleton::ApplyMotion(RMotion motion, float time, int numAlphaMotions, PAlp
 	if (_pCurrentMotion->IsReversed())
 		_currentTime = _pCurrentMotion->GetNativeDuration() - _currentTime;
 
-	_numAlphaMotions = numAlphaMotions;
+	_alphaMotionCount = alphaMotionCount;
 	_pAlphaMotions = pAlphaMotions;
 
 	ResetBones();
@@ -186,7 +184,7 @@ void Skeleton::ApplyMotion(RMotion motion, float time, int numAlphaMotions, PAlp
 
 	// Reset blend motion!
 	motion.BindBlendMotion(nullptr, 0);
-	VERUS_FOR(i, _numAlphaMotions)
+	VERUS_FOR(i, _alphaMotionCount)
 	{
 		if (_pAlphaMotions[i]._pMotion)
 			_pAlphaMotions[i]._pMotion->BindBlendMotion(nullptr, 0);
@@ -198,7 +196,7 @@ void Skeleton::UpdateUniformBufferArray(mataff* p) const
 	for (const auto& kv : _mapBones)
 	{
 		RcBone bone = kv.second;
-		if (bone._shaderIndex >= 0 && bone._shaderIndex < VERUS_MAX_NUM_BONES)
+		if (bone._shaderIndex >= 0 && bone._shaderIndex < VERUS_MAX_BONES)
 			p[bone._shaderIndex] = bone._matFinal.UniformBufferFormat();
 	}
 }
@@ -234,7 +232,7 @@ void Skeleton::RecursiveBoneUpdate()
 		pMotionBone->ComputeScaleAt(_currentTime, scale);
 
 		// Blend with other motions:
-		VERUS_FOR(i, _numAlphaMotions)
+		VERUS_FOR(i, _alphaMotionCount)
 		{
 			if (!_pAlphaMotions[i]._pMotion)
 				continue;
@@ -303,10 +301,10 @@ void Skeleton::InsertBonesIntoMotion(RMotion motion) const
 
 void Skeleton::DeleteOutsiders(RMotion motion) const
 {
-	const int num = motion.GetNumBones();
+	const int count = motion.GetBoneCount();
 	Vector<String> vNames;
-	vNames.reserve(num);
-	VERUS_FOR(i, num)
+	vNames.reserve(count);
+	VERUS_FOR(i, count)
 	{
 		CSZ name = _C(motion.GetBoneByIndex(i)->GetName());
 		if (_mapBones.find(name) == _mapBones.end() && name != RootName())
@@ -338,7 +336,7 @@ void Skeleton::AdjustPrimaryBones(const Vector<String>& vPrimaryBones)
 			mapSort[bone._shaderIndex + addSec] = bone._name;
 	}
 
-	_numPrimaryBones = 0;
+	_primaryBoneCount = 0;
 
 	for (const auto& kv : mapSort)
 	{
@@ -348,7 +346,7 @@ void Skeleton::AdjustPrimaryBones(const Vector<String>& vPrimaryBones)
 			const int newIndex = Utils::Cast32(_mapPrimary.size());
 			_mapPrimary[pBone->_shaderIndex] = newIndex;
 			pBone->_shaderIndex = newIndex;
-			_numPrimaryBones++;
+			_primaryBoneCount++;
 		}
 		else // Secondary bone:
 		{
@@ -1081,7 +1079,7 @@ bool Skeleton::IsKinectBone(CSZ name)
 		"WristLeft",
 		"WristRight"
 	};
-	return std::binary_search(names, names + VERUS_ARRAY_LENGTH(names),
+	return std::binary_search(names, names + VERUS_COUNT_OF(names),
 		name, [](CSZ a, CSZ b) {return strcmp(a, b) < 0; });
 }
 
@@ -1095,7 +1093,7 @@ bool Skeleton::IsKinectLeafBone(CSZ name)
 		"WristLeft",
 		"WristRight"
 	};
-	return std::binary_search(names, names + VERUS_ARRAY_LENGTH(names),
+	return std::binary_search(names, names + VERUS_COUNT_OF(names),
 		name, [](CSZ a, CSZ b) {return strcmp(a, b) < 0; });
 }
 
@@ -1119,8 +1117,8 @@ void Skeleton::FixateFeet(RMotion motion)
 		return;
 
 	Vector<Point3> vPos;
-	vPos.resize(motion.GetNumFrames());
-	VERUS_FOR(i, motion.GetNumFrames())
+	vPos.resize(motion.GetFrameCount());
+	VERUS_FOR(i, motion.GetFrameCount())
 	{
 		ApplyMotion(motion, i * motion.GetFpsInv());
 
@@ -1156,7 +1154,7 @@ void Skeleton::FixateFeet(RMotion motion)
 	// Add significant keyframes:
 	const float e = 0.01f;
 	Motion::PBone pRoot = motion.InsertBone(RootName());
-	VERUS_FOR(i, motion.GetNumFrames())
+	VERUS_FOR(i, motion.GetFrameCount())
 	{
 		const Point3 p = vPos[i];
 		const bool same = p.IsEqual(posBase, e);
@@ -1170,19 +1168,19 @@ void Skeleton::FixateFeet(RMotion motion)
 
 Vector3 Skeleton::GetHighestSpeed(RMotion motion, CSZ name, RcVector3 scale, bool positive)
 {
-	const int numFrames = motion.GetNumFrames();
+	const int frameCount = motion.GetFrameCount();
 	const float dt = motion.GetFpsInv();
 	const float dti = float(motion.GetFps());
 
 	Vector<float> vDX;
 	Vector<float> vDY;
 	Vector<float> vDZ;
-	vDX.reserve(numFrames);
-	vDY.reserve(numFrames);
-	vDZ.reserve(numFrames);
+	vDX.reserve(frameCount);
+	vDY.reserve(frameCount);
+	vDZ.reserve(frameCount);
 
 	Point3 prevPos(0);
-	VERUS_FOR(i, numFrames)
+	VERUS_FOR(i, frameCount)
 	{
 		ApplyMotion(motion, i * dt);
 		PBone pBone = FindBone(name);
@@ -1209,10 +1207,10 @@ Vector3 Skeleton::GetHighestSpeed(RMotion motion, CSZ name, RcVector3 scale, boo
 		std::sort(vDZ.begin(), vDZ.end());
 	}
 
-	const int offA = motion.GetNumFrames() / 32;
-	const int offB = motion.GetNumFrames() / 24;
-	const int offC = motion.GetNumFrames() / 16;
-	const int offD = motion.GetNumFrames() / 8;
+	const int offA = motion.GetFrameCount() / 32;
+	const int offB = motion.GetFrameCount() / 24;
+	const int offC = motion.GetFrameCount() / 16;
+	const int offD = motion.GetFrameCount() / 8;
 	return Vector3(
 		0.25f * (vDX[offA] + vDX[offB] + vDX[offC] + vDX[offD]),
 		0.25f * (vDY[offA] + vDY[offB] + vDY[offC] + vDY[offD]),

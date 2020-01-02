@@ -3,7 +3,7 @@
 #define VERUS_CRNL       "\r\n"
 #define VERUS_WHITESPACE " \t\r\n"
 
-#define VERUS_ARRAY_LENGTH(x)   (sizeof(x)/sizeof(x[0]))
+#define VERUS_COUNT_OF(x)       ((sizeof(x)/sizeof(0[x]))/(size_t(!(sizeof(x)%sizeof(0[x])))))
 #define VERUS_LITERAL_LENGTH(x) (sizeof(x)-1)
 #define VERUS_ZERO_MEM(x)       memset(&x, 0, sizeof(x))
 
@@ -73,14 +73,16 @@
 #	define VERUS_DLL_EXPORT __attribute__ ((visibility("default")))
 #endif
 
+#define VERUS_MAX_PATH 800
+
 #define VERUS_HR(hr) std::hex << std::uppercase << "0x" << hr
 
 #define VERUS_UBUFFER struct alignas(VERUS_MEMORY_ALIGNMENT)
 
-#define VERUS_MAX_NUM_BONES 128
-#define VERUS_MAX_NUM_RT 8
-#define VERUS_MAX_NUM_FB_ATTACH (VERUS_MAX_NUM_RT * 4)
-#define VERUS_MAX_NUM_VB 8
+#define VERUS_MAX_BONES 128
+#define VERUS_MAX_RT 8
+#define VERUS_MAX_FB_ATTACH (VERUS_MAX_RT * 4)
+#define VERUS_MAX_VB 8
 
 #define VERUS_COLOR_BLEND_OFF          "off"
 #define VERUS_COLOR_BLEND_ALPHA        "s*(sa)+d*(1-sa)"

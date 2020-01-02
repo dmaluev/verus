@@ -42,7 +42,7 @@ namespace verus
 				~Node();
 
 				static int GetChildIndex(int currentNode, int child);
-				static bool HasChildren(int currentNode, int numNodes);
+				static bool HasChildren(int currentNode, int nodeCount);
 
 				RcSphere GetSphere() const { return _sphere; }
 				RcBounds GetBounds() const { return _bounds; }
@@ -52,7 +52,7 @@ namespace verus
 				void UnbindEntity(void* pToken);
 				void UpdateDynamicEntity(RcEntity entity);
 
-				int GetNumEntities() const { return Utils::Cast32(_vEntities.size()); }
+				int GetEntityCount() const { return Utils::Cast32(_vEntities.size()); }
 				RcEntity GetEntityAt(int i) const { return _vEntities[i]; }
 			};
 			VERUS_TYPEDEFS(Node);
@@ -67,8 +67,8 @@ namespace verus
 			{
 			public:
 				void* _pLastFoundToken = nullptr;
-				int   _numTests = 0;
-				int   _numTestsPassed = 0;
+				int   _testCount = 0;
+				int   _passedTestCount = 0;
 				bool  _depth = false;
 			};
 			VERUS_TYPEDEFS(Result);

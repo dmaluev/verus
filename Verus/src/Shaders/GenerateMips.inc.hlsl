@@ -1,8 +1,8 @@
 VERUS_UBUFFER UB_GenerateMips
 {
 	int    _srcMipLevel;
-	int    _numMipLevels;
+	int    _mipLevelCount;
 	int    _srcDimensionCase;
-	int    _isSRGB;
+	int    _srgb;
 	float2 _texelSize;
 };

@@ -15,8 +15,8 @@ namespace verus
 		double NextDouble();
 		float  NextFloat();
 
-		void NextArray(UINT32* p, int num);
-		void NextArray(float* p, int num);
+		void NextArray(UINT32* p, int count);
+		void NextArray(float* p, int count);
 		void NextArray(Vector<BYTE>& v);
 
 		std::mt19937& GetGenerator() { return _mt; }

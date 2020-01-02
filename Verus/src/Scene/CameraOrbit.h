@@ -20,10 +20,10 @@ namespace verus
 			float GetRadius() const { return _radius; }
 			void MulRadiusBy(float a);
 
-			float	GetPitch()	const { return _pitch; }
-			float	GetYaw()	const { return _yaw; }
-			void	SetPitch(float a) { _pitch = a; }
-			void	SetYaw(float a) { _yaw = a; }
+			float GetPitch() const { return _pitch; }
+			float GetYaw() const { return _yaw; }
+			void  SetPitch(float a) { _pitch = a; }
+			void  SetYaw(float a) { _yaw = a; }
 
 			virtual void SaveState(int slot) override;
 			virtual void LoadState(int slot) override;

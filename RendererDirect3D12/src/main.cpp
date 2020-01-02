@@ -18,13 +18,13 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
 
 extern "C"
 {
-	VERUS_DLL_EXPORT verus::CGI::PBaseRenderer VerusCreateRenderer(UINT32 version, verus::CGI::PBaseRendererDesc pDesc)
+	VERUS_DLL_EXPORT verus::CGI::PBaseRenderer CreateRenderer(UINT32 version, verus::CGI::PBaseRendererDesc pDesc)
 	{
 		using namespace verus;
 
 		if (VERUS_SDK_VERSION != version)
 		{
-			VERUS_RT_FAIL("VerusCreateRenderer(), Wrong version.");
+			VERUS_RT_FAIL("CreateRenderer(), Wrong version.");
 			return nullptr;
 		}
 

@@ -27,9 +27,9 @@ void KeyMapper::Init()
 {
 	VERUS_INIT();
 
-	const int num = SDL_NumJoysticks();
-	_vJoysticks.reserve(num);
-	VERUS_FOR(i, num)
+	const int count = SDL_NumJoysticks();
+	_vJoysticks.reserve(count);
+	VERUS_FOR(i, count)
 	{
 		SDL_Joystick* pJoystick = SDL_JoystickOpen(i);
 		if (pJoystick)
@@ -60,7 +60,7 @@ bool KeyMapper::HandleSdlEvent(SDL_Event& event)
 	{
 		if (ImGui::GetIO().WantCaptureKeyboard)
 			return false;
-#if defined(_DEBUG) || defined(VERUS_DEBUG)
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 		if (settings._screenWindowed && SDL_SCANCODE_KP_ENTER == event.key.keysym.scancode)
 		{
 			const SDL_bool rel = SDL_GetRelativeMouseMode();

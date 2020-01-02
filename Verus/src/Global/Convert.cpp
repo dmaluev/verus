@@ -15,22 +15,22 @@ float Convert::Sint8ToSnorm(char x) { if (x == SCHAR_MIN) x = SCHAR_MIN + 1; ret
 float Convert::Sint16ToSnorm(short x) { if (x == SHRT_MIN) x = SHRT_MIN + 1; return x * (1.f / SHRT_MAX); }
 
 // AoF to AoI:
-void    Convert::UnormToUint8(const float* pIn, BYTE* pOut, int num) { VERUS_FOR(i, num) pOut[i] = UnormToUint8(pIn[i]); }
-void Convert::UnormToUint16(const float* pIn, UINT16* pOut, int num) { VERUS_FOR(i, num) pOut[i] = UnormToUint16(pIn[i]); }
-void    Convert::SnormToSint8(const float* pIn, char* pOut, int num) { VERUS_FOR(i, num) pOut[i] = SnormToSint8(pIn[i]); }
-void  Convert::SnormToSint16(const float* pIn, short* pOut, int num) { VERUS_FOR(i, num) pOut[i] = SnormToSint16(pIn[i]); }
+void    Convert::UnormToUint8(const float* pIn, BYTE* pOut, int count) { VERUS_FOR(i, count) pOut[i] = UnormToUint8(pIn[i]); }
+void Convert::UnormToUint16(const float* pIn, UINT16* pOut, int count) { VERUS_FOR(i, count) pOut[i] = UnormToUint16(pIn[i]); }
+void    Convert::SnormToSint8(const float* pIn, char* pOut, int count) { VERUS_FOR(i, count) pOut[i] = SnormToSint8(pIn[i]); }
+void  Convert::SnormToSint16(const float* pIn, short* pOut, int count) { VERUS_FOR(i, count) pOut[i] = SnormToSint16(pIn[i]); }
 
 // AoI to AoF:
-void    Convert::Uint8ToUnorm(const BYTE* pIn, float* pOut, int num) { VERUS_FOR(i, num) pOut[i] = Uint8ToUnorm(pIn[i]); }
-void Convert::Uint16ToUnorm(const UINT16* pIn, float* pOut, int num) { VERUS_FOR(i, num) pOut[i] = Uint16ToUnorm(pIn[i]); }
-void    Convert::Sint8ToSnorm(const char* pIn, float* pOut, int num) { VERUS_FOR(i, num) pOut[i] = Sint8ToSnorm(pIn[i]); }
-void  Convert::Sint16ToSnorm(const short* pIn, float* pOut, int num) { VERUS_FOR(i, num) pOut[i] = Sint16ToSnorm(pIn[i]); }
+void    Convert::Uint8ToUnorm(const BYTE* pIn, float* pOut, int count) { VERUS_FOR(i, count) pOut[i] = Uint8ToUnorm(pIn[i]); }
+void Convert::Uint16ToUnorm(const UINT16* pIn, float* pOut, int count) { VERUS_FOR(i, count) pOut[i] = Uint16ToUnorm(pIn[i]); }
+void    Convert::Sint8ToSnorm(const char* pIn, float* pOut, int count) { VERUS_FOR(i, count) pOut[i] = Sint8ToSnorm(pIn[i]); }
+void  Convert::Sint16ToSnorm(const short* pIn, float* pOut, int count) { VERUS_FOR(i, count) pOut[i] = Sint16ToSnorm(pIn[i]); }
 
 // I to I:
 short Convert::Sint8ToSint16(char x) { return x * SHRT_MAX / SCHAR_MAX; }
 char Convert::Sint16ToSint8(short x) { return x * SCHAR_MAX / SHRT_MAX; }
-void Convert::Sint8ToSint16(const char* pIn, short* pOut, int num) { VERUS_FOR(i, num) pOut[i] = Sint8ToSint16(pIn[i]); }
-void Convert::Sint16ToSint8(const short* pIn, char* pOut, int num) { VERUS_FOR(i, num) pOut[i] = Sint16ToSint8(pIn[i]); }
+void Convert::Sint8ToSint16(const char* pIn, short* pOut, int count) { VERUS_FOR(i, count) pOut[i] = Sint8ToSint16(pIn[i]); }
+void Convert::Sint16ToSint8(const short* pIn, char* pOut, int count) { VERUS_FOR(i, count) pOut[i] = Sint16ToSint8(pIn[i]); }
 
 void Convert::ToDeviceNormal(const char* pIn, char* pOut)
 {
@@ -132,12 +132,12 @@ void Convert::ColorTextToFloat4(CSZ sz, float* out, bool sRGB)
 	}
 	else
 	{
-		const int num = sscanf(sz, "%d %d %d %d",
+		const int count = sscanf(sz, "%d %d %d %d",
 			color + 0,
 			color + 1,
 			color + 2,
 			color + 3);
-		if (3 == num)
+		if (3 == count)
 			color[3] = 255;
 	}
 	const float gamma = sRGB ? 2.2f : 1.f;
@@ -269,10 +269,10 @@ String Convert::ByteToHex(BYTE b)
 String Convert::ToHex(const Vector<BYTE>& vBin)
 {
 	static const char hexval[] = "0123456789ABCDEF";
-	const int num = Utils::Cast32(vBin.size());
+	const int count = Utils::Cast32(vBin.size());
 	Vector<char> vHex;
-	vHex.resize(num * 2);
-	VERUS_FOR(i, num)
+	vHex.resize(count * 2);
+	VERUS_FOR(i, count)
 	{
 		vHex[(i << 1) + 0] = hexval[(vBin[i] >> 4) & 0xF];
 		vHex[(i << 1) + 1] = hexval[(vBin[i] >> 0) & 0xF];

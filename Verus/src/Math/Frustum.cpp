@@ -17,9 +17,7 @@ Frustum Frustum::MakeFromMatrix(RcMatrix4 m)
 {
 	Frustum f;
 	f._matI = VMath::inverse(m);
-	float z = 0;
-	//if (CGL::RENDERER_OPENGL == CGL::CRender::I()->GetRenderer())
-	//	z = -1;
+	const float z = 0;
 	const Vector4 corners[10] =
 	{
 		Vector4(+1, +1, z, 1),
@@ -106,35 +104,30 @@ Relation Frustum::ContainsAabb(RcBounds aabb) const
 
 void Frustum::Draw()
 {
-#if 0
-	VERUS_QREF_DR;
-	VERUS_QREF_RENDER;
+	VERUS_QREF_DD;
 
-	dr.Begin(CGL::CDebugRender::T_LINES);
-
-	render.GetStateBlockOpaqueNoZ()->Apply();
+	dd.Begin(CGI::DebugDraw::Type::lines, nullptr, false);
 
 	const UINT32 color = VERUS_COLOR_RGBA(0, 0, 0, 255);
 
-	dr.AddLine(_corners[0], _corners[1], color);
-	dr.AddLine(_corners[1], _corners[3], color);
-	dr.AddLine(_corners[3], _corners[2], color);
-	dr.AddLine(_corners[2], _corners[0], color);
+	dd.AddLine(_corners[0], _corners[1], color);
+	dd.AddLine(_corners[1], _corners[3], color);
+	dd.AddLine(_corners[3], _corners[2], color);
+	dd.AddLine(_corners[2], _corners[0], color);
 
-	dr.AddLine(_corners[4], _corners[5], color);
-	dr.AddLine(_corners[5], _corners[7], color);
-	dr.AddLine(_corners[7], _corners[6], color);
-	dr.AddLine(_corners[6], _corners[4], color);
+	dd.AddLine(_corners[4], _corners[5], color);
+	dd.AddLine(_corners[5], _corners[7], color);
+	dd.AddLine(_corners[7], _corners[6], color);
+	dd.AddLine(_corners[6], _corners[4], color);
 
-	dr.AddLine(_corners[0], _corners[4], color);
-	dr.AddLine(_corners[1], _corners[5], color);
-	dr.AddLine(_corners[2], _corners[6], color);
-	dr.AddLine(_corners[3], _corners[7], color);
+	dd.AddLine(_corners[0], _corners[4], color);
+	dd.AddLine(_corners[1], _corners[5], color);
+	dd.AddLine(_corners[2], _corners[6], color);
+	dd.AddLine(_corners[3], _corners[7], color);
 
-	dr.AddLine(_corners[8], _corners[9], color);
+	dd.AddLine(_corners[8], _corners[9], color);
 
-	dr.End();
-#endif
+	dd.End();
 }
 
 Vector4 Frustum::GetBounds(RcMatrix4 m, float& zNear, float& zFar) const

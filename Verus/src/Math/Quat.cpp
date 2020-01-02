@@ -14,15 +14,15 @@ bool Quat::IsEqual(RcQuat that, float e) const
 bool Quat::IsIdentity() const
 {
 	const float epsilon = 0.001f;
-	const bool unitPos =
+	const bool posUnit =
 		abs(getW() - 1) < epsilon &&
 		abs(getX() - 0) < epsilon &&
 		abs(getY() - 0) < epsilon &&
 		abs(getZ() - 0) < epsilon;
-	const bool unitNeg =
+	const bool negUnit =
 		abs(getW() + 1) < epsilon &&
 		abs(getX() + 0) < epsilon &&
 		abs(getY() + 0) < epsilon &&
 		abs(getZ() + 0) < epsilon;
-	return unitPos || unitNeg;
+	return posUnit || negUnit;
 }

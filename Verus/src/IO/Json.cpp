@@ -15,14 +15,16 @@ Json::~Json()
 {
 }
 
-void Json::SetFilename(CSZ name)
+void Json::SetFileName(CSZ name)
 {
 	String pathName;
 	CSZ pSlash = strchr(name, '/');
 	if (!pSlash)
 	{
-		//pathName = Utils::I().GetWritablePath() + "/" + name;
-		//name = _C(pathName);
+		pathName = _C(Utils::I().GetWritablePath());
+		pathName += "/";
+		pathName += name;
+		name = _C(pathName);
 	}
 	_pathName = name;
 }
@@ -41,8 +43,8 @@ void Json::Load(bool fromCache)
 		ss << "Load() url=" << _pathName;
 		VERUS_LOG_INFO(_C(ss.str()));
 
-		const size_t colon = _pathName.find(':');
-		if (colon != String::npos && colon > 1)
+		const size_t pakPos = FileSystem::FindPosForPAK(_C(_pathName));
+		if (pakPos != String::npos)
 		{
 			IO::FileSystem::LoadResource(_C(_pathName), vData, IO::FileSystem::LoadDesc(true));
 			_json = nlohmann::json::parse(reinterpret_cast<CSZ>(vData.data()));
@@ -110,15 +112,21 @@ CSZ Json::GetS(CSZ name, CSZ def)
 
 int Json::GetI(CSZ name, int def)
 {
+	if (_json.find(name) == _json.end())
+		return def;
 	return _json.value(name, def);
 }
 
 float Json::GetF(CSZ name, float def)
 {
+	if (_json.find(name) == _json.end())
+		return def;
 	return _json.value(name, def);
 }
 
 bool Json::GetB(CSZ name, bool def)
 {
+	if (_json.find(name) == _json.end())
+		return def;
 	return _json.value(name, def);
 }

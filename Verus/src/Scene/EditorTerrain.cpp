@@ -25,11 +25,11 @@ void EditorTerrain::SmoothHeight(short stepSize)
 			{
 				if (abs(int(h) - int(prevH)) < stepSize)
 				{
-					const int numTiles = j - prevJ;
-					if (numTiles)
+					const int tileCount = j - prevJ;
+					if (tileCount)
 					{
-						const short part = (h - prevH) / numTiles;
-						VERUS_FOR(k, numTiles)
+						const short part = (h - prevH) / tileCount;
+						VERUS_FOR(k, tileCount)
 						{
 							vCache[(i << _mapShift) + prevJ + k] = prevH + part * k;
 						}
@@ -58,11 +58,11 @@ void EditorTerrain::SmoothHeight(short stepSize)
 			{
 				if (abs(int(h) - int(prevH)) < stepSize)
 				{
-					const int numTiles = i - prevI;
-					if (numTiles)
+					const int tileCount = i - prevI;
+					if (tileCount)
 					{
-						const short part = (s - prevS) / numTiles;
-						VERUS_FOR(k, numTiles)
+						const short part = (s - prevS) / tileCount;
+						VERUS_FOR(k, tileCount)
 						{
 							const int ij[] = { prevI + k, j };
 							Terrain::SetHeightAt(ij, prevS + part * k);
@@ -259,7 +259,7 @@ void EditorTerrain::SetHeightSmoothAt(const float xz[2], int amount, int radius)
 		const int iMax = Math::Clamp(ij[0] + amount, 0, _mapSide);
 		const int jMax = Math::Clamp(ij[1] + amount, 0, _mapSide);
 		int hSum = centerHeight;
-		int num = 1;
+		int count = 1;
 		for (int i = iMin; i < iMax; ++i)
 		{
 			for (int j = jMin; j < jMax; ++j)
@@ -273,11 +273,11 @@ void EditorTerrain::SetHeightSmoothAt(const float xz[2], int amount, int radius)
 					short h;
 					GetHeightAt(ij, 0, &h);
 					hSum += h;
-					num++;
+					count++;
 				}
 			}
 		}
-		return Math::Clamp(hSum / num, -SHRT_MAX, SHRT_MAX);
+		return Math::Clamp(hSum / count, -SHRT_MAX, SHRT_MAX);
 	};
 
 	for (int i = iMin; i < iMax; ++i)
@@ -382,45 +382,45 @@ void EditorTerrain::SplatTileAtEx(const int ij[2], int layer, float maskValue, b
 	{
 		SplatTileAt(ij, channel, int(255 * maskValue));
 	}
-	else if (-1 == channel && patch._numChannelsUsed < 4) // Add new splat channel, if there is space for it:
+	else if (-1 == channel && patch._usedChannelCount < 4) // Add new splat channel, if there is space for it:
 	{
-		channel = patch._numChannelsUsed;
+		channel = patch._usedChannelCount;
 		patch._layerForChannel[channel] = layer;
-		patch._numChannelsUsed++;
+		patch._usedChannelCount++;
 		SplatTileAt(ij, channel, int(255 * maskValue));
 	}
 
 	// Defragment channels:
-	if (patch._numChannelsUsed > 0 && IsSplatChannelBlankAt(ijPatch, 0))
+	if (patch._usedChannelCount > 0 && IsSplatChannelBlankAt(ijPatch, 0))
 	{
 		for (int k = 0; k < 3; ++k)
 		{
 			SwapSplatLayersAt(ijPatch, k, k + 1);
 			std::swap(patch._layerForChannel[k], patch._layerForChannel[k + 1]);
 		}
-		patch._numChannelsUsed--;
+		patch._usedChannelCount--;
 	}
-	if (patch._numChannelsUsed > 1 && IsSplatChannelBlankAt(ijPatch, 1))
+	if (patch._usedChannelCount > 1 && IsSplatChannelBlankAt(ijPatch, 1))
 	{
 		for (int k = 1; k < 3; ++k)
 		{
 			SwapSplatLayersAt(ijPatch, k, k + 1);
 			std::swap(patch._layerForChannel[k], patch._layerForChannel[k + 1]);
 		}
-		patch._numChannelsUsed--;
+		patch._usedChannelCount--;
 	}
-	if (patch._numChannelsUsed > 2 && IsSplatChannelBlankAt(ijPatch, 2))
+	if (patch._usedChannelCount > 2 && IsSplatChannelBlankAt(ijPatch, 2))
 	{
 		for (int k = 2; k < 3; ++k)
 		{
 			SwapSplatLayersAt(ijPatch, k, k + 1);
 			std::swap(patch._layerForChannel[k], patch._layerForChannel[k + 1]);
 		}
-		patch._numChannelsUsed--;
+		patch._usedChannelCount--;
 	}
-	if (patch._numChannelsUsed > 3 && IsSplatChannelBlankAt(ijPatch, 3))
+	if (patch._usedChannelCount > 3 && IsSplatChannelBlankAt(ijPatch, 3))
 	{
-		patch._numChannelsUsed--;
+		patch._usedChannelCount--;
 	}
 
 	UpdateMainLayerAt(ij);

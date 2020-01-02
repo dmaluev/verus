@@ -89,23 +89,23 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 		case '>XI<':
 		{
 			sp.ReadString(buffer);
-			_numFaces = atoi(buffer);
-			_indexCount = _numFaces * 3;
+			_faceCount = atoi(buffer);
+			_indexCount = _faceCount * 3;
 			VERUS_RT_ASSERT(_vIndices.empty());
-			_vIndices.resize(_numFaces * 3);
+			_vIndices.resize(_indexCount);
 			UINT16* pIB = _vIndices.data();
-			VERUS_FOR(i, _numFaces)
+			VERUS_FOR(i, _faceCount)
 				sp.Read(&pIB[i * 3], 6);
 		}
 		break;
 		case '>XV<':
 		{
 			sp.ReadString(buffer);
-			_numVerts = atoi(buffer);
-#ifdef VERUS_DEBUG
+			_vertCount = atoi(buffer);
+#ifdef VERUS_RELEASE_DEBUG
 			Vector<UINT64> vPolyCheck;
-			vPolyCheck.reserve(_numFaces);
-			VERUS_FOR(i, _numFaces)
+			vPolyCheck.reserve(_faceCount);
+			VERUS_FOR(i, _faceCount)
 			{
 				UINT16 indices[3];
 				memcpy(indices, &_vIndices[i * 3], sizeof(indices));
@@ -124,26 +124,26 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 				isolatedVertex = true;
 			if (isolatedVertex)
 				VERUS_LOG_WARN("Isolated vertex in " << _url);
-			if (_numVerts <= vSorted.back())
+			if (_vertCount <= vSorted.back())
 				VERUS_LOG_WARN("Index out of bounds in " << _url);
 #endif
 			sp.Read(&_posDeq[0], 12);
 			sp.Read(&_posDeq[3], 12);
 			VERUS_RT_ASSERT(_vBinding0.empty());
-			_vBinding0.resize(_numVerts);
+			_vBinding0.resize(_vertCount);
 			VertexInputBinding0* pVB = _vBinding0.data();
 			short mn = 0, mx = 0;
-			VERUS_FOR(i, _numVerts)
+			VERUS_FOR(i, _vertCount)
 			{
 				sp.Read(pVB[i]._pos, 6);
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 				const short* pMin = std::min_element(pVB[i]._pos, pVB[i]._pos + 3);
 				const short* pMax = std::max_element(pVB[i]._pos, pVB[i]._pos + 3);
 				mn = Math::Min(mn, *pMin);
 				mx = Math::Max(mx, *pMax);
 #endif
 			}
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 			VERUS_RT_ASSERT(mn < -32700);
 			VERUS_RT_ASSERT(mx > +32700);
 #endif
@@ -153,10 +153,10 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 		{
 			hasNormals = true;
 			VertexInputBinding0* pVB = _vBinding0.data();
-			VERUS_FOR(i, _numVerts)
+			VERUS_FOR(i, _vertCount)
 			{
 				sp.Read(pVB[i]._nrm, 3);
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 				const int len =
 					pVB[i]._nrm[0] * pVB[i]._nrm[0] +
 					pVB[i]._nrm[1] * pVB[i]._nrm[1] +
@@ -171,16 +171,16 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 		{
 			hasTBN = true;
 			VERUS_RT_ASSERT(_vBinding2.empty());
-			_vBinding2.resize(_numVerts);
+			_vBinding2.resize(_vertCount);
 			VertexInputBinding2* pVB = _vBinding2.data();
 			char temp[3];
-			VERUS_FOR(i, _numVerts)
+			VERUS_FOR(i, _vertCount)
 			{
 				sp.Read(temp, 3);
 				Convert::Sint8ToSint16(temp, pVB[i]._tan, 3); // Single byte is not supported in OpenGL.
 				sp.Read(temp, 3);
 				Convert::Sint8ToSint16(temp, pVB[i]._bin, 3);
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 				const int lenT =
 					pVB[i]._tan[0] * pVB[i]._tan[0] +
 					pVB[i]._tan[1] * pVB[i]._tan[1] +
@@ -201,17 +201,17 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 			sp.Read(&_tc0Deq[2], 8);
 			VertexInputBinding0* pVB = _vBinding0.data();
 			short mn = 0, mx = 0;
-			VERUS_FOR(i, _numVerts)
+			VERUS_FOR(i, _vertCount)
 			{
 				sp.Read(pVB[i]._tc0, 4);
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 				const short* pMin = std::min_element(pVB[i]._tc0, pVB[i]._tc0 + 2);
 				const short* pMax = std::max_element(pVB[i]._tc0, pVB[i]._tc0 + 2);
 				mn = Math::Min(mn, *pMin);
 				mx = Math::Max(mx, *pMax);
 #endif
 			}
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 			VERUS_RT_ASSERT(mn < -32700);
 			VERUS_RT_ASSERT(mx > +32700);
 #endif
@@ -222,20 +222,20 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 			sp.Read(&_tc1Deq[0], 8);
 			sp.Read(&_tc1Deq[2], 8);
 			VERUS_RT_ASSERT(_vBinding3.empty());
-			_vBinding3.resize(_numVerts);
+			_vBinding3.resize(_vertCount);
 			VertexInputBinding3* pVB = _vBinding3.data();
-			VERUS_FOR(i, _numVerts)
+			VERUS_FOR(i, _vertCount)
 				sp.Read(&pVB[i]._tc1, 4);
 		}
 		break;
 		case '>HB<':
 		{
-			BYTE numBones = 0;
-			sp >> numBones;
-			VERUS_RT_ASSERT(numBones <= VERUS_MAX_NUM_BONES);
-			_numBones = numBones;
+			BYTE boneCount = 0;
+			sp >> boneCount;
+			VERUS_RT_ASSERT(boneCount <= VERUS_MAX_BONES);
+			_boneCount = boneCount;
 			_skeleton.Init();
-			VERUS_FOR(i, _numBones)
+			VERUS_FOR(i, _boneCount)
 			{
 				Anim::Skeleton::Bone bone;
 				sp.ReadString(buffer); bone._name = buffer;
@@ -251,10 +251,10 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 		case '>SS<':
 		{
 			VERUS_RT_ASSERT(_vBinding1.empty());
-			_vBinding1.resize(_numVerts);
+			_vBinding1.resize(_vertCount);
 			VertexInputBinding1* pVB = _vBinding1.data();
 			bool abnormal = false;
-			VERUS_FOR(i, _numVerts)
+			VERUS_FOR(i, _vertCount)
 			{
 				BYTE data[8];
 				sp.Read(data, 8);
@@ -263,7 +263,7 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 					pVB[i]._bw[j] = data[j];
 					pVB[i]._bi[j] = data[j + 4];
 				}
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 				const int sum =
 					pVB[i]._bw[0] +
 					pVB[i]._bw[1] +
@@ -281,7 +281,7 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 		{
 			VertexInputBinding0* pVB = _vBinding0.data();
 			BYTE index = 0;
-			VERUS_FOR(i, _numVerts)
+			VERUS_FOR(i, _vertCount)
 			{
 				sp >> index;
 				pVB[i]._pos[3] = index;
@@ -299,7 +299,7 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 
 	if (!hasTBN)
 	{
-		_vBinding2.resize(_numVerts);
+		_vBinding2.resize(_vertCount);
 		ComputeTangentSpace();
 	}
 
@@ -360,9 +360,9 @@ void BaseMesh::LoadMimic()
 	if (vData.size() > 1)
 	{
 		VERUS_RT_ASSERT(!(_vBinding0.empty() || _vBinding2.empty()));
-		VERUS_RT_ASSERT(vData.size() - 1 == _numVerts * 6);
+		VERUS_RT_ASSERT(vData.size() - 1 == _vertCount * 6);
 		CSZ ps = reinterpret_cast<CSZ>(vData.data());
-		VERUS_FOR(i, _numVerts)
+		VERUS_FOR(i, _vertCount)
 		{
 			int r, g, b;
 			sscanf(ps + i * 6, "%d %d %d", &r, &g, &b);
@@ -457,23 +457,23 @@ void BaseMesh::ComputeTangentSpace()
 {
 	Vector<glm::vec3> vV, vN, vTan, vBin;
 	Vector<glm::vec2> vTex;
-	vV.resize(_numVerts);
-	vTex.resize(_numVerts);
+	vV.resize(_vertCount);
+	vTex.resize(_vertCount);
 
-	VERUS_FOR(i, _numVerts)
+	VERUS_FOR(i, _vertCount)
 	{
 		DequantizeUsingDeq3D(_vBinding0[i]._pos, _posDeq, vV[i]);
 		DequantizeUsingDeq2D(_vBinding0[i]._tc0, _tc0Deq, vTex[i]);
 	}
 
 	Math::NormalComputer::ComputeNormals(_vIndices, vV, vN, 1);
-	VERUS_FOR(i, _numVerts)
+	VERUS_FOR(i, _vertCount)
 		Convert::SnormToSint8(&vN[i].x, _vBinding0[i]._nrm, 3);
 
 	if (!_vBinding2.empty())
 	{
 		Math::NormalComputer::ComputeTangentSpace(_vIndices, vV, vN, vTex, vTan, vBin);
-		VERUS_FOR(i, _numVerts)
+		VERUS_FOR(i, _vertCount)
 		{
 			Convert::SnormToSint16(&vTan[i].x, _vBinding2[i]._tan, 3);
 			Convert::SnormToSint16(&vBin[i].x, _vBinding2[i]._bin, 3);
@@ -496,9 +496,9 @@ Math::Bounds BaseMesh::GetBounds() const
 	return Math::Bounds(mn, mx);
 }
 
-void BaseMesh::VisitVertices(std::function<Continue(RcPoint3, int)> fn)
+void BaseMesh::ForEachVertex(std::function<Continue(RcPoint3, int)> fn)
 {
-	VERUS_FOR(i, _numVerts)
+	VERUS_FOR(i, _vertCount)
 	{
 		Point3 pos;
 		DequantizeUsingDeq3D(_vBinding0[i]._pos, _posDeq, pos);
@@ -540,29 +540,30 @@ String BaseMesh::ToXmlString() const
 
 	// IB:
 	ss << "<i>";
-	if (_vIndices.empty())
+	if (!_vIndices.empty())
 	{
-		VERUS_FOR(i, (int)_vIndices32.size())
-		{
-			if (i)
-				ss << ' ';
-			ss << _vIndices32[i];
-		}
-	}
-	else
-	{
-		VERUS_FOR(i, (int)_vIndices.size())
+		VERUS_FOR(i, _indexCount)
 		{
 			if (i)
 				ss << ' ';
 			ss << _vIndices[i];
 		}
 	}
+	else
+	{
+		VERUS_FOR(i, _indexCount)
+		{
+			if (i)
+				ss << ' ';
+			ss << _vIndices32[i];
+		}
+	}
+
 	ss << "</i>" << VERUS_CRNL;
 
 	// Position:
 	ss << "<p>";
-	VERUS_FOR(i, _numVerts)
+	VERUS_FOR(i, _vertCount)
 	{
 		Point3 pos;
 		DequantizeUsingDeq3D(_vBinding0[i]._pos, _posDeq, pos);
@@ -574,7 +575,7 @@ String BaseMesh::ToXmlString() const
 
 	// Normal:
 	ss << "<n>";
-	VERUS_FOR(i, _numVerts)
+	VERUS_FOR(i, _vertCount)
 	{
 		Vector3 norm;
 		DequantizeNrm(_vBinding0[i]._nrm, norm);
@@ -586,7 +587,7 @@ String BaseMesh::ToXmlString() const
 
 	// TC 0:
 	ss << "<tc0>";
-	VERUS_FOR(i, _numVerts)
+	VERUS_FOR(i, _vertCount)
 	{
 		Point3 tc;
 		DequantizeUsingDeq2D(_vBinding0[i]._tc0, _tc0Deq, tc);
@@ -600,7 +601,7 @@ String BaseMesh::ToXmlString() const
 	if (false)
 	{
 		ss << "<tc1>";
-		VERUS_FOR(i, _numVerts)
+		VERUS_FOR(i, _vertCount)
 		{
 			Point3 tc;
 			DequantizeUsingDeq2D(_vBinding3[i]._tc1, _tc1Deq, tc);
@@ -620,7 +621,7 @@ String BaseMesh::ToObjString() const
 {
 	StringStream ss;
 
-	VERUS_FOR(i, _numVerts)
+	VERUS_FOR(i, _vertCount)
 	{
 		Point3 pos;
 		DequantizeUsingDeq3D(_vBinding0[i]._pos, _posDeq, pos);
@@ -629,10 +630,9 @@ String BaseMesh::ToObjString() const
 
 	ss << VERUS_CRNL;
 
-	const int numFaces = Utils::Cast32(_vIndices.size() / 3);
-	if (numFaces)
+	if (!_vIndices.empty())
 	{
-		VERUS_FOR(i, numFaces)
+		VERUS_FOR(i, _faceCount)
 		{
 			ss << "f ";
 			ss << _vIndices[i * 3 + 0] + 1 << ' ';
@@ -642,8 +642,7 @@ String BaseMesh::ToObjString() const
 	}
 	else
 	{
-		const int numFaces = Utils::Cast32(_vIndices32.size() / 3);
-		VERUS_FOR(i, numFaces)
+		VERUS_FOR(i, _faceCount)
 		{
 			ss << "f ";
 			ss << _vIndices32[i * 3 + 0] + 1 << ' ';

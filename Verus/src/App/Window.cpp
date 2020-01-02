@@ -40,6 +40,8 @@ void Window::Init(RcDesc descConst)
 		flags |= SDL_WINDOW_RESIZABLE;
 	if (0 == settings._gapi)
 		flags |= SDL_WINDOW_VULKAN;
+	if (settings._screenAllowHighDPI)
+		flags |= SDL_WINDOW_ALLOW_HIGHDPI;
 
 	_pWnd = SDL_CreateWindow(
 		desc._title ? desc._title : "",

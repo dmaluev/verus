@@ -110,7 +110,7 @@ void Renderer::InitCmd()
 		glm::vec2(+1, +1), // TR.
 		glm::vec2(+1, -1)  // BR.
 	};
-	_geoQuad->CreateVertexBuffer(VERUS_ARRAY_LENGTH(quadVerts), 0);
+	_geoQuad->CreateVertexBuffer(VERUS_COUNT_OF(quadVerts), 0);
 	_geoQuad->UpdateVertexBuffer(quadVerts, 0);
 }
 
@@ -148,7 +148,7 @@ void Renderer::Present()
 {
 	if (_pRendererDelegate)
 		_pRendererDelegate->Renderer_OnPresent();
-	_numFrames++;
+	_frameCount++;
 
 	VERUS_QREF_TIMER;
 	_fps = _fps * 0.75f + timer.GetDeltaTimeInv() * 0.25f;
@@ -187,10 +187,10 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 		texDesc._height = _swapChainHeight;
 		_texDepthStencil.Init(texDesc);
 
-		_fbSwapChain.resize(_pBaseRenderer->GetNumSwapChainBuffers());
+		_fbSwapChain.resize(_pBaseRenderer->GetSwapChainBufferCount());
 		VERUS_FOR(i, _fbSwapChain.size())
 			_fbSwapChain[i] = _pBaseRenderer->CreateFramebuffer(_rpSwapChain, {}, _swapChainWidth, _swapChainHeight, i);
-		_fbSwapChainDepth.resize(_pBaseRenderer->GetNumSwapChainBuffers());
+		_fbSwapChainDepth.resize(_pBaseRenderer->GetSwapChainBufferCount());
 		VERUS_FOR(i, _fbSwapChainDepth.size())
 			_fbSwapChainDepth[i] = _pBaseRenderer->CreateFramebuffer(_rpSwapChainDepth, { _texDepthStencil }, _swapChainWidth, _swapChainHeight, i);
 	}
@@ -214,7 +214,7 @@ void Renderer::OnShaderWarning(CSZ s)
 	VERUS_LOG_WARN("Shader Warning:\n" << s);
 }
 
-float Renderer::GetWindowAspectRatio() const
+float Renderer::GetSwapChainAspectRatio() const
 {
 	VERUS_QREF_CONST_SETTINGS;
 	return static_cast<float>(_swapChainWidth) / static_cast<float>(_swapChainHeight);
@@ -227,6 +227,8 @@ void Renderer::ImGuiSetCurrentContext(ImGuiContext* pContext)
 
 void Renderer::ImGuiUpdateStyle()
 {
+	VERUS_QREF_CONST_SETTINGS;
+
 	ImGuiStyle& style = ImGui::GetStyle();
 
 	style.WindowRounding = 4;
@@ -292,4 +294,7 @@ void Renderer::ImGuiUpdateStyle()
 	colors[ImGuiCol_NavWindowingHighlight] = ImVec4(0.89f, 0.13f, 0.00f, 1.00f);
 	colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.50f);
 	colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.50f);
+
+	if (settings._screenAllowHighDPI)
+		style.ScaleAllSizes(settings._highDpiScale);
 }

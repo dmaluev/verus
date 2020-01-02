@@ -11,7 +11,7 @@ namespace verus
 		public:
 			void Schedule()
 			{
-				_frame = Renderer::I().GetNumFrames() + BaseRenderer::s_ringBufferSize + (Utils::I().GetRandom().Next() & 0xFF);
+				_frame = Renderer::I().GetFrameCount() + BaseRenderer::s_ringBufferSize + (Utils::I().GetRandom().Next() & 0xFF);
 			}
 
 			void Allow()
@@ -23,7 +23,7 @@ namespace verus
 			{
 				if (-1 == _frame)
 					return false;
-				if (static_cast<INT64>(Renderer::I().GetNumFrames()) < _frame)
+				if (static_cast<INT64>(Renderer::I().GetFrameCount()) < _frame)
 					return false;
 				_frame = -1;
 				return true;

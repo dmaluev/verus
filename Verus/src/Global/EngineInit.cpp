@@ -104,8 +104,8 @@ void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::Rendere
 	//}
 
 	// Materials & textures:
-	//if (_makeScene)
-	//	Scene::CMaterialManager::I().Init();
+	if (_makeScene)
+		Scene::MaterialManager::I().Init();
 
 	//if (_makeGUI)
 	//	GUI::CGUI::I().Init();

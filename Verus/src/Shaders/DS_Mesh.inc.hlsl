@@ -35,7 +35,7 @@ VERUS_UBUFFER UB_PerMeshVS
 
 VERUS_UBUFFER UB_SkeletonVS
 {
-	mataff _vMatBones[VERUS_MAX_NUM_BONES];
+	mataff _vMatBones[VERUS_MAX_BONES];
 };
 
 VERUS_UBUFFER UB_PerObject

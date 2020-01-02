@@ -242,7 +242,7 @@ void StreamPlayer::ThreadProc()
 						int processed;
 						alGetSourcei(_source, AL_BUFFERS_PROCESSED, &processed);
 
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 						char debug[80];
 						sprintf_s(debug, "ThreadProc() processed=%d", processed);
 						VERUS_LOG_DEBUG(debug);
@@ -298,15 +298,15 @@ void StreamPlayer::FillBuffer(ALuint buffer)
 	int bitstream, oggCursor = 0, safeSize = Utils::Cast32(_vMediumBuffer.size() - _vSmallBuffer.size());
 	while (oggCursor < safeSize)
 	{
-		long num = -1;
+		long count = -1;
 		if (_pTrack && _pTrack->IsLoaded())
-			num = ov_read(&_oggVorbisFile, reinterpret_cast<char*>(_vSmallBuffer.data()), Utils::Cast32(_vSmallBuffer.size()), 0, 2, 1, &bitstream);
-		if (num > 0)
+			count = ov_read(&_oggVorbisFile, reinterpret_cast<char*>(_vSmallBuffer.data()), Utils::Cast32(_vSmallBuffer.size()), 0, 2, 1, &bitstream);
+		if (count > 0)
 		{
-			memcpy(&_vMediumBuffer[oggCursor], _vSmallBuffer.data(), num);
-			oggCursor += num;
+			memcpy(&_vMediumBuffer[oggCursor], _vSmallBuffer.data(), count);
+			oggCursor += count;
 		}
-		else if (0 == num) // No more data?
+		else if (0 == count) // No more data?
 		{
 			if (!_vTracks.empty()) // Next one in the playlist?
 			{

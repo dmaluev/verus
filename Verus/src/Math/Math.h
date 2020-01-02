@@ -67,9 +67,9 @@ namespace verus
 		float TriangleArea(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2);
 
 		// Geometry:
-		int GetNumStripGridIndices(int widthPoly, int heightPoly);
-		void BuildStripGrid(int widthPoly, int heightPoly, Vector<UINT16>& vIndices);
-		void BuildListGrid(int widthPoly, int heightPoly, Vector<UINT16>& vIndices);
+		int GetStripGridIndexCount(int polyCountWidth, int polyCountHeight);
+		void BuildStripGrid(int polyCountWidth, int polyCountHeight, Vector<UINT16>& vIndices);
+		void BuildListGrid(int polyCountWidth, int polyCountHeight, Vector<UINT16>& vIndices);
 
 		// Scene:
 		Transform3 BoundsDrawMatrix(RcPoint3 mn, RcPoint3 mx);
@@ -77,6 +77,8 @@ namespace verus
 		void Quadrant(const int** ppSrcMinMax, int** ppDestMinMax, int half, int id);
 
 		int ComputeMipLevels(int w, int h, int d = 1);
+
+		void Test();
 
 		// Matrices:
 		Transform3 QuadMatrix(float x = 0, float y = 0, float w = 1, float h = 1);

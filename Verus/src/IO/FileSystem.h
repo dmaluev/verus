@@ -33,7 +33,7 @@ namespace verus
 			~FileSystem();
 
 			static size_t FindPosForPAK(CSZ url);
-			static void ReadHeaderPAK(RFile file, UINT32& magic, INT64& entriesOffset, INT64& entriesSize);
+			static void ReadPakHeader(RFile file, UINT32& magic, INT64& entriesOffset, INT64& entriesSize);
 
 			void PreloadCache(CSZ pak, CSZ types[]);
 
@@ -45,7 +45,7 @@ namespace verus
 			VERUS_P(static void LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc, RFile file, CSZ pakEntry));
 
 			static void LoadTextureParts(RFile file, CSZ url, int texturePart, Vector<BYTE>& vData);
-			static String ConvertFilenameToPassword(CSZ fileEntry);
+			static String ConvertFileNameToPassword(CSZ fileEntry);
 
 			static bool FileExist(CSZ url);
 			static bool Delete(CSZ pathName);

@@ -84,8 +84,8 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		// <User defines>
 		Vector<CSZ> vDefines;
 		vDefines.reserve(40);
-		const int num = Utils::Cast32(vMacroName.size());
-		VERUS_FOR(i, num)
+		const int count = Utils::Cast32(vMacroName.size());
+		VERUS_FOR(i, count)
 		{
 			vDefines.push_back(_C(vMacroName[i]));
 			vDefines.push_back(_C(vMacroValue[i]));
@@ -113,8 +113,8 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		}
 		char defMaxNumBones[64] = {};
 		{
-			sprintf_s(defMaxNumBones, "%d", VERUS_MAX_NUM_BONES);
-			vDefines.push_back("VERUS_MAX_NUM_BONES");
+			sprintf_s(defMaxNumBones, "%d", VERUS_MAX_BONES);
+			vDefines.push_back("VERUS_MAX_BONES");
 			vDefines.push_back(defMaxNumBones);
 		}
 		vDefines.push_back("_VULKAN");
@@ -129,54 +129,54 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 
 		if (strchr(_C(stages), 'V'))
 		{
-			compiled._numStages++;
+			compiled._stageCount++;
 			vDefines[typeIndex] = "_VS";
-			if (!RendererVulkan::VerusCompile(source, sourceName, vDefines.data(), &inc, _C(entryVS), "vs", flags, &pCode, &size, &pErrorMsgs))
+			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(entryVS), "vs", flags, &pCode, &size, &pErrorMsgs))
 				CheckErrorMsgs(pErrorMsgs);
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::vs]);
 		}
 
 		if (strchr(_C(stages), 'H'))
 		{
-			compiled._numStages++;
+			compiled._stageCount++;
 			vDefines[typeIndex] = "_HS";
-			if (!RendererVulkan::VerusCompile(source, sourceName, vDefines.data(), &inc, _C(entryHS), "hs", flags, &pCode, &size, &pErrorMsgs))
+			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(entryHS), "hs", flags, &pCode, &size, &pErrorMsgs))
 				CheckErrorMsgs(pErrorMsgs);
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::hs]);
 		}
 
 		if (strchr(_C(stages), 'D'))
 		{
-			compiled._numStages++;
+			compiled._stageCount++;
 			vDefines[typeIndex] = "_DS";
-			if (!RendererVulkan::VerusCompile(source, sourceName, vDefines.data(), &inc, _C(entryDS), "ds", flags, &pCode, &size, &pErrorMsgs))
+			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(entryDS), "ds", flags, &pCode, &size, &pErrorMsgs))
 				CheckErrorMsgs(pErrorMsgs);
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::ds]);
 		}
 
 		if (strchr(_C(stages), 'G'))
 		{
-			compiled._numStages++;
+			compiled._stageCount++;
 			vDefines[typeIndex] = "_GS";
-			if (!RendererVulkan::VerusCompile(source, sourceName, vDefines.data(), &inc, _C(entryGS), "gs", flags, &pCode, &size, &pErrorMsgs))
+			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(entryGS), "gs", flags, &pCode, &size, &pErrorMsgs))
 				CheckErrorMsgs(pErrorMsgs);
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::gs]);
 		}
 
 		if (strchr(_C(stages), 'F'))
 		{
-			compiled._numStages++;
+			compiled._stageCount++;
 			vDefines[typeIndex] = "_FS";
-			if (!RendererVulkan::VerusCompile(source, sourceName, vDefines.data(), &inc, _C(entryFS), "fs", flags, &pCode, &size, &pErrorMsgs))
+			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(entryFS), "fs", flags, &pCode, &size, &pErrorMsgs))
 				CheckErrorMsgs(pErrorMsgs);
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::fs]);
 		}
 
 		if (strchr(_C(stages), 'C'))
 		{
-			compiled._numStages++;
+			compiled._stageCount++;
 			vDefines[typeIndex] = "_CS";
-			if (!RendererVulkan::VerusCompile(source, sourceName, vDefines.data(), &inc, _C(entryCS), "cs", flags, &pCode, &size, &pErrorMsgs))
+			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(entryCS), "cs", flags, &pCode, &size, &pErrorMsgs))
 				CheckErrorMsgs(pErrorMsgs);
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::cs]);
 			_compute = true;
@@ -228,9 +228,9 @@ void ShaderVulkan::CreateDescriptorSet(int setNumber, const void* pSrc, int size
 	dsd._vSamplers.assign(il);
 	dsd._pSrc = pSrc;
 	dsd._size = size;
-	dsd._sizeAligned = Math::AlignUp(dsd._size, static_cast<int>(pPhysicalDeviceProperties->limits.minUniformBufferOffsetAlignment));
+	dsd._alignedSize = Math::AlignUp(dsd._size, static_cast<int>(pPhysicalDeviceProperties->limits.minUniformBufferOffsetAlignment));
 	dsd._capacity = capacity;
-	dsd._capacityInBytes = dsd._sizeAligned * dsd._capacity;
+	dsd._capacityInBytes = dsd._alignedSize * dsd._capacity;
 	dsd._stageFlags = ToNativeStageFlags(stageFlags);
 
 	if (capacity > 0)
@@ -261,8 +261,8 @@ void ShaderVulkan::CreatePipelineLayout()
 		_vDescriptorSetLayouts.reserve(_vDescriptorSetDesc.size());
 		for (const auto& dsd : _vDescriptorSetDesc)
 		{
-			const int numTextures = Utils::Cast32(dsd._vSamplers.size());
-			if (numTextures > 0)
+			const int textureCount = Utils::Cast32(dsd._vSamplers.size());
+			if (textureCount > 0)
 			{
 				_poolComplexUniformBuffers += dsd._capacity;
 				for (auto s : dsd._vSamplers)
@@ -279,7 +279,7 @@ void ShaderVulkan::CreatePipelineLayout()
 			if (dsd._capacity > 0)
 			{
 				Vector<VkDescriptorSetLayoutBinding> vBindings;
-				vBindings.reserve(1 + numTextures);
+				vBindings.reserve(1 + textureCount);
 				VkDescriptorSetLayoutBinding vkdslb = {};
 				vkdslb.binding = 0;
 				vkdslb.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
@@ -287,7 +287,7 @@ void ShaderVulkan::CreatePipelineLayout()
 				vkdslb.stageFlags = dsd._stageFlags;
 				vkdslb.pImmutableSamplers = nullptr;
 				vBindings.push_back(vkdslb);
-				VERUS_FOR(i, numTextures)
+				VERUS_FOR(i, textureCount)
 				{
 					VkDescriptorSetLayoutBinding vkdslb = {};
 					vkdslb.binding = i + 1;
@@ -390,7 +390,7 @@ int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list
 		VkDescriptorImageInfo vkdii = {};
 		if (Sampler::storage == dsd._vSamplers[index])
 		{
-			vkdii.imageView = texVulkan.GetVkImageViewStorage(mip);
+			vkdii.imageView = texVulkan.GetStorageVkImageView(mip);
 			vkdii.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 		}
 		else if (Sampler::shadow == dsd._vSamplers[index])
@@ -470,8 +470,8 @@ void ShaderVulkan::BeginBindDescriptors()
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
-	const bool resetOffset = _currentFrame != renderer.GetNumFrames();
-	_currentFrame = renderer.GetNumFrames();
+	const bool resetOffset = _currentFrame != renderer.GetFrameCount();
+	_currentFrame = renderer.GetFrameCount();
 
 	for (auto& dsd : _vDescriptorSetDesc)
 	{
@@ -603,7 +603,7 @@ int ShaderVulkan::UpdateUniformBuffer(int setNumber)
 	VERUS_QREF_RENDERER_VULKAN;
 
 	auto& dsd = _vDescriptorSetDesc[setNumber];
-	if (dsd._offset + dsd._sizeAligned > dsd._capacityInBytes)
+	if (dsd._offset + dsd._alignedSize > dsd._capacityInBytes)
 	{
 		VERUS_RT_FAIL("UniformBuffer is full.");
 		return -1;
@@ -612,7 +612,7 @@ int ShaderVulkan::UpdateUniformBuffer(int setNumber)
 	VERUS_RT_ASSERT(dsd._pMappedData);
 	const int ret = dsd._capacityInBytes * pRendererVulkan->GetRingBufferIndex() + dsd._offset;
 	memcpy(dsd._pMappedData + dsd._offset, dsd._pSrc, dsd._size);
-	dsd._offset += dsd._sizeAligned;
+	dsd._offset += dsd._alignedSize;
 	dsd._peakLoad = Math::Max(dsd._peakLoad, dsd._offset);
 	return ret;
 }

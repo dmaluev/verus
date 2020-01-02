@@ -65,8 +65,8 @@ FSO mainFS(VSO si)
 
 	const float4 rawAccDiff = g_texAccDiff.Sample(g_samAccDiff, si.tc0);
 	const float4 rawAccSpec = g_texAccSpec.Sample(g_samAccSpec, si.tc0);
-	const float4 accDiff = HDRColorToLinear(rawAccDiff);
-	const float4 accSpec = HDRColorToLinear(rawAccSpec);
+	const float4 accDiff = rawAccDiff;
+	const float4 accSpec = rawAccSpec;
 
 	const float ssaoDiff = 1.0;
 	const float ssaoSpec = 1.0;

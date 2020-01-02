@@ -53,7 +53,7 @@ bool StateMachine::EnterState(RState state, bool allowSameState)
 	if (!CanEnterState(state, allowSameState))
 		return false;
 
-	const UINT64 frame = CGI::Renderer::I().GetNumFrames();
+	const UINT64 frame = CGI::Renderer::I().GetFrameCount();
 	VERUS_RT_ASSERT(frame != _prevFrame); // Don't change state multiple times per frame!
 	_prevFrame = frame;
 

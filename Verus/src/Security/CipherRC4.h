@@ -27,8 +27,8 @@ namespace verus
 					j = (j + box[i] + key[i]) & 0xFF;
 					std::swap(box[i], box[j]);
 				}
-				const size_t num = vData.size() + skip;
-				for (a = j = i = 0; i < num; ++i)
+				const size_t count = vData.size() + skip;
+				for (a = j = i = 0; i < count; ++i)
 				{
 					a = (a + 1) & 0xFF;
 					j = (j + box[a]) & 0xFF;

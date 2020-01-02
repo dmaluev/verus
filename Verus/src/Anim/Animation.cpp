@@ -49,10 +49,10 @@ PMotionData Collection::Find(CSZ name)
 
 int Collection::GetMaxBones()
 {
-	int num = 0;
+	int count = 0;
 	VERUS_FOREACH(TStoreMotions::TMap, _map, it)
-		num = Math::Max(num, it->second._motion.GetNumBones());
-	return num;
+		count = Math::Max(count, it->second._motion.GetBoneCount());
+	return count;
 }
 
 // Animation:
@@ -65,7 +65,7 @@ Animation::~Animation()
 {
 }
 
-void Animation::Update(int numAlphaTracks, PAlphaTrack pAlphaTracks)
+void Animation::Update(int alphaTrackCount, PAlphaTrack pAlphaTracks)
 {
 	VERUS_QREF_TIMER;
 
@@ -74,7 +74,7 @@ void Animation::Update(int numAlphaTracks, PAlphaTrack pAlphaTracks)
 		_vTriggerStates.resize(_pCollection->GetMaxBones());
 
 	// Async BindSkeleton():
-	if (!_blendMotion.GetNumBones() && _pSkeleton->GetNumBones())
+	if (!_blendMotion.GetBoneCount() && _pSkeleton->GetBoneCount())
 		_pSkeleton->InsertBonesIntoMotion(_blendMotion);
 
 	if (_playing)
@@ -104,33 +104,33 @@ void Animation::Update(int numAlphaTracks, PAlphaTrack pAlphaTracks)
 		}
 	}
 
-	if (!_currentMotion.empty() && numAlphaTracks >= 0) // Alpha track (-1) should not modify the skeleton.
+	if (!_currentMotion.empty() && alphaTrackCount >= 0) // Alpha track (-1) should not modify the skeleton.
 	{
 		RMotionData md = *_pCollection->Find(_C(_currentMotion));
 
-		int numAlphaMotions = 0;
+		int alphaMotionCount = 0;
 		Skeleton::AlphaMotion alphaMotions[4];
 
-		for (int i = 0; i < numAlphaTracks && i < 4; ++i)
+		for (int i = 0; i < alphaTrackCount && i < 4; ++i)
 		{
 			alphaMotions[i]._pMotion = pAlphaTracks[i]._pAnimation->GetMotion(); // Can be in blend state.
 			alphaMotions[i]._rootBone = pAlphaTracks[i]._rootBone;
 			alphaMotions[i]._alpha = pAlphaTracks[i]._pAnimation->GetAlpha();
 			alphaMotions[i]._time = pAlphaTracks[i]._pAnimation->GetTime();
-			numAlphaMotions++;
+			alphaMotionCount++;
 		}
 
 		if (_blending)
 		{
 			md._motion.BindBlendMotion(&_blendMotion, _blendTimer / _blendDuration);
-			_pSkeleton->ApplyMotion(md._motion, _time, numAlphaMotions, alphaMotions);
+			_pSkeleton->ApplyMotion(md._motion, _time, alphaMotionCount, alphaMotions);
 		}
 		else
 		{
 #ifdef VERUS_COMPARE_MODE
-			_pSkeleton->ApplyMotion(md._motion, 0, numAlphaMotions, alphaMotions);
+			_pSkeleton->ApplyMotion(md._motion, 0, alphaMotionCount, alphaMotions);
 #else
-			_pSkeleton->ApplyMotion(md._motion, _time, numAlphaMotions, alphaMotions);
+			_pSkeleton->ApplyMotion(md._motion, _time, alphaMotionCount, alphaMotions);
 #endif
 		}
 	}

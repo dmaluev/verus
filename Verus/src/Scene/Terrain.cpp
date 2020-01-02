@@ -63,12 +63,12 @@ void TerrainPhysics::Done()
 void TerrainLOD::Init(int sidePoly, int step)
 {
 	_side = sidePoly + 1;
-	_numVerts = _side * _side;
+	_vertCount = _side * _side;
 	if (1 == step)
 		Math::BuildListGrid(sidePoly, sidePoly, _vIB);
 	else
 		Math::BuildStripGrid(sidePoly, sidePoly, _vIB);
-	_numIndices = Utils::Cast32(_vIB.size());
+	_indexCount = Utils::Cast32(_vIB.size());
 	_firstIndex = 0;
 }
 
@@ -99,7 +99,7 @@ void TerrainLOD::InitGeo(short* pV, UINT16* pI, int vertexOffset)
 		if (_vIB[i] != 0xFFFF)
 			_vIB[i] += vertexOffset;
 	}
-	memcpy(pI, _vIB.data(), _numIndices * sizeof(UINT16));
+	memcpy(pI, _vIB.data(), _indexCount * sizeof(UINT16));
 	VERUS_FOR(i, _vIB.size())
 	{
 		if (_vIB[i] != 0xFFFF)
@@ -258,7 +258,7 @@ void TerrainPatch::UpdateNormals(PTerrain p, int lod)
 
 int TerrainPatch::GetSplatChannelForLayer(int layer)
 {
-	VERUS_FOR(i, _numChannelsUsed)
+	VERUS_FOR(i, _usedChannelCount)
 	{
 		if (_layerForChannel[i] == layer)
 			return i;
@@ -312,9 +312,9 @@ void Terrain::Init(RcDesc desc)
 
 	const int patchSide = _mapSide >> 4;
 	const int patchShift = _mapShift - 4;
-	const int numPatches = patchSide * patchSide;
-	_vPatches.resize(numPatches);
-	_vPatchTBNs.resize(numPatches * 3);
+	const int patchCount = patchSide * patchSide;
+	_vPatches.resize(patchCount);
+	_vPatchTBNs.resize(patchCount * 3);
 	VERUS_P_FOR(i, patchSide)
 	{
 		const int offset = i << patchShift;
@@ -351,30 +351,30 @@ void Terrain::Init(RcDesc desc)
 			});
 		}
 	}
-	_vSortedPatchIndices.resize(numPatches);
-	const int maxNumInstances = numPatches * 8;
+	_vSortedPatchIndices.resize(patchCount);
+	const int maxInstances = patchCount * 8;
 
 	// Init LODs:
-	VERUS_FOR(i, VERUS_ARRAY_LENGTH(_lods))
+	VERUS_FOR(i, VERUS_COUNT_OF(_lods))
 		_lods[i].Init(16 >> i, 1 << i);
 
 	Vector<short> vVB;
 	Vector<UINT16> vIB;
 	int vbSize = 0, ibSize = 0;
-	VERUS_FOR(i, VERUS_ARRAY_LENGTH(_lods))
+	VERUS_FOR(i, VERUS_COUNT_OF(_lods))
 	{
-		vbSize += _lods[i]._numVerts * 4;
-		ibSize += _lods[i]._numIndices;
+		vbSize += _lods[i]._vertCount * 4;
+		ibSize += _lods[i]._indexCount;
 	}
 	vVB.resize(vbSize);
 	vIB.resize(ibSize);
 	vbSize = 0, ibSize = 0;
-	VERUS_FOR(i, VERUS_ARRAY_LENGTH(_lods))
+	VERUS_FOR(i, VERUS_COUNT_OF(_lods))
 	{
 		_lods[i].InitGeo(&vVB[vbSize * 4], &vIB[ibSize], vbSize);
 		_lods[i]._firstIndex = ibSize;
-		vbSize += _lods[i]._numVerts;
-		ibSize += _lods[i]._numIndices;
+		vbSize += _lods[i]._vertCount;
+		ibSize += _lods[i]._indexCount;
 	}
 
 	CGI::GeometryDesc geoDesc;
@@ -390,12 +390,12 @@ void Terrain::Init(RcDesc desc)
 	geoDesc._pStrides = strides;
 	_geo.Init(geoDesc);
 	_geo->CreateVertexBuffer(vbSize, 0);
-	_geo->CreateVertexBuffer(maxNumInstances, 1);
+	_geo->CreateVertexBuffer(maxInstances, 1);
 	_geo->CreateIndexBuffer(ibSize);
 	_geo->UpdateVertexBuffer(vVB.data(), 0);
 	_geo->UpdateIndexBuffer(vIB.data());
 
-	_vInstanceBuffer.resize(maxNumInstances);
+	_vInstanceBuffer.resize(maxInstances);
 
 	{
 		CGI::PipelineDesc pipeDesc(_geo, s_shader, "#", renderer.GetDS().GetRenderPassID());
@@ -412,7 +412,7 @@ void Terrain::Init(RcDesc desc)
 		VERUS_QREF_ATMO;
 		CGI::PipelineDesc pipeDesc(_geo, s_shader, "#Depth", atmo.GetShadowMap().GetRenderPassID());
 		pipeDesc._colorAttachBlendEqs[0] = "";
-		pipeDesc.DepthBiasEnable();
+		pipeDesc.EnableDepthBias();
 		_pipe[PIPE_DEPTH_LIST].Init(pipeDesc);
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc._primitiveRestartEnable = true;
@@ -439,7 +439,7 @@ void Terrain::Init(RcDesc desc)
 	OnHeightModified();
 	AddNewRigidBody();
 
-	_vLayerUrls.reserve(s_maxNumLayers);
+	_vLayerUrls.reserve(s_maxLayers);
 }
 
 void Terrain::Done()
@@ -461,7 +461,7 @@ int Terrain::UserPtr_GetType()
 
 void Terrain::ResetNumInstances()
 {
-	_numInstances = 0;
+	_instanceCount = 0;
 }
 
 void Terrain::Layout()
@@ -483,7 +483,7 @@ void Terrain::Layout()
 			pPrevCamera = sm.SetCamera(pCameraCSM);
 	}
 
-	_numVisiblePatches = 0;
+	_visiblePatchCount = 0;
 	_quadtree.TraverseVisible();
 	SortVisiblePatches();
 
@@ -498,7 +498,7 @@ void Terrain::Draw()
 	VERUS_QREF_SM;
 	VERUS_QREF_ATMO;
 
-	if (!_numVisiblePatches)
+	if (!_visiblePatchCount)
 		return;
 
 	const bool drawingDepth = Scene::SceneManager::IsDrawingDepth(Scene::DrawDepth::automatic);
@@ -517,9 +517,9 @@ void Terrain::Draw()
 	bool strip = false;
 	const int half = _mapSide >> 1;
 	int firstInstance = 0;
-	int edge = _numVisiblePatches - 1;
+	int edge = _visiblePatchCount - 1;
 	int lod = _vPatches[_vSortedPatchIndices.front()]._quadtreeLOD;
-	VERUS_FOR(i, _numVisiblePatches)
+	VERUS_FOR(i, _visiblePatchCount)
 	{
 		RcTerrainPatch patch = _vPatches[_vSortedPatchIndices[i]];
 		if (patch._quadtreeLOD != lod || i == edge)
@@ -563,7 +563,7 @@ void Terrain::Draw()
 			const int instanceCount = i - firstInstance; // Drawing patches [firstInstance, i).
 			for (int inst = firstInstance; inst < i; ++inst)
 			{
-				const int at = _numInstances + inst;
+				const int at = _instanceCount + inst;
 				RcTerrainPatch patchToDraw = _vPatches[_vSortedPatchIndices[inst]];
 				_vInstanceBuffer[at]._posPatch[0] = patchToDraw._ijCoord[1] - half;
 				_vInstanceBuffer[at]._posPatch[1] = patchToDraw._patchHeight;
@@ -573,14 +573,14 @@ void Terrain::Draw()
 					_vInstanceBuffer[at]._layers[ch] = patchToDraw._layerForChannel[ch];
 			}
 
-			renderer.GetCommandBuffer()->DrawIndexed(_lods[lod]._numIndices, instanceCount, _lods[lod]._firstIndex, 0, _numInstances + firstInstance);
+			renderer.GetCommandBuffer()->DrawIndexed(_lods[lod]._indexCount, instanceCount, _lods[lod]._firstIndex, 0, _instanceCount + firstInstance);
 
 			lod = patch._quadtreeLOD;
 			firstInstance = i;
 		}
 	}
 
-	_numInstances += _numVisiblePatches;
+	_instanceCount += _visiblePatchCount;
 
 	_geo->UpdateVertexBuffer(_vInstanceBuffer.data(), 1);
 
@@ -589,7 +589,7 @@ void Terrain::Draw()
 
 void Terrain::SortVisiblePatches()
 {
-	std::sort(_vSortedPatchIndices.begin(), _vSortedPatchIndices.begin() + _numVisiblePatches, [this](int a, int b)
+	std::sort(_vSortedPatchIndices.begin(), _vSortedPatchIndices.begin() + _visiblePatchCount, [this](int a, int b)
 		{
 			RcTerrainPatch patchA = GetPatch(a);
 			RcTerrainPatch patchB = GetPatch(b);
@@ -625,7 +625,7 @@ void Terrain::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 ce
 	patch._patchHeight = ConvertHeight(center.getY());
 	patch._quadtreeLOD = lod;
 
-	_vSortedPatchIndices[_numVisiblePatches++] = offsetPatch;
+	_vSortedPatchIndices[_visiblePatchCount++] = offsetPatch;
 }
 
 void Terrain::QuadtreeIntegral_GetHeights(const short ij[2], float height[2])
@@ -755,7 +755,7 @@ Matrix3 Terrain::GetBasisAt(const int ij[2]) const
 
 void Terrain::LoadLayerTexture(int layer, CSZ url)
 {
-	VERUS_RT_ASSERT(layer >= 0 && layer < s_maxNumLayers);
+	VERUS_RT_ASSERT(layer >= 0 && layer < s_maxLayers);
 	VERUS_RT_ASSERT(url);
 	if (_vLayerUrls.size() <= layer)
 		_vLayerUrls.resize(layer + 1);

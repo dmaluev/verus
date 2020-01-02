@@ -96,34 +96,34 @@ int DDSHeader::ComputeBcPitch(int w, int h, bool is4Bits)
 	return size / h * 4;
 }
 
-int DDSHeader::GetNumParts() const
+int DDSHeader::GetPartCount() const
 {
 	if (_mipMapCount > 0 && IsBC())
 	{
-		const int numParts = int(_mipMapCount) - 9;
-		return (numParts > 0) ? numParts : 1;
+		const int partCount = static_cast<int>(_mipMapCount) - 9;
+		return (partCount > 0) ? partCount : 1;
 	}
 	else
 		return 1;
 }
 
-int DDSHeader::SkipParts(int numSkip)
+int DDSHeader::SkipParts(int skipCount)
 {
-	const int numParts = GetNumParts();
-	if (numSkip >= 256)
-		numSkip = 8 + numParts - Math::HighestBit(numSkip);
-	numSkip = Math::Clamp(numSkip, 0, numParts - 1);
-	if (numSkip)
+	const int partCount = GetPartCount();
+	if (skipCount >= 256)
+		skipCount = 8 + partCount - Math::HighestBit(skipCount);
+	skipCount = Math::Clamp(skipCount, 0, partCount - 1);
+	if (skipCount)
 	{
-		_mipMapCount -= numSkip;
-		_height >>= numSkip;
-		_width >>= numSkip;
+		_mipMapCount -= skipCount;
+		_height >>= skipCount;
+		_width >>= skipCount;
 		if (!_height) _height = 1;
 		if (!_width) _width = 1;
 		_pitchOrLinearSize = ComputeBcLevelSize(_width, _height, Is4BitsBC());
 	}
-	_reserved2 = numSkip;
-	return numSkip;
+	_reserved2 = skipCount;
+	return skipCount;
 }
 
 bool DDSHeaderDXT10::IsBC7() const

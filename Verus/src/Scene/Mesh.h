@@ -39,15 +39,15 @@ namespace verus
 
 			CGI::GeometryPwn        _geo;
 			Vector<PerInstanceData> _vInstanceBuffer;
-			int                     _maxNumInstances = 0;
-			int                     _numInstances = 0;
+			int                     _instanceCapacity = 0;
+			int                     _instanceCount = 0;
 			UINT32                  _bindingsMask = 0;
 
 		public:
 			struct Desc
 			{
 				CSZ _url = nullptr;
-				int _maxNumInstances = 1;
+				int _instanceCapacity = 1;
 
 				Desc(CSZ url = nullptr) : _url(url) {}
 			};
@@ -85,8 +85,8 @@ namespace verus
 			bool IsInstanceBufferEmpty();
 			void ResetNumInstances();
 			void UpdateInstanceBuffer();
-			int GetNumInstances() const { return _numInstances; }
-			int GetMaxNumInstances() const { return _maxNumInstances; }
+			int GetInstanceCount() const { return _instanceCount; }
+			int GetInstanceCapacity() const { return _instanceCapacity; }
 		};
 		VERUS_TYPEDEFS(Mesh);
 	}

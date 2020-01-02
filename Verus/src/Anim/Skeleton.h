@@ -74,8 +74,8 @@ namespace verus
 			PAlphaMotion _pAlphaMotions = nullptr;
 			float        _currentTime = 0;
 			float        _mass = 0;
-			int          _numPrimaryBones = 0;
-			int          _numAlphaMotions = 0;
+			int          _primaryBoneCount = 0;
+			int          _alphaMotionCount = 0;
 			bool         _ragdollMode = false;
 
 		public:
@@ -99,7 +99,7 @@ namespace verus
 
 			//! Sets the current pose using motion object (Motion).
 			void ApplyMotion(RMotion motion, float time,
-				int numAlphaMotions = 0, PAlphaMotion pAlphaMotions = nullptr);
+				int alphaMotionCount = 0, PAlphaMotion pAlphaMotions = nullptr);
 
 			//! Fills the array of matrices that will be used by a shader.
 			void UpdateUniformBufferArray(mataff* p) const;
@@ -109,17 +109,17 @@ namespace verus
 			VERUS_P(void ResetBones());
 			VERUS_P(void RecursiveBoneUpdate());
 
-			int GetNumBones() const { return _numPrimaryBones ? _numPrimaryBones : Utils::Cast32(_mapBones.size()); }
+			int GetBoneCount() const { return _primaryBoneCount ? _primaryBoneCount : Utils::Cast32(_mapBones.size()); }
 
 			template<typename F>
-			void VisitBones(const F& fn)
+			void ForEachBone(const F& fn)
 			{
 				for (auto& kv : _mapBones)
 					if (Continue::yes != fn(kv.second))
 						return;
 			}
 			template<typename F>
-			void VisitBones(const F& fn) const
+			void ForEachBone(const F& fn) const
 			{
 				for (const auto& kv : _mapBones)
 					if (Continue::yes != fn(kv.second))

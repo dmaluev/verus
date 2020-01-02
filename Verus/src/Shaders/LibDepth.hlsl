@@ -51,30 +51,30 @@ float PCF(
 	return texCmp.SampleCmpLevelZero(samCmp, tc.xy, tc.z).r;
 #else
 	const float dzFrag = tc.z;
-	float2 dzBlockers_numBlockers = 0.0;
+	float2 dzBlockers_blockerCount = 0.0;
 	float sum = 0.0;
-	int num = 0;
+	int count = 0;
 	[unroll] for (int y = -2; y <= 2; ++y)
 	{
 		[unroll] for (int x = -2; x <= 2; ++x)
 		{
 			if (!IsValidShadowSample(x, y))
 				continue;
-			num++;
+			count++;
 
 			const float alpha = texCmp.SampleCmpLevelZero(samCmp, tc.xy, dzFrag, int2(x, y)).r;
 			sum += alpha;
 
 			const float dzBlocker = tex.SampleLevel(sam, tc.xy, 0, int2(x, y)).r;
 			if (dzBlocker < dzFrag)
-				dzBlockers_numBlockers += float2(dzBlocker, 1);
+				dzBlockers_blockerCount += float2(dzBlocker, 1);
 		}
 	}
-	const float ret = sum * (1.0 / num);
-	if (dzBlockers_numBlockers.y > 0.0)
+	const float ret = sum * (1.0 / count);
+	if (dzBlockers_blockerCount.y > 0.0)
 	{
 		const float penumbraScale = config.x;
-		const float dzBlockers = dzBlockers_numBlockers.x / dzBlockers_numBlockers.y;
+		const float dzBlockers = dzBlockers_blockerCount.x / dzBlockers_blockerCount.y;
 		const float penumbra = saturate(dzFrag - dzBlockers);
 		const float contrast = 1.0 + max(0.0, 3.0 - penumbra * penumbraScale);
 		return saturate((ret - 0.5) * contrast + 0.5);

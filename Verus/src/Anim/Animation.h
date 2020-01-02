@@ -76,7 +76,7 @@ namespace verus
 			Animation();
 			~Animation();
 
-			void Update(int numAlphaTracks = 0, PAlphaTrack pAlphaTracks = nullptr);
+			void Update(int alphaTrackCount = 0, PAlphaTrack pAlphaTracks = nullptr);
 
 			void BindCollection(PCollection p);
 			void BindSkeleton(PSkeleton p);

@@ -6,8 +6,8 @@ namespace verus
 	class AlignedAllocator : public BaseAllocator
 	{
 		INT64 _memUsedTotal = 0;
-		int   _numMalloc = 0;
-		int   _numFree = 0;
+		int   _mallocCount = 0;
+		int   _freeCount = 0;
 		int   _mallocDelta = 0;
 
 	public:
@@ -16,7 +16,7 @@ namespace verus
 		virtual void* malloc(size_t size) override
 		{
 			_memUsedTotal += size;
-			_numMalloc++;
+			_mallocCount++;
 			_mallocDelta++;
 			return _mm_malloc(size, VERUS_MEMORY_ALIGNMENT);
 		}
@@ -31,7 +31,7 @@ namespace verus
 
 		virtual void free(void* memory) override
 		{
-			_numFree++;
+			_freeCount++;
 			_mallocDelta--;
 			_mm_free(memory);
 		}

@@ -17,13 +17,6 @@ Settings::~Settings()
 {
 }
 
-void Settings::LoadValidateSave()
-{
-	Load();
-	Validate();
-	Save();
-}
-
 void Settings::Load()
 {
 	Json::Load();
@@ -32,10 +25,6 @@ void Settings::Load()
 	_gapi = GetI("gapi", _gapi);
 	_gpuAnisotropyLevel = GetI("gpuAnisotropyLevel", _gpuAnisotropyLevel);
 	_gpuAntialiasingLevel = GetI("gpuAntialiasingLevel", _gpuAntialiasingLevel);
-	_gpuForcedProfile = GetS("gpuForcedProfile", _C(_gpuForcedProfile));
-	_gpuOffscreenRender = GetB("gpuOffscreenRender", _gpuOffscreenRender);
-	_gpuParallaxMapping = GetB("gpuParallaxMapping", _gpuParallaxMapping);
-	_gpuPerPixelLighting = GetB("gpuPerPixelLighting", _gpuPerPixelLighting);
 	_gpuTextureLodLevel = GetI("gpuTextureLodLevel", _gpuTextureLodLevel);
 	_gpuTrilinearFilter = GetB("gpuTrilinearFilter", _gpuTrilinearFilter);
 	_inputMouseSensitivity = GetF("inputMouseSensitivity", _inputMouseSensitivity);
@@ -46,6 +35,7 @@ void Settings::Load()
 	_sceneGrassDensity = GetI("sceneGrassDensity", _sceneGrassDensity);
 	_sceneShadowQuality = static_cast<ShadowQuality>(GetI("sceneShadowQuality", +_sceneShadowQuality));
 	_sceneWaterQuality = static_cast<WaterQuality>(GetI("sceneWaterQuality", +_sceneWaterQuality));
+	_screenAllowHighDPI = GetB("screenAllowHighDPI", _screenAllowHighDPI);
 	_screenFOV = GetF("screenFOV", _screenFOV);
 	_screenSizeHeight = GetI("screenSizeHeight", _screenSizeHeight);
 	_screenSizeWidth = GetI("screenSizeWidth", _screenSizeWidth);
@@ -54,16 +44,29 @@ void Settings::Load()
 	_uiLang = GetS("uiLang", _C(_uiLang));
 }
 
+void Settings::Validate()
+{
+	_quality = Math::Clamp(_quality, Quality::low, Quality::ultra);
+	_gpuAnisotropyLevel = Math::Clamp(_gpuAnisotropyLevel, 0, 16);
+	_gpuAntialiasingLevel = Math::Clamp(_gpuAntialiasingLevel, 0, 16);
+	_gpuTextureLodLevel = Math::Clamp(_gpuTextureLodLevel, 0, 4);
+	_sceneGrassDensity = Math::Clamp(_sceneGrassDensity, 15, 1500);
+	_sceneShadowQuality = Math::Clamp(_sceneShadowQuality, ShadowQuality::none, ShadowQuality::ultra);
+	_sceneWaterQuality = Math::Clamp(_sceneWaterQuality, WaterQuality::solidColor, WaterQuality::trueWavesRefraction);
+	_screenFOV = Math::Clamp<float>(_screenFOV, 60, 90);
+	_screenSizeHeight = Math::Clamp(_screenSizeHeight, 270, 0x2000);
+	_screenSizeWidth = Math::Clamp(_screenSizeWidth, 480, 0x2000);
+
+	if (_uiLang != "RU" && _uiLang != "EN")
+		_uiLang = "EN";
+}
+
 void Settings::Save()
 {
 	Set("quality", +_quality);
 	Set("gapi", _gapi);
 	Set("gpuAnisotropyLevel", _gpuAnisotropyLevel);
 	Set("gpuAntialiasingLevel", _gpuAntialiasingLevel);
-	Set("gpuForcedProfile", _C(_gpuForcedProfile));
-	Set("gpuOffscreenRender", _gpuOffscreenRender);
-	Set("gpuParallaxMapping", _gpuParallaxMapping);
-	Set("gpuPerPixelLighting", _gpuPerPixelLighting);
 	Set("gpuTextureLodLevel", _gpuTextureLodLevel);
 	Set("gpuTrilinearFilter", _gpuTrilinearFilter);
 	Set("inputMouseSensitivity", _inputMouseSensitivity);
@@ -74,6 +77,7 @@ void Settings::Save()
 	Set("sceneGrassDensity", _sceneGrassDensity);
 	Set("sceneShadowQuality", +_sceneShadowQuality);
 	Set("sceneWaterQuality", +_sceneWaterQuality);
+	Set("screenAllowHighDPI", _screenAllowHighDPI);
 	Set("screenFOV", _screenFOV);
 	Set("screenSizeHeight", _screenSizeHeight);
 	Set("screenSizeWidth", _screenSizeWidth);
@@ -82,37 +86,6 @@ void Settings::Save()
 	Set("uiLang", _C(_uiLang));
 
 	Json::Save();
-}
-
-void Settings::Validate()
-{
-	_quality = Math::Clamp(_quality, Quality::low, Quality::ultra);
-	_gpuAnisotropyLevel = Math::Clamp(_gpuAnisotropyLevel, 0, 16);
-	_gpuAntialiasingLevel = Math::Clamp(_gpuAntialiasingLevel, 0, 16);
-	_gpuTextureLodLevel = Math::Clamp(_gpuTextureLodLevel, 0, 4);
-	_screenFOV = Math::Clamp<float>(_screenFOV, 60, 90);
-	_screenSizeHeight = Math::Clamp(_screenSizeHeight, 270, 0x2000);
-	_screenSizeWidth = Math::Clamp(_screenSizeWidth, 480, 0x2000);
-
-	if (_gpuForcedProfile == "sm_2_0")
-	{
-		_postProcessMotionBlur = false;
-		_postProcessSSAO = false;
-		_sceneShadowQuality = Math::Min(_sceneShadowQuality, ShadowQuality::linear);
-	}
-
-	if (!_gpuPerPixelLighting)
-	{
-		_gpuParallaxMapping = false;
-		_sceneWaterQuality = Math::Clamp(_sceneWaterQuality, WaterQuality::solidColor, WaterQuality::distortedReflection);
-	}
-	_postProcessBloom = _postProcessBloom && _gpuOffscreenRender;
-	_sceneGrassDensity = Math::Clamp(_sceneGrassDensity, 15, 1500);
-	_sceneShadowQuality = Math::Clamp(_sceneShadowQuality, ShadowQuality::none, ShadowQuality::ultra);
-	_sceneWaterQuality = Math::Clamp(_sceneWaterQuality, WaterQuality::solidColor, WaterQuality::trueWavesRefraction);
-
-	if (_uiLang != "RU" && _uiLang != "EN")
-		_uiLang = "EN";
 }
 
 void Settings::ParseCommandLineArgs(int argc, wchar_t* argv[])
@@ -144,11 +117,8 @@ void Settings::ParseCommandLineArgs(int argc, char* argv[])
 		_commandLine._testTexToPix = _commandLine._testTexToPix || IsArg(i, "--test-tex-to-pix");
 	}
 
-	VERUS_QREF_UTILS;
-	//utils.SetupPathsEx(); // Only now we can finally do this.
-
-	SetFilename("Settings.json");
-	const String pathName = _C(GetFilename());
+	SetFileName("Settings.json");
+	const String pathName = _C(GetFileName());
 
 	VERUS_FOR(i, argc)
 	{
@@ -180,10 +150,6 @@ void Settings::SetQuality(Quality q)
 	_quality = q;
 	_gpuAnisotropyLevel = 0;
 	_gpuAntialiasingLevel = 0;
-	_gpuForcedProfile = "";
-	_gpuOffscreenRender = true;
-	_gpuParallaxMapping = false;
-	_gpuPerPixelLighting = true;
 	_gpuTextureLodLevel = 0;
 	_gpuTrilinearFilter = false;
 	_postProcessBloom = false;
@@ -199,7 +165,6 @@ void Settings::SetQuality(Quality q)
 	switch (q)
 	{
 	case Quality::low:
-		_gpuForcedProfile = "sm_3_0";
 		_sceneGrassDensity = 500;
 		_sceneShadowQuality = ShadowQuality::linear;
 		_sceneWaterQuality = WaterQuality::solidColor;
@@ -208,7 +173,6 @@ void Settings::SetQuality(Quality q)
 		break;
 	case Quality::medium:
 		_gpuAnisotropyLevel = 4;
-		_gpuForcedProfile = "sm_3_0";
 		_screenSizeHeight = 768;
 		_screenSizeWidth = 1024;
 		break;
@@ -258,4 +222,49 @@ void Settings::MatchScreen()
 		throw VERUS_RUNTIME_ERROR << "SDL_GetCurrentDisplayMode(), " << SDL_GetError();
 	_screenSizeWidth = dm.w;
 	_screenSizeHeight = dm.h;
+}
+
+void Settings::LoadLocalizedStrings(CSZ url)
+{
+	Vector<BYTE> vData;
+	IO::FileSystem::LoadResource(url, vData, IO::FileSystem::LoadDesc(true));
+
+	pugi::xml_document doc;
+	const pugi::xml_parse_result result = doc.load_buffer_inplace(vData.data(), vData.size());
+	if (!result)
+		throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+	pugi::xml_node root = doc.first_child();
+
+	_mapLocalizedStrings.clear();
+	for (const auto node : root.children("s"))
+	{
+		const auto attrKey = node.attribute("id");
+		const auto attrVal = node.attribute(_C(_uiLang));
+		if (attrKey && attrVal)
+			_mapLocalizedStrings[attrKey.value()] = attrVal.value();
+	}
+}
+
+CSZ Settings::GetLocalizedString(CSZ id) const
+{
+	VERUS_IF_FOUND_IN(TMapLocalizedStrings, _mapLocalizedStrings, id, it)
+		return _C(it->second);
+	return id;
+}
+
+void Settings::UpdateHighDpiScale()
+{
+	float ddpi = 0;
+	float hdpi = 0;
+	float vdpi = 0;
+	if (SDL_GetDisplayDPI(0, &ddpi, &hdpi, &vdpi) < 0)
+		throw VERUS_RUNTIME_ERROR << "SDL_GetDisplayDPI(), " << SDL_GetError();
+	_highDpiScale = vdpi / 96;
+}
+
+int Settings::GetFontSize() const
+{
+	if (_screenAllowHighDPI)
+		return static_cast<int>(15 * _highDpiScale);
+	return 15;
 }

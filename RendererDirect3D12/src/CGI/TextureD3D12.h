@@ -13,7 +13,7 @@ namespace verus
 			};
 
 			ResourceEx         _resource;
-			ResourceEx         _resourceUAV;
+			ResourceEx         _uavResource;
 			Vector<ResourceEx> _vStagingBuffers;
 			DescriptorHeap     _dhSRV;
 			DescriptorHeap     _dhUAV;

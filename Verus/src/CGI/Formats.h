@@ -6,10 +6,12 @@ namespace verus
 	{
 		enum class Format : int
 		{
+			// Special Formats:
 			unormB4G4R4A4,
 			unormB5G6R5,
 			unormR10G10B10A2,
 			sintR16,
+			floatR11G11B10,
 
 			// Unsigned Formats:
 			unormR8,

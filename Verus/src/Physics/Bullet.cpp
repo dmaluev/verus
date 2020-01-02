@@ -29,7 +29,7 @@ void Bullet::Init()
 		_pConstraintSolver,
 		_pCollisionConfiguration);
 
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 	_pDiscreteDynamicsWorld->setDebugDrawer(&_debugDraw);
 	EnableDebugDraw(true);
 #endif
@@ -131,7 +131,7 @@ void Bullet::Simulate()
 
 void Bullet::DebugDraw()
 {
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 	if (!_pDiscreteDynamicsWorld)
 		return;
 
@@ -144,7 +144,7 @@ void Bullet::DebugDraw()
 
 void Bullet::EnableDebugDraw(bool b)
 {
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 	if (b)
 	{
 		_pDiscreteDynamicsWorld->getDebugDrawer()->setDebugMode(

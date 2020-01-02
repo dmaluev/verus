@@ -31,13 +31,13 @@ void Camera::Update()
 
 void Camera::UpdateView()
 {
-	_dirFront = VMath::normalizeApprox(_posAt - _posEye);
+	_frontDir = VMath::normalizeApprox(_atPos - _eyePos);
 #ifdef VERUS_COMPARE_MODE
-	_dirFront = VMath::normalizeApprox(Vector3(glm::round(m_dirFront.GLM() * glm::vec3(4, 4, 4))));
-	_posEye = Point3(int(_posEye.getX()), int(_posEye.getY()), int(_posEye.getZ()));
-	_matV = Matrix4::lookAt(_posEye, _posEye + _dirFront, _dirUp);
+	_frontDir = VMath::normalizeApprox(Vector3(glm::round(m_dirFront.GLM() * glm::vec3(4, 4, 4))));
+	_eyePos = Point3(int(_eyePos.getX()), int(_eyePos.getY()), int(_eyePos.getZ()));
+	_matV = Matrix4::lookAt(_eyePos, _eyePos + _frontDir, _upDir);
 #else
-	_matV = Matrix4::lookAt(_posEye, _posAt, _dirUp);
+	_matV = Matrix4::lookAt(_eyePos, _atPos, _upDir);
 #endif
 	_matVi = VMath::orthoInverse(_matV);
 }
@@ -48,13 +48,6 @@ void Camera::UpdateVP()
 	_frustum.FromMatrix(_matVP);
 }
 
-void Camera::UpdateFFP()
-{
-	//VERUS_QREF_RENDER;
-	//render->SetTransform(CGL::TS_VIEW, _matV);
-	//render->SetTransform(CGL::TS_PROJECTION, _matP);
-}
-
 Vector4 Camera::GetZNearFarEx() const
 {
 	return Vector4(_zNear, _zFar, _zFar / (_zFar - _zNear), _zFar * _zNear / (_zNear - _zFar));
@@ -62,12 +55,12 @@ Vector4 Camera::GetZNearFarEx() const
 
 void Camera::SetFrustumNear(float zNear)
 {
-	_frustum.SetNearPlane(_posEye, _dirFront, zNear);
+	_frustum.SetNearPlane(_eyePos, _frontDir, zNear);
 }
 
 void Camera::SetFrustumFar(float zFar)
 {
-	_frustum.SetFarPlane(_posEye, _dirFront, zFar);
+	_frustum.SetFarPlane(_eyePos, _frontDir, zFar);
 }
 
 void Camera::SetFOVH(float x)
@@ -83,46 +76,46 @@ void Camera::GetClippingSpacePlane(RVector4 plane) const
 
 void Camera::ExcludeWaterLine(float h)
 {
-	const float y = _posEye.getY();
+	const float y = _eyePos.getY();
 	if (y > -h && y < h)
 	{
 		const float t = h - y;
 		const Vector3 offset(0, t, 0);
-		_posEye = _posEye + offset;
-		_posAt = _posAt + offset;
+		_eyePos = _eyePos + offset;
+		_atPos = _atPos + offset;
 	}
 }
 
 void Camera::SaveState(int slot)
 {
 	StringStream ss;
-	//ss << CUtils::I().GetWritablePath() << "/CameraState.xml";
-	//Utils::CXml xml;
-	//xml.SetFilename(_C(ss.str()));
-	//xml.Load();
-	//char text[16];
-	//sprintf_s(text, "slot%d", slot);
-	//xml.Set(text, _C(_posEye.ToString() + "|" + _posAt.ToString()));
+	ss << _C(Utils::I().GetWritablePath()) << "/CameraState.xml";
+	IO::Xml xml;
+	xml.SetFileName(_C(ss.str()));
+	xml.Load();
+	char text[16];
+	sprintf_s(text, "slot%d", slot);
+	xml.Set(text, _C(_eyePos.ToString() + "|" + _atPos.ToString()));
 }
 
 void Camera::LoadState(int slot)
 {
 	StringStream ss;
-	//ss << CUtils::I().GetWritablePath() << "/CameraState.xml";
-	//Utils::CXml xml;
-	//xml.SetFilename(_C(ss.str()));
-	//xml.Load();
-	//char text[16];
-	//sprintf_s(text, "slot%d", slot);
-	//CSZ v = xml.GetS(text);
-	//if (v)
-	//{
-	//	CSZ p = strchr(v, '|');
-	//	_posEye.FromString(v);
-	//	_posAt.FromString(p + 1);
-	//	_update |= Update::v;
-	//	Update();
-	//}
+	ss << _C(Utils::I().GetWritablePath()) << "/CameraState.xml";
+	IO::Xml xml;
+	xml.SetFileName(_C(ss.str()));
+	xml.Load();
+	char text[16];
+	sprintf_s(text, "slot%d", slot);
+	CSZ v = xml.GetS(text);
+	if (v)
+	{
+		CSZ p = strchr(v, '|');
+		_eyePos.FromString(v);
+		_atPos.FromString(p + 1);
+		_update |= Update::v;
+		Update();
+	}
 }
 
 // MainCamera:
@@ -146,10 +139,10 @@ void MainCamera::Update()
 void MainCamera::UpdateVP()
 {
 	VERUS_QREF_RENDERER;
-	if (_currentFrame != renderer.GetNumFrames())
+	if (_currentFrame != renderer.GetFrameCount())
 	{
 		_matPrevVP = GetMatrixVP();
-		_currentFrame = renderer.GetNumFrames();
+		_currentFrame = renderer.GetFrameCount();
 	}
 	Camera::UpdateVP();
 }
@@ -157,15 +150,15 @@ void MainCamera::UpdateVP()
 void MainCamera::GetPickingRay(RPoint3 pos, RVector3 dir) const
 {
 	VERUS_RT_ASSERT(_pCpp);
-	//VERUS_QREF_RENDER;
+	VERUS_QREF_RENDERER;
 
 	int x, y;
 	_pCpp->GetPos(x, y);
-	//const Vector3 v(
-	//	((float(x + x) / render.GetWindowWidth()) - 1) / GetMatrixP().getElem(0, 0),
-	//	-((float(y + y) / render.GetWindowHeight()) - 1) / GetMatrixP().getElem(1, 1),
-	//	-1);
-	//dir = GetMatrixVi().getUpper3x3()*v;
+	const Vector3 v(
+		((float(x + x) / renderer.GetSwapChainWidth()) - 1) / GetMatrixP().getElem(0, 0),
+		-((float(y + y) / renderer.GetSwapChainHeight()) - 1) / GetMatrixP().getElem(1, 1),
+		-1);
+	dir = GetMatrixVi().getUpper3x3() * v;
 	pos = GetMatrixVi().getTranslation();
 }
 

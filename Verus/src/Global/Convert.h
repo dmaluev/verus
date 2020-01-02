@@ -19,22 +19,22 @@ namespace verus
 		static float Sint16ToSnorm(short x);
 
 		// Array of floating-points to integers:
-		static void UnormToUint8(const float* pIn, BYTE* pOut, int num);
-		static void UnormToUint16(const float* pIn, UINT16* pOut, int num);
-		static void SnormToSint8(const float* pIn, char* pOut, int num);
-		static void SnormToSint16(const float* pIn, short* pOut, int num);
+		static void UnormToUint8(const float* pIn, BYTE* pOut, int count);
+		static void UnormToUint16(const float* pIn, UINT16* pOut, int count);
+		static void SnormToSint8(const float* pIn, char* pOut, int count);
+		static void SnormToSint16(const float* pIn, short* pOut, int count);
 
 		// Array of integers to floating-points:
-		static void Uint8ToUnorm(const BYTE* pIn, float* pOut, int num);
-		static void Uint16ToUnorm(const UINT16* pIn, float* pOut, int num);
-		static void Sint8ToSnorm(const char* pIn, float* pOut, int num);
-		static void Sint16ToSnorm(const short* pIn, float* pOut, int num);
+		static void Uint8ToUnorm(const BYTE* pIn, float* pOut, int count);
+		static void Uint16ToUnorm(const UINT16* pIn, float* pOut, int count);
+		static void Sint8ToSnorm(const char* pIn, float* pOut, int count);
+		static void Sint16ToSnorm(const short* pIn, float* pOut, int count);
 
 		// Integers to integers:
 		static short Sint8ToSint16(char x);
 		static char Sint16ToSint8(short x);
-		static void Sint8ToSint16(const char* pIn, short* pOut, int num);
-		static void Sint16ToSint8(const short* pIn, char* pOut, int num);
+		static void Sint8ToSint16(const char* pIn, short* pOut, int count);
+		static void Sint16ToSint8(const short* pIn, char* pOut, int count);
 
 		/* ??? */ static void ToDeviceNormal(const char* pIn, char* pOut);
 		/* ??? */ static UINT32 ToDeviceColor(UINT32 color);

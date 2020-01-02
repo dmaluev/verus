@@ -50,7 +50,7 @@ void Mesh::Init(RcDesc desc)
 {
 	VERUS_RT_ASSERT(desc._url);
 
-	_maxNumInstances = desc._maxNumInstances;
+	_instanceCapacity = desc._instanceCapacity;
 
 	BaseMesh::Init(desc._url);
 }
@@ -80,7 +80,7 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 		case PIPE_DEPTH_ROBOTIC:
 		case PIPE_DEPTH_SKINNED:
 			pipeDesc._colorAttachBlendEqs[0] = "";
-			pipeDesc.DepthBiasEnable();
+			pipeDesc.EnableDepthBias();
 		default:
 			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
 			pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
@@ -201,21 +201,21 @@ void Mesh::CreateDeviceBuffers()
 	}
 
 	// Index buffer:
-	if (!_vIndices32.empty())
-	{
-		_geo->CreateIndexBuffer(Utils::Cast32(_vIndices32.size()));
-		_geo->UpdateIndexBuffer(_vIndices32.data());
-	}
-	else if (!_vIndices.empty())
+	if (!_vIndices.empty())
 	{
 		_geo->CreateIndexBuffer(Utils::Cast32(_vIndices.size()));
 		_geo->UpdateIndexBuffer(_vIndices.data());
 	}
+	else if (!_vIndices32.empty())
+	{
+		_geo->CreateIndexBuffer(Utils::Cast32(_vIndices32.size()));
+		_geo->UpdateIndexBuffer(_vIndices32.data());
+	}
 
 	// Instance buffer:
-	if (_maxNumInstances > 1)
+	if (_instanceCapacity > 1)
 	{
-		_vInstanceBuffer.resize(_maxNumInstances);
+		_vInstanceBuffer.resize(_instanceCapacity);
 		_bindingsMask |= (1 << 4);
 		_geo->CreateVertexBuffer(Utils::Cast32(_vInstanceBuffer.size()), 4);
 	}
@@ -228,32 +228,32 @@ void Mesh::BufferDataVB(const void* p, int binding)
 
 void Mesh::PushInstance(RcTransform3 matW, RcVector4 instData)
 {
-	if (!_numVerts)
+	if (!_vertCount)
 		return;
 	if (IsInstanceBufferFull())
 		return;
-	matW.InstFormat(&_vInstanceBuffer[_numInstances]._matPart0);
-	_vInstanceBuffer[_numInstances]._instData = instData;
-	_numInstances++;
+	matW.InstFormat(&_vInstanceBuffer[_instanceCount]._matPart0);
+	_vInstanceBuffer[_instanceCount]._instData = instData;
+	_instanceCount++;
 }
 
 bool Mesh::IsInstanceBufferFull()
 {
-	if (!_numVerts)
+	if (!_vertCount)
 		return false;
-	return _numInstances >= _maxNumInstances;
+	return _instanceCount >= _instanceCapacity;
 }
 
 bool Mesh::IsInstanceBufferEmpty()
 {
-	if (!_numVerts)
+	if (!_vertCount)
 		return true;
-	return _numInstances <= 0;
+	return _instanceCount <= 0;
 }
 
 void Mesh::ResetNumInstances()
 {
-	_numInstances = 0;
+	_instanceCount = 0;
 }
 
 void Mesh::UpdateInstanceBuffer()

@@ -33,8 +33,8 @@ void DeferredShading::Init()
 			RP::Attachment("GBuffer1", Format::floatR32).LoadOpClear().Layout(ImageLayout::fsReadOnly),
 			RP::Attachment("GBuffer2", Format::unormR10G10B10A2).LoadOpClear().Layout(ImageLayout::fsReadOnly),
 			RP::Attachment("GBuffer3", Format::unormR8G8B8A8).LoadOpClear().Layout(ImageLayout::fsReadOnly),
-			RP::Attachment("LightAccDiff", Format::unormR10G10B10A2).LoadOpClear().Layout(ImageLayout::fsReadOnly),
-			RP::Attachment("LightAccSpec", Format::unormR10G10B10A2).LoadOpClear().Layout(ImageLayout::fsReadOnly),
+			RP::Attachment("LightAccDiff", Format::floatR11G11B10).LoadOpClear().Layout(ImageLayout::fsReadOnly),
+			RP::Attachment("LightAccSpec", Format::floatR11G11B10).LoadOpClear().Layout(ImageLayout::fsReadOnly),
 			RP::Attachment("Depth", Format::unormD24uintS8).LoadOpClear().Layout(ImageLayout::depthStencilAttachment),
 		},
 		{
@@ -172,7 +172,7 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 	{
 		_shader[S_LIGHT]->FreeDescriptorSet(_csidLight);
 
-		VERUS_FOR(i, VERUS_ARRAY_LENGTH(_csidQuad))
+		VERUS_FOR(i, VERUS_COUNT_OF(_csidQuad))
 			renderer.GetShaderQuad()->FreeDescriptorSet(_csidQuad[i]);
 		_shader[S_COMPOSE]->FreeDescriptorSet(_csidCompose);
 
@@ -193,12 +193,13 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 		TextureDesc texDesc;
 
 		// Light accumulation buffers:
-		texDesc._format = Format::unormR10G10B10A2;
+		// See: https://bartwronski.com/2017/04/02/small-float-formats-r11g11b10f-precision/
+		texDesc._format = Format::floatR11G11B10;
 		texDesc._width = renderer.GetSwapChainWidth();
 		texDesc._height = renderer.GetSwapChainHeight();
 		texDesc._flags = TextureDesc::Flags::colorAttachment;
 		_tex[TEX_LIGHT_ACC_DIFF].Init(texDesc);
-		texDesc._format = Format::unormR10G10B10A2;
+		texDesc._format = Format::floatR11G11B10;
 		texDesc._width = renderer.GetSwapChainWidth();
 		texDesc._height = renderer.GetSwapChainHeight();
 		texDesc._flags = TextureDesc::Flags::colorAttachment;
@@ -226,7 +227,7 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 				_tex[TEX_LIGHT_ACC_DIFF],
 				_tex[TEX_LIGHT_ACC_SPEC]
 			});
-		VERUS_FOR(i, VERUS_ARRAY_LENGTH(_csidQuad))
+		VERUS_FOR(i, VERUS_COUNT_OF(_csidQuad))
 			_csidQuad[i] = renderer.GetShaderQuad()->BindDescriptorSetTextures(1, { _tex[TEX_GBUFFER_0 + i] });
 
 		if (_texShadowAtmo)
@@ -247,10 +248,9 @@ bool DeferredShading::IsLoaded()
 void DeferredShading::Draw(int gbuffer)
 {
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_CONST_SETTINGS;
 
-	const float w = static_cast<float>(settings._screenSizeWidth / 2);
-	const float h = static_cast<float>(settings._screenSizeHeight / 2);
+	const float w = static_cast<float>(renderer.GetSwapChainWidth() / 2);
+	const float h = static_cast<float>(renderer.GetSwapChainHeight() / 2);
 
 	renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_QUAD]);
 
@@ -312,7 +312,7 @@ void DeferredShading::BeginGeometryPass(bool onlySetRT, bool spriteBaking)
 		VERUS_QREF_ATMO;
 		VERUS_RT_ASSERT(!_activeGeometryPass && !_activeLightingPass);
 		_activeGeometryPass = true;
-		_frame = renderer.GetNumFrames();
+		_frame = renderer.GetFrameCount();
 
 		renderer.GetCommandBuffer()->BeginRenderPass(_rp, _fb,
 			{
@@ -330,7 +330,7 @@ void DeferredShading::BeginGeometryPass(bool onlySetRT, bool spriteBaking)
 void DeferredShading::EndGeometryPass(bool resetRT)
 {
 	VERUS_QREF_RENDERER;
-	VERUS_RT_ASSERT(renderer.GetNumFrames() == _frame);
+	VERUS_RT_ASSERT(renderer.GetFrameCount() == _frame);
 	VERUS_RT_ASSERT(_activeGeometryPass && !_activeLightingPass);
 	_activeGeometryPass = false;
 }
@@ -338,7 +338,7 @@ void DeferredShading::EndGeometryPass(bool resetRT)
 bool DeferredShading::BeginLightingPass()
 {
 	VERUS_QREF_RENDERER;
-	VERUS_RT_ASSERT(renderer.GetNumFrames() == _frame);
+	VERUS_RT_ASSERT(renderer.GetFrameCount() == _frame);
 	VERUS_RT_ASSERT(!_activeGeometryPass && !_activeLightingPass);
 	_activeLightingPass = true;
 
@@ -391,7 +391,7 @@ bool DeferredShading::BeginLightingPass()
 void DeferredShading::EndLightingPass()
 {
 	VERUS_QREF_RENDERER;
-	VERUS_RT_ASSERT(renderer.GetNumFrames() == _frame);
+	VERUS_RT_ASSERT(renderer.GetFrameCount() == _frame);
 	VERUS_RT_ASSERT(!_activeGeometryPass && _activeLightingPass);
 	_activeLightingPass = false;
 
@@ -496,7 +496,7 @@ void DeferredShading::Load()
 	Scene::RDeferredLights dl = helpers.GetDeferredLights();
 
 	Scene::Mesh::Desc meshDesc;
-	meshDesc._maxNumInstances = 1000;
+	meshDesc._instanceCapacity = 1000;
 
 	meshDesc._url = "[Models]:DS/Dir.x3d";
 	dl.Get(CGI::LightType::dir).Init(meshDesc);

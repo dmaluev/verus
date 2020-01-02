@@ -17,7 +17,7 @@ namespace verus
 			Texture();
 			~Texture();
 
-			void Init(CSZ url, bool streamParts = false);
+			void Init(CSZ url, bool streamParts = false, bool sync = false);
 			bool Done();
 			void AddRef() { _refCount++; }
 
@@ -33,7 +33,7 @@ namespace verus
 		class TexturePtr : public Ptr<Texture>
 		{
 		public:
-			void Init(CSZ url, bool streamParts = false);
+			void Init(CSZ url, bool streamParts = false, bool sync = false);
 		};
 		VERUS_TYPEDEFS(TexturePtr);
 
@@ -53,6 +53,7 @@ namespace verus
 				CSZ  _name = nullptr;
 				bool _load = false;
 				bool _streamParts = true;
+				bool _mandatory = true;
 			};
 			VERUS_TYPEDEFS(Desc);
 
@@ -67,9 +68,9 @@ namespace verus
 
 			struct Stats
 			{
-				int _numShaderChange = 0;
-				int _numTextureChange = 0;
-				int _numStateChange = 0;
+				int _shaderChangeCount = 0;
+				int _textureChangeCount = 0;
+				int _stateChangeCount = 0;
 			};
 			VERUS_TYPEDEFS(Stats);
 
@@ -120,9 +121,9 @@ namespace verus
 			float          _specScale = 1;
 			glm::vec4      _tc0ScaleBias = glm::vec4(1, 1, 0, 0);
 			TexturePwn     _texAlbedo;
-			glm::vec4      _texAlbedoEnable = glm::vec4(0.5f, 0.5f, 0.5f, 0);
+			glm::vec4      _texAlbedoEnable = glm::vec4(0.5f, 0.5f, 0.5f, 1);
 			TexturePwn     _texNormal;
-			glm::vec4      _texNormalEnable = glm::vec4(0.5f, 0.5f, 1.0f, 0);
+			glm::vec4      _texNormalEnable = glm::vec4(0.5f, 0.5f, 1.0f, 1);
 			glm::vec4      _userColor = glm::vec4(0, 0, 0, 0);
 			Pick           _userPick;
 			Blending       _blending = Blending::opaque;
@@ -141,7 +142,8 @@ namespace verus
 
 			void Update();
 
-			bool IsLoaded(bool allowDefaultTextures = true) const;
+			bool IsLoaded() const;
+			bool IsMissing() const;
 			VERUS_P(void LoadTextures(bool streamParts));
 
 			void SetName(CSZ name) { _name = name; }
@@ -181,12 +183,14 @@ namespace verus
 			TexturePwn _texDefaultNormal;
 			TexturePwn _texDetail;
 			TexturePwn _texStrass;
+			int        _csidDefault = -1; // For missing, non-mandatory materials.
 
 		public:
 			MaterialManager();
 			~MaterialManager();
 
 			void Init();
+			void InitCmd();
 			void Done();
 			void DeleteAll();
 
@@ -195,6 +199,8 @@ namespace verus
 			CGI::TexturePtr GetDefaultTexture() { return _texDefaultAlbedo->GetTex(); }
 			CGI::TexturePtr GetDetailTexture() { return _texDetail->GetTex(); }
 			CGI::TexturePtr GetStrassTexture() { return _texStrass->GetTex(); }
+
+			int GetDefaultComplexSetID() const { return _csidDefault; }
 
 			// Textures:
 			PTexture InsertTexture(CSZ url);

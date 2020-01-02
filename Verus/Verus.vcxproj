@@ -270,6 +270,7 @@
     <ClCompile Include="src\CGI\Renderer.cpp" />
     <ClCompile Include="src\CGI\RendererParser.cpp" />
     <ClCompile Include="src\CGI\RenderPass.cpp" />
+    <ClCompile Include="src\D\D.cpp" />
     <ClCompile Include="src\D\Log.cpp" />
     <ClCompile Include="src\Extra\Extra.cpp" />
     <ClCompile Include="src\Extra\FileParser.cpp" />

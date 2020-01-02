@@ -23,17 +23,17 @@ void Object::Done()
 	_flags = 0;
 }
 
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 void Object::UpdateOnceCheck()
 {
-	const UINT64 numFrames = CGI::Renderer::I().GetNumFrames();
-	VERUS_RT_ASSERT(_updateOnceFrame <= numFrames);
-	_updateOnceFrame = numFrames + 1;
+	const UINT64 frameCount = CGI::Renderer::I().GetFrameCount();
+	VERUS_RT_ASSERT(_updateOnceFrame <= frameCount);
+	_updateOnceFrame = frameCount + 1;
 }
 
 void Object::UpdateOnceCheckDraw()
 {
-	const UINT64 numFrames = CGI::Renderer::I().GetNumFrames();
-	VERUS_RT_ASSERT(_updateOnceFrame > numFrames);
+	const UINT64 frameCount = CGI::Renderer::I().GetFrameCount();
+	VERUS_RT_ASSERT(_updateOnceFrame > frameCount);
 }
 #endif

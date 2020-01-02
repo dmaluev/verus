@@ -14,11 +14,11 @@ namespace verus
 
 			VkImage             _image = VK_NULL_HANDLE;
 			VmaAllocation       _vmaAllocation = VK_NULL_HANDLE;
-			VkImage             _imageStorage = VK_NULL_HANDLE;
-			VmaAllocation       _vmaAllocationStorage = VK_NULL_HANDLE;
+			VkImage             _storageImage = VK_NULL_HANDLE;
+			VmaAllocation       _storageVmaAllocation = VK_NULL_HANDLE;
 			VkImageView         _imageView = VK_NULL_HANDLE;
 			VkSampler           _sampler = VK_NULL_HANDLE;
-			Vector<VkImageView> _vImageViewsStorage;
+			Vector<VkImageView> _vStorageImageViews;
 			Vector<VkBufferEx>  _vStagingBuffers;
 			DestroyStaging      _destroyStagingBuffers;
 
@@ -43,7 +43,7 @@ namespace verus
 
 			VkImage GetVkImage() const { return _image; }
 			VkImageView GetVkImageView() const { return _imageView; }
-			VkImageView GetVkImageViewStorage(int mip) const { return _vImageViewsStorage[mip]; }
+			VkImageView GetStorageVkImageView(int mip) const { return _vStorageImageViews[mip]; }
 			VkSampler GetVkSampler() const { return _sampler; }
 		};
 		VERUS_TYPEDEFS(TextureVulkan);

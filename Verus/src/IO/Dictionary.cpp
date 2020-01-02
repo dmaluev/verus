@@ -105,8 +105,8 @@ void Dictionary::ExportAsStrings(Vector<String>& v) const
 
 void Dictionary::Serialize(RStream stream)
 {
-	const BYTE num = static_cast<BYTE>(TStoreValues::_map.size());
-	stream << num;
+	const BYTE count = static_cast<BYTE>(TStoreValues::_map.size());
+	stream << count;
 	VERUS_FOREACH_CONST(TStoreValues::TMap, TStoreValues::_map, it)
 	{
 		stream.WriteString(_C(it->first));
@@ -119,9 +119,9 @@ void Dictionary::Deserialize(RStream stream)
 	DeleteAll();
 	char name[Stream::s_bufferSize];
 	char value[Stream::s_bufferSize];
-	BYTE num;
-	stream >> num;
-	VERUS_FOR(i, num)
+	BYTE count;
+	stream >> count;
+	VERUS_FOR(i, count)
 	{
 		stream.ReadString(name);
 		stream.ReadString(value);

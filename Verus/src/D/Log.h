@@ -1,9 +1,9 @@
 #pragma once
 
-#define VERUS_LOG_ERROR(txt) {StringStream ss; ss << txt; D::Log::I().Write(_C(ss.str()), std::this_thread::get_id(), __FILE__, __LINE__, D::Log::Severity::error);}
-#define VERUS_LOG_WARN(txt)  {StringStream ss; ss << txt; D::Log::I().Write(_C(ss.str()), std::this_thread::get_id(), __FILE__, __LINE__, D::Log::Severity::warning);}
-#define VERUS_LOG_INFO(txt)  {StringStream ss; ss << txt; D::Log::I().Write(_C(ss.str()), std::this_thread::get_id(), __FILE__, __LINE__, D::Log::Severity::info);}
-#define VERUS_LOG_DEBUG(txt) {StringStream ss; ss << txt; D::Log::I().Write(_C(ss.str()), std::this_thread::get_id(), __FILE__, __LINE__, D::Log::Severity::debug);}
+#define VERUS_LOG_ERROR(txt) {StringStream ss_Log; ss_Log << txt; D::Log::I().Write(_C(ss_Log.str()), std::this_thread::get_id(), __FILE__, __LINE__, D::Log::Severity::error);}
+#define VERUS_LOG_WARN(txt)  {StringStream ss_Log; ss_Log << txt; D::Log::I().Write(_C(ss_Log.str()), std::this_thread::get_id(), __FILE__, __LINE__, D::Log::Severity::warning);}
+#define VERUS_LOG_INFO(txt)  {StringStream ss_Log; ss_Log << txt; D::Log::I().Write(_C(ss_Log.str()), std::this_thread::get_id(), __FILE__, __LINE__, D::Log::Severity::info);}
+#define VERUS_LOG_DEBUG(txt) {StringStream ss_Log; ss_Log << txt; D::Log::I().Write(_C(ss_Log.str()), std::this_thread::get_id(), __FILE__, __LINE__, D::Log::Severity::debug);}
 
 namespace verus
 {
@@ -21,9 +21,12 @@ namespace verus
 			};
 
 		private:
-			static std::mutex s_mutex;
+			std::mutex  _mutex;
+			std::string _pathName;
 
 		public:
+			std::mutex& GetMutex() { return _mutex; }
+
 			void Write(CSZ txt, std::thread::id tid, CSZ filename, UINT32 line, Severity severity);
 
 			static void FormatTime(char* buffer, size_t size);

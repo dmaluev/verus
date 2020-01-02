@@ -44,28 +44,15 @@ namespace verus
 		{
 			pointer p = static_cast<pointer>(AllocatorAware::UtilsMalloc(n * sizeof(value_type)));
 			if (p)
-			{
 				return p;
-			}
 			else
-			{
-				p = static_cast<pointer>(malloc(n * sizeof(value_type)));
-				char txt[80];
-				sprintf_s(txt, "allocate(), malloc() 0x%p", p);
-				VERUS_LOG_DEBUG(txt);
-				return p;
-			}
+				return static_cast<pointer>(malloc(n * sizeof(value_type)));
 		}
 
 		void deallocate(pointer p, size_type)
 		{
 			if (!AllocatorAware::UtilsFree(p))
-			{
-				char txt[80];
-				sprintf_s(txt, "deallocate(), free() 0x%p", p);
-				VERUS_LOG_DEBUG(txt);
 				free(p);
-			}
 		}
 
 		void construct(pointer p, const value_type& val)

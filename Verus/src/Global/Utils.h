@@ -5,6 +5,8 @@ namespace verus
 	class Utils : public Singleton<Utils>
 	{
 		Random         _random;
+		String         _companyFolderName;
+		String         _writableFolderName;
 		String         _modulePath;
 		String         _shaderPath;
 		String         _writablePath;
@@ -20,7 +22,13 @@ namespace verus
 		//! Destruct Utils using the provided allocator:
 		static void FreeEx(PBaseAllocator pAlloc);
 
+		// Called from BaseGame::Initialize():
 		void InitPaths();
+
+		Str  GetCompanyFolderName() const { return _C(_companyFolderName); }
+		void SetCompanyFolderName(CSZ name) { _companyFolderName = name; }
+		Str  GetWritableFolderName() const { return _C(_writableFolderName); }
+		void SetWritableFolderName(CSZ name) { _writableFolderName = name; }
 		Str  GetModulePath() const { return _C(_modulePath); }
 		void SetModulePath(CSZ path) { _modulePath = path; }
 		Str  GetShaderPath() const { return _C(_shaderPath); }
@@ -46,6 +54,8 @@ namespace verus
 
 		static void CopyByteToInt4(const BYTE src[4], int dest[4]);
 		static void CopyIntToByte4(const int src[4], BYTE dest[4]);
+
+		static void TestAll();
 
 		template<typename T>
 		static T* Swap(T*& pDst, T*& pSrc)

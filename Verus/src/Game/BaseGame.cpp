@@ -55,7 +55,8 @@ struct BaseGame::Pimpl : AllocatorAware
 
 BaseGame::BaseGame()
 {
-	Utils::MakeEx(&_alloc);
+	Utils::MakeEx(&_alloc); // For paths.
+	Make_D(); // For log.
 	_p = new Pimpl(this);
 }
 
@@ -65,6 +66,7 @@ BaseGame::~BaseGame()
 
 	_engineInit.Free();
 
+	Free_D();
 	Utils::FreeEx(&_alloc);
 	SDL_Quit();
 	//CGL::CRender::DoneWin32();
@@ -74,21 +76,33 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
 {
 	VERUS_SDL_CENTERED;
 
+	Utils::I().InitPaths();
+
 	App::Settings::Make();
 	VERUS_QREF_SETTINGS;
 	settings.ParseCommandLineArgs(argc, argv);
-	//settings.LoadValidateSave();
+	settings.Load();
+	settings.Validate();
+	settings.Save();
 	BaseGame_UpdateSettings();
 
 	const int ret = SDL_Init(SDL_INIT_EVERYTHING);
 	if (ret)
 		throw VERUS_RUNTIME_ERROR << "SDL_Init(), " << ret;
 
+	if (settings._screenAllowHighDPI)
+	{
+		HRESULT hr = 0;
+		if (FAILED(hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)))
+			throw VERUS_RUNTIME_ERROR << "Reset(), hr=" << VERUS_HR(hr);
+		settings.UpdateHighDpiScale();
+	}
+
 	// Allocate memory:
 	_engineInit.Make();
 
-#ifdef _DEBUG
-	//Utils::TestAll();
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
+	Utils::TestAll();
 #endif
 
 	_window.Init(desc);
@@ -98,12 +112,14 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
 	// Configure:
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
-	_p->_camera.SetAspectRatio(renderer.GetWindowAspectRatio());
+	VERUS_QREF_MM;
+	_p->_camera.SetAspectRatio(renderer.GetSwapChainAspectRatio());
 	_p->_camera.Update();
 	sm.SetCamera(&_p->_camera);
 
 	renderer->BeginFrame(false); // Begin recording a command buffer.
 	renderer.InitCmd();
+	mm.InitCmd();
 	BaseGame_LoadContent();
 	renderer->EndFrame(false); // End recording a command buffer.
 }
@@ -183,7 +199,7 @@ void BaseGame::Run(bool relativeMouseMode)
 					case SDL_WINDOWEVENT_RESIZED:
 					{
 						renderer.OnWindowResized(event.window.data1, event.window.data2);
-						sm.GetCamera()->SetAspectRatio(renderer.GetWindowAspectRatio());
+						sm.GetCamera()->SetAspectRatio(renderer.GetSwapChainAspectRatio());
 						sm.GetCamera()->Update();
 						BaseGame_OnWindowResized();
 					}
@@ -365,7 +381,7 @@ bool BaseGame::IsBulletDebugDrawEnabled() const
 
 void BaseGame::BulletDebugDraw()
 {
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 	if (_p->_bulletDebugDrawEnabled)
 	{
 		VERUS_QREF_BULLET;

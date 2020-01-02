@@ -65,22 +65,22 @@ void ShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar)
 	if (0 == zFar)
 		zFar = 0x10000 * 0.005f;
 
-	at = sm.GetCamera()->GetPositionEye() + sm.GetCamera()->GetDirectionFront() * (size * (1 / 3.f));
+	at = sm.GetCamera()->GetEyePosition() + sm.GetCamera()->GetFrontDirection() * (size * (1 / 3.f));
 	if (_snapToTexels)
 	{
 		const Matrix4 matToShadowSpace = Matrix4::lookAt(Point3(dirToSun), Point3(0), up);
 		const Matrix4 matFromShadowSpace = VMath::orthoInverse(matToShadowSpace);
-		const Point3 posAtShadowSpace = (matToShadowSpace * at).getXYZ();
+		const Point3 atPosShadowSpace = (matToShadowSpace * at).getXYZ();
 		const float texelSize = size / _side;
-		Point3 posAtShadowSpaceSnapped(posAtShadowSpace);
-		posAtShadowSpaceSnapped.setX(posAtShadowSpaceSnapped.getX() - fmod(static_cast<float>(posAtShadowSpaceSnapped.getX()), texelSize));
-		posAtShadowSpaceSnapped.setY(posAtShadowSpaceSnapped.getY() - fmod(static_cast<float>(posAtShadowSpaceSnapped.getY()), texelSize));
-		at = (matFromShadowSpace * posAtShadowSpaceSnapped).getXYZ();
+		Point3 atPosShadowSpaceSnapped(atPosShadowSpace);
+		atPosShadowSpaceSnapped.setX(atPosShadowSpaceSnapped.getX() - fmod(static_cast<float>(atPosShadowSpaceSnapped.getX()), texelSize));
+		atPosShadowSpaceSnapped.setY(atPosShadowSpaceSnapped.getY() - fmod(static_cast<float>(atPosShadowSpaceSnapped.getY()), texelSize));
+		at = (matFromShadowSpace * atPosShadowSpaceSnapped).getXYZ();
 	}
 	eye = at + dirToSun * ((zNear + zFar) * 0.5f);
 
 	// Setup light space camera and use it (used for terrain draw, etc.):
-	_camera.SetDirectionUp(up);
+	_camera.SetUpDirection(up);
 	_camera.MoveAtTo(at);
 	_camera.MoveEyeTo(eye);
 	_camera.SetFOV(0);
@@ -281,7 +281,7 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 		sizeH = static_cast<float>(int(frustumBounds.getW() - frustumBounds.getY() + 0.5f) + 2);
 
 		// Setup CSM light space camera for full range (used for terrain layout, etc.):
-		_cameraCSM.SetDirectionUp(up);
+		_cameraCSM.SetUpDirection(up);
 		_cameraCSM.MoveAtTo(at);
 		_cameraCSM.MoveEyeTo(eye);
 		_cameraCSM.SetFOV(0);
@@ -346,7 +346,7 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 	_splitRanges.setW(cam.GetZNear() + range);
 
 	// Setup light space camera and use it (used for terrain draw, etc.):
-	_camera.SetDirectionUp(up);
+	_camera.SetUpDirection(up);
 	_camera.MoveAtTo(at);
 	_camera.MoveEyeTo(eye);
 	_camera.SetFOV(0);

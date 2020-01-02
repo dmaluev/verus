@@ -36,10 +36,10 @@ void DebugDraw::Init()
 	geoDesc._pStrides = strides;
 	geoDesc._dynBindingsMask = 0x1;
 	_geo.Init(geoDesc);
-	_geo->CreateVertexBuffer(_maxNumVert, 0);
+	_geo->CreateVertexBuffer(_maxVerts, 0);
 
-	_vDynamicBuffer.resize(_maxNumVert);
-	_numVert = 0;
+	_vDynamicBuffer.resize(_maxVerts);
+	_vertCount = 0;
 	_offset = 0;
 
 	{
@@ -80,10 +80,10 @@ void DebugDraw::Begin(Type type, PcTransform3 pMat, bool zEnable)
 	VERUS_QREF_RENDERER;
 
 	_type = type;
-	_numVert = 0;
-	if (_currentFrame != renderer.GetNumFrames())
+	_vertCount = 0;
+	if (_currentFrame != renderer.GetFrameCount())
 	{
-		_currentFrame = renderer.GetNumFrames();
+		_currentFrame = renderer.GetFrameCount();
 		_offset = 0;
 	}
 
@@ -115,14 +115,14 @@ void DebugDraw::Begin(Type type, PcTransform3 pMat, bool zEnable)
 
 void DebugDraw::End()
 {
-	if (!_numVert)
+	if (!_vertCount)
 		return;
 	VERUS_QREF_RENDERER;
 
 	_geo->UpdateVertexBuffer(_vDynamicBuffer.data(), 0);
-	renderer.GetCommandBuffer()->Draw(_numVert, 1, _offset);
-	_offset += _numVert;
-	_numVert = 0;
+	renderer.GetCommandBuffer()->Draw(_vertCount, 1, _offset);
+	_offset += _vertCount;
+	_vertCount = 0;
 }
 
 bool DebugDraw::AddPoint(
@@ -137,14 +137,14 @@ bool DebugDraw::AddLine(
 	RcPoint3 posB,
 	UINT32 color)
 {
-	const int at = _offset + _numVert;
-	if (at + 2 > _maxNumVert)
+	const int at = _offset + _vertCount;
+	if (at + 2 > _maxVerts)
 		return false;
 	posA.ToArray3(_vDynamicBuffer[at]._pos);
 	Utils::CopyColor(_vDynamicBuffer[at]._color, color);
 	posB.ToArray3(_vDynamicBuffer[at + 1]._pos);
 	Utils::CopyColor(_vDynamicBuffer[at + 1]._color, color);
-	_numVert += 2;
+	_vertCount += 2;
 	_peakLoad = Math::Max(_peakLoad, at + 2);
 	return true;
 }

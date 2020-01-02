@@ -17,7 +17,7 @@ namespace verus
 
 			ID3D12DescriptorHeap* GetD3DDescriptorHeap() const { return _pDescriptorHeap.Get(); }
 
-			void Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num, bool shaderVisible = false);
+			void Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT count, bool shaderVisible = false);
 
 			CD3DX12_CPU_DESCRIPTOR_HANDLE AtCPU(INT index) const;
 			CD3DX12_GPU_DESCRIPTOR_HANDLE AtGPU(INT index) const;
@@ -43,9 +43,9 @@ namespace verus
 			UINT64 _peakLoad = 0;
 
 		public:
-			void Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num, UINT numStatic = 0, bool shaderVisible = false);
+			void Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT count, UINT staticCount = 0, bool shaderVisible = false);
 
-			HandlePair GetNextHandlePair(int num = 1);
+			HandlePair GetNextHandlePair(int count = 1);
 			HandlePair GetStaticHandlePair(int index);
 
 			UINT GetCapacity() const { return _capacity; }

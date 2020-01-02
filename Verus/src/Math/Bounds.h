@@ -55,7 +55,7 @@ namespace verus
 			void GetQuadrant3D(int id, Bounds& that) const;
 
 			float GetDiagonal() const;
-			float GetSmartSize() const;
+			float GetAverageSize() const;
 			float GetMaxSide() const;
 			Vector3 GetExtentsFromOrigin(RcVector3 scale = Vector3::Replicate(1)) const;
 			float GetMaxExtentFromOrigin(RcVector3 scale = Vector3::Replicate(1)) const;

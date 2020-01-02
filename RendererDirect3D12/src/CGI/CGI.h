@@ -2,7 +2,7 @@
 
 #define VERUS_ENABLE_COM_RELEASE_CHECK
 #ifdef VERUS_ENABLE_COM_RELEASE_CHECK
-#	define VERUS_COM_RELEASE_CHECK(p) {if(p) {const ULONG num = p->AddRef(); p->Release(); VERUS_RT_ASSERT(2 == num);}}
+#	define VERUS_COM_RELEASE_CHECK(p) {if(p) {const ULONG count = p->AddRef(); p->Release(); VERUS_RT_ASSERT(2 == count);}}
 #else
 #	define VERUS_COM_RELEASE_CHECK(p) {}
 #endif

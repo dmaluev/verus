@@ -39,7 +39,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	}
 
 	Vector<VkPipelineShaderStageCreateInfo> vShaderStages;
-	vShaderStages.reserve(shader.GetNumStages(desc._shaderBranch));
+	vShaderStages.reserve(shader.GetStageCount(desc._shaderBranch));
 	auto PushShaderStage = [&vShaderStages, &shader, &desc](CSZ name, BaseShader::Stage stage, VkShaderStageFlagBits shaderStageFlagBits)
 	{
 		const VkShaderModule shaderModule = shader.GetVkShaderModule(desc._shaderBranch, stage);
@@ -104,7 +104,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	depthStencilState.depthCompareOp = ToNativeCompareOp(desc._depthCompareOp);
 	depthStencilState.stencilTestEnable = desc._stencilTestEnable;
 
-	VkPipelineColorBlendAttachmentState vkpcbas[VERUS_MAX_NUM_RT] = {};
+	VkPipelineColorBlendAttachmentState vkpcbas[VERUS_MAX_RT] = {};
 	VERUS_FOR(i, attachmentCount)
 	{
 		CSZ p = _C(desc._colorAttachWriteMasks[i]);
@@ -187,7 +187,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_BLEND_CONSTANTS };
 	VkPipelineDynamicStateCreateInfo dynamicState = {};
 	dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-	dynamicState.dynamicStateCount = VERUS_ARRAY_LENGTH(dynamicStates);
+	dynamicState.dynamicStateCount = VERUS_COUNT_OF(dynamicStates);
 	dynamicState.pDynamicStates = dynamicStates;
 
 	VkGraphicsPipelineCreateInfo vkgpci = {};

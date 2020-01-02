@@ -43,8 +43,8 @@ void Timer::Update()
 		_data[i]._smoothValue = Math::Clamp((1 / 30.f - _data[i]._dt) * 30, 0.f, 0.5f);
 	}
 
-	const int num = Utils::Cast32(_vCountdowns.size());
-	VERUS_FOR(i, num)
+	const int count = Utils::Cast32(_vCountdowns.size());
+	VERUS_FOR(i, count)
 	{
 		if (_vCountdowns[i]._active && _vCountdowns[i]._secondsRemain > 0)
 			_vCountdowns[i]._secondsRemain -= GetDeltaTime();
@@ -60,10 +60,10 @@ bool Timer::IsEventEvery(int ms) const
 
 int Timer::InsertCountdown(float duration, int existingID)
 {
-	const int num = Utils::Cast32(_vCountdowns.size());
+	const int count = Utils::Cast32(_vCountdowns.size());
 
 	// Use existing:
-	if (existingID >= 0 && existingID < num)
+	if (existingID >= 0 && existingID < count)
 	{
 		_vCountdowns[existingID]._active = true;
 		_vCountdowns[existingID]._secondsRemain = duration;
@@ -72,7 +72,7 @@ int Timer::InsertCountdown(float duration, int existingID)
 	}
 
 	// Find free one:
-	VERUS_FOR(i, num)
+	VERUS_FOR(i, count)
 	{
 		if (!_vCountdowns[i]._active)
 		{
@@ -84,17 +84,17 @@ int Timer::InsertCountdown(float duration, int existingID)
 	}
 
 	// Add new one:
-	_vCountdowns.resize(num + 1);
-	_vCountdowns[num]._active = true;
-	_vCountdowns[num]._secondsRemain = duration;
-	_vCountdowns[num]._secondsTotal = duration;
-	return num;
+	_vCountdowns.resize(count + 1);
+	_vCountdowns[count]._active = true;
+	_vCountdowns[count]._secondsRemain = duration;
+	_vCountdowns[count]._secondsTotal = duration;
+	return count;
 }
 
 void Timer::DeleteCountdown(int id)
 {
-	const int num = Utils::Cast32(_vCountdowns.size());
-	if (id >= 0 && id < num)
+	const int count = Utils::Cast32(_vCountdowns.size());
+	if (id >= 0 && id < count)
 		_vCountdowns[id]._active = false;
 }
 

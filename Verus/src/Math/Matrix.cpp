@@ -6,7 +6,7 @@ using namespace verus;
 
 Matrix3& Matrix3::operator=(const VMath::Matrix3& that)
 {
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	const float* p = reinterpret_cast<const float*>(&that);
 	VERUS_FOR(i, 12)
 	{
@@ -103,7 +103,7 @@ Matrix3 Matrix3::Lerp(RcMatrix3 a, RcMatrix3 b, float t)
 
 RMatrix4 Matrix4::operator=(const VMath::Matrix4& that)
 {
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	const float* p = reinterpret_cast<const float*>(&that);
 	VERUS_FOR(i, 16)
 	{
@@ -187,7 +187,7 @@ Matrix4 Matrix4::MakeOrtho(float w, float h, float zNear, float zFar)
 
 RTransform3 Transform3::operator=(const VMath::Transform3& that)
 {
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	const float* p = reinterpret_cast<const float*>(&that);
 	VERUS_FOR(i, 16)
 	{

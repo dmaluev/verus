@@ -899,6 +899,9 @@
     <ClCompile Include="src\ThirdParty\fast_atof.c">
       <Filter>src\ThirdParty</Filter>
     </ClCompile>
+    <ClCompile Include="src\D\D.cpp">
+      <Filter>src\D</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\Shaders\Lib.hlsl">

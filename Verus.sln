@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2036
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29613.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Verus", "Verus\Verus.vcxproj", "{B154D670-E4B1-4D8A-885C-69546A5BD833}"
 EndProject
@@ -12,6 +12,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RendererVulkan", "RendererVulkan\RendererVulkan.vcxproj", "{C9195A1C-9224-4B40-BBBC-AA90EF3BE3E0}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VulkanShaderCompiler", "VulkanShaderCompiler\VulkanShaderCompiler.vcxproj", "{1EA5F5D1-9138-406D-871B-3CD75343E14C}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PAKBuilder", "PAKBuilder\PAKBuilder.vcxproj", "{EBF1E2F9-65AA-419D-A3D3-AD66EB086E57}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +41,10 @@ Global
 		{1EA5F5D1-9138-406D-871B-3CD75343E14C}.Debug|x64.Build.0 = Debug|x64
 		{1EA5F5D1-9138-406D-871B-3CD75343E14C}.Release|x64.ActiveCfg = Release|x64
 		{1EA5F5D1-9138-406D-871B-3CD75343E14C}.Release|x64.Build.0 = Release|x64
+		{EBF1E2F9-65AA-419D-A3D3-AD66EB086E57}.Debug|x64.ActiveCfg = Debug|x64
+		{EBF1E2F9-65AA-419D-A3D3-AD66EB086E57}.Debug|x64.Build.0 = Debug|x64
+		{EBF1E2F9-65AA-419D-A3D3-AD66EB086E57}.Release|x64.ActiveCfg = Release|x64
+		{EBF1E2F9-65AA-419D-A3D3-AD66EB086E57}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

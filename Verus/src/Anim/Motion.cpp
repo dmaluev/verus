@@ -220,7 +220,7 @@ void Motion::Bone::ComputeMatrixAt(float time, RTransform3 mat)
 void Motion::Bone::MoveKeyframe(int direction, Type type, int frame)
 {
 	const int frameDest = (direction >= 0) ? frame + 1 : frame - 1;
-	if (frameDest < 0 || frameDest >= _pMotion->GetNumFrames())
+	if (frameDest < 0 || frameDest >= _pMotion->GetFrameCount())
 		return;
 
 	switch (type)
@@ -278,33 +278,33 @@ void Motion::Bone::MoveKeyframe(int direction, Type type, int frame)
 
 void Motion::Bone::Serialize(IO::RStream stream)
 {
-	const int numKeyframesRot = Utils::Cast32(_mapRot.size());
-	const int numKeyframesPos = Utils::Cast32(_mapPos.size());
-	const int numKeyframesScale = Utils::Cast32(_mapScale.size());
-	const int numKeyframesTrigger = Utils::Cast32(_mapTrigger.size());
+	const int rotKeyframeCount = Utils::Cast32(_mapRot.size());
+	const int posKeyframeCount = Utils::Cast32(_mapPos.size());
+	const int scaleKeyframeCount = Utils::Cast32(_mapScale.size());
+	const int triggerKeyframeCount = Utils::Cast32(_mapTrigger.size());
 
-	stream << numKeyframesRot;
+	stream << rotKeyframeCount;
 	VERUS_FOREACH_CONST(TMapRot, _mapRot, it)
 	{
 		stream << it->first;
 		stream.Write(&it->second._q, 16);
 	}
 
-	stream << numKeyframesPos;
+	stream << posKeyframeCount;
 	VERUS_FOREACH_CONST(TMapPos, _mapPos, it)
 	{
 		stream << it->first;
 		stream.Write(&it->second, 12);
 	}
 
-	stream << numKeyframesScale;
+	stream << scaleKeyframeCount;
 	VERUS_FOREACH_CONST(TMapScale, _mapScale, it)
 	{
 		stream << it->first;
 		stream.Write(&it->second, 12);
 	}
 
-	stream << numKeyframesTrigger;
+	stream << triggerKeyframeCount;
 	VERUS_FOREACH_CONST(TMapTrigger, _mapTrigger, it)
 	{
 		stream << it->first;
@@ -314,36 +314,36 @@ void Motion::Bone::Serialize(IO::RStream stream)
 
 void Motion::Bone::Deserialize(IO::RStream stream)
 {
-	int numKeyframesRot, numKeyframesPos, numKeyframesScale, numKeyframesTrigger, frame, state;
+	int rotKeyframeCount, posKeyframeCount, scaleKeyframeCount, triggerKeyframeCount, frame, state;
 	Vector3 temp;
 	Quat q;
 
-	stream >> numKeyframesRot;
-	VERUS_FOR(i, numKeyframesRot)
+	stream >> rotKeyframeCount;
+	VERUS_FOR(i, rotKeyframeCount)
 	{
 		stream >> frame;
 		stream.Read(&q, 16);
 		InsertKeyframeRotation(frame, q);
 	}
 
-	stream >> numKeyframesPos;
-	VERUS_FOR(i, numKeyframesPos)
+	stream >> posKeyframeCount;
+	VERUS_FOR(i, posKeyframeCount)
 	{
 		stream >> frame;
 		stream.Read(&temp, 12);
 		InsertKeyframePosition(frame, temp);
 	}
 
-	stream >> numKeyframesScale;
-	VERUS_FOR(i, numKeyframesScale)
+	stream >> scaleKeyframeCount;
+	VERUS_FOR(i, scaleKeyframeCount)
 	{
 		stream >> frame;
 		stream.Read(&temp, 12);
 		InsertKeyframeScale(frame, temp);
 	}
 
-	stream >> numKeyframesTrigger;
-	VERUS_FOR(i, numKeyframesTrigger)
+	stream >> triggerKeyframeCount;
+	VERUS_FOR(i, triggerKeyframeCount)
 	{
 		stream >> frame;
 		stream >> state;
@@ -424,11 +424,11 @@ void Motion::Bone::DeleteOddKeyframes()
 void Motion::Bone::InsertLoopKeyframes()
 {
 	if (!_mapRot.empty())
-		_mapRot[_pMotion->GetNumFrames()] = _mapRot.begin()->second;
+		_mapRot[_pMotion->GetFrameCount()] = _mapRot.begin()->second;
 	if (!_mapPos.empty())
-		_mapPos[_pMotion->GetNumFrames()] = _mapPos.begin()->second;
+		_mapPos[_pMotion->GetFrameCount()] = _mapPos.begin()->second;
 	if (!_mapScale.empty())
-		_mapScale[_pMotion->GetNumFrames()] = _mapScale.begin()->second;
+		_mapScale[_pMotion->GetFrameCount()] = _mapScale.begin()->second;
 }
 
 void Motion::Bone::Cut(int frame, bool before)
@@ -588,7 +588,7 @@ void Motion::Bone::Scatter(int srcFrom, int srcTo, int dMin, int dMax)
 	while (true)
 	{
 		start += dMin + utils.GetRandom().Next() % range;
-		if (start >= _pMotion->GetNumFrames())
+		if (start >= _pMotion->GetFrameCount())
 			break;
 		for (int i = srcFrom; i < srcTo; ++i)
 		{
@@ -699,9 +699,9 @@ void Motion::Serialize(IO::RStream stream)
 	const UINT16 version = s_xanVersion;
 	stream << version;
 
-	stream << _numFrames;
+	stream << _frameCount;
 	stream << _fps;
-	stream << GetNumBones();
+	stream << GetBoneCount();
 
 	for (auto& kv : _mapBones)
 	{
@@ -723,22 +723,22 @@ void Motion::Deserialize(IO::RStream stream)
 	if (s_xanVersion != version)
 		throw VERUS_RECOVERABLE << "Deserialize(), invalid XAN version";
 
-	stream >> _numFrames;
+	stream >> _frameCount;
 	stream >> _fps;
-	if (_numFrames < 0 || _numFrames > s_maxNumFrames)
+	if (_frameCount < 0 || _frameCount > s_maxFrames)
 		throw VERUS_RECOVERABLE << "Deserialize(), invalid number of frames in XAN";
 	if (_fps <= 0 || _fps > s_maxFps)
 		throw VERUS_RECOVERABLE << "Deserialize(), invalid FPS in XAN";
 
 	SetFps(_fps);
 
-	int numBones = 0;
-	stream >> numBones;
-	if (numBones < 0 || numBones > s_maxNumBones)
+	int boneCount = 0;
+	stream >> boneCount;
+	if (boneCount < 0 || boneCount > s_maxBones)
 		throw VERUS_RECOVERABLE << "Deserialize(), invalid number of bones in XAN";
 
 	char buffer[IO::Stream::s_bufferSize] = {};
-	VERUS_FOR(i, numBones)
+	VERUS_FOR(i, boneCount)
 	{
 		stream.ReadString(buffer);
 		PBone pBone = InsertBone(buffer);
@@ -800,7 +800,7 @@ void Motion::Cut(int frame, bool before)
 {
 	for (auto& kv : _mapBones)
 		kv.second.Cut(frame, before);
-	_numFrames = before ? _numFrames - frame : frame + 1;
+	_frameCount = before ? _frameCount - frame : frame + 1;
 }
 
 void Motion::Fix(bool speedLimit)

@@ -14,12 +14,12 @@ bool Sphere::IsOverlappingWith(RcSphere that) const
 	return VMath::distSqr(GetCenter(), that.GetCenter()) < border * border;
 }
 
-void Sphere::EvenlyDistPoints(int num, Vector<Point3>& vPoints)
+void Sphere::EvenlyDistPoints(int count, Vector<Point3>& vPoints)
 {
-	vPoints.reserve(num);
+	vPoints.reserve(count);
 	const float inc = VERUS_PI * (3 - sqrt(5.f));
-	const float off = 2.f / num;
-	VERUS_FOR(i, num)
+	const float off = 2.f / count;
+	VERUS_FOR(i, count)
 	{
 		const float y = i * off - 1 + (off * 0.5f);
 		const float r = sqrt(1 - y * y);

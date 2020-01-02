@@ -14,7 +14,7 @@ Texture::~Texture()
 	Done();
 }
 
-void Texture::Init(CSZ url, bool streamParts)
+void Texture::Init(CSZ url, bool streamParts, bool sync)
 {
 	if (_refCount)
 		return;
@@ -26,6 +26,8 @@ void Texture::Init(CSZ url, bool streamParts)
 	CGI::TextureDesc texDesc;
 	texDesc._url = url;
 	texDesc._texturePart = _streamParts ? 512 : 0;
+	if (sync)
+		texDesc._flags = CGI::TextureDesc::Flags::sync;
 	_texTiny.Init(texDesc);
 	_refCount = 1;
 }
@@ -79,12 +81,12 @@ void Texture::Update()
 
 // TexturePtr:
 
-void TexturePtr::Init(CSZ url, bool streamParts)
+void TexturePtr::Init(CSZ url, bool streamParts, bool sync)
 {
 	VERUS_QREF_MM;
 	VERUS_RT_ASSERT(!_p);
 	_p = mm.InsertTexture(url);
-	_p->Init(url, streamParts);
+	_p->Init(url, streamParts, sync);
 }
 
 void TexturePwn::Done()
@@ -214,9 +216,6 @@ void Material::Init(RcDesc desc)
 	_name = desc._name;
 	_refCount = 1;
 
-	_texAlbedo.Init("[Textures]:Default.dds");
-	_texNormal.Init("[Textures]:Default.NM.dds");
-
 	if (desc._load)
 	{
 		VERUS_RT_ASSERT(
@@ -227,9 +226,12 @@ void Material::Init(RcDesc desc)
 		_name = url;
 
 		Vector<BYTE> vData;
-		IO::FileSystem::I().LoadResourceFromCache(_C(url), vData);
-		FromString(reinterpret_cast<CSZ>(vData.data()));
-		LoadTextures(desc._streamParts);
+		IO::FileSystem::I().LoadResourceFromCache(_C(url), vData, desc._mandatory);
+		if (!vData.empty())
+		{
+			FromString(reinterpret_cast<CSZ>(vData.data()));
+			LoadTextures(desc._streamParts);
+		}
 	}
 }
 
@@ -265,18 +267,18 @@ void Material::Update()
 	VERUS_UPDATE_ONCE_CHECK;
 }
 
-bool Material::IsLoaded(bool allowDefaultTextures) const
+bool Material::IsLoaded() const
 {
-	const bool loaded =
+	if (IsMissing())
+		return false;
+	return
 		_texAlbedo->GetTex()->IsLoaded() &&
 		_texNormal->GetTex()->IsLoaded();
-	if (loaded && !allowDefaultTextures) // Final textures must be loaded (for editor)?
-	{
-		if (_texAlbedo->GetTex()->GetName() == "Textures:Default.dds" ||
-			_texNormal->GetTex()->GetName() == "Textures:Default.NM.dds")
-			return false;
-	}
-	return loaded;
+}
+
+bool Material::IsMissing() const
+{
+	return !_texAlbedo || !_texNormal;
 }
 
 void Material::LoadTextures(bool streamParts)
@@ -367,7 +369,7 @@ void Material::FromString(CSZ txt)
 void Material::BindDescriptorSetTextures()
 {
 	VERUS_RT_ASSERT(-1 == _csid);
-	VERUS_RT_ASSERT(IsLoaded(false));
+	VERUS_RT_ASSERT(IsLoaded());
 	_csid = Scene::Mesh::GetShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTex(), _texNormal->GetTex() });
 }
 
@@ -443,11 +445,16 @@ MaterialManager::~MaterialManager()
 void MaterialManager::Init()
 {
 	VERUS_INIT();
+}
 
-	_texDefaultAlbedo.Init("[Textures]:Default.dds");
-	_texDefaultNormal.Init("[Textures]:Default.NM.dds");
-	_texDetail.Init("[Textures]:Detail.FX.dds");
-	_texStrass.Init("[Textures]:Strass.dds");
+void MaterialManager::InitCmd()
+{
+	_texDefaultAlbedo.Init("[Textures]:Default.dds", false, true);
+	_texDefaultNormal.Init("[Textures]:Default.NM.dds", false, true);
+	//_texDetail.Init("[Textures]:Detail.FX.dds");
+	//_texStrass.Init("[Textures]:Strass.dds");
+
+	_csidDefault = Scene::Mesh::GetShader()->BindDescriptorSetTextures(1, { _texDefaultAlbedo->GetTex(), _texDefaultNormal->GetTex() });
 }
 
 void MaterialManager::Done()

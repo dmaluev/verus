@@ -88,9 +88,9 @@ namespace verus
 			void Init();
 			void Done();
 
-			static void VerusCompilerInit();
-			static void VerusCompilerDone();
-			static bool VerusCompile(CSZ source, CSZ sourceName, CSZ* defines, BaseShaderInclude* pInclude,
+			static void VulkanCompilerInit();
+			static void VulkanCompilerDone();
+			static bool VulkanCompile(CSZ source, CSZ sourceName, CSZ* defines, BaseShaderInclude* pInclude,
 				CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs);
 
 		private:
@@ -174,9 +174,9 @@ namespace verus
 
 	extern "C"
 	{
-		typedef void(*PFNVERUSCOMPILERINIT)();
-		typedef void(*PFNVERUSCOMPILERDONE)();
-		typedef bool(*PFNVERUSCOMPILE)(CSZ source, CSZ sourceName, CSZ* defines, CGI::BaseShaderInclude* pInclude,
+		typedef void(*PFNVULKANCOMPILERINIT)();
+		typedef void(*PFNVULKANCOMPILERDONE)();
+		typedef bool(*PFNVULKANCOMPILE)(CSZ source, CSZ sourceName, CSZ* defines, CGI::BaseShaderInclude* pInclude,
 			CSZ entryPoint, CSZ target, UINT32 flags, UINT32** ppCode, UINT32* pSize, CSZ* ppErrorMsgs);
 	}
 }

@@ -41,8 +41,8 @@ namespace verus
 			PipelinePwns<PIPE_MAX> _pipe;
 			Vector<Vertex>         _vDynamicBuffer;
 			UINT64                 _currentFrame = UINT64_MAX;
-			const int              _maxNumVert = 0x10000;
-			int                    _numVert = 0;
+			const int              _maxVerts = 0x10000;
+			int                    _vertCount = 0;
 			int                    _offset = 0;
 			int                    _peakLoad = 0;
 			Type                   _type = Type::points;

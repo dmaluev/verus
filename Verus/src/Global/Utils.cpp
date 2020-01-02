@@ -20,8 +20,6 @@ void Utils::MakeEx(PBaseAllocator pAlloc)
 
 	Utils* p = static_cast<Utils*>(pAlloc->malloc(sizeof(Utils)));
 	p = new(p)Utils(pAlloc);
-
-	p->InitPaths();
 }
 
 void Utils::FreeEx(PBaseAllocator pAlloc)
@@ -38,21 +36,36 @@ void Utils::FreeEx(PBaseAllocator pAlloc)
 
 void Utils::InitPaths()
 {
+	if (_companyFolderName.empty())
+		_companyFolderName = "VerusEngine";
+
 	wchar_t pathName[MAX_PATH] = {};
-	GetModuleFileName(nullptr, pathName, MAX_PATH);
-	PathRemoveFileSpec(pathName);
-	_modulePath = Str::WideToUtf8(pathName);
-	VERUS_LOG_INFO("Module path: " << _modulePath);
+	if (_modulePath.empty())
+	{
+		GetModuleFileName(nullptr, pathName, MAX_PATH);
+		PathRemoveFileSpec(pathName);
+		_modulePath = Str::WideToUtf8(pathName);
+	}
 
 	_shaderPath = _modulePath + "/Data/Shaders";
 
-	SHGetSpecialFolderPath(0, pathName, CSIDL_LOCAL_APPDATA, TRUE);
-	_writablePath = Str::WideToUtf8(pathName);
-	_writablePath += "\\";
-	_writablePath += Str::WideToUtf8(L"Testing");
-	_writablePath += "\\";
-	CreateDirectory(_C(Str::Utf8ToWide(_writablePath)), nullptr);
-	VERUS_LOG_INFO("Writable path: " << _writablePath);
+	if (!_companyFolderName.empty() && !_writableFolderName.empty())
+	{
+		SHGetSpecialFolderPath(0, pathName, CSIDL_LOCAL_APPDATA, TRUE);
+		_writablePath = Str::WideToUtf8(pathName);
+		_writablePath += "\\";
+		_writablePath += _companyFolderName;
+		CreateDirectory(_C(Str::Utf8ToWide(_writablePath)), nullptr);
+		_writablePath += "\\";
+		_writablePath += _writableFolderName;
+		CreateDirectory(_C(Str::Utf8ToWide(_writablePath)), nullptr);
+		VERUS_LOG_INFO("Writable path: " << _writablePath);
+	}
+	else
+	{
+		VERUS_LOG_INFO("Writable path not specified");
+	}
+	VERUS_LOG_INFO("Module path: " << _modulePath);
 }
 
 void Utils::PushQuitEvent()
@@ -96,4 +109,12 @@ void Utils::CopyIntToByte4(const int src[4], BYTE dest[4])
 {
 	VERUS_FOR(i, 4)
 		dest[i] = src[i];
+}
+
+void Utils::TestAll()
+{
+	Convert::Test();
+	Str::Test();
+	Math::Test();
+	Security::CipherRC4::Test();
 }

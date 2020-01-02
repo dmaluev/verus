@@ -43,7 +43,7 @@ namespace verus
 
 			Stream& operator<<(CSZ txt)
 			{
-				Write(txt, strlen(txt));
+				WriteText(txt);
 				return *this;
 			}
 

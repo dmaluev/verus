@@ -137,10 +137,10 @@ namespace verus
 
 				void MoveKeyframe(int direction, Type type, int frame);
 
-				int GetNumKeysRotation() const { return Utils::Cast32(_mapRot.size()); }
-				int GetNumKeysPosition() const { return Utils::Cast32(_mapPos.size()); }
-				int GetNumKeysScale() const { return Utils::Cast32(_mapScale.size()); }
-				int GetNumKeysTrigger() const { return Utils::Cast32(_mapTrigger.size()); }
+				int GetRotationKeyCount() const { return Utils::Cast32(_mapRot.size()); }
+				int GetPositionKeyCount() const { return Utils::Cast32(_mapPos.size()); }
+				int GetScaleKeyCount() const { return Utils::Cast32(_mapScale.size()); }
+				int GetTriggerKeyCount() const { return Utils::Cast32(_mapTrigger.size()); }
 
 				VERUS_P(void Serialize(IO::RStream stream));
 				VERUS_P(void Deserialize(IO::RStream stream));
@@ -162,14 +162,14 @@ namespace verus
 		private:
 			static const int s_xanVersion = 0x0101;
 			static const int s_maxFps = 10000;
-			static const int s_maxNumBones = 10000;
-			static const int s_maxNumFrames = 32 * 1024 * 1024;
+			static const int s_maxBones = 10000;
+			static const int s_maxFrames = 32 * 1024 * 1024;
 
 			typedef Map<String, Bone> TMapBones;
 
 			TMapBones _mapBones;
 			Motion* _pBlendMotion = nullptr;
-			int       _numFrames = 50;
+			int       _frameCount = 50;
 			int       _fps = 10;
 			float     _fpsInv = 0.1f;
 			float     _blendAlpha = 0;
@@ -188,13 +188,13 @@ namespace verus
 			float GetFpsInv() const { return _fpsInv; }
 			void SetFps(int fps) { _fps = fps; _fpsInv = 1.f / _fps; }
 
-			int GetNumFrames() const { return _numFrames; }
-			void SetNumFrames(int num) { _numFrames = num; }
+			int GetFrameCount() const { return _frameCount; }
+			void SetFrameCount(int count) { _frameCount = count; }
 
-			int GetNumBones() const { return Utils::Cast32(_mapBones.size()); }
+			int GetBoneCount() const { return Utils::Cast32(_mapBones.size()); }
 
 			float GetDuration() const { return GetNativeDuration() * _playbackSpeedInv; }
-			float GetNativeDuration() const { return _numFrames * _fpsInv; }
+			float GetNativeDuration() const { return _frameCount * _fpsInv; }
 
 			PBone GetBoneByIndex(int index);
 			int GetBoneIndex(CSZ name) const;

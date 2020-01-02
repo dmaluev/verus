@@ -282,8 +282,6 @@ DS_ACC_FSO mainFS(VSO si)
 		so.target1.rgb = min(so.target1.rgb, 1.0 - emission.x);
 		so.target0.a = 1.0;
 		so.target1.a = 1.0;
-		so.target0 = HDRColorToSRGB(so.target0);
-		so.target1 = HDRColorToSRGB(so.target1);
 	}
 #if defined(DEF_OMNI) || defined(DEF_SPOT)
 	else

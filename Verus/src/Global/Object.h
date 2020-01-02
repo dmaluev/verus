@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 #	define VERUS_UPDATE_ONCE_CHECK UpdateOnceCheck()
 #	define VERUS_UPDATE_ONCE_CHECK_DRAW UpdateOnceCheckDraw()
 #else
@@ -25,7 +25,7 @@ namespace verus
 	class Object
 	{
 		std::atomic_uint _flags;
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 		UINT64 _updateOnceFrame = 0;
 #endif
 
@@ -36,7 +36,7 @@ namespace verus
 		void Init();
 		void Done();
 
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 		void UpdateOnceCheck();
 		void UpdateOnceCheckDraw();
 #endif

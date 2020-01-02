@@ -312,7 +312,7 @@ bool BaseTexture::IsBC(Format format)
 	return format >= Format::unormBC1 && format <= Format::srgbBC7;
 }
 
-bool BaseTexture::IsBC1(Format format)
+bool BaseTexture::Is4BitsBC(Format format)
 {
 	return format == Format::unormBC1 || format == Format::srgbBC1;
 }
@@ -329,12 +329,21 @@ void TexturePtr::Init(RcTextureDesc desc)
 	VERUS_QREF_RENDERER;
 	VERUS_RT_ASSERT(!_p);
 	_p = renderer->InsertTexture();
-	if (desc._url)
-		_p->LoadDDS(desc._url, desc._texturePart);
-	else if (desc._urls)
-		_p->LoadDDSArray(desc._urls);
+	if (desc._flags & TextureDesc::Flags::sync)
+	{
+		Vector<BYTE> v;
+		IO::FileSystem::LoadResource(desc._url, v);
+		_p->LoadDDS(Blob(v.data(), v.size()));
+	}
 	else
-		_p->Init(desc);
+	{
+		if (desc._url)
+			_p->LoadDDS(desc._url, desc._texturePart);
+		else if (desc._urls)
+			_p->LoadDDSArray(desc._urls);
+		else
+			_p->Init(desc);
+	}
 }
 
 void TexturePwn::Done()

@@ -91,25 +91,25 @@ void CommandBufferD3D12::EndRenderPass()
 {
 	auto pCommandList = GetD3DGraphicsCommandList();
 
-	CD3DX12_RESOURCE_BARRIER barriers[VERUS_MAX_NUM_RT];
-	int numBarriers = 0;
+	CD3DX12_RESOURCE_BARRIER barriers[VERUS_MAX_RT];
+	int barrierCount = 0;
 	int index = 0;
 	for (const auto& attachment : _pRenderPass->_vAttachments)
 	{
 		if (_vAttachmentStates[index] != attachment._finalState)
 		{
 			const auto& resources = _pFramebuffer->_vResources[index];
-			barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[index], attachment._finalState);
+			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[index], attachment._finalState);
 		}
 		index++;
-		if (VERUS_MAX_NUM_RT == numBarriers)
+		if (VERUS_MAX_RT == barrierCount)
 		{
-			pCommandList->ResourceBarrier(numBarriers, barriers);
-			numBarriers = 0;
+			pCommandList->ResourceBarrier(barrierCount, barriers);
+			barrierCount = 0;
 		}
 	}
-	if (numBarriers)
-		pCommandList->ResourceBarrier(numBarriers, barriers);
+	if (barrierCount)
+		pCommandList->ResourceBarrier(barrierCount, barriers);
 
 	_pRenderPass = nullptr;
 	_pFramebuffer = nullptr;
@@ -120,10 +120,10 @@ void CommandBufferD3D12::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilte
 {
 	auto& geoD3D12 = static_cast<RGeometryD3D12>(*geo);
 	geoD3D12.DestroyStagingBuffers();
-	D3D12_VERTEX_BUFFER_VIEW views[VERUS_MAX_NUM_VB];
-	const int num = geoD3D12.GetNumVertexBuffers();
+	D3D12_VERTEX_BUFFER_VIEW views[VERUS_MAX_VB];
+	const int count = geoD3D12.GetVertexBufferCount();
 	int at = 0;
-	VERUS_FOR(i, num)
+	VERUS_FOR(i, count)
 	{
 		if ((bindingsFilter >> i) & 0x1)
 		{
@@ -158,24 +158,24 @@ void CommandBufferD3D12::BindPipeline(PipelinePtr pipe)
 
 void CommandBufferD3D12::SetViewport(std::initializer_list<Vector4> il, float minDepth, float maxDepth)
 {
-	CD3DX12_VIEWPORT vpD3D12[VERUS_MAX_NUM_RT];
-	int num = 0;
+	CD3DX12_VIEWPORT vpD3D12[VERUS_MAX_RT];
+	int count = 0;
 	for (const auto& rc : il)
-		vpD3D12[num++] = CD3DX12_VIEWPORT(rc.getX(), rc.getY(), rc.Width(), rc.Height(), minDepth, maxDepth);
-	GetD3DGraphicsCommandList()->RSSetViewports(num, vpD3D12);
+		vpD3D12[count++] = CD3DX12_VIEWPORT(rc.getX(), rc.getY(), rc.Width(), rc.Height(), minDepth, maxDepth);
+	GetD3DGraphicsCommandList()->RSSetViewports(count, vpD3D12);
 }
 
 void CommandBufferD3D12::SetScissor(std::initializer_list<Vector4> il)
 {
-	CD3DX12_RECT rcD3D12[VERUS_MAX_NUM_RT];
-	int num = 0;
+	CD3DX12_RECT rcD3D12[VERUS_MAX_RT];
+	int count = 0;
 	for (const auto& rc : il)
-		rcD3D12[num++] = CD3DX12_RECT(
+		rcD3D12[count++] = CD3DX12_RECT(
 			static_cast<LONG>(rc.getX()),
 			static_cast<LONG>(rc.getY()),
 			static_cast<LONG>(rc.getZ()),
 			static_cast<LONG>(rc.getW()));
-	GetD3DGraphicsCommandList()->RSSetScissorRects(num, rcD3D12);
+	GetD3DGraphicsCommandList()->RSSetScissorRects(count, rcD3D12);
 }
 
 void CommandBufferD3D12::SetBlendConstants(const float* p)
@@ -214,7 +214,7 @@ bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int setNumber, int co
 		const D3D12_GPU_DESCRIPTOR_HANDLE hGPU = shaderD3D12.UpdateSamplers(setNumber, complexSetID);
 		if (hGPU.ptr)
 		{
-			const UINT rootParameterIndex = shaderD3D12.GetNumDescriptorSets();
+			const UINT rootParameterIndex = shaderD3D12.GetDescriptorSetCount();
 			pCommandList->SetGraphicsRootDescriptorTable(rootParameterIndex, hGPU);
 		}
 	}
@@ -235,11 +235,11 @@ void CommandBufferD3D12::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout 
 {
 	auto& texD3D12 = static_cast<RTextureD3D12>(*tex);
 	CD3DX12_RESOURCE_BARRIER rb[16];
-	VERUS_RT_ASSERT(mipLevels.GetRange() < VERUS_ARRAY_LENGTH(rb));
+	VERUS_RT_ASSERT(mipLevels.GetRange() < VERUS_COUNT_OF(rb));
 	int index = 0;
 	for (int mip : mipLevels)
 	{
-		const UINT subresource = D3D12CalcSubresource(mip, arrayLayer, 0, texD3D12.GetNumMipLevels(), texD3D12.GetNumArrayLayers());
+		const UINT subresource = D3D12CalcSubresource(mip, arrayLayer, 0, texD3D12.GetMipLevelCount(), texD3D12.GetArrayLayerCount());
 		rb[index++] = CD3DX12_RESOURCE_BARRIER::Transition(
 			texD3D12.GetD3DResource(), ToNativeImageLayout(oldLayout), ToNativeImageLayout(newLayout), subresource);
 	}
@@ -275,16 +275,16 @@ void CommandBufferD3D12::PrepareSubpass()
 	RP::RcD3DFramebufferSubpass fs = _pFramebuffer->_vSubpasses[_subpassIndex];
 
 	// Resource transitions for this subpass:
-	CD3DX12_RESOURCE_BARRIER barriers[VERUS_MAX_NUM_FB_ATTACH];
+	CD3DX12_RESOURCE_BARRIER barriers[VERUS_MAX_FB_ATTACH];
 	int resIndex = 0;
-	int numBarriers = 0;
+	int barrierCount = 0;
 	VERUS_FOR(i, subpass._vInput.size())
 	{
 		const auto& ref = subpass._vInput[i];
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
 			const auto& resources = fs._vResources[resIndex];
-			barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state);
+			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state);
 			_vAttachmentStates[ref._index] = ref._state;
 		}
 		resIndex++;
@@ -295,7 +295,7 @@ void CommandBufferD3D12::PrepareSubpass()
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
 			const auto& resources = fs._vResources[resIndex];
-			barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state);
+			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state);
 			_vAttachmentStates[ref._index] = ref._state;
 		}
 		resIndex++;
@@ -305,11 +305,11 @@ void CommandBufferD3D12::PrepareSubpass()
 		const auto& ref = subpass._depthStencil;
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
-			barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(fs._vResources.back(), _vAttachmentStates[ref._index], ref._state);
+			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(fs._vResources.back(), _vAttachmentStates[ref._index], ref._state);
 			_vAttachmentStates[ref._index] = ref._state;
 		}
 	}
-	pCommandList->ResourceBarrier(numBarriers, barriers);
+	pCommandList->ResourceBarrier(barrierCount, barriers);
 
 	// Clear attachments for this subpass:
 	int index = 0;

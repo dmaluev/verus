@@ -60,14 +60,14 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	if (_desc._flags & TextureDesc::Flags::generateMips)
 	{
 		vkici.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
-		pRendererVulkan->CreateImage(&vkici, VMA_MEMORY_USAGE_GPU_ONLY, _imageStorage, _vmaAllocationStorage);
+		pRendererVulkan->CreateImage(&vkici, VMA_MEMORY_USAGE_GPU_ONLY, _storageImage, _storageVmaAllocation);
 
-		_vImageViewsStorage.resize(_desc._mipLevels);
+		_vStorageImageViews.resize(_desc._mipLevels);
 		VERUS_FOR(mip, _desc._mipLevels)
 		{
 			VkImageViewCreateInfo vkivci = {};
 			vkivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-			vkivci.image = _imageStorage;
+			vkivci.image = _storageImage;
 			vkivci.viewType = VK_IMAGE_VIEW_TYPE_2D;
 			vkivci.format = vkici.format;
 			vkivci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -75,7 +75,7 @@ void TextureVulkan::Init(RcTextureDesc desc)
 			vkivci.subresourceRange.levelCount = 1;
 			vkivci.subresourceRange.baseArrayLayer = 0;
 			vkivci.subresourceRange.layerCount = 1;
-			if (VK_SUCCESS != (res = vkCreateImageView(pRendererVulkan->GetVkDevice(), &vkivci, pRendererVulkan->GetAllocator(), &_vImageViewsStorage[mip])))
+			if (VK_SUCCESS != (res = vkCreateImageView(pRendererVulkan->GetVkDevice(), &vkivci, pRendererVulkan->GetAllocator(), &_vStorageImageViews[mip])))
 				throw VERUS_RUNTIME_ERROR << "vkCreateImageView(), res=" << res;
 		}
 	}
@@ -127,10 +127,10 @@ void TextureVulkan::Done()
 	DestroyStagingBuffers();
 	VERUS_VULKAN_DESTROY(_sampler, vkDestroySampler(pRendererVulkan->GetVkDevice(), _sampler, pRendererVulkan->GetAllocator()));
 	VERUS_VULKAN_DESTROY(_imageView, vkDestroyImageView(pRendererVulkan->GetVkDevice(), _imageView, pRendererVulkan->GetAllocator()));
-	for (auto view : _vImageViewsStorage)
+	for (auto view : _vStorageImageViews)
 		VERUS_VULKAN_DESTROY(view, vkDestroyImageView(pRendererVulkan->GetVkDevice(), view, pRendererVulkan->GetAllocator()));
-	_vImageViewsStorage.clear();
-	VERUS_VULKAN_DESTROY(_imageStorage, vmaDestroyImage(pRendererVulkan->GetVmaAllocator(), _imageStorage, _vmaAllocationStorage));
+	_vStorageImageViews.clear();
+	VERUS_VULKAN_DESTROY(_storageImage, vmaDestroyImage(pRendererVulkan->GetVmaAllocator(), _storageImage, _storageVmaAllocation));
 	VERUS_VULKAN_DESTROY(_image, vmaDestroyImage(pRendererVulkan->GetVmaAllocator(), _image, _vmaAllocation));
 
 	VERUS_DONE(TextureVulkan);
@@ -146,7 +146,7 @@ void TextureVulkan::UpdateImage(int mipLevel, const void* p, int arrayLayer, Bas
 	const int h = Math::Max(1, _desc._height >> mipLevel);
 	VkDeviceSize bufferSize = _bytesPerPixel * w * h;
 	if (IsBC(_desc._format))
-		bufferSize = IO::DDSHeader::ComputeBcLevelSize(w, h, IsBC1(_desc._format));
+		bufferSize = IO::DDSHeader::ComputeBcLevelSize(w, h, Is4BitsBC(_desc._format));
 
 	const int sbIndex = arrayLayer * _desc._mipLevels + mipLevel;
 	if (_vStagingBuffers.size() <= sbIndex)
@@ -182,9 +182,9 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 
 	auto tex = TexturePtr::From(this);
 
-	std::swap(_image, _imageStorage);
+	std::swap(_image, _storageImage);
 	pCB->PipelineImageMemoryBarrier(tex, ImageLayout::undefined, ImageLayout::general, Range<int>(0, _desc._mipLevels - 1));
-	std::swap(_image, _imageStorage);
+	std::swap(_image, _storageImage);
 	pCB->PipelineImageMemoryBarrier(tex, ImageLayout::undefined, ImageLayout::vsReadOnly, Range<int>(1, _desc._mipLevels - 1));
 
 	pCB->BindPipeline(renderer.GetPipelineGenerateMips());
@@ -193,7 +193,7 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 	shader->BeginBindDescriptors();
 
 	auto& ub = renderer.GetUbGenerateMips();
-	ub._isSRGB = false;
+	ub._srgb = false;
 
 	for (int srcMip = 0; srcMip < _desc._mipLevels - 1;)
 	{
@@ -204,17 +204,17 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 
 		ub._srcDimensionCase = (srcHeight & 1) << 1 | (srcWidth & 1);
 
-		int numMips = 4;
-		numMips = Math::Min(4, numMips + 1);
-		numMips = ((srcMip + numMips) >= _desc._mipLevels) ? _desc._mipLevels - srcMip - 1 : numMips;
+		int mipCount = 4;
+		mipCount = Math::Min(4, mipCount + 1);
+		mipCount = ((srcMip + mipCount) >= _desc._mipLevels) ? _desc._mipLevels - srcMip - 1 : mipCount;
 
 		ub._srcMipLevel = srcMip;
-		ub._numMipLevels = numMips;
+		ub._mipLevelCount = mipCount;
 		ub._texelSize.x = 1.f / dstWidth;
 		ub._texelSize.y = 1.f / dstHeight;
 
 		int mips[5] = {};
-		VERUS_FOR(mip, numMips)
+		VERUS_FOR(mip, mipCount)
 			mips[mip + 1] = srcMip + mip + 1;
 
 		const int complexDescSetID = shader->BindDescriptorSetTextures(0, { tex, tex, tex, tex, tex }, mips);
@@ -223,21 +223,21 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 
 		pCB->Dispatch(Math::DivideByMultiple(dstWidth, 8), Math::DivideByMultiple(dstHeight, 8));
 
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::vsReadOnly, ImageLayout::transferDst, Range<int>(srcMip + 1, srcMip + numMips));
-		std::swap(_image, _imageStorage);
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::general, ImageLayout::transferSrc, Range<int>(srcMip + 1, srcMip + numMips));
-		std::swap(_image, _imageStorage);
-		VERUS_FOR(mip, numMips)
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::vsReadOnly, ImageLayout::transferDst, Range<int>(srcMip + 1, srcMip + mipCount));
+		std::swap(_image, _storageImage);
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::general, ImageLayout::transferSrc, Range<int>(srcMip + 1, srcMip + mipCount));
+		std::swap(_image, _storageImage);
+		VERUS_FOR(mip, mipCount)
 		{
 			const int dstMip = srcMip + 1 + mip;
 
 			const int w = _desc._width >> dstMip;
 			const int h = _desc._height >> dstMip;
-			pRendererVulkan->CopyImage(_imageStorage, _image, w, h, dstMip, 0, pCB);
+			pRendererVulkan->CopyImage(_storageImage, _image, w, h, dstMip, 0, pCB);
 		}
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::fsReadOnly, Range<int>(srcMip + 1, srcMip + numMips));
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::fsReadOnly, Range<int>(srcMip + 1, srcMip + mipCount));
 
-		srcMip += numMips;
+		srcMip += mipCount;
 	}
 
 	shader->EndBindDescriptors();

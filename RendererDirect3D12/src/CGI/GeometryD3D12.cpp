@@ -20,7 +20,7 @@ void GeometryD3D12::Init(RcGeometryDesc desc)
 	_dynBindingsMask = desc._dynBindingsMask;
 	_32BitIndices = desc._32BitIndices;
 
-	_vInputElementDesc.reserve(GetNumInputElementDesc(desc._pInputElementDesc));
+	_vInputElementDesc.reserve(GetInputElementDescCount(desc._pInputElementDesc));
 	int i = 0;
 	while (desc._pInputElementDesc[i]._offset >= 0)
 	{
@@ -48,7 +48,7 @@ void GeometryD3D12::Init(RcGeometryDesc desc)
 		i++;
 	}
 
-	_vStrides.reserve(GetNumBindings(desc._pInputElementDesc));
+	_vStrides.reserve(GetBindingCount(desc._pInputElementDesc));
 	i = 0;
 	while (desc._pStrides[i] > 0)
 	{
@@ -79,7 +79,7 @@ void GeometryD3D12::Done()
 	VERUS_DONE(GeometryD3D12);
 }
 
-void GeometryD3D12::CreateVertexBuffer(int num, int binding)
+void GeometryD3D12::CreateVertexBuffer(int count, int binding)
 {
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
@@ -89,7 +89,7 @@ void GeometryD3D12::CreateVertexBuffer(int num, int binding)
 
 	auto& vb = _vVertexBuffers[binding];
 	const int elementSize = _vStrides[binding];
-	vb._bufferSize = num * elementSize;
+	vb._bufferSize = count * elementSize;
 
 	if (((_instBindingsMask | _dynBindingsMask) >> binding) & 0x1)
 	{
@@ -184,13 +184,13 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, BaseCommandBu
 	}
 }
 
-void GeometryD3D12::CreateIndexBuffer(int num)
+void GeometryD3D12::CreateIndexBuffer(int count)
 {
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
 
 	const int elementSize = _32BitIndices ? sizeof(UINT32) : sizeof(UINT16);
-	_indexBuffer._bufferSize = num * elementSize;
+	_indexBuffer._bufferSize = count * elementSize;
 
 	D3D12MA::ALLOCATION_DESC allocDesc = {};
 	allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
@@ -265,9 +265,9 @@ D3D12_INPUT_LAYOUT_DESC GeometryD3D12::GetD3DInputLayoutDesc(UINT32 bindingsFilt
 	if (UINT32_MAX == bindingsFilter)
 		return { _vInputElementDesc.data(), Utils::Cast32(_vInputElementDesc.size()) };
 
-	uint32_t replaceBinding[VERUS_MAX_NUM_VB] = {}; // For bindings compaction.
+	uint32_t replaceBinding[VERUS_MAX_VB] = {}; // For bindings compaction.
 	int binding = 0;
-	VERUS_FOR(i, VERUS_MAX_NUM_VB)
+	VERUS_FOR(i, VERUS_MAX_VB)
 	{
 		replaceBinding[i] = binding;
 		if ((bindingsFilter >> i) & 0x1)

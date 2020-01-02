@@ -32,15 +32,15 @@ float Random::NextFloat()
 	return static_cast<float>(Next()) / std::numeric_limits<UINT32>::max();
 }
 
-void Random::NextArray(UINT32* p, int num)
+void Random::NextArray(UINT32* p, int count)
 {
-	VERUS_FOR(i, num)
+	VERUS_FOR(i, count)
 		p[i] = Next();
 }
 
-void Random::NextArray(float* p, int num)
+void Random::NextArray(float* p, int count)
 {
-	VERUS_FOR(i, num)
+	VERUS_FOR(i, count)
 		p[i] = NextFloat();
 }
 

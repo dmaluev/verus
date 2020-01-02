@@ -15,7 +15,7 @@ Xml::~Xml()
 {
 }
 
-void Xml::SetFilename(CSZ name)
+void Xml::SetFileName(CSZ name)
 {
 	String pathName;
 	CSZ pSlash = strchr(name, '/');

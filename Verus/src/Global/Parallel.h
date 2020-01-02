@@ -16,15 +16,15 @@ namespace verus
 		{
 			const int total = to - from;
 			VERUS_RT_ASSERT(minShare <= total);
-			const UINT32 numCoresLimit = total / minShare;
-			const int numCores = Math::Min(std::thread::hardware_concurrency(), numCoresLimit);
-			const int numExThreads = numCores - 1;
-			const int share = total / numCores;
-			const int extra = total - share * numExThreads;
+			const UINT32 coreCountLimit = total / minShare;
+			const int coreCount = Math::Min(std::thread::hardware_concurrency(), coreCountLimit);
+			const int exThreadCount = coreCount - 1;
+			const int share = total / coreCount;
+			const int extra = total - share * exThreadCount;
 			std::vector<std::thread> v;
-			v.reserve(numExThreads);
+			v.reserve(exThreadCount);
 			const std::chrono::high_resolution_clock::time_point t0 = std::chrono::high_resolution_clock::now();
-			VERUS_FOR(i, numExThreads)
+			VERUS_FOR(i, exThreadCount)
 			{
 				v.push_back(std::thread([i, share, func]()
 					{
@@ -35,7 +35,7 @@ namespace verus
 					}));
 			}
 			{
-				const int from = share * numExThreads;
+				const int from = share * exThreadCount;
 				const int to = from + extra;
 				for (int j = from; j < to; ++j)
 					func(j);

@@ -10,7 +10,6 @@ float4 ColorToSRGB(float4 x)
 	return float4(rgb, x.a);
 }
 
-// HDR from 0.0 to 12.0, where 1.0 - night, 10.0 - bright daylight, 11.0 - sky, 12.0 - ultra bright sun:
 float4 HDRColorToLinear(float4 x)
 {
 	return float4(x.rgb * x.rgb * 12.0, x.a);

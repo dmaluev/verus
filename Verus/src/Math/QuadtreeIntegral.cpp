@@ -21,16 +21,16 @@ int QuadtreeIntegral::Node::GetChildIndex(int currentNode, int child)
 	return 1 + (currentNode << 2) + child;
 }
 
-bool QuadtreeIntegral::Node::HasChildren(int currentNode, int numNodes)
+bool QuadtreeIntegral::Node::HasChildren(int currentNode, int nodeCount)
 {
-	return GetChildIndex(currentNode, 3) < numNodes;
+	return GetChildIndex(currentNode, 3) < nodeCount;
 }
 
 void QuadtreeIntegral::Node::PrepareBounds2D()
 {
-	const Point3 pointMin(float(_xzMin[0]), 0, float(_xzMin[1]));
-	const Point3 pointMax(float(_xzMax[0]), 0, float(_xzMax[1]));
-	_bounds.Set(pointMin, pointMax);
+	const Point3 minPoint(float(_xzMin[0]), 0, float(_xzMin[1]));
+	const Point3 maxPoint(float(_xzMax[0]), 0, float(_xzMax[1]));
+	_bounds.Set(minPoint, maxPoint);
 }
 
 void QuadtreeIntegral::Node::PrepareMinMax(int mapHalf)
@@ -80,11 +80,11 @@ void QuadtreeIntegral::Done()
 void QuadtreeIntegral::AllocNodes()
 {
 	const int maxDepth = Math::HighestBit(_mapSide / _limit);
-	const int numDepths = maxDepth + 1;
-	_numNodes = 0;
-	VERUS_FOR(i, numDepths)
-		_numNodes += (1 << i) * (1 << i);
-	_vNodes.resize(_numNodes);
+	const int depthCount = maxDepth + 1;
+	_nodeCount = 0;
+	VERUS_FOR(i, depthCount)
+		_nodeCount += (1 << i) * (1 << i);
+	_vNodes.resize(_nodeCount);
 }
 
 void QuadtreeIntegral::InitNodes(int currentNode, int depth)
@@ -97,7 +97,7 @@ void QuadtreeIntegral::InitNodes(int currentNode, int depth)
 	}
 	else
 	{
-		RNode parent = _vNodes[_numTests];
+		RNode parent = _vNodes[_testCount];
 
 		const int srcMin[2] = { parent.GetSetMin()[0], parent.GetSetMin()[1] };
 		const int srcMax[2] = { parent.GetSetMax()[0], parent.GetSetMax()[1] };
@@ -110,7 +110,7 @@ void QuadtreeIntegral::InitNodes(int currentNode, int depth)
 		int index = -1;
 		VERUS_FOR(i, 4)
 		{
-			if (Node::GetChildIndex(_numTests, i) == currentNode)
+			if (Node::GetChildIndex(_testCount, i) == currentNode)
 			{
 				index = i;
 				break;
@@ -133,7 +133,7 @@ void QuadtreeIntegral::InitNodes(int currentNode, int depth)
 		{
 			const int childIndex = Node::GetChildIndex(currentNode, i);
 
-			_numTests = currentNode;
+			_testCount = currentNode;
 			InitNodes(childIndex, depth + 1);
 
 			Bounds bounds = node.GetBounds();
@@ -155,11 +155,11 @@ void QuadtreeIntegral::TraverseVisible(int currentNode)
 {
 	if (!currentNode)
 	{
-		_numTests = 0;
-		_numTestsPassed = 0;
+		_testCount = 0;
+		_passedTestCount = 0;
 	}
 
-	_numTests++;
+	_testCount++;
 
 	{
 		Bounds bounds = _vNodes[currentNode].GetBounds();
@@ -180,7 +180,7 @@ void QuadtreeIntegral::TraverseVisible(int currentNode)
 	}
 
 	// Yes, it is visible:
-	if (Node::HasChildren(currentNode, _numNodes)) // Node has children -> update them:
+	if (Node::HasChildren(currentNode, _nodeCount)) // Node has children -> update them:
 	{
 		VERUS_FOR(i, 4)
 		{
@@ -190,7 +190,7 @@ void QuadtreeIntegral::TraverseVisible(int currentNode)
 	}
 	else // Smallest node -> update it:
 	{
-		_numTestsPassed++;
+		_passedTestCount++;
 		_pDelegate->QuadtreeIntegral_ProcessVisibleNode(
 			_vNodes[currentNode].GetOffsetIJ(),
 			_vNodes[currentNode].GetSphere().GetCenter());

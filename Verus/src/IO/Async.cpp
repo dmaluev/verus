@@ -58,7 +58,7 @@ void Async::Load(CSZ url, PAsyncCallback pCallback, RcTaskDesc desc)
 				}
 			}
 
-			full = VERUS_CIRCULAR_IS_FULL(_cursorRead, _cursorWrite, VERUS_ARRAY_LENGTH(_queue));
+			full = VERUS_CIRCULAR_IS_FULL(_cursorRead, _cursorWrite, VERUS_COUNT_OF(_queue));
 
 			if (!full)
 			{
@@ -72,7 +72,7 @@ void Async::Load(CSZ url, PAsyncCallback pCallback, RcTaskDesc desc)
 				task._vOwners.push_back(pCallback);
 				task._desc = desc;
 				_queue[_cursorWrite] = _C(_mapTasks.find(key)->first);
-				VERUS_CIRCULAR_ADD(_cursorWrite, VERUS_ARRAY_LENGTH(_queue));
+				VERUS_CIRCULAR_ADD(_cursorWrite, VERUS_COUNT_OF(_queue));
 			}
 		}
 
@@ -120,7 +120,7 @@ void Async::Update()
 		RTask task = itTask->second;
 		if (task._loaded) // Only loaded task can be processed:
 		{
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 			VERUS_LOG_DEBUG("Update() task=" << itTask->first);
 #endif
 			VERUS_RT_ASSERT(task._desc._runOnMainThread);
@@ -213,7 +213,7 @@ void Async::ThreadProc()
 				}
 			}
 
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 			VERUS_LOG_DEBUG("ThreadProc() key=" << key);
 #endif
 
@@ -224,7 +224,7 @@ void Async::ThreadProc()
 				// Is it safe to run a callback on this loader thread?
 				if (!pTask->_desc._runOnMainThread)
 				{
-#ifdef VERUS_DEBUG
+#ifdef VERUS_RELEASE_DEBUG
 					VERUS_LOG_DEBUG("ThreadProc(), runOnMainThread key=" << key);
 #endif
 					if (!pTask->_v.empty())
@@ -237,7 +237,7 @@ void Async::ThreadProc()
 					if (_mapTasks.empty())
 						_order = 0;
 				}
-				VERUS_CIRCULAR_ADD(_cursorRead, VERUS_ARRAY_LENGTH(_queue));
+				VERUS_CIRCULAR_ADD(_cursorRead, VERUS_COUNT_OF(_queue));
 			}
 		}
 	}

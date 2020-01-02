@@ -27,49 +27,49 @@ size_t FileSystem::FindPosForPAK(CSZ url)
 	return at;
 }
 
-void FileSystem::ReadHeaderPAK(RFile file, UINT32& magic, INT64& entriesOffset, INT64& entriesSize)
+void FileSystem::ReadPakHeader(RFile file, UINT32& magic, INT64& entriesOffset, INT64& entriesSize)
 {
 	file >> magic;
 	if (magic != 'KAP2')
-		throw VERUS_RUNTIME_ERROR << "ReadHeaderPAK(), Invalid magic number in PAK";
+		throw VERUS_RUNTIME_ERROR << "ReadPakHeader(), Invalid magic number in PAK";
 
 	file >> entriesOffset;
 	file >> entriesSize;
 	if (entriesSize % s_entrySize)
-		throw VERUS_RUNTIME_ERROR << "ReadHeaderPAK(), Invalid size of entries in PAK";
+		throw VERUS_RUNTIME_ERROR << "ReadPakHeader(), Invalid size of entries in PAK";
 }
 
 void FileSystem::PreloadCache(CSZ pak, CSZ types[])
 {
 	StringStream ss;
-	//ss << Utils::I().GetModulePath() << s_dataFolder << pak;
+	ss << _C(Utils::I().GetModulePath()) << s_dataFolder << pak;
 	File file;
 	if (!file.Open(_C(ss.str())))
 		return;
 
 	UINT32 magic;
 	INT64 entriesOffset, entriesSize;
-	ReadHeaderPAK(file, magic, entriesOffset, entriesSize);
+	ReadPakHeader(file, magic, entriesOffset, entriesSize);
 
 	char value[s_querySize];
 
 	auto LoadThisFile = [types](CSZ value)
 	{
-		CSZ* typesAt = types;
-		while (*typesAt)
+		CSZ* p = types;
+		while (*p)
 		{
-			if (Str::EndsWith(value, *typesAt))
+			if (Str::EndsWith(value, *p))
 				return true;
-			typesAt++;
+			p++;
 		}
 		return false;
 	};
 
 	char fileEntry[s_entrySize] = {};
-	INT64 numEntries = entriesSize / s_entrySize;
-	INT64 dataOffset, dataSize;
+	INT64 entriesCount = entriesSize / s_entrySize;
+	INT64 pakDataOffset, pakDataSize;
 	file.Seek(entriesOffset, SEEK_SET);
-	while (numEntries)
+	while (entriesCount)
 	{
 		file >> fileEntry;
 
@@ -78,19 +78,19 @@ void FileSystem::PreloadCache(CSZ pak, CSZ types[])
 
 		if (LoadThisFile(value))
 		{
-			memcpy(&dataOffset, fileEntry + s_querySize, sizeof(INT64));
-			memcpy(&dataSize, fileEntry + s_querySize + sizeof(INT64), sizeof(INT64));
+			memcpy(&pakDataOffset, fileEntry + s_querySize, sizeof(INT64));
+			memcpy(&pakDataSize, fileEntry + s_querySize + sizeof(INT64), sizeof(INT64));
 
-			const String password = ConvertFilenameToPassword(fileEntry);
+			const String password = ConvertFileNameToPassword(fileEntry);
 
 			Vector<BYTE> vCip, vZip, vData;
 			const INT64 entryOffset = file.GetPosition();
-			file.Seek(dataOffset, SEEK_SET); // [unzipped size][encrypted data].
+			file.Seek(pakDataOffset, SEEK_SET); // [unzipped size][encrypted data].
 			INT64 size;
 			file >> size;
-			vData.resize(size_t(size + 1)); // For null-terminated string.
-			vCip.resize(size_t(dataSize - sizeof(INT64)));
-			vZip.resize(size_t(dataSize - sizeof(INT64)));
+			vData.resize(size + 1); // For null-terminated string.
+			vCip.resize(pakDataSize - sizeof(INT64));
+			vZip.resize(pakDataSize - sizeof(INT64));
 			file.Read(vCip.data(), vCip.size());
 			Security::CipherRC4::Decrypt(password, vCip, vZip);
 			uLongf destLen = Utils::Cast32(size);
@@ -107,13 +107,13 @@ void FileSystem::PreloadCache(CSZ pak, CSZ types[])
 			file.Seek(entryOffset, SEEK_SET); // Go back to entries.
 		}
 
-		numEntries--;
+		entriesCount--;
 	}
 }
 
 void FileSystem::LoadResource(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc)
 {
-	String pathNamePAK, pakEntry;
+	String pakPathName, pakEntry;
 	const size_t pakPos = FindPosForPAK(url);
 	if (pakPos != String::npos) // "[Foo]:Bar.ext" format -> in PAK file:
 	{
@@ -123,22 +123,22 @@ void FileSystem::LoadResource(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc)
 		ss << strUrl.substr(1, pakPos - 1) << ".pak";
 		const String name = strUrl.substr(pakPos + 2);
 		const WideString wide = Str::Utf8ToWide(name);
-		pathNamePAK = ss.str();
+		pakPathName = ss.str();
 		pakEntry = Str::CyrillicWideToAnsi(_C(wide));
 	}
 
-	File filePAK;
-	if (pathNamePAK.empty() || pakEntry.empty()) // System file name?
+	if (pakPathName.empty() || pakEntry.empty()) // System file name?
 		return LoadResourceFromFile(url, vData, desc);
-	if (!filePAK.Open(_C(pathNamePAK))) // PAK not found? Try system file.
+	File pakFile;
+	if (!pakFile.Open(_C(pakPathName))) // PAK not found? Try system file.
 		return LoadResourceFromFile(url, vData, desc);
 
-	LoadResourceFromPAK(url, vData, desc, filePAK, _C(pakEntry));
+	LoadResourceFromPAK(url, vData, desc, pakFile, _C(pakEntry));
 }
 
 void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc)
 {
-	String strUrl(url), pathNameProject(url);
+	String strUrl(url), projectPathName(url);
 	const bool shader = Str::StartsWith(url, s_shaderPAK);
 	const size_t pakPos = FindPosForPAK(url);
 	if (pakPos != String::npos)
@@ -146,7 +146,7 @@ void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc d
 		if (shader)
 		{
 			strUrl.replace(0, strlen(s_shaderPAK), "/");
-			pathNameProject = String(_C(Utils::I().GetProjectPath())) + strUrl;
+			projectPathName = String(_C(Utils::I().GetProjectPath())) + strUrl;
 			StringStream ss;
 			ss << _C(Utils::I().GetShaderPath()) << strUrl;
 			strUrl = ss.str();
@@ -155,7 +155,7 @@ void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc d
 		{
 			String folder = strUrl.substr(1, pakPos - 1);
 			const String name = strUrl.substr(pakPos + 2);
-			pathNameProject = String(_C(Utils::I().GetProjectPath())) + s_dataFolder + folder + "/" + name;
+			projectPathName = String(_C(Utils::I().GetProjectPath())) + s_dataFolder + folder + "/" + name;
 			StringStream ss;
 			ss << _C(Utils::I().GetModulePath()) << s_dataFolder << folder << "/" << name;
 			strUrl = ss.str();
@@ -163,7 +163,7 @@ void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc d
 	}
 
 	File file;
-	if (file.Open(_C(strUrl)) || file.Open(_C(pathNameProject)))
+	if (file.Open(_C(strUrl)) || file.Open(_C(projectPathName)))
 	{
 		const INT64 size = file.GetSize();
 		if (size >= 0)
@@ -200,7 +200,7 @@ void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc de
 {
 	UINT32 magic;
 	INT64 entriesOffset, entriesSize;
-	ReadHeaderPAK(file, magic, entriesOffset, entriesSize);
+	ReadPakHeader(file, magic, entriesOffset, entriesSize);
 
 	char query[s_querySize];
 	char value[s_querySize];
@@ -209,10 +209,10 @@ void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc de
 
 	bool found = false;
 	char fileEntry[s_entrySize] = {};
-	INT64 numEntries = entriesSize / s_entrySize;
-	INT64 dataOffset, dataSize;
+	INT64 entriesCount = entriesSize / s_entrySize;
+	INT64 pakDataOffset, pakDataSize;
 	file.Seek(entriesOffset, SEEK_SET);
-	while (numEntries)
+	while (entriesCount)
 	{
 		file >> fileEntry;
 
@@ -221,12 +221,12 @@ void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc de
 
 		if (!_stricmp(query, value))
 		{
-			memcpy(&dataOffset, fileEntry + s_querySize, sizeof(INT64));
-			memcpy(&dataSize, fileEntry + s_querySize + sizeof(INT64), sizeof(INT64));
+			memcpy(&pakDataOffset, fileEntry + s_querySize, sizeof(INT64));
+			memcpy(&pakDataSize, fileEntry + s_querySize + sizeof(INT64), sizeof(INT64));
 			found = true;
 			break;
 		}
-		numEntries--;
+		entriesCount--;
 	}
 	if (!found) // Resource is not in PAK file?
 	{
@@ -235,64 +235,71 @@ void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc de
 		return LoadResourceFromFile(url, vData, desc);
 	}
 
-	const String password = ConvertFilenameToPassword(fileEntry);
+	const String password = ConvertFileNameToPassword(fileEntry);
 
 	Vector<BYTE> vCip, vZip;
-	file.Seek(dataOffset, SEEK_SET);
+	file.Seek(pakDataOffset, SEEK_SET);
 	if (Str::EndsWith(query, ".dds", false))
 	{
 		const int maxParts = 8;
 		INT64 partEntries[maxParts * 3] = {};
 
+		int headerSize = sizeof(DDSHeader);
 		DDSHeader header;
 		file >> header;
 		if (!header.Validate())
 			throw VERUS_RUNTIME_ERROR << "LoadResourceFromPAK(), Invalid DDS header: " << url;
 		DDSHeaderDXT10 header10;
 		if (header.IsDXT10())
+		{
 			file >> header10;
-		const int numParts = header.GetNumParts();
-		const int numPartsSkip = header.SkipParts(desc._texturePart);
+			headerSize += sizeof(DDSHeaderDXT10);
+		}
+		const int partCount = header.GetPartCount();
+		const int skipPartCount = header.SkipParts(desc._texturePart);
 
-		if (numParts > maxParts)
+		if (partCount > maxParts)
 			throw VERUS_RUNTIME_ERROR << "LoadResourceFromPAK(), Too many parts in PAK";
 
-		INT64 sizeTotal = sizeof(header);
-		VERUS_FOR(part, numParts)
+		INT64 totalSize = headerSize;
+		VERUS_FOR(part, partCount)
 		{
 			file >> partEntries[part * 3 + 0];
 			file >> partEntries[part * 3 + 1];
 			file >> partEntries[part * 3 + 2];
-			if (part >= numPartsSkip)
-				sizeTotal += partEntries[part * 3 + 1];
+			if (part >= skipPartCount)
+				totalSize += partEntries[part * 3 + 1];
 		}
 
-		vData.resize(size_t(sizeTotal));
+		// Generate new DDS inside vData:
+		vData.resize(totalSize);
 		memcpy(vData.data(), &header, sizeof(header));
-		INT64 at = sizeof(header);
+		if (header.IsDXT10())
+			memcpy(&vData[sizeof(DDSHeader)], &header10, sizeof(header10));
 
-		VERUS_FOR(part, numParts)
+		INT64 dataPos = headerSize;
+		VERUS_FOR(part, partCount)
 		{
-			const INT64 offsetPart = partEntries[part * 3 + 0];
-			const INT64 sizePart = partEntries[part * 3 + 1];
-			const INT64 sizePartZip = partEntries[part * 3 + 2];
+			const INT64 partOffset = partEntries[part * 3 + 0];
+			const INT64 partSize = partEntries[part * 3 + 1];
+			const INT64 partZipSize = partEntries[part * 3 + 2];
 			INT64 size = 0;
-			if (part >= numPartsSkip)
+			if (part >= skipPartCount)
 			{
-				file.Seek(dataOffset + offsetPart, SEEK_SET);
+				file.Seek(pakDataOffset + partOffset, SEEK_SET);
 				file >> size;
-				if (size != sizePart)
+				if (size != partSize)
 					throw VERUS_RUNTIME_ERROR << "LoadResourceFromPAK(), Invalid size in PAK";
-				vCip.resize(size_t(sizePartZip - sizeof(INT64)));
-				vZip.resize(size_t(sizePartZip - sizeof(INT64)));
+				vCip.resize(partZipSize - sizeof(INT64));
+				vZip.resize(partZipSize - sizeof(INT64));
 				file.Read(vCip.data(), vCip.size());
 				Security::CipherRC4::Decrypt(password, vCip, vZip);
 				uLongf destLen = Utils::Cast32(size);
-				const int ret = uncompress(vData.data() + at, &destLen, vZip.data(), Utils::Cast32(vZip.size()));
+				const int ret = uncompress(vData.data() + dataPos, &destLen, vZip.data(), Utils::Cast32(vZip.size()));
 				if (ret != Z_OK)
 					throw VERUS_RUNTIME_ERROR << "uncompress(), " << ret;
 			}
-			at += size;
+			dataPos += size;
 		}
 	}
 	else
@@ -300,9 +307,9 @@ void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc de
 		INT64 size;
 		file >> size;
 		const INT64 vsize = desc._nullTerm ? size + 1 : size;
-		vData.resize(size_t(vsize));
-		vCip.resize(size_t(dataSize - sizeof(INT64)));
-		vZip.resize(size_t(dataSize - sizeof(INT64)));
+		vData.resize(vsize);
+		vCip.resize(pakDataSize - sizeof(INT64));
+		vZip.resize(pakDataSize - sizeof(INT64));
 		file.Read(vCip.data(), vCip.size());
 		Security::CipherRC4::Decrypt(password, vCip, vZip);
 		uLongf destLen = Utils::Cast32(size);
@@ -329,30 +336,30 @@ void FileSystem::LoadTextureParts(RFile file, CSZ url, int texturePart, Vector<B
 	const int maxW = header._width;
 	const int maxH = header._height;
 
-	const int numParts = header.GetNumParts();
-	const int numPartsCheck = numParts - 1;
-	const int numPartsSkip = header.SkipParts(texturePart);
+	const int partCount = header.GetPartCount();
+	const int skipPartCount = header.SkipParts(texturePart);
+	const int partCheckCount = partCount - 1;
 
-	size_t sizeSkip = 0;
-	VERUS_FOR(part, numPartsCheck)
+	size_t skipSize = 0;
+	VERUS_FOR(part, partCheckCount)
 	{
 		const int w = maxW >> part;
 		const int h = maxH >> part;
-		const size_t sizePart = DDSHeader::ComputeBcLevelSize(w, h, header.Is4BitsBC());
-		if (part < numPartsSkip)
-			sizeSkip += sizePart;
+		const size_t partSize = DDSHeader::ComputeBcLevelSize(w, h, header.Is4BitsBC());
+		if (part < skipPartCount)
+			skipSize += partSize;
 	}
 
 	const INT64 size = file.GetSize();
-	vData.resize(size_t(size) - sizeSkip);
+	vData.resize(size - skipSize);
 	memcpy(vData.data(), &header, sizeof(header));
 	if (header.IsDXT10())
 		memcpy(vData.data() + sizeof(header), &header10, sizeof(header10));
-	file.Seek(sizeSkip, SEEK_CUR);
-	file.Read(vData.data() + headerSize, size - headerSize - sizeSkip);
+	file.Seek(skipSize, SEEK_CUR);
+	file.Read(vData.data() + headerSize, size - headerSize - skipSize);
 }
 
-String FileSystem::ConvertFilenameToPassword(CSZ fileEntry)
+String FileSystem::ConvertFileNameToPassword(CSZ fileEntry)
 {
 	String password;
 	password.resize(strlen(fileEntry));
@@ -363,34 +370,28 @@ String FileSystem::ConvertFilenameToPassword(CSZ fileEntry)
 
 bool FileSystem::FileExist(CSZ url)
 {
-	String path(url), pak, project;
+	String path(url), pak, projectPathName;
 	const size_t pakPos = FindPosForPAK(url);
 	if (pakPos != String::npos)
 	{
 		StringStream ssPak;
-		//ssPak << Utils::I().GetModulePath() << s_dataFolder << path.substr(0, pakPos) << ".pak";
+		ssPak << _C(Utils::I().GetModulePath()) << s_dataFolder << path.substr(0, pakPos) << ".pak";
 		pak = ssPak.str();
 
 		path.replace(pakPos, 1, "/");
-		//project = String(_C(Utils::I().GetProjectPath())) + "/" + path;
+		projectPathName = String(_C(Utils::I().GetProjectPath())) + "/" + path;
 
 		StringStream ss;
-		//ss << Utils::I().GetModulePath() << s_dataFolder << path;
+		ss << _C(Utils::I().GetModulePath()) << s_dataFolder << path;
 		path = ss.str();
 	}
 	File file;
 	if (file.Open(_C(path))) // Normal filename:
-	{
 		return true;
-	}
 	if (file.Open(_C(pak))) // PAK filename:
-	{
 		return true;
-	}
-	if (file.Open(_C(project))) // File in another project dir:
-	{
+	if (file.Open(_C(projectPathName))) // File in another project dir:
 		return true;
-	}
 	return false;
 }
 
@@ -426,10 +427,10 @@ String FileSystem::ConvertRelativePathToAbsolute(RcString path, bool useProjectD
 	const size_t colon = systemPath.find(':');
 	if (colon != String::npos)
 		systemPath[colon] = '/';
-	//if (useProjectDir && *_C(utils.GetProjectPath()))
-	//	systemPath = String(_C(utils.GetProjectPath())) + "/" + systemPath;
-	//else
-	//	systemPath = utils.GetModulePath() + s_dataFolder + systemPath;
+	if (useProjectDir && *_C(utils.GetProjectPath()))
+		systemPath = String(_C(utils.GetProjectPath())) + "/" + systemPath;
+	else
+		systemPath = String(_C(utils.GetModulePath())) + s_dataFolder + systemPath;
 	return systemPath;
 }
 

@@ -39,7 +39,7 @@ namespace verus
 			PipelinePwn       _pipeGenerateMips;
 			TexturePwn        _texDepthStencil;
 			DeferredShading   _ds;
-			UINT64            _numFrames = 0;
+			UINT64            _frameCount = 0;
 			Gapi              _gapi = Gapi::unknown;
 			int               _swapChainWidth = 0;
 			int               _swapChainHeight = 0;
@@ -86,14 +86,14 @@ namespace verus
 
 			App::PWindow GetMainWindow() const { return _pMainWindow; }
 			App::PWindow SetMainWindow(App::PWindow p) { return Utils::Swap(_pMainWindow, p); }
-			float GetWindowAspectRatio() const;
+			float GetSwapChainAspectRatio() const;
 
 			virtual void ImGuiSetCurrentContext(ImGuiContext* pContext);
 			void ImGuiUpdateStyle();
 
 			// Frame rate:
 			float GetFps() const { return _fps; }
-			UINT64 GetNumFrames() const { return _numFrames; }
+			UINT64 GetFrameCount() const { return _frameCount; }
 
 			int GetRenderPass_SwapChain() const { return _rpSwapChain; }
 			int GetRenderPass_SwapChainDepth() const { return _rpSwapChainDepth; }

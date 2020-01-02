@@ -17,8 +17,12 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(Limits);
 
-		class Settings : public Singleton<Settings>, public IO::Json
+		class Settings : public Singleton<Settings>, IO::Json
 		{
+			typedef Map<String, String> TMapLocalizedStrings;
+
+			TMapLocalizedStrings _mapLocalizedStrings;
+
 		public:
 			struct CommandLine
 			{
@@ -60,10 +64,6 @@ namespace verus
 			int           _gapi = 0;
 			int           _gpuAnisotropyLevel = 4;
 			int           _gpuAntialiasingLevel = 0;
-			String        _gpuForcedProfile = "sm_3_0";
-			bool          _gpuOffscreenRender = false;
-			bool          _gpuParallaxMapping = false;
-			bool          _gpuPerPixelLighting = true;
 			int	          _gpuTextureLodLevel = 0;
 			bool          _gpuTrilinearFilter = false;
 			float         _inputMouseSensitivity = 1;
@@ -74,6 +74,7 @@ namespace verus
 			int	          _sceneGrassDensity = 1000;
 			ShadowQuality _sceneShadowQuality = ShadowQuality::multisampled;
 			WaterQuality  _sceneWaterQuality = WaterQuality::solidColor;
+			bool          _screenAllowHighDPI = false;
 			float         _screenFOV = 70;
 			int           _screenSizeHeight = 720;
 			int           _screenSizeWidth = 1280;
@@ -83,14 +84,14 @@ namespace verus
 			CommandLine   _commandLine;
 			Limits        _limits;
 			String        _imguiFont;
+			float         _highDpiScale = 1;
 
 			Settings();
 			~Settings();
 
-			void LoadValidateSave();
 			void Load();
-			void Save();
 			void Validate();
+			void Save();
 
 			void ParseCommandLineArgs(int argc, wchar_t* argv[]);
 			void ParseCommandLineArgs(int argc, char* argv[]);
@@ -100,6 +101,12 @@ namespace verus
 			void MatchScreen();
 
 			RcLimits GetLimits() const { return _limits; }
+
+			void LoadLocalizedStrings(CSZ url);
+			CSZ GetLocalizedString(CSZ id) const;
+
+			void UpdateHighDpiScale();
+			int GetFontSize() const;
 		};
 		VERUS_TYPEDEFS(Settings);
 	}

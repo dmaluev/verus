@@ -5,14 +5,14 @@ using namespace verus::CGI;
 
 // DescriptorHeap:
 
-void DescriptorHeap::Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num, bool shaderVisible)
+void DescriptorHeap::Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT count, bool shaderVisible)
 {
 	VERUS_CT_ASSERT(sizeof(*this) == 32);
-	VERUS_RT_ASSERT(num > 0);
+	VERUS_RT_ASSERT(count > 0);
 	HRESULT hr = 0;
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 	desc.Type = _type = type;
-	desc.NumDescriptors = num;
+	desc.NumDescriptors = count;
 	desc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	if (FAILED(hr = pDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_pDescriptorHeap))))
 		throw VERUS_RUNTIME_ERROR << "CreateDescriptorHeap(), hr=" << VERUS_HR(hr);
@@ -34,29 +34,29 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE DescriptorHeap::AtGPU(INT index) const
 
 // DynamicDescriptorHeap:
 
-void DynamicDescriptorHeap::Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT num, UINT numStatic, bool shaderVisible)
+void DynamicDescriptorHeap::Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT count, UINT staticCount, bool shaderVisible)
 {
 	VERUS_CT_ASSERT(sizeof(*this) == 56);
-	_capacity = num;
+	_capacity = count;
 	_offset = 0;
-	DescriptorHeap::Create(pDevice, type, _capacity * BaseRenderer::s_ringBufferSize + numStatic, shaderVisible);
+	DescriptorHeap::Create(pDevice, type, _capacity * BaseRenderer::s_ringBufferSize + staticCount, shaderVisible);
 }
 
-HandlePair DynamicDescriptorHeap::GetNextHandlePair(int num)
+HandlePair DynamicDescriptorHeap::GetNextHandlePair(int count)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_D3D12;
 
-	if (_currentFrame != renderer.GetNumFrames())
+	if (_currentFrame != renderer.GetFrameCount())
 	{
-		_currentFrame = renderer.GetNumFrames();
+		_currentFrame = renderer.GetFrameCount();
 		_offset = 0;
 	}
 
-	if (_offset + num <= _capacity)
+	if (_offset + count <= _capacity)
 	{
 		const INT index = _capacity * pRendererD3D12->GetRingBufferIndex() + _offset;
-		_offset += num;
+		_offset += count;
 		_peakLoad = Math::Max<UINT64>(_peakLoad, _offset);
 		return HandlePair(AtCPU(index), AtGPU(index));
 	}

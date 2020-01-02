@@ -34,7 +34,7 @@ void FileParser::Mesh::UberVertex::Add(float weight, UINT32 index)
 		float* pMin = std::min_element(_bw, _bw + 4);
 		if (weight > * pMin)
 		{
-			const int i = std::distance(_bw, pMin);
+			const int i = Utils::Cast32(std::distance(_bw, pMin));
 			_bw[i] = weight;
 			_bi[i] = index;
 		}
@@ -74,7 +74,7 @@ void FileParser::Mesh::UberVertex::CompileBits(UINT32& ww, UINT32& ii) const
 UINT32 FileParser::Mesh::UberVertex::GetDominantIndex()
 {
 	_bw[0] = 1 - _bw[1] - _bw[2] - _bw[3];
-	const int i = std::distance(_bw, std::max_element(_bw, _bw + 4));
+	const int i = Utils::Cast32(std::distance(_bw, std::max_element(_bw, _bw + 4)));
 	return _bi[i];
 }
 
@@ -115,10 +115,10 @@ FileParser::Mesh::~Mesh()
 
 FileParser::Mesh::PBone FileParser::Mesh::FindBone(CSZ name)
 {
-	VERUS_FOREACH(Vector<Bone>, _vBones, it)
+	for (auto& bone : _vBones)
 	{
-		if ((*it)._name == name)
-			return &(*it);
+		if (bone._name == name)
+			return &bone;
 	}
 	return nullptr;
 }
@@ -132,32 +132,32 @@ void FileParser::Mesh::Optimize()
 	}
 
 	// Weld vertices, remove duplicates:
-	int numSimilarVerts = 0;
-	int numDegenerateFaces = 0;
+	int similarVertCount = 0;
+	int degenerateFaceCount = 0;
 	Vector<UberVertex> vVbOpt; // This will not contain equal vertices.
 	Vector<Face> vIbOpt; // This can get smaller than current IB, if there are zero-area triangles.
-	vVbOpt.reserve(_numVerts);
-	vIbOpt.reserve(_numFaces);
-	VERUS_FOR(face, _numFaces) // For each triangle:
+	vVbOpt.reserve(_vertCount);
+	vIbOpt.reserve(_faceCount);
+	VERUS_FOR(face, _faceCount) // For each triangle:
 	{
-		FileParser::I().OnProgress(float(face) / _numFaces * 100);
+		FileParser::I().OnProgress(float(face) / _faceCount * 100);
 		Face newFace;
-		int numPushed = 0;
+		int pushedCount = 0;
 		VERUS_FOR(i, 3) // For each vertex in triangle:
 		{
 			RcUberVertex test = _vUberVerts[_vFaces[face]._indices[i]]; // Fetch vertex.
 			const auto similar = std::find(vVbOpt.begin(), vVbOpt.end(), test);
-			const int index = (similar == vVbOpt.end()) ? -1 : std::distance(vVbOpt.begin(), similar);
+			const int index = (similar == vVbOpt.end()) ? -1 : Utils::Cast32(std::distance(vVbOpt.begin(), similar));
 			if (index < 0) // No similar vertex found.
 			{
-				newFace._indices[i] = vVbOpt.size();
+				newFace._indices[i] = Utils::Cast32(vVbOpt.size());
 				vVbOpt.push_back(test);
-				numPushed++;
+				pushedCount++;
 			}
 			else
 			{
 				newFace._indices[i] = index;
-				numSimilarVerts++;
+				similarVertCount++;
 			}
 		}
 		if (newFace._indices[0] != newFace._indices[1] &&
@@ -168,21 +168,21 @@ void FileParser::Mesh::Optimize()
 		}
 		else
 		{
-			numDegenerateFaces++;
-			vVbOpt.resize(vVbOpt.size() - numPushed); // Rollback.
+			degenerateFaceCount++;
+			vVbOpt.resize(vVbOpt.size() - pushedCount); // Rollback.
 		}
 	}
 	_vUberVerts.assign(vVbOpt.begin(), vVbOpt.end());
 	_vFaces.assign(vIbOpt.begin(), vIbOpt.end());
-	_numVerts = _vUberVerts.size();
-	_numFaces = _vFaces.size();
+	_vertCount = Utils::Cast32(_vUberVerts.size());
+	_faceCount = Utils::Cast32(_vFaces.size());
 	StringStream ssWeldReport;
-	ssWeldReport << "Weld report: " << numSimilarVerts << " similar vertices removed, " << numDegenerateFaces << " degenerate faces removed";
+	ssWeldReport << "Weld report: " << similarVertCount << " similar vertices removed, " << degenerateFaceCount << " degenerate faces removed";
 	FileParser::I().OnProgressText(_C(ssWeldReport.str()));
 
 	{
 		StringStream ss;
-		ss << _name << ": (" << _numVerts << " vertices, " << _numFaces << " faces)";
+		ss << _name << ": (" << _vertCount << " vertices, " << _faceCount << " faces)";
 		FileParser::I().OnProgressText(_C(ss.str()));
 	}
 
@@ -201,19 +201,19 @@ void FileParser::Mesh::ComputeTangentSpace()
 	FileParser::I().OnProgressText(_C(ss.str()));
 
 	Vector<glm::vec3> vPos, vN, vTan, vBin;
-	vPos.resize(_numVerts);
+	vPos.resize(_vertCount);
 
 	Vector<glm::vec2> vTc0;
-	vTc0.resize(_numVerts);
-	VERUS_FOR(i, _numVerts)
+	vTc0.resize(_vertCount);
+	VERUS_FOR(i, _vertCount)
 	{
 		vPos[i] = _vUberVerts[i]._pos;
 		vTc0[i] = _vUberVerts[i]._tc0;
 	}
 
 	Vector<UINT16> vIndices;
-	vIndices.resize(_numFaces * 3);
-	VERUS_FOR(i, _numFaces)
+	vIndices.resize(_faceCount * 3);
+	VERUS_FOR(i, _faceCount)
 	{
 		vIndices[i * 3 + 0] = _vFaces[i]._indices[0];
 		vIndices[i * 3 + 1] = _vFaces[i]._indices[1];
@@ -222,8 +222,8 @@ void FileParser::Mesh::ComputeTangentSpace()
 
 	if (_found & Found::normals)
 	{
-		vN.resize(_numVerts);
-		VERUS_FOR(i, _numVerts)
+		vN.resize(_vertCount);
+		VERUS_FOR(i, _vertCount)
 			vN[i] = _vUberVerts[i]._nrm;
 	}
 	else
@@ -234,10 +234,10 @@ void FileParser::Mesh::ComputeTangentSpace()
 	FileParser::I().OnProgress(50);
 	Math::NormalComputer::ComputeTangentSpace(vIndices, vPos, vN, vTc0, vTan, vBin);
 
-	_vZipNormal.resize(_numVerts);
-	_vZipTan.resize(_numVerts);
-	_vZipBin.resize(_numVerts);
-	VERUS_FOR(i, _numVerts) // Compress them all:
+	_vZipNormal.resize(_vertCount);
+	_vZipTan.resize(_vertCount);
+	_vZipBin.resize(_vertCount);
+	VERUS_FOR(i, _vertCount) // Compress them all:
 	{
 		Convert::SnormToSint8(&vN[i].x, &_vZipNormal[i]._x, 3);
 		Convert::SnormToSint8(&vTan[i].x, &_vZipTan[i]._x, 3);
@@ -255,12 +255,12 @@ void FileParser::Mesh::Compress()
 	glm::vec3 extents, scale, bias;
 
 	// Compress position:
-	VERUS_FOR(i, _numVerts)
+	VERUS_FOR(i, _vertCount)
 		aabb.Include(_vUberVerts[i]._pos);
 	extents = aabb.GetExtents();
 	Scene::BaseMesh::ComputeDeq(_posScale, _posBias, extents, aabb._mn);
-	_vZipPos.reserve(_numVerts);
-	VERUS_FOR(i, _numVerts)
+	_vZipPos.reserve(_vertCount);
+	VERUS_FOR(i, _vertCount)
 	{
 		Mesh::Vec3Short pos;
 		glm::vec3 v(_vUberVerts[i]._pos);
@@ -274,14 +274,14 @@ void FileParser::Mesh::Compress()
 	// Compress tc0:
 	FileParser::I().OnProgress(50);
 	aabb.Reset();
-	VERUS_FOR(i, _numVerts)
+	VERUS_FOR(i, _vertCount)
 		aabb.Include(glm::vec3(_vUberVerts[i]._tc0, 0));
 	extents = aabb.GetExtents();
 	Scene::BaseMesh::ComputeDeq(scale, bias, extents, aabb._mn);
 	_tc0Scale = glm::vec2(scale);
 	_tc0Bias = glm::vec2(bias);
-	_vZipTc0.reserve(_numVerts);
-	VERUS_FOR(i, _numVerts)
+	_vZipTc0.reserve(_vertCount);
+	VERUS_FOR(i, _vertCount)
 	{
 		Mesh::Vec2Short tc;
 		glm::vec3 v(_vUberVerts[i]._tc0, 0);
@@ -297,14 +297,14 @@ void FileParser::Mesh::Compress()
 	// Compress tc1:
 	FileParser::I().OnProgress(75);
 	aabb.Reset();
-	VERUS_FOR(i, _numVerts)
+	VERUS_FOR(i, _vertCount)
 		aabb.Include(glm::vec3(_vUberVerts[i]._tc1, 0));
 	glm::vec2 normBias(-aabb._mn);
 	glm::vec2 normScale(aabb._mx - aabb._mn);
 	normScale.x = 1 / normScale.x;
 	normScale.y = 1 / normScale.y;
 	aabb.Reset();
-	VERUS_FOR(i, _numVerts)
+	VERUS_FOR(i, _vertCount)
 	{
 		_vUberVerts[i]._tc1 = (_vUberVerts[i]._tc1 + normBias) * normScale;
 		aabb.Include(glm::vec3(_vUberVerts[i]._tc1, 0));
@@ -313,8 +313,8 @@ void FileParser::Mesh::Compress()
 	Scene::BaseMesh::ComputeDeq(scale, bias, extents, aabb._mn);
 	_tc1Scale = glm::vec2(scale);
 	_tc1Bias = glm::vec2(bias);
-	_vZipTc1.reserve(_numVerts);
-	VERUS_FOR(i, _numVerts)
+	_vZipTc1.reserve(_vertCount);
+	VERUS_FOR(i, _vertCount)
 	{
 		Mesh::Vec2Short tc;
 		glm::vec3 v((_vUberVerts[i]._tc1), 0);
@@ -341,29 +341,29 @@ void FileParser::Mesh::SerializeX3D3(IO::RFile file)
 
 	file.WriteText(VERUS_CRNL VERUS_CRNL "<IX>");
 	file.BeginBlock();
-	file.WriteString(_C(std::to_string(_numFaces)));
-	VERUS_FOR(i, _numFaces)
+	file.WriteString(_C(std::to_string(_faceCount)));
+	VERUS_FOR(i, _faceCount)
 		file.Write(&_vFaces[i], 6);
 	file.EndBlock();
 
 	file.WriteText(VERUS_CRNL VERUS_CRNL "<VX>");
 	file.BeginBlock();
-	file.WriteString(_C(std::to_string(_numVerts)));
+	file.WriteString(_C(std::to_string(_vertCount)));
 	file.Write(&_posScale, 12);
 	file.Write(&_posBias, 12);
-	VERUS_FOR(i, _numVerts)
+	VERUS_FOR(i, _vertCount)
 		file.Write(&_vZipPos[i], 6);
 	file.EndBlock();
 
 	file.WriteText(VERUS_CRNL VERUS_CRNL "<NL>");
 	file.BeginBlock();
-	VERUS_FOR(i, _numVerts)
+	VERUS_FOR(i, _vertCount)
 		file.Write(&_vZipNormal[i], 3);
 	file.EndBlock();
 
 	file.WriteText(VERUS_CRNL VERUS_CRNL "<TS>");
 	file.BeginBlock();
-	VERUS_FOR(i, _numVerts)
+	VERUS_FOR(i, _vertCount)
 	{
 		file.Write(&_vZipTan[i], 3);
 		file.Write(&_vZipBin[i], 3);
@@ -374,7 +374,7 @@ void FileParser::Mesh::SerializeX3D3(IO::RFile file)
 	file.BeginBlock();
 	file.Write(&_tc0Scale, 8);
 	file.Write(&_tc0Bias, 8);
-	VERUS_FOR(i, _numVerts)
+	VERUS_FOR(i, _vertCount)
 		file.Write(&_vZipTc0[i], 4);
 	file.EndBlock();
 
@@ -384,19 +384,19 @@ void FileParser::Mesh::SerializeX3D3(IO::RFile file)
 		file.BeginBlock();
 		file.Write(&_tc1Scale, 8);
 		file.Write(&_tc1Bias, 8);
-		VERUS_FOR(i, _numVerts)
+		VERUS_FOR(i, _vertCount)
 			file.Write(&_vZipTc1[i], 4);
 		file.EndBlock();
 	}
 
-	if (_numBones > 0)
+	if (_boneCount > 0)
 	{
 		// Must be the same order as in X file! Do not sort.
 		file.WriteText(VERUS_CRNL VERUS_CRNL "<BH>");
 		file.BeginBlock();
-		const BYTE boneInfo = BYTE(_numBones);
+		const BYTE boneInfo = BYTE(_boneCount);
 		file << boneInfo;
-		VERUS_FOR(i, _numBones)
+		VERUS_FOR(i, _boneCount)
 		{
 			file.WriteString(_C(_vBones[i]._name));
 			file.WriteString(_C(_vBones[i]._parentName));
@@ -405,7 +405,7 @@ void FileParser::Mesh::SerializeX3D3(IO::RFile file)
 		file.EndBlock();
 
 		StringStream ssDebug;
-		VERUS_FOR(i, _numBones)
+		VERUS_FOR(i, _boneCount)
 			ssDebug << "Bone: " << _vBones[i]._name << "; Parent: " << _vBones[i]._parentName << ";" VERUS_CRNL;
 		String pathName = FileParser::I()._pathName;
 		Str::ReplaceExtension(pathName, "_Bones.txt");
@@ -418,7 +418,7 @@ void FileParser::Mesh::SerializeX3D3(IO::RFile file)
 			file.WriteText(VERUS_CRNL VERUS_CRNL "<SS>");
 			file.BeginBlock();
 			UINT32 ww, ii;
-			VERUS_FOR(i, _numVerts)
+			VERUS_FOR(i, _vertCount)
 			{
 				_vUberVerts[i].CompileBits(ww, ii);
 				file << ww << ii;
@@ -429,7 +429,7 @@ void FileParser::Mesh::SerializeX3D3(IO::RFile file)
 		{
 			file.WriteText(VERUS_CRNL VERUS_CRNL "<SR>");
 			file.BeginBlock();
-			VERUS_FOR(i, _numVerts)
+			VERUS_FOR(i, _vertCount)
 				file << BYTE(_vUberVerts[i].GetDominantIndex());
 			file.EndBlock();
 		}
@@ -442,7 +442,7 @@ void FileParser::Mesh::SerializeX3D3(IO::RFile file)
 
 bool FileParser::Mesh::IsCopyOf(RMesh that)
 {
-	if (_numVerts != that._numVerts)
+	if (_vertCount != that._vertCount)
 		return false;
 	if (!std::equal(_vUberVerts.begin(), _vUberVerts.end(), that._vUberVerts.begin(), [](RcUberVertex a, RcUberVertex b)
 		{
@@ -460,13 +460,13 @@ bool FileParser::Mesh::IsCopyOf(RMesh that)
 
 void FileParser::AnimationKey::DetectRedundantFrames(float threshold)
 {
-	VERUS_FOREACH(Vector<SubKey>, _vFrame, it)
-		(*it)._redundant = false;
+	for (auto& subkey : _vFrame)
+		subkey._redundant = false;
 
 	const size_t size = _vFrame.size();
 	const size_t edge = size - 1;
 
-	_numLogicFrames = size > 1 ? 2 : 1;
+	_logicFrameCount = size > 1 ? 2 : 1;
 
 	if (size <= 1)
 		return;
@@ -490,11 +490,11 @@ void FileParser::AnimationKey::DetectRedundantFrames(float threshold)
 		else
 		{
 			base = test;
-			_numLogicFrames++;
+			_logicFrameCount++;
 			if (_vFrame[i - 1]._redundant)
 			{
 				_vFrame[i - 1]._redundant = false;
-				_numLogicFrames++;
+				_logicFrameCount++;
 			}
 		}
 	}
@@ -547,10 +547,10 @@ void FileParser::LoadBoneNames(CSZ pathName)
 	IO::FileSystem::LoadResource(pathName, v, IO::FileSystem::LoadDesc(true));
 	Vector<String> vLines;
 	Str::ReadLines(reinterpret_cast<CSZ>(v.data()), vLines);
-	VERUS_FOREACH_CONST(Vector<String>, vLines, it)
+	for (const auto& line : vLines)
 	{
 		Vector<String> vPair;
-		Str::Explode(_C(*it), " ", vPair);
+		Str::Explode(_C(line), " ", vPair);
 		Str::ToLower(const_cast<SZ>(_C(vPair[0])));
 		_mapBoneNames[vPair[0]] = vPair[1];
 	}
@@ -639,10 +639,8 @@ void FileParser::SerializeAll(CSZ pathName)
 	ssLevel << "<?xml version=\"1.0\" encoding=\"utf-8\"?>" VERUS_CRNL;
 	ssLevel << "<level>" VERUS_CRNL;
 
-	VERUS_FOREACH_CONST(Vector<Material>, _vMaterials, it)
+	for (const auto& mat : _vMaterials)
 	{
-		RcMaterial mat = *it;
-
 		if (!mat._copyOf.empty())
 			continue;
 
@@ -666,9 +664,8 @@ void FileParser::SerializeAll(CSZ pathName)
 		ssLevel << "</material>" VERUS_CRNL;
 	}
 
-	VERUS_FOREACH_CONST(Vector<PMesh>, _vMesh, it)
+	for (const auto& pMesh : _vMesh)
 	{
-		PMesh pMesh = *it;
 		strcpy(strrchr(path, '\\') + 1, _C(pMesh->GetName()));
 		strcat(path, ".x3d");
 
@@ -716,7 +713,7 @@ void FileParser::SerializeAll(CSZ pathName)
 		}
 	}
 
-	int totalAnim = 0, numAnim = 0;
+	int animTotal = 0, animCount = 0;
 	if (!_vAnimSets.empty())
 	{
 		OnProgressText("Saving motions");
@@ -724,7 +721,7 @@ void FileParser::SerializeAll(CSZ pathName)
 		{
 			AnimationSet& set = *itSet;
 			set.CleanUp();
-			totalAnim += set._vAnimations.size();
+			animTotal += Utils::Cast32(set._vAnimations.size());
 		}
 	}
 
@@ -732,12 +729,12 @@ void FileParser::SerializeAll(CSZ pathName)
 	{
 		AnimationSet& set = *itSet;
 
-		int maxNumFrames = 0;
+		int maxFrames = 0;
 		VERUS_FOREACH_CONST(Vector<Animation>, set._vAnimations, it)
 		{
-			maxNumFrames = Math::Max(maxNumFrames, static_cast<int>((*it)._vAnimKeys[0]._vFrame.size()));
-			maxNumFrames = Math::Max(maxNumFrames, static_cast<int>((*it)._vAnimKeys[1]._vFrame.size()));
-			maxNumFrames = Math::Max(maxNumFrames, static_cast<int>((*it)._vAnimKeys[2]._vFrame.size()));
+			maxFrames = Math::Max(maxFrames, static_cast<int>((*it)._vAnimKeys[0]._vFrame.size()));
+			maxFrames = Math::Max(maxFrames, static_cast<int>((*it)._vAnimKeys[1]._vFrame.size()));
+			maxFrames = Math::Max(maxFrames, static_cast<int>((*it)._vAnimKeys[2]._vFrame.size()));
 		}
 
 		strcpy(strrchr(path, '\\') + 1, _C(set._name));
@@ -754,14 +751,14 @@ void FileParser::SerializeAll(CSZ pathName)
 			const UINT16 version = 0x0101;
 			file << version;
 
-			const UINT32 numFrames = maxNumFrames;
-			file << numFrames;
+			const UINT32 frameCount = maxFrames;
+			file << frameCount;
 
 			const UINT32 fps = 10;
 			file << fps;
 
-			const int numBones = set._vAnimations.size();
-			file << numBones;
+			const int boneCount = Utils::Cast32(set._vAnimations.size());
+			file << boneCount;
 
 			VERUS_FOREACH(Vector<Animation>, set._vAnimations, itAnim) // Each bone:
 			{
@@ -785,8 +782,8 @@ void FileParser::SerializeAll(CSZ pathName)
 
 				file.WriteString(_C(name)); // Bone's name.
 				anim._vAnimKeys[0].DetectRedundantFrames();
-				const int numKeyframes = anim._vAnimKeys[0]._numLogicFrames;
-				file << numKeyframes;
+				const int keyframeCount = anim._vAnimKeys[0]._logicFrameCount;
+				file << keyframeCount;
 				VERUS_FOREACH(Vector<AnimationKey>, anim._vAnimKeys, itKey)
 				{
 					AnimationKey& key = *itKey;
@@ -807,8 +804,8 @@ void FileParser::SerializeAll(CSZ pathName)
 				}
 
 				anim._vAnimKeys[2].DetectRedundantFrames();
-				const int numKeyframesP = anim._vAnimKeys[2]._numLogicFrames;
-				file << numKeyframesP;
+				const int keyframePCount = anim._vAnimKeys[2]._logicFrameCount;
+				file << keyframePCount;
 				VERUS_FOREACH(Vector<AnimationKey>, anim._vAnimKeys, itKey)
 				{
 					AnimationKey& key = *itKey;
@@ -829,12 +826,12 @@ void FileParser::SerializeAll(CSZ pathName)
 				}
 
 				// Scale/trigger:
-				const int numKeyframesST = 0;
-				file << numKeyframesST;
-				file << numKeyframesST;
+				const int keyframeSTCount = 0;
+				file << keyframeSTCount;
+				file << keyframeSTCount;
 
-				numAnim++;
-				OnProgress(float(numAnim) / totalAnim * 100);
+				animCount++;
+				OnProgress(float(animCount) / animTotal * 100);
 			}
 		}
 	}
@@ -922,9 +919,8 @@ void FileParser::FixBones()
 		Transform3(Matrix3::rotationY(_desc._angle), Vector3(_desc._bias)), Vector3(s, s, _desc._rightHanded ? -s : s));
 	const glm::mat4 matW = m.GLM();
 
-	VERUS_FOREACH(Vector<PMesh>, _vMesh, it)
+	for (const auto& pMesh : _vMesh)
 	{
-		PMesh pMesh = *it;
 		bool boneAdded = false;
 		do
 		{
@@ -956,7 +952,7 @@ void FileParser::FixBones()
 						Mesh::Bone bone;
 						bone._name = name;
 						pMesh->AddBone(bone);
-						pMesh->SetNumBones(pMesh->GetNumBones() + 1);
+						pMesh->SetBoneCount(pMesh->GetBoneCount() + 1);
 						boneAdded = true;
 
 						StringStream ss;
@@ -1098,7 +1094,7 @@ void FileParser::ParseBlockRecursive(CSZ type, CSZ blockName)
 				StreamSkipWhitespace();
 			}
 			ParseBlockRecursive(buffer, name);
-			_pCurrentMesh->SetMaterialIndex(_vMaterials.size() - 1);
+			_pCurrentMesh->SetMaterialIndex(Utils::Cast32(_vMaterials.size()) - 1);
 		}
 	}
 	else // Unknown block:
@@ -1127,11 +1123,11 @@ void FileParser::ParseBlockData_Mesh()
 	const float s = _desc._scaleFactor;
 	const Matrix4 matFix = Matrix4::scale(Vector3(s, s, _desc._rightHanded ? -s : s));
 
-	const int numFrames = _stackFrames.size();
+	const int frameCount = Utils::Cast32(_stackFrames.size());
 	if (_desc._convertAsLevel)
 	{
 		// World matrix for level objects:
-		VERUS_FOR(i, numFrames)
+		VERUS_FOR(i, frameCount)
 		{
 			if (!i && _stackFrames[i]._name == "Root")
 				continue; // Blender's coord system matrix.
@@ -1141,7 +1137,7 @@ void FileParser::ParseBlockData_Mesh()
 	else
 	{
 		// Collapse all frame matrices (Frame0*Frame1*Frame2):
-		VERUS_FOR(i, numFrames)
+		VERUS_FOR(i, frameCount)
 			_pCurrentMesh->SetCombinedMatrix(_pCurrentMesh->GetCombinedMatrix() * _stackFrames[i]._mat);
 
 		const float s = _desc._scaleFactor;
@@ -1162,7 +1158,7 @@ void FileParser::ParseBlockData_Mesh()
 		// The matrix to scale and flip mesh in world space:
 		mat = Transform3((matRH * matS * matFromBlender).getUpper3x3(), Vector3(0));
 
-		if (numFrames)
+		if (frameCount)
 		{
 			const glm::mat4 matFromBlender = matFix.GLM() * _stackFrames[0]._mat;
 			const glm::mat4 matToBlender = glm::inverse(matFromBlender);
@@ -1181,14 +1177,14 @@ void FileParser::ParseBlockData_Mesh()
 	// <VertexPositions>
 	StreamReadUntil(buffer, sizeof(buffer), ";");
 	_pData++; // Skip ";"
-	_pCurrentMesh->SetNumVerts(atoi(buffer));
+	_pCurrentMesh->SetVertCount(atoi(buffer));
 	StreamSkipWhitespace();
-	const int numVerts = _pCurrentMesh->GetNumVerts();
-	const int vertEdge = numVerts - 1;
-	_pCurrentMesh->ResizeVertsArray(numVerts);
-	VERUS_FOR(i, numVerts)
+	const int vertCount = _pCurrentMesh->GetVertCount();
+	const int vertEdge = vertCount - 1;
+	_pCurrentMesh->ResizeVertsArray(vertCount);
+	VERUS_FOR(i, vertCount)
 	{
-		OnProgress(float(i) / numVerts * 50);
+		OnProgress(float(i) / vertCount * 50);
 		glm::vec3 v;
 		v.x = static_cast<float>(fast_atof(_pData)); StreamSkipUntil(';'); _pData++;
 		v.y = static_cast<float>(fast_atof(_pData)); StreamSkipUntil(';'); _pData++;
@@ -1214,7 +1210,7 @@ void FileParser::ParseBlockData_Mesh()
 		_pCurrentMesh->GetSetVertexAt(i)._pos = v;
 	}
 
-	if (!numVerts)
+	if (!vertCount)
 	{
 		_pData++;
 		StreamSkipWhitespace();
@@ -1224,39 +1220,30 @@ void FileParser::ParseBlockData_Mesh()
 	// <FaceIndices>
 	StreamReadUntil(buffer, sizeof(buffer), ";");
 	_pData++; // Skip ";"
-	_pCurrentMesh->SetNumFaces(atoi(buffer));
+	_pCurrentMesh->SetFaceCount(atoi(buffer));
 	StreamSkipWhitespace();
-	const int numFaces = _pCurrentMesh->GetNumFaces();
-	const int faceEdge = numFaces - 1;
-	_pCurrentMesh->ResizeFacesArray(numFaces);
-	VERUS_FOR(i, numFaces)
+	const int faceCount = _pCurrentMesh->GetFaceCount();
+	const int faceEdge = faceCount - 1;
+	_pCurrentMesh->ResizeFacesArray(faceCount);
+	VERUS_FOR(i, faceCount)
 	{
-		OnProgress(float(i) / numFaces * 50 + 50);
-		int indices[3];
+		OnProgress(float(i) / faceCount * 50 + 50);
 
+		int indices[3];
+		int order[3] = { 0, 1, 2 };
 		if (_desc._rightHanded)
-		{
-			const int num = atoi(_pData); StreamSkipUntil(';'); _pData++;
-			if (3 != num)
-				throw VERUS_RECOVERABLE << "ParseBlockData_Mesh(), only triangles are supported, triangulate the quads";
-			indices[0] = atoi(_pData); StreamSkipUntil(','); _pData++;
-			indices[2] = atoi(_pData); StreamSkipUntil(','); _pData++;
-			indices[1] = atoi(_pData); StreamSkipUntil(';');
-		}
-		else
-		{
-			const int num = atoi(_pData); StreamSkipUntil(';'); _pData++;
-			if (3 != num)
-				throw VERUS_RECOVERABLE << "ParseBlockData_Mesh(), only triangles are supported, triangulate the quads";
-			indices[0] = atoi(_pData); StreamSkipUntil(','); _pData++;
-			indices[1] = atoi(_pData); StreamSkipUntil(','); _pData++;
-			indices[2] = atoi(_pData); StreamSkipUntil(';');
-		}
+			std::swap(order[1], order[2]);
+		const int count = atoi(_pData); StreamSkipUntil(';'); _pData++;
+		if (3 != count)
+			throw VERUS_RECOVERABLE << "ParseBlockData_Mesh(), only triangles are supported, triangulate the quads";
+		indices[order[0]] = atoi(_pData); StreamSkipUntil(','); _pData++;
+		indices[order[1]] = atoi(_pData); StreamSkipUntil(','); _pData++;
+		indices[order[2]] = atoi(_pData); StreamSkipUntil(';');
 
 		Mesh::Face face;
 		VERUS_FOR(j, 3)
 		{
-			VERUS_RT_ASSERT(indices[j] < numVerts);
+			VERUS_RT_ASSERT(indices[j] < vertCount);
 			face._indices[j] = indices[j];
 		}
 		_pData = strstr(_pData, (i == faceEdge) ? ";;" : ";,") + 2;
@@ -1264,7 +1251,7 @@ void FileParser::ParseBlockData_Mesh()
 		_pCurrentMesh->GetSetFaceAt(i) = face;
 	}
 
-	if (!numFaces)
+	if (!faceCount)
 	{
 		_pData++;
 		StreamSkipWhitespace();
@@ -1273,7 +1260,7 @@ void FileParser::ParseBlockData_Mesh()
 
 	{
 		StringStream ss;
-		ss << _pCurrentMesh->GetName() << ": (" << numVerts << " vertices, " << numFaces << " faces)";
+		ss << _pCurrentMesh->GetName() << ": (" << vertCount << " vertices, " << faceCount << " faces)";
 		OnProgressText(_C(ss.str()));
 	}
 
@@ -1295,13 +1282,13 @@ void FileParser::ParseBlockData_MeshTextureCoords()
 	StreamReadUntil(buffer, sizeof(buffer), ";");
 	_pData++; // Skip ";"
 	StreamSkipWhitespace();
-	const int numVerts = atoi(buffer);
-	const int vertEdge = numVerts - 1;
-	if (_pCurrentMesh->GetNumVerts() != numVerts)
-		throw VERUS_RECOVERABLE << "ParseBlockData_MeshTextureCoords(), different vertex count (" << numVerts << ")";
-	VERUS_FOR(i, numVerts)
+	const int vertCount = atoi(buffer);
+	const int vertEdge = vertCount - 1;
+	if (_pCurrentMesh->GetVertCount() != vertCount)
+		throw VERUS_RECOVERABLE << "ParseBlockData_MeshTextureCoords(), different vertex count (" << vertCount << ")";
+	VERUS_FOR(i, vertCount)
 	{
-		OnProgress(float(i) / numVerts * 100);
+		OnProgress(float(i) / vertCount * 100);
 		glm::vec2 tc(0);
 		tc.x = static_cast<float>(fast_atof(_pData)); StreamSkipUntil(';'); _pData++;
 		tc.y = static_cast<float>(fast_atof(_pData)); StreamSkipUntil(';');
@@ -1316,9 +1303,9 @@ void FileParser::ParseBlockData_MeshTextureCoords()
 
 	if (_desc._convertAsLevel)
 	{
-		VERUS_FOREACH_CONST(Vector<PMesh>, _vMesh, it)
+		for (const auto& pMesh : _vMesh)
 		{
-			if (_pCurrentMesh->IsCopyOf(*(*it)))
+			if (_pCurrentMesh->IsCopyOf(*pMesh))
 				break;
 		}
 	}
@@ -1352,13 +1339,13 @@ void FileParser::ParseBlockData_MeshNormals()
 	StreamReadUntil(buffer, sizeof(buffer), ";");
 	_pData++; // Skip ";"
 	StreamSkipWhitespace();
-	const int numNorm = atoi(buffer);
-	const int normEdge = numNorm - 1;
+	const int normCount = atoi(buffer);
+	const int normEdge = normCount - 1;
 	Vector<glm::vec3> vNormals;
-	vNormals.resize(numNorm);
-	VERUS_FOR(i, numNorm)
+	vNormals.resize(normCount);
+	VERUS_FOR(i, normCount)
 	{
-		OnProgress(float(i) / numNorm * 50);
+		OnProgress(float(i) / normCount * 50);
 		vNormals[i].x = static_cast<float>(fast_atof(_pData)); StreamSkipUntil(';'); _pData++;
 		vNormals[i].y = static_cast<float>(fast_atof(_pData)); StreamSkipUntil(';'); _pData++;
 		vNormals[i].z = static_cast<float>(fast_atof(_pData)); StreamSkipUntil(';');
@@ -1384,7 +1371,7 @@ void FileParser::ParseBlockData_MeshNormals()
 		}
 	}
 
-	if (!numNorm)
+	if (!normCount)
 	{
 		_pData++;
 		StreamSkipWhitespace();
@@ -1393,29 +1380,22 @@ void FileParser::ParseBlockData_MeshNormals()
 	StreamReadUntil(buffer, sizeof(buffer), ";");
 	_pData++; // Skip ";"
 	StreamSkipWhitespace();
-	const int numFaces = atoi(buffer);
-	const int faceEdge = numFaces - 1;
-	if (_pCurrentMesh->GetNumFaces() != numFaces)
-		throw VERUS_RECOVERABLE << "ParseBlockData_MeshNormals(), different face count (" << numFaces << ")";
-	VERUS_FOR(i, numFaces)
+	const int faceCount = atoi(buffer);
+	const int faceEdge = faceCount - 1;
+	if (_pCurrentMesh->GetFaceCount() != faceCount)
+		throw VERUS_RECOVERABLE << "ParseBlockData_MeshNormals(), different face count (" << faceCount << ")";
+	VERUS_FOR(i, faceCount)
 	{
-		OnProgress(float(i) / numFaces * 50 + 50);
+		OnProgress(float(i) / faceCount * 50 + 50);
 
 		int indices[3];
+		int order[3] = { 0, 1, 2 };
 		if (_desc._rightHanded)
-		{
-			atoi(_pData); StreamSkipUntil(';'); _pData++;
-			indices[0] = atoi(_pData); StreamSkipUntil(','); _pData++;
-			indices[2] = atoi(_pData); StreamSkipUntil(','); _pData++;
-			indices[1] = atoi(_pData); StreamSkipUntil(';');
-		}
-		else
-		{
-			atoi(_pData); StreamSkipUntil(';'); _pData++;
-			indices[0] = atoi(_pData); StreamSkipUntil(','); _pData++;
-			indices[1] = atoi(_pData); StreamSkipUntil(','); _pData++;
-			indices[2] = atoi(_pData); StreamSkipUntil(';');
-		}
+			std::swap(order[1], order[2]);
+		atoi(_pData); StreamSkipUntil(';'); _pData++;
+		indices[order[0]] = atoi(_pData); StreamSkipUntil(','); _pData++;
+		indices[order[1]] = atoi(_pData); StreamSkipUntil(','); _pData++;
+		indices[order[2]] = atoi(_pData); StreamSkipUntil(';');
 
 		_pCurrentMesh->GetSetVertexAt(_pCurrentMesh->GetSetFaceAt(i)._indices[0])._nrm = vNormals[indices[0]];
 		_pCurrentMesh->GetSetVertexAt(_pCurrentMesh->GetSetFaceAt(i)._indices[1])._nrm = vNormals[indices[1]];
@@ -1424,7 +1404,7 @@ void FileParser::ParseBlockData_MeshNormals()
 		StreamSkipWhitespace();
 	}
 
-	if (!numFaces)
+	if (!faceCount)
 	{
 		_pData++;
 		StreamSkipWhitespace();
@@ -1432,7 +1412,7 @@ void FileParser::ParseBlockData_MeshNormals()
 
 	{
 		StringStream ss;
-		ss << _pCurrentMesh->GetName() << ": (" << numNorm << " normals, " << numFaces << " faces)";
+		ss << _pCurrentMesh->GetName() << ": (" << normCount << " normals, " << faceCount << " faces)";
 		OnProgressText(_C(ss.str()));
 	}
 
@@ -1467,15 +1447,15 @@ void FileParser::ParseBlockData_FVFData(bool declData)
 	StreamReadUntil(buffer, sizeof(buffer), ";");
 	_pData++; // Skip ";"
 	StreamSkipWhitespace();
-	const int numVerts = _pCurrentMesh->GetNumVerts();
-	const int vertEdge = numVerts - 1;
-	if (atoi(buffer) != _pCurrentMesh->GetNumVerts() * 2)
+	const int vertCount = _pCurrentMesh->GetVertCount();
+	const int vertEdge = vertCount - 1;
+	if (atoi(buffer) != _pCurrentMesh->GetVertCount() * 2)
 		throw VERUS_RECOVERABLE << "ParseBlockData_FVFData(), different vertex count";
 	glm::vec2 tcPrev;
 	bool trash = true;
-	VERUS_FOR(i, numVerts)
+	VERUS_FOR(i, vertCount)
 	{
-		OnProgress(float(i) / numVerts * 100);
+		OnProgress(float(i) / vertCount * 100);
 		glm::vec2 tc;
 		UINT32 temp;
 
@@ -1512,14 +1492,14 @@ void FileParser::ParseBlockData_XSkinMeshHeader()
 {
 	Debug("XSkinMeshHeader");
 
-	int numBones = 0;
-	sscanf(_pData, "%*d;%*d;%d;", &numBones);
-	_pCurrentMesh->SetNumBones(numBones);
+	int boneCount = 0;
+	sscanf(_pData, "%*d;%*d;%d;", &boneCount);
+	_pCurrentMesh->SetBoneCount(boneCount);
 	_pData = strchr(_pData, '}');
 
 	{
 		StringStream ss;
-		ss << _pCurrentMesh->GetName() << ": (" << numBones << " bones)";
+		ss << _pCurrentMesh->GetName() << ": (" << boneCount << " bones)";
 		OnProgressText(_C(ss.str()));
 	}
 }
@@ -1558,13 +1538,13 @@ void FileParser::ParseBlockData_SkinWeights()
 	StreamReadUntil(buffer, sizeof(buffer), ";");
 	_pData++; // Skip ";"
 	StreamSkipWhitespace();
-	const int num = atoi(buffer);
+	const int count = atoi(buffer);
 
-	vVertexIndices.reserve(num);
+	vVertexIndices.reserve(count);
 
-	VERUS_FOR(i, num)
+	VERUS_FOR(i, count)
 	{
-		OnProgress(float(i) / num * 50);
+		OnProgress(float(i) / count * 50);
 		StreamReadUntil(buffer, sizeof(buffer), ",;");
 		_pData++; // Skip "; or ,"
 		StreamSkipWhitespace();
@@ -1572,9 +1552,9 @@ void FileParser::ParseBlockData_SkinWeights()
 		vVertexIndices.push_back(vi);
 	}
 
-	VERUS_FOR(i, num)
+	VERUS_FOR(i, count)
 	{
-		OnProgress(float(i) / num * 50 + 50);
+		OnProgress(float(i) / count * 50 + 50);
 		StreamReadUntil(buffer, sizeof(buffer), ",;");
 		_pData++; // Skip "; or ,"
 		StreamSkipWhitespace();
@@ -1618,7 +1598,6 @@ void FileParser::ParseBlockData_Frame(CSZ blockName)
 	_stackFrames.push_back(frame);
 
 	bool loop = true;
-	bool mesh = false;
 	while (loop)
 	{
 		switch (*_pData)
@@ -1645,9 +1624,8 @@ void FileParser::ParseBlockData_Frame(CSZ blockName)
 				StreamSkipWhitespace();
 			}
 
-			if (!strcmp(type, "Mesh"))
+			if (!strcmp(type, "Mesh")) // Find name for this mesh:
 			{
-				mesh = true; // Current frame contains Mesh block.
 				VERUS_FOREACH_REVERSE_CONST(Vector<Frame>, _stackFrames, it)
 				{
 					if (!(*it)._name.empty())
@@ -1817,14 +1795,14 @@ void FileParser::ParseBlockData_Animation(CSZ blockName)
 		else
 			matParentSpaceOffset = pParentBone->_matOffset;
 
-		int maxNumFrames = 0;
-		maxNumFrames = Math::Max(maxNumFrames, static_cast<int>(anFilled._vAnimKeys[0]._vFrame.size()));
-		maxNumFrames = Math::Max(maxNumFrames, static_cast<int>(anFilled._vAnimKeys[1]._vFrame.size()));
-		maxNumFrames = Math::Max(maxNumFrames, static_cast<int>(anFilled._vAnimKeys[2]._vFrame.size()));
+		int maxFrames = 0;
+		maxFrames = Math::Max(maxFrames, static_cast<int>(anFilled._vAnimKeys[0]._vFrame.size()));
+		maxFrames = Math::Max(maxFrames, static_cast<int>(anFilled._vAnimKeys[1]._vFrame.size()));
+		maxFrames = Math::Max(maxFrames, static_cast<int>(anFilled._vAnimKeys[2]._vFrame.size()));
 
 		Transform3 matBoneAxis = _vMesh[0]->GetBoneAxisMatrix();
 		Transform3 matBoneAxisInv = VMath::inverse(matBoneAxis);
-		VERUS_FOR(i, maxNumFrames)
+		VERUS_FOR(i, maxFrames)
 		{
 			const int index0 = Math::Min(i, static_cast<int>(anFilled._vAnimKeys[0]._vFrame.size() - 1));
 			const int index2 = Math::Min(i, static_cast<int>(anFilled._vAnimKeys[2]._vFrame.size() - 1));
@@ -1855,12 +1833,12 @@ void FileParser::ParseBlockData_Animation(CSZ blockName)
 	{
 		const Transform3 matRootInv = VMath::inverse(_matRoot);
 		int i = 0;
-		VERUS_FOREACH(Vector<SubKey>, anFilled._vAnimKeys[2]._vFrame, it)
+		for (auto& subkey : anFilled._vAnimKeys[2]._vFrame)
 		{
 			const int index = Math::Min(i, static_cast<int>(anFilled._vAnimKeys[0]._vFrame.size() - 1));
 
 			const Transform3 matR(anFilled._vAnimKeys[0]._vFrame[index]._q, Vector3(0));
-			const Transform3 matT = Transform3::translation((*it)._q.getXYZ());
+			const Transform3 matT = Transform3::translation(subkey._q.getXYZ());
 			const Transform3 mat = matT * VMath::inverse(matR) * matRootInv;
 
 			Point3 pos(0);
@@ -1870,7 +1848,7 @@ void FileParser::ParseBlockData_Animation(CSZ blockName)
 			if (_desc._rightHanded)
 				pos.setZ(-pos.getZ());
 
-			(*it)._q.setXYZ(Vector3(pos));
+			subkey._q.setXYZ(Vector3(pos));
 			i++;
 		}
 	}
@@ -1895,9 +1873,9 @@ void FileParser::ParseBlockData_AnimationKey()
 	StreamReadUntil(buffer, sizeof(buffer), ";");
 	_pData++;
 	StreamSkipWhitespace();
-	const int numFrames = atoi(buffer);
-	ak._vFrame.reserve(numFrames);
-	VERUS_FOR(i, numFrames)
+	const int frameCount = atoi(buffer);
+	ak._vFrame.reserve(frameCount);
+	VERUS_FOR(i, frameCount)
 	{
 		glm::quat q;
 		StreamReadUntil(buffer, sizeof(buffer), ";");
@@ -2049,8 +2027,8 @@ void FileParser::ParseBlockData_MeshMaterialList()
 		char buffer[256];
 		StreamReadUntil(buffer, sizeof(buffer), " }");
 
-		const int num = _vMaterials.size();
-		VERUS_FOR(i, num)
+		const int count = Utils::Cast32(_vMaterials.size());
+		VERUS_FOR(i, count)
 		{
 			if (_vMaterials[i]._name == buffer)
 			{
@@ -2096,10 +2074,10 @@ FileParser::PMesh FileParser::AddMesh(PMesh pMesh)
 
 FileParser::PMesh FileParser::FindMesh(CSZ name)
 {
-	VERUS_FOREACH_CONST(Vector<PMesh>, _vMesh, it)
+	for (const auto& pMesh : _vMesh)
 	{
-		if ((*it)->GetName() == name)
-			return *it;
+		if (pMesh->GetName() == name)
+			return pMesh;
 	}
 	return nullptr;
 }
@@ -2107,8 +2085,8 @@ FileParser::PMesh FileParser::FindMesh(CSZ name)
 void FileParser::DeleteAll()
 {
 	_vData.clear();
-	VERUS_FOREACH_CONST(Vector<PMesh>, _vMesh, it)
-		delete* it;
+	for (const auto& pMesh : _vMesh)
+		delete pMesh;
 	_vMesh.clear();
 }
 
@@ -2129,14 +2107,14 @@ void FileParser::Debug(CSZ txt)
 	StringStream ss;
 	VERUS_FOR(i, _depth)
 		ss << "  ";
-	ss << txt << "\r\n";
+	ss << txt << VERUS_CRNL;
 	_ssDebug << ss.str();
 }
 
 void FileParser::DetectMaterialCopies()
 {
-	const int num = _vMaterials.size();
-	VERUS_FOR(i, num)
+	const int count = Utils::Cast32(_vMaterials.size());
+	VERUS_FOR(i, count)
 	{
 		VERUS_FOR(j, i)
 		{
