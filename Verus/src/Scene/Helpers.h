@@ -62,6 +62,10 @@ namespace verus
 			void  DrawLight(RcPoint3 pos, UINT32 color = 0, PcPoint3 pTarget = nullptr);
 			void DrawSphere(RcPoint3 pos, float r, UINT32 color);
 
+			static UINT32 GetBasisColorX(bool linear = false, int alpha = 255);
+			static UINT32 GetBasisColorY(bool linear = false, int alpha = 255);
+			static UINT32 GetBasisColorZ(bool linear = false, int alpha = 255);
+
 			RDeferredLights GetDeferredLights() { return _deferredLights; }
 		};
 		VERUS_TYPEDEFS(Helpers);

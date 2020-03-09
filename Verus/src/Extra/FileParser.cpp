@@ -407,10 +407,10 @@ void FileParser::Mesh::SerializeX3D3(IO::RFile file)
 		StringStream ssDebug;
 		VERUS_FOR(i, _boneCount)
 			ssDebug << "Bone: " << _vBones[i]._name << "; Parent: " << _vBones[i]._parentName << ";" VERUS_CRNL;
-		String pathName = FileParser::I()._pathName;
-		Str::ReplaceExtension(pathName, "_Bones.txt");
+		String pathname = FileParser::I()._pathname;
+		Str::ReplaceExtension(pathname, "_Bones.txt");
 		IO::File fileDebug;
-		if (fileDebug.Open(_C(pathName), "wb"))
+		if (fileDebug.Open(_C(pathname), "wb"))
 			fileDebug.Write(_C(ssDebug.str()), ssDebug.str().length());
 
 		if (!FileParser::I()._desc._useRigidBones)
@@ -541,10 +541,10 @@ void FileParser::Done()
 	VERUS_DONE(FileParser);
 }
 
-void FileParser::LoadBoneNames(CSZ pathName)
+void FileParser::LoadBoneNames(CSZ pathname)
 {
 	Vector<BYTE> v;
-	IO::FileSystem::LoadResource(pathName, v, IO::FileSystem::LoadDesc(true));
+	IO::FileSystem::LoadResource(pathname, v, IO::FileSystem::LoadDesc(true));
 	Vector<String> vLines;
 	Str::ReadLines(reinterpret_cast<CSZ>(v.data()), vLines);
 	for (const auto& line : vLines)
@@ -556,11 +556,11 @@ void FileParser::LoadBoneNames(CSZ pathName)
 	}
 }
 
-void FileParser::ParseData(CSZ pathName)
+void FileParser::ParseData(CSZ pathname)
 {
 	VERUS_RT_ASSERT(IsInitialized());
 
-	LoadFromFile(pathName);
+	LoadFromFile(pathname);
 
 	char prev[256] = {};
 	char buffer[256] = {};
@@ -626,12 +626,12 @@ void FileParser::ParseData(CSZ pathName)
 	}
 }
 
-void FileParser::SerializeAll(CSZ pathName)
+void FileParser::SerializeAll(CSZ pathname)
 {
 	char path[256] = {};
-	strcpy(path, pathName);
+	strcpy(path, pathname);
 
-	pathName = path;
+	pathname = path;
 
 	DetectMaterialCopies();
 
@@ -839,12 +839,12 @@ void FileParser::SerializeAll(CSZ pathName)
 	OnProgress(100);
 }
 
-void FileParser::AsyncRun(CSZ pathName)
+void FileParser::AsyncRun(CSZ pathname)
 {
-	_future = Async([this, pathName]()
+	_future = Async([this, pathname]()
 		{
-			ParseData(pathName);
-			SerializeAll(pathName);
+			ParseData(pathname);
+			SerializeAll(pathname);
 		});
 }
 
@@ -863,10 +863,10 @@ bool FileParser::IsAsyncFinished() const
 	return _future.valid() && _future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
 }
 
-void FileParser::LoadFromFile(CSZ pathName)
+void FileParser::LoadFromFile(CSZ pathname)
 {
 	IO::File file;
-	if (file.Open(pathName, "rb"))
+	if (file.Open(pathname, "rb"))
 	{
 		const INT64 size = file.GetSize();
 		_vData.resize((size_t)size + 1);
@@ -874,7 +874,7 @@ void FileParser::LoadFromFile(CSZ pathName)
 		_pData = _vData.data();
 	}
 	else
-		throw VERUS_RECOVERABLE << "LoadFromFile() failed, " << pathName;
+		throw VERUS_RECOVERABLE << "LoadFromFile() failed, " << pathname;
 }
 
 void FileParser::StreamReadUntil(SZ dest, int destSize, CSZ separator)

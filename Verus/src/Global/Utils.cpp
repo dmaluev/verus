@@ -39,20 +39,20 @@ void Utils::InitPaths()
 	if (_companyFolderName.empty())
 		_companyFolderName = "VerusEngine";
 
-	wchar_t pathName[MAX_PATH] = {};
+	wchar_t pathname[MAX_PATH] = {};
 	if (_modulePath.empty())
 	{
-		GetModuleFileName(nullptr, pathName, MAX_PATH);
-		PathRemoveFileSpec(pathName);
-		_modulePath = Str::WideToUtf8(pathName);
+		GetModuleFileName(nullptr, pathname, MAX_PATH);
+		PathRemoveFileSpec(pathname);
+		_modulePath = Str::WideToUtf8(pathname);
 	}
 
 	_shaderPath = _modulePath + "/Data/Shaders";
 
 	if (!_companyFolderName.empty() && !_writableFolderName.empty())
 	{
-		SHGetSpecialFolderPath(0, pathName, CSIDL_LOCAL_APPDATA, TRUE);
-		_writablePath = Str::WideToUtf8(pathName);
+		SHGetSpecialFolderPath(0, pathname, CSIDL_LOCAL_APPDATA, TRUE);
+		_writablePath = Str::WideToUtf8(pathname);
 		_writablePath += "\\";
 		_writablePath += _companyFolderName;
 		CreateDirectory(_C(Str::Utf8ToWide(_writablePath)), nullptr);

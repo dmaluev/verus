@@ -21,20 +21,20 @@ void Log::Write(CSZ txt, std::thread::id tid, CSZ filename, UINT32 line, Severit
 	ss << timestamp << " [" << severityLetter << "] [" << tid << "] [" << filenameEx << ":" << line << "] " << txt << std::endl;
 	const String s = ss.str();
 
-	if (_pathName.empty())
+	if (_pathname.empty())
 	{
-		_pathName += _C(Utils::I().GetWritablePath());
-		_pathName += "/";
-		_pathName += "Log.txt";
+		_pathname += _C(Utils::I().GetWritablePath());
+		_pathname += "/";
+		_pathname += "Log.txt";
 	}
 
 	IO::File file;
-	if (file.Open(_C(_pathName), "a"))
+	if (file.Open(_C(_pathname), "a"))
 	{
 		if (file.GetSize() > 100 * 1024)
 		{
 			file.Close();
-			file.Open(_C(_pathName), "w");
+			file.Open(_C(_pathname), "w");
 		}
 		file.Write(_C(s), s.length());
 	}

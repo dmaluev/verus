@@ -7,15 +7,15 @@ namespace verus
 		class Json
 		{
 			nlohmann::json _json;
-			String         _pathName;
+			String         _pathname;
 
 		public:
 			Json();
-			Json(CSZ pathName);
+			Json(CSZ pathname);
 			~Json();
 
-			Str GetFileName() const { return _C(_pathName); }
-			void SetFileName(CSZ name);
+			Str GetFilename() const { return _C(_pathname); }
+			void SetFilename(CSZ name);
 			void Load(bool fromCache = false);
 			void Save();
 

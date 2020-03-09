@@ -31,10 +31,10 @@ void Skeleton::Done()
 	VERUS_DONE(Skeleton);
 }
 
-void Skeleton::Draw(bool bindPose, int selected)
+void Skeleton::Draw(bool bindPose, PcTransform3 pMat, int selected)
 {
 	VERUS_QREF_DD;
-	dd.Begin(CGI::DebugDraw::Type::lines, nullptr, false);
+	dd.Begin(CGI::DebugDraw::Type::lines, pMat, false);
 	for (const auto& kv : _mapBones)
 	{
 		PcBone pBone = &kv.second;

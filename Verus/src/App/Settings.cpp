@@ -117,29 +117,29 @@ void Settings::ParseCommandLineArgs(int argc, char* argv[])
 		_commandLine._testTexToPix = _commandLine._testTexToPix || IsArg(i, "--test-tex-to-pix");
 	}
 
-	SetFileName("Settings.json");
-	const String pathName = _C(GetFileName());
+	SetFilename("Settings.json");
+	const String pathname = _C(GetFilename());
 
 	VERUS_FOR(i, argc)
 	{
 		if (IsArg(i, "--q-low"))
 		{
-			const bool ret = IO::FileSystem::Delete(_C(pathName));
+			const bool ret = IO::FileSystem::Delete(_C(pathname));
 			SetQuality(Quality::low);
 		}
 		if (IsArg(i, "--q-medium"))
 		{
-			const bool ret = IO::FileSystem::Delete(_C(pathName));
+			const bool ret = IO::FileSystem::Delete(_C(pathname));
 			SetQuality(Quality::medium);
 		}
 		if (IsArg(i, "--q-high"))
 		{
-			const bool ret = IO::FileSystem::Delete(_C(pathName));
+			const bool ret = IO::FileSystem::Delete(_C(pathname));
 			SetQuality(Quality::high);
 		}
 		if (IsArg(i, "--q-ultra"))
 		{
-			const bool ret = IO::FileSystem::Delete(_C(pathName));
+			const bool ret = IO::FileSystem::Delete(_C(pathname));
 			SetQuality(Quality::ultra);
 		}
 	}

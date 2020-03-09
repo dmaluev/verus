@@ -117,12 +117,12 @@ int32_t NFDi_UTF8_Strlen( const nfdchar_t *str )
             /* If bit pattern begins with 0 we have ascii character. */ 
 			++character_count;
         }
-		else if (str[i] >> 6 == 3)
+		else if (((str[i] >> 6) & 0x3) == 3)
         {
 		/* If bit pattern begins with 11 it is beginning of UTF-8 byte sequence. */
 			++character_count;
         }
-		else if (str[i] >> 6 == 2)
+		else if (((str[i] >> 6) & 0x3) == 2)
 			;		/* If bit pattern begins with 10 it is middle of utf-8 byte sequence. */
 		else
         {

@@ -7,15 +7,15 @@ namespace verus
 		class Xml
 		{
 			pugi::xml_document _doc;
-			String             _pathName;
+			String             _pathname;
 
 		public:
 			Xml();
-			Xml(CSZ pathName);
+			Xml(CSZ pathname);
 			~Xml();
 
-			Str GetFileName() const { return _C(_pathName); }
-			void SetFileName(CSZ name);
+			Str GetFilename() const { return _C(_pathname); }
+			void SetFilename(CSZ name);
 			void Load(bool fromCache = false);
 			void Save();
 

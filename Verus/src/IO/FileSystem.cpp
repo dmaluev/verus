@@ -81,7 +81,7 @@ void FileSystem::PreloadCache(CSZ pak, CSZ types[])
 			memcpy(&pakDataOffset, fileEntry + s_querySize, sizeof(INT64));
 			memcpy(&pakDataSize, fileEntry + s_querySize + sizeof(INT64), sizeof(INT64));
 
-			const String password = ConvertFileNameToPassword(fileEntry);
+			const String password = ConvertFilenameToPassword(fileEntry);
 
 			Vector<BYTE> vCip, vZip, vData;
 			const INT64 entryOffset = file.GetPosition();
@@ -113,7 +113,7 @@ void FileSystem::PreloadCache(CSZ pak, CSZ types[])
 
 void FileSystem::LoadResource(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc)
 {
-	String pakPathName, pakEntry;
+	String pakPathname, pakEntry;
 	const size_t pakPos = FindPosForPAK(url);
 	if (pakPos != String::npos) // "[Foo]:Bar.ext" format -> in PAK file:
 	{
@@ -123,14 +123,14 @@ void FileSystem::LoadResource(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc)
 		ss << strUrl.substr(1, pakPos - 1) << ".pak";
 		const String name = strUrl.substr(pakPos + 2);
 		const WideString wide = Str::Utf8ToWide(name);
-		pakPathName = ss.str();
+		pakPathname = ss.str();
 		pakEntry = Str::CyrillicWideToAnsi(_C(wide));
 	}
 
-	if (pakPathName.empty() || pakEntry.empty()) // System file name?
+	if (pakPathname.empty() || pakEntry.empty()) // System file name?
 		return LoadResourceFromFile(url, vData, desc);
 	File pakFile;
-	if (!pakFile.Open(_C(pakPathName))) // PAK not found? Try system file.
+	if (!pakFile.Open(_C(pakPathname))) // PAK not found? Try system file.
 		return LoadResourceFromFile(url, vData, desc);
 
 	LoadResourceFromPAK(url, vData, desc, pakFile, _C(pakEntry));
@@ -138,7 +138,7 @@ void FileSystem::LoadResource(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc)
 
 void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc)
 {
-	String strUrl(url), projectPathName(url);
+	String strUrl(url), projectPathname(url);
 	const bool shader = Str::StartsWith(url, s_shaderPAK);
 	const size_t pakPos = FindPosForPAK(url);
 	if (pakPos != String::npos)
@@ -146,7 +146,7 @@ void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc d
 		if (shader)
 		{
 			strUrl.replace(0, strlen(s_shaderPAK), "/");
-			projectPathName = String(_C(Utils::I().GetProjectPath())) + strUrl;
+			projectPathname = String(_C(Utils::I().GetProjectPath())) + strUrl;
 			StringStream ss;
 			ss << _C(Utils::I().GetShaderPath()) << strUrl;
 			strUrl = ss.str();
@@ -155,7 +155,7 @@ void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc d
 		{
 			String folder = strUrl.substr(1, pakPos - 1);
 			const String name = strUrl.substr(pakPos + 2);
-			projectPathName = String(_C(Utils::I().GetProjectPath())) + s_dataFolder + folder + "/" + name;
+			projectPathname = String(_C(Utils::I().GetProjectPath())) + s_dataFolder + folder + "/" + name;
 			StringStream ss;
 			ss << _C(Utils::I().GetModulePath()) << s_dataFolder << folder << "/" << name;
 			strUrl = ss.str();
@@ -163,7 +163,7 @@ void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc d
 	}
 
 	File file;
-	if (file.Open(_C(strUrl)) || file.Open(_C(projectPathName)))
+	if (file.Open(_C(strUrl)) || file.Open(_C(projectPathname)))
 	{
 		const INT64 size = file.GetSize();
 		if (size >= 0)
@@ -235,7 +235,7 @@ void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc de
 		return LoadResourceFromFile(url, vData, desc);
 	}
 
-	const String password = ConvertFileNameToPassword(fileEntry);
+	const String password = ConvertFilenameToPassword(fileEntry);
 
 	Vector<BYTE> vCip, vZip;
 	file.Seek(pakDataOffset, SEEK_SET);
@@ -359,7 +359,7 @@ void FileSystem::LoadTextureParts(RFile file, CSZ url, int texturePart, Vector<B
 	file.Read(vData.data() + headerSize, size - headerSize - skipSize);
 }
 
-String FileSystem::ConvertFileNameToPassword(CSZ fileEntry)
+String FileSystem::ConvertFilenameToPassword(CSZ fileEntry)
 {
 	String password;
 	password.resize(strlen(fileEntry));
@@ -370,7 +370,7 @@ String FileSystem::ConvertFileNameToPassword(CSZ fileEntry)
 
 bool FileSystem::FileExist(CSZ url)
 {
-	String path(url), pak, projectPathName;
+	String path(url), pak, projectPathname;
 	const size_t pakPos = FindPosForPAK(url);
 	if (pakPos != String::npos)
 	{
@@ -379,7 +379,7 @@ bool FileSystem::FileExist(CSZ url)
 		pak = ssPak.str();
 
 		path.replace(pakPos, 1, "/");
-		projectPathName = String(_C(Utils::I().GetProjectPath())) + "/" + path;
+		projectPathname = String(_C(Utils::I().GetProjectPath())) + "/" + path;
 
 		StringStream ss;
 		ss << _C(Utils::I().GetModulePath()) << s_dataFolder << path;
@@ -390,18 +390,18 @@ bool FileSystem::FileExist(CSZ url)
 		return true;
 	if (file.Open(_C(pak))) // PAK filename:
 		return true;
-	if (file.Open(_C(projectPathName))) // File in another project dir:
+	if (file.Open(_C(projectPathname))) // File in another project dir:
 		return true;
 	return false;
 }
 
-bool FileSystem::Delete(CSZ pathName)
+bool FileSystem::Delete(CSZ pathname)
 {
 #ifdef _WIN32
-	const WideString ws = Str::Utf8ToWide(pathName);
+	const WideString ws = Str::Utf8ToWide(pathname);
 	return !_wremove(_C(ws));
 #else
-	return !remove(pathName);
+	return !remove(pathname);
 #endif
 }
 
@@ -434,18 +434,18 @@ String FileSystem::ConvertRelativePathToAbsolute(RcString path, bool useProjectD
 	return systemPath;
 }
 
-String FileSystem::ReplaceFilename(CSZ pathName, CSZ filename)
+String FileSystem::ReplaceFilename(CSZ pathname, CSZ filename)
 {
-	CSZ slash = strrchr(pathName, '\\');
+	CSZ slash = strrchr(pathname, '\\');
 	if (!slash)
-		slash = strrchr(pathName, '/');
+		slash = strrchr(pathname, '/');
 	if (slash)
 	{
-		const size_t pathSize = slash - pathName;
+		const size_t pathSize = slash - pathname;
 		const size_t size = pathSize + 1 + strlen(filename) + 1;
 		Vector<char> name;
 		name.resize(size);
-		strncpy(name.data(), pathName, pathSize);
+		strncpy(name.data(), pathname, pathSize);
 		name[pathSize] = '/';
 		strcat(name.data(), filename);
 		return name.data();
@@ -454,7 +454,7 @@ String FileSystem::ReplaceFilename(CSZ pathName, CSZ filename)
 }
 
 #if 0
-void FileSystem::SaveImage(CSZ pathName, const UINT32* p, int w, int h, bool upsideDown, ILenum type)
+void FileSystem::SaveImage(CSZ pathname, const UINT32* p, int w, int h, bool upsideDown, ILenum type)
 {
 	struct RAII
 	{
@@ -484,7 +484,7 @@ void FileSystem::SaveImage(CSZ pathName, const UINT32* p, int w, int h, bool ups
 	ilSaveL(type, v.data(), v.size());
 	const ILuint sizeOut = ilGetLumpPos();
 	IO::File file;
-	if (file.Open(pathName, "wb"))
+	if (file.Open(pathname, "wb"))
 	{
 		file.Write(v.data(), sizeOut);
 		file.Close();
@@ -494,10 +494,10 @@ void FileSystem::SaveImage(CSZ pathName, const UINT32* p, int w, int h, bool ups
 }
 #endif
 
-void FileSystem::SaveDDS(CSZ pathName, const UINT32* p, int w, int h, int d)
+void FileSystem::SaveDDS(CSZ pathname, const UINT32* p, int w, int h, int d)
 {
 	IO::File file;
-	if (!file.Open(pathName, "wb"))
+	if (!file.Open(pathname, "wb"))
 		throw VERUS_RUNTIME_ERROR << "SaveDDS(), Open()";
 
 	DDSHeader header;
@@ -533,10 +533,10 @@ void FileSystem::SaveDDS(CSZ pathName, const UINT32* p, int w, int h, int d)
 	file.Write(p, header._pitchOrLinearSize);
 }
 
-void FileSystem::SaveString(CSZ pathName, CSZ s)
+void FileSystem::SaveString(CSZ pathname, CSZ s)
 {
 	File file;
-	if (file.Open(pathName, "wb"))
+	if (file.Open(pathname, "wb"))
 		file.Write(s, strlen(s));
 	else
 		throw VERUS_RUNTIME_ERROR << "Create(SaveString)";

@@ -45,20 +45,20 @@ namespace verus
 			VERUS_P(static void LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc, RFile file, CSZ pakEntry));
 
 			static void LoadTextureParts(RFile file, CSZ url, int texturePart, Vector<BYTE>& vData);
-			static String ConvertFileNameToPassword(CSZ fileEntry);
+			static String ConvertFilenameToPassword(CSZ fileEntry);
 
 			static bool FileExist(CSZ url);
-			static bool Delete(CSZ pathName);
+			static bool Delete(CSZ pathname);
 
 			// Path & filename:
 			static String ConvertAbsolutePathToRelative(RcString path);
 			static String ConvertRelativePathToAbsolute(RcString path, bool useProjectDir);
-			static String ReplaceFilename(CSZ pathName, CSZ filename);
+			static String ReplaceFilename(CSZ pathname, CSZ filename);
 
 			// Save data:
-			//static void SaveImage	/**/(CSZ pathName, const UINT32* p, int w, int h, bool upsideDown = false, ILenum type = IL_PSD);
-			static void SaveDDS		/**/(CSZ pathName, const UINT32* p, int w, int h, int d = 0);
-			static void SaveString	/**/(CSZ pathName, CSZ s);
+			//static void SaveImage	/**/(CSZ pathname, const UINT32* p, int w, int h, bool upsideDown = false, ILenum type = IL_PSD);
+			static void SaveDDS		/**/(CSZ pathname, const UINT32* p, int w, int h, int d = 0);
+			static void SaveString	/**/(CSZ pathname, CSZ s);
 		};
 		VERUS_TYPEDEFS(FileSystem);
 

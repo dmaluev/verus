@@ -35,8 +35,10 @@ namespace verus
 		static void ToLower(SZ s);
 		static void ToUpper(SZ s);
 		static int ReplaceAll(RString s, CSZ was, CSZ with);
-		static void ReplaceExtension(RString s, CSZ ext);
-		static void ReplaceFilename(RString s, CSZ name);
+		static void ReplaceExtension(RString pathname, CSZ ext);
+		static void ReplaceFilename(RString pathname, CSZ filename);
+		static String GetPath(CSZ pathname);
+		static String GetFilename(CSZ pathname);
 		static String FromInt(int n);
 		static void Explode(CSZ s, CSZ delimiter, Vector<String>& pieces);
 		static void Trim(RString s);

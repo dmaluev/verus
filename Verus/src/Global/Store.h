@@ -49,6 +49,18 @@ namespace verus
 			return *it;
 		}
 
+		int FindIndex(TValue* p)
+		{
+			int index = 0;
+			for (const auto& x : _list)
+			{
+				if (&x == p)
+					return index;
+				index++;
+			}
+			return -1;
+		}
+
 		int GetStoredCount() const
 		{
 			return static_cast<int>(_list.size());

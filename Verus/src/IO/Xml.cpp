@@ -7,7 +7,7 @@ Xml::Xml()
 {
 }
 
-Xml::Xml(CSZ pathName) : _pathName(pathName)
+Xml::Xml(CSZ pathname) : _pathname(pathname)
 {
 }
 
@@ -15,16 +15,16 @@ Xml::~Xml()
 {
 }
 
-void Xml::SetFileName(CSZ name)
+void Xml::SetFilename(CSZ name)
 {
-	String pathName;
+	String pathname;
 	CSZ pSlash = strchr(name, '/');
 	if (!pSlash)
 	{
-		pathName = String(_C(Utils::I().GetWritablePath())) + "/" + name;
-		name = _C(pathName);
+		pathname = String(_C(Utils::I().GetWritablePath())) + "/" + name;
+		name = _C(pathname);
 	}
-	_pathName = name;
+	_pathname = name;
 }
 
 void Xml::Load(bool fromCache)
@@ -32,7 +32,7 @@ void Xml::Load(bool fromCache)
 	Vector<BYTE> vData;
 	if (fromCache)
 	{
-		IO::FileSystem::I().LoadResourceFromCache(_C(_pathName), vData);
+		IO::FileSystem::I().LoadResourceFromCache(_C(_pathname), vData);
 		const pugi::xml_parse_result result = _doc.load_buffer_inplace(vData.data(), vData.size());
 		if (!result)
 			throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
@@ -40,10 +40,10 @@ void Xml::Load(bool fromCache)
 	else
 	{
 		StringStream ss;
-		ss << "Load() url=" << _pathName;
+		ss << "Load() url=" << _pathname;
 		VERUS_LOG_INFO(_C(ss.str()));
 
-		IO::FileSystem::LoadResource(_C(_pathName), vData, IO::FileSystem::LoadDesc(true));
+		IO::FileSystem::LoadResource(_C(_pathname), vData, IO::FileSystem::LoadDesc(true));
 		const pugi::xml_parse_result result = _doc.load_buffer_inplace(vData.data(), vData.size());
 		if (!result)
 			throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
@@ -53,9 +53,9 @@ void Xml::Load(bool fromCache)
 void Xml::Save()
 {
 	StringStream ss;
-	ss << "Save() url=" << _pathName;
+	ss << "Save() url=" << _pathname;
 	IO::File file;
-	if (file.Open(_C(_pathName), "w"))
+	if (file.Open(_C(_pathname), "w"))
 	{
 		pugi::xml_writer_file writer(file.GetFile());
 		_doc.save(writer);

@@ -40,7 +40,7 @@ void CameraOrbit::SaveState(int slot)
 	StringStream ss;
 	ss << _C(Utils::I().GetWritablePath()) << "/CameraState.xml";
 	IO::Xml xml;
-	xml.SetFileName(_C(ss.str()));
+	xml.SetFilename(_C(ss.str()));
 	xml.Load();
 	char txt[16];
 	sprintf_s(txt, "slot%d", slot);
@@ -54,7 +54,7 @@ void CameraOrbit::LoadState(int slot)
 	StringStream ss;
 	ss << _C(Utils::I().GetWritablePath()) << "/CameraState.xml";
 	IO::Xml xml;
-	xml.SetFileName(_C(ss.str()));
+	xml.SetFilename(_C(ss.str()));
 	xml.Load();
 	char txt[16];
 	sprintf_s(txt, "slot%d", slot);

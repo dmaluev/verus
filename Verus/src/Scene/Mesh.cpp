@@ -251,7 +251,7 @@ bool Mesh::IsInstanceBufferEmpty()
 	return _instanceCount <= 0;
 }
 
-void Mesh::ResetNumInstances()
+void Mesh::ResetInstanceCount()
 {
 	_instanceCount = 0;
 }

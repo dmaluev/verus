@@ -247,7 +247,7 @@ namespace verus
 			Transform3            _matRoot;
 			TMapBoneNames         _mapBoneNames;
 			String                _currentMesh;
-			String                _pathName;
+			String                _pathname;
 			Vector<char>          _vData;
 			const char* _pData;
 			const char* _pDataBegin;
@@ -270,17 +270,17 @@ namespace verus
 			void Init(FileParserDelegate* p, RcDesc desc);
 			void Done();
 
-			void LoadBoneNames(CSZ pathName);
-			void ParseData(CSZ pathName);
-			void SerializeAll(CSZ pathName);
+			void LoadBoneNames(CSZ pathname);
+			void ParseData(CSZ pathname);
+			void SerializeAll(CSZ pathname);
 
-			void AsyncRun(CSZ pathName);
+			void AsyncRun(CSZ pathname);
 			void AsyncJoin();
 			bool IsAsyncStarted() const;
 			bool IsAsyncFinished() const;
 
 		private:
-			void LoadFromFile(CSZ pathName);
+			void LoadFromFile(CSZ pathname);
 
 			void StreamReadUntil(SZ dest, int destSize, CSZ separator);
 			void StreamSkipWhitespace();

@@ -164,7 +164,7 @@ namespace verus
 
 			virtual int UserPtr_GetType() override;
 
-			void ResetNumInstances();
+			void ResetInstanceCount();
 			void Layout();
 			void Draw();
 

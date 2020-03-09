@@ -3,8 +3,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>C:\Home\Projects\Verus\verus\Verus\src;C:\Home\Middleware\AMD Tootle 2.3\include;C:\Home\Middleware\bullet3-2.88\src;C:\Home\Middleware\bullet3-2.88\Extras;C:\Home\Middleware\libogg-1.3.4\include;C:\Home\Middleware\libvorbis-1.3.6\include;C:\Home\Middleware\SDL2-2.0.10\include;C:\Program Files %28x86%29\OpenAL 1.1 SDK\include;C:\VulkanSDK\1.1.126.0\Include;C:\VulkanSDK\1.1.126.0\glslang;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Home\Middleware\bullet3-2.88\bin;C:\Home\Middleware\AMD Tootle 2.3\lib;C:\Home\Middleware\libogg-1.3.4\lib;C:\Home\Middleware\libvorbis-1.3.6\lib2;C:\Home\Middleware\SDL2-2.0.10\lib\x64;C:\Program Files %28x86%29\OpenAL 1.1 SDK\libs\Win64;C:\VulkanSDK\1.1.126.0\Lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Home\Projects\Verus\verus\Verus\src;C:\Home\Middleware\AMD Tootle 2.3\include;C:\Home\Middleware\bullet3-2.88\src;C:\Home\Middleware\bullet3-2.88\Extras;C:\Home\Middleware\libogg-1.3.4\include;C:\Home\Middleware\libvorbis-1.3.6\include;C:\Home\Middleware\SDL2-2.0.10\include;C:\Program Files %28x86%29\OpenAL 1.1 SDK\include;C:\VulkanSDK\1.2.131.2\Include;C:\VulkanSDK\1.2.131.2\glslang;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Home\Middleware\bullet3-2.88\bin;C:\Home\Middleware\AMD Tootle 2.3\lib;C:\Home\Middleware\libogg-1.3.4\lib;C:\Home\Middleware\libvorbis-1.3.6\lib2;C:\Home\Middleware\SDL2-2.0.10\lib\x64;C:\Program Files %28x86%29\OpenAL 1.1 SDK\libs\Win64;C:\VulkanSDK\1.2.131.2\Lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup />
   <ItemGroup />

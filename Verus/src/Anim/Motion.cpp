@@ -604,7 +604,7 @@ void Motion::Bone::Scatter(int srcFrom, int srcTo, int dMin, int dMax)
 
 int Motion::Bone::GetLastKeyframe() const
 {
-	int frame = 0;
+	int frame = -1;
 	if (!_mapRot.empty())
 		frame = Math::Max(frame, _mapRot.rbegin()->first);
 	if (!_mapPos.empty())
@@ -965,7 +965,7 @@ void Motion::Exec(CSZ code)
 
 int Motion::GetLastKeyframe() const
 {
-	int frame = 0;
+	int frame = -1;
 	VERUS_FOREACH_CONST(TMapBones, _mapBones, it)
 		frame = Math::Max(frame, it->second.GetLastKeyframe());
 	return frame;

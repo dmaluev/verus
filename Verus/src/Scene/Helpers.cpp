@@ -41,9 +41,9 @@ void Helpers::Init()
 
 	// Basis:
 	_vBasis.reserve(30);
-	const UINT32 r = VERUS_COLOR_RGBA(255, 10, 10, 255);
-	const UINT32 g = VERUS_COLOR_RGBA(10, 180, 10, 255);
-	const UINT32 b = VERUS_COLOR_RGBA(99, 99, 255, 255);
+	const UINT32 r = GetBasisColorX();
+	const UINT32 g = GetBasisColorY();
+	const UINT32 b = GetBasisColorZ();
 	const float h = 0.8f;
 	const float w = 0.05f;
 	// X:
@@ -259,4 +259,19 @@ void Helpers::DrawSphere(RcPoint3 pos, float r, UINT32 color)
 	dd.m_pAmbientColor = &colorF;
 	_meshSphere.Draw(dd);
 #endif
+}
+
+UINT32 Helpers::GetBasisColorX(bool linear, int alpha)
+{
+	return linear ? VERUS_COLOR_RGBA(255, 1, 1, alpha) : VERUS_COLOR_RGBA(255, 10, 10, alpha);
+}
+
+UINT32 Helpers::GetBasisColorY(bool linear, int alpha)
+{
+	return linear ? VERUS_COLOR_RGBA(1, 118, 1, alpha) : VERUS_COLOR_RGBA(10, 180, 10, alpha);
+}
+
+UINT32 Helpers::GetBasisColorZ(bool linear, int alpha)
+{
+	return linear ? VERUS_COLOR_RGBA(31, 31, 255, alpha) : VERUS_COLOR_RGBA(99, 99, 255, alpha);
 }

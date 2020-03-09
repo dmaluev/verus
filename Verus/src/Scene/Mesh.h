@@ -83,7 +83,7 @@ namespace verus
 			void PushInstance(RcTransform3 matW, RcVector4 instData);
 			bool IsInstanceBufferFull();
 			bool IsInstanceBufferEmpty();
-			void ResetNumInstances();
+			void ResetInstanceCount();
 			void UpdateInstanceBuffer();
 			int GetInstanceCount() const { return _instanceCount; }
 			int GetInstanceCapacity() const { return _instanceCapacity; }

@@ -459,7 +459,7 @@ int Terrain::UserPtr_GetType()
 	//return +NodeType::terrain;
 }
 
-void Terrain::ResetNumInstances()
+void Terrain::ResetInstanceCount()
 {
 	_instanceCount = 0;
 }

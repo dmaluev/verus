@@ -87,7 +87,7 @@ namespace verus
 			void Init();
 			void Done();
 
-			void Draw(bool bindPose = true, int selected = -1);
+			void Draw(bool bindPose = true, PcTransform3 pMat = nullptr, int selected = -1);
 
 			static CSZ RootName() { return "$ROOT"; }
 

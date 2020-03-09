@@ -22,7 +22,7 @@ namespace verus
 
 		private:
 			std::mutex  _mutex;
-			std::string _pathName;
+			std::string _pathname;
 
 		public:
 			std::mutex& GetMutex() { return _mutex; }

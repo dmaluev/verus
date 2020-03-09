@@ -14,7 +14,7 @@ namespace verus
 			File();
 			~File();
 
-			bool Open(CSZ pathName, CSZ mode = "rb");
+			bool Open(CSZ pathname, CSZ mode = "rb");
 			void Close();
 
 			virtual INT64 Read(void* p, INT64 size) override;

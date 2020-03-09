@@ -12,16 +12,16 @@ File::~File()
 	Close();
 }
 
-bool File::Open(CSZ pathName, CSZ mode)
+bool File::Open(CSZ pathname, CSZ mode)
 {
 	Close();
 
 #ifdef _WIN32
-	const WideString pathNameW = Str::Utf8ToWide(pathName);
+	const WideString pathnameW = Str::Utf8ToWide(pathname);
 	const WideString modeW = Str::Utf8ToWide(mode);
-	_pFile = _wfopen(_C(pathNameW), _C(modeW));
+	_pFile = _wfopen(_C(pathnameW), _C(modeW));
 #else
-	_pFile = fopen(pathName, mode);
+	_pFile = fopen(pathname, mode);
 #endif
 	return nullptr != _pFile;
 }

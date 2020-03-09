@@ -92,36 +92,58 @@ void Str::ToUpper(SZ s)
 int Str::ReplaceAll(RString s, CSZ was, CSZ with)
 {
 	const size_t len = strlen(was);
-	const size_t lenNew = strlen(with);
+	const size_t lenWith = strlen(with);
 	size_t pos = s.find(was);
 	int count = 0;
 	while (pos < 1024 * 1024)
 	{
 		s.replace(pos, len, with);
-		pos = s.find(was, pos + lenNew);
+		pos = s.find(was, pos + lenWith);
 		count++;
 	}
 	return count;
 }
 
-void Str::ReplaceExtension(RString s, CSZ ext)
+void Str::ReplaceExtension(RString pathname, CSZ ext)
 {
-	size_t d = s.rfind(".");
-	if (d != String::npos)
+	const size_t pos = pathname.rfind('.');
+	if (String::npos != pos)
 	{
-		size_t count = s.length() - d;
-		s.replace(d, count, ext);
+		const size_t count = pathname.length() - pos;
+		pathname.replace(pos, count, ext);
 	}
 }
 
-void Str::ReplaceFilename(RString s, CSZ name)
+void Str::ReplaceFilename(RString pathname, CSZ filename)
 {
-	size_t d = s.rfind("/");
-	if (d != String::npos)
+	size_t pos = pathname.rfind('/');
+	if (String::npos == pos)
+		pos = pathname.rfind('\\');
+	if (String::npos != pos)
 	{
-		size_t count = s.length() - d;
-		s.replace(d + 1, count, name);
+		const size_t count = pathname.length() - pos;
+		pathname.replace(pos + 1, count, filename);
 	}
+}
+
+String Str::GetPath(CSZ pathname)
+{
+	CSZ p = strrchr(pathname, '/');
+	if (!p)
+		p = strrchr(pathname, '\\');
+	if (p)
+		return String(pathname, p);
+	return pathname;
+}
+
+String Str::GetFilename(CSZ pathname)
+{
+	CSZ p = strrchr(pathname, '/');
+	if (!p)
+		p = strrchr(pathname, '\\');
+	if (p)
+		return String(p + 1);
+	return pathname;
 }
 
 String Str::FromInt(int n)
@@ -150,11 +172,11 @@ void Str::Explode(CSZ s, CSZ delimiter, Vector<String>& pieces)
 void Str::Trim(RString s)
 {
 	auto pos = s.find_last_not_of(VERUS_WHITESPACE);
-	if (pos != String::npos)
+	if (String::npos != pos)
 	{
 		s.erase(pos + 1);
 		pos = s.find_first_not_of(VERUS_WHITESPACE);
-		if (pos != String::npos)
+		if (String::npos != pos)
 			s.erase(0, pos);
 	}
 	else
