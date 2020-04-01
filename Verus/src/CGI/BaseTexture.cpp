@@ -82,7 +82,7 @@ void BaseTexture::LoadDDS(RcBlob blob)
 			VERUS_RT_ASSERT(offset + levelSize <= blob._size);
 
 			if (static_cast<int>(i) >= lod)
-				UpdateImage(i - lod, blob._p + offset);
+				UpdateSubresource(blob._p + offset, i - lod);
 
 			offset += levelSize;
 		}
@@ -106,7 +106,7 @@ void BaseTexture::LoadDDS(RcBlob blob)
 				if (!w) w = 1;
 				if (!h) h = 1;
 
-				UpdateImage(i, blob._p + offset);
+				UpdateSubresource(blob._p + offset, i);
 				offset += w * h;
 			}
 		}
@@ -139,7 +139,7 @@ void BaseTexture::LoadDDS(RcBlob blob)
 						p += 3;
 					}
 				}
-				UpdateImage(i, vData.data());
+				UpdateSubresource(vData.data(), i);
 				offset += w * h * 3;
 			}
 		}
@@ -172,7 +172,7 @@ void BaseTexture::LoadDDS(RcBlob blob)
 						p += 4;
 					}
 				}
-				UpdateImage(i, vData.data());
+				UpdateSubresource(vData.data(), i);
 				offset += w * h * 4;
 			}
 		}
@@ -183,6 +183,7 @@ void BaseTexture::LoadDDSArray(CSZ* urls)
 {
 	TextureDesc desc;
 	desc._arrayLayers = 0;
+	desc._flags = TextureDesc::Flags::forceArrayTexture;
 	CSZ* urlsCount = urls;
 	while (*urlsCount)
 	{
@@ -260,7 +261,7 @@ void BaseTexture::LoadDDSArray(CSZ* urls)
 				VERUS_RT_ASSERT(offset + levelSize <= size);
 
 				if (static_cast<int>(i) >= lod)
-					UpdateImage(i - lod, pData + offset, arrayLayer);
+					UpdateSubresource(pData + offset, i - lod, arrayLayer);
 
 				offset += levelSize;
 			}
@@ -280,10 +281,9 @@ int BaseTexture::FormatToBytesPerPixel(Format format)
 {
 	switch (format)
 	{
-	case Format::unormB4G4R4A4:     return 2;
-	case Format::unormB5G6R5:       return 2;
 	case Format::unormR10G10B10A2:  return 4;
 	case Format::sintR16:           return 2;
+	case Format::floatR11G11B10:    return 4;
 
 	case Format::unormR8:           return 1;
 	case Format::unormR8G8:         return 2;

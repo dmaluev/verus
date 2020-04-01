@@ -20,7 +20,6 @@ namespace verus
 			Vector<VkVertexInputBindingDescription>   _vVertexInputBindingDesc;
 			Vector<VkVertexInputAttributeDescription> _vVertexInputAttributeDesc;
 			Vector<int>                               _vStrides;
-			DestroyStaging                            _destroyStagingBuffers;
 
 		public:
 			GeometryVulkan();
@@ -35,11 +34,11 @@ namespace verus
 			virtual void CreateIndexBuffer(int count) override;
 			virtual void UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB) override;
 
+			virtual Continue Scheduled_Update() override;
+
 			//
 			// Vulkan
 			//
-
-			void DestroyStagingBuffers();
 
 			VkPipelineVertexInputStateCreateInfo GetVkPipelineVertexInputStateCreateInfo(UINT32 bindingsFilter,
 				Vector<VkVertexInputBindingDescription>& vVertexInputBindingDesc, Vector<VkVertexInputAttributeDescription>& vVertexInputAttributeDesc) const;

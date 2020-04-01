@@ -4,6 +4,7 @@
 #include "Motion.h"
 #include "Skeleton.h"
 #include "Animation.h"
+#include "Warp.h"
 
 namespace verus
 {

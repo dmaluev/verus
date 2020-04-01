@@ -1,3 +1,5 @@
+// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+
 #include "Lib.hlsl"
 #include "LibColor.hlsl"
 #include "LibDeferredShading.hlsl"
@@ -80,7 +82,16 @@ VSO mainVS(VSI si)
 	const float3 intactTan = si.tan.xyz;
 	const float3 intactBin = si.bin.xyz;
 
+#if defined(DEF_SKINNED) || defined(DEF_ROBOTIC)
+	const float4 warpMask = float4(
+		1,
+		si.pos.w,
+		si.tan.w,
+		si.bin.w) * GetWarpScale();
+	const float3 pos = ApplyWarp(intactPos, g_ubSkeletonVS._vWarpZones, warpMask);
+#else
 	const float3 pos = intactPos;
+#endif
 
 	float3 posW;
 	float3 nrmWV;

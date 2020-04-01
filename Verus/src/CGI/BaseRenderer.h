@@ -25,10 +25,11 @@ namespace verus
 		class BaseRenderer : public Object
 		{
 		protected:
-			BaseRendererDesc _desc;
-			UINT32           _swapChainBufferCount = 0;
-			UINT32           _swapChainBufferIndex = 0;
-			UINT32           _ringBufferIndex = 0;
+			Vector<PScheduled> _vScheduled;
+			BaseRendererDesc   _desc;
+			UINT32             _swapChainBufferCount = 0;
+			UINT32             _swapChainBufferIndex = 0;
+			UINT32             _ringBufferIndex = 0;
 
 			BaseRenderer();
 			virtual ~BaseRenderer();
@@ -45,7 +46,11 @@ namespace verus
 			UINT32 GetSwapChainBufferIndex() const { return _swapChainBufferIndex; }
 			UINT32 GetRingBufferIndex() const { return _ringBufferIndex; }
 
-			virtual void ImGuiInit(int renderPassID) = 0;
+			void Schedule(PScheduled p);
+			void Unschedule(PScheduled p);
+			void UpdateScheduled();
+
+			virtual void ImGuiInit(int renderPassHandle) = 0;
 			virtual void ImGuiRenderDrawData() = 0;
 
 			virtual void ResizeSwapChain() = 0;
@@ -73,9 +78,9 @@ namespace verus
 			virtual void DeleteTexture(PBaseTexture p) = 0;
 
 			virtual int CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) = 0;
-			virtual int CreateFramebuffer(int renderPassID, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex = -1) = 0;
-			virtual void DeleteRenderPass(int id) = 0;
-			virtual void DeleteFramebuffer(int id) = 0;
+			virtual int CreateFramebuffer(int renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex = -1) = 0;
+			virtual void DeleteRenderPass(int handle) = 0;
+			virtual void DeleteFramebuffer(int handle) = 0;
 
 			static void SetAlphaBlendHelper(
 				CSZ sz,

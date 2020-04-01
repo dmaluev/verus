@@ -405,6 +405,7 @@ void Skeleton::LoadRigInfoFromPtr(SZ p)
 		bone._width = 0;
 		bone._length = 0;
 		bone._mass = 0.01f;
+		bone._friction = Physics::Bullet::GetFriction(Physics::Material::leather);
 		bone._rigBone = true;
 		bone._hinge = false;
 		bone._noCollision = false;
@@ -423,7 +424,7 @@ void Skeleton::LoadRigInfoFromPtr(SZ p)
 		const pugi::xml_parse_result result = doc.load_buffer_inplace(p, strlen(p));
 		if (!result)
 			throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
-		pugi::xml_node root = doc.root();
+		pugi::xml_node root = doc.first_child();
 
 		if (auto node = root.child("mass"))
 			_mass = node.text().as_float();
@@ -463,6 +464,8 @@ void Skeleton::LoadRigInfoFromPtr(SZ p)
 					pBone->_mass = pmass * _mass;
 
 				pBone->_noCollision = node.attribute("noCollision").as_bool();
+
+				pBone->_friction = node.attribute("friction").as_float(Physics::Bullet::GetFriction(Physics::Material::leather));
 
 				massCheck += pBone->_mass;
 			}
@@ -552,9 +555,9 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			short group = 1, mask = -1;
 			if (pParent->_noCollision)
 				group = mask = 0;
-			const btTransform t = matBody.Bullet();
-			pParent->_pBody = bullet.AddNewRigidBody(pParent->_mass, t, pParent->_pShape, group, mask);
-			pParent->_pBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::leather));
+			const btTransform tr = matBody.Bullet();
+			pParent->_pBody = bullet.AddNewRigidBody(pParent->_mass, tr, pParent->_pShape, group, mask);
+			pParent->_pBody->setFriction(pParent->_friction);
 			pParent->_pBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::leather) * 0.5f);
 			pParent->_pBody->setDamping(dampL, dampA);
 			pParent->_pBody->setDeactivationTime(daTime);
@@ -603,9 +606,9 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			short group = 1, mask = -1;
 			if (pBone->_noCollision)
 				group = mask = 0;
-			const btTransform t = matBody.Bullet();
-			pBone->_pBody = bullet.AddNewRigidBody(pBone->_mass, t, pBone->_pShape, group, mask);
-			pBone->_pBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::leather));
+			const btTransform tr = matBody.Bullet();
+			pBone->_pBody = bullet.AddNewRigidBody(pBone->_mass, tr, pBone->_pShape, group, mask);
+			pBone->_pBody->setFriction(pBone->_friction);
 			pBone->_pBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::leather) * 0.5f);
 			pBone->_pBody->setDamping(dampL, dampA);
 			pBone->_pBody->setDeactivationTime(daTime);
@@ -638,9 +641,9 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			{
 				btConeTwistConstraint* pConeC = new btConeTwistConstraint(*pBone->_pBody, *pParent->_pBody, localA, localB);
 				if (!pBone->_cLimits.IsZero())
-					pConeC->setLimit(pBone->_cLimits.getX(), pBone->_cLimits.getY(), pBone->_cLimits.getZ(), 0.9f);
+					pConeC->setLimit(pBone->_cLimits.getX(), pBone->_cLimits.getY(), pBone->_cLimits.getZ(), 0.9f, 0.1f);
 				else
-					pConeC->setLimit(VERUS_PI / 4, VERUS_PI / 4, VERUS_PI / 4, 0.9f);
+					pConeC->setLimit(VERUS_PI / 4, VERUS_PI / 4, VERUS_PI / 4, 0.9f, 0.1f);
 				if (!isLeaf)
 					pConeC->setFixThresh(1);
 				pBone->_pConstraint = pConeC;

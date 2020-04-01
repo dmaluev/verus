@@ -18,9 +18,11 @@ namespace verus
 			VmaAllocation       _storageVmaAllocation = VK_NULL_HANDLE;
 			VkImageView         _imageView = VK_NULL_HANDLE;
 			VkSampler           _sampler = VK_NULL_HANDLE;
+			Vector<UINT32>      _vDefinedSubresources;
 			Vector<VkImageView> _vStorageImageViews;
 			Vector<VkBufferEx>  _vStagingBuffers;
-			DestroyStaging      _destroyStagingBuffers;
+			Vector<int>         _vCshGenerateMips;
+			bool                _definedStorage = false;
 
 		public:
 			TextureVulkan();
@@ -29,15 +31,15 @@ namespace verus
 			virtual void Init(RcTextureDesc desc) override;
 			virtual void Done() override;
 
-			virtual void UpdateImage(int mipLevel, const void* p, int arrayLayer, BaseCommandBuffer* pCB) override;
+			virtual void UpdateSubresource(const void* p, int mipLevel, int arrayLayer, PBaseCommandBuffer pCB) override;
 
 			virtual void GenerateMips(PBaseCommandBuffer pCB) override;
+
+			virtual Continue Scheduled_Update() override;
 
 			//
 			// Vulkan
 			//
-
-			void DestroyStagingBuffers();
 
 			void CreateSampler();
 
@@ -45,6 +47,8 @@ namespace verus
 			VkImageView GetVkImageView() const { return _imageView; }
 			VkImageView GetStorageVkImageView(int mip) const { return _vStorageImageViews[mip]; }
 			VkSampler GetVkSampler() const { return _sampler; }
+			ImageLayout GetSubresourceMainLayout(int mipLevel, int arrayLayer) const;
+			void MarkSubresourceDefined(int mipLevel, int arrayLayer);
 		};
 		VERUS_TYPEDEFS(TextureVulkan);
 	}

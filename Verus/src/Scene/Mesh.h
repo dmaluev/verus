@@ -47,6 +47,7 @@ namespace verus
 			struct Desc
 			{
 				CSZ _url = nullptr;
+				CSZ _warpUrl = nullptr;
 				int _instanceCapacity = 1;
 
 				Desc(CSZ url = nullptr) : _url(url) {}

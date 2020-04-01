@@ -94,6 +94,7 @@
     <ClInclude Include="src\Anim\Anim.h" />
     <ClInclude Include="src\Anim\Animation.h" />
     <ClInclude Include="src\Anim\Damping.h" />
+    <ClInclude Include="src\Anim\Warp.h" />
     <ClInclude Include="src\Anim\Motion.h" />
     <ClInclude Include="src\Anim\Skeleton.h" />
     <ClInclude Include="src\App\App.h" />
@@ -114,8 +115,8 @@
     <ClInclude Include="src\CGI\CGI.h" />
     <ClInclude Include="src\CGI\DebugDraw.h" />
     <ClInclude Include="src\CGI\DeferredShading.h" />
-    <ClInclude Include="src\CGI\DestroyStaging.h" />
     <ClInclude Include="src\CGI\RendererParser.h" />
+    <ClInclude Include="src\CGI\Scheduled.h" />
     <ClInclude Include="src\CGI\Types.h" />
     <ClInclude Include="src\CGI\Formats.h" />
     <ClInclude Include="src\CGI\Renderer.h" />
@@ -172,6 +173,7 @@
     <ClInclude Include="src\Global\Typedef.h" />
     <ClInclude Include="src\IO\StreamPtr.h" />
     <ClInclude Include="src\IO\Xml.h" />
+    <ClInclude Include="src\IO\Xxx.h" />
     <ClInclude Include="src\Math\Bounds.h" />
     <ClInclude Include="src\Math\Frustum.h" />
     <ClInclude Include="src\Math\Math.h" />
@@ -247,6 +249,7 @@
     <ClCompile Include="src\AI\Turret.cpp" />
     <ClCompile Include="src\Anim\Anim.cpp" />
     <ClCompile Include="src\Anim\Animation.cpp" />
+    <ClCompile Include="src\Anim\Warp.cpp" />
     <ClCompile Include="src\Anim\Motion.cpp" />
     <ClCompile Include="src\Anim\Skeleton.cpp" />
     <ClCompile Include="src\App\App.cpp" />
@@ -270,6 +273,7 @@
     <ClCompile Include="src\CGI\Renderer.cpp" />
     <ClCompile Include="src\CGI\RendererParser.cpp" />
     <ClCompile Include="src\CGI\RenderPass.cpp" />
+    <ClCompile Include="src\CGI\Scheduled.cpp" />
     <ClCompile Include="src\D\D.cpp" />
     <ClCompile Include="src\D\Log.cpp" />
     <ClCompile Include="src\Extra\Extra.cpp" />
@@ -299,6 +303,7 @@
     <ClCompile Include="src\IO\Json.cpp" />
     <ClCompile Include="src\IO\Dictionary.cpp" />
     <ClCompile Include="src\IO\Xml.cpp" />
+    <ClCompile Include="src\IO\Xxx.cpp" />
     <ClCompile Include="src\Math\Bounds.cpp" />
     <ClCompile Include="src\Math\Frustum.cpp" />
     <ClCompile Include="src\Math\Math.cpp" />

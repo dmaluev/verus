@@ -39,7 +39,7 @@ void BaseMesh::Async_Run(CSZ url, RcBlob blob)
 		Load(blob);
 		LoadPrimaryBones();
 		LoadRig();
-		LoadMimic();
+		LoadWarp();
 		return;
 	}
 }
@@ -335,8 +335,7 @@ void BaseMesh::LoadPrimaryBones()
 
 void BaseMesh::LoadRig()
 {
-#if 0
-	if (!m_skeleton.IsInitialized())
+	if (!_skeleton.IsInitialized())
 		return;
 
 	String url(_url);
@@ -345,18 +344,16 @@ void BaseMesh::LoadRig()
 	IO::FileSystem::I().LoadResourceFromCache(_C(url), vData, false);
 	if (vData.size() <= 1)
 		return;
-	_skeleton.LoadRigInfoFromPtr(vData.data());
-#endif
+	_skeleton.LoadRigInfoFromPtr(reinterpret_cast<SZ>(vData.data()));
 }
 
-void BaseMesh::LoadMimic()
+void BaseMesh::LoadWarp()
 {
-#if 0
-	if (m_mimicUrl.empty())
+	if (_warpUrl.empty())
 		return;
 
 	Vector<BYTE> vData;
-	IO::FileSystem::I().LoadResourceFromCache(_C(m_mimicUrl), vData, false);
+	IO::FileSystem::I().LoadResourceFromCache(_C(_warpUrl), vData, false);
 	if (vData.size() > 1)
 	{
 		VERUS_RT_ASSERT(!(_vBinding0.empty() || _vBinding2.empty()));
@@ -375,15 +372,14 @@ void BaseMesh::LoadMimic()
 	}
 
 	vData.clear();
-	String mim(m_mimicUrl);
-	Str::ReplaceExtension(mim, ".mim");
-	IO::FileSystem::I().LoadResourceFromCache(_C(mim), vData, false);
+	String url(_warpUrl);
+	Str::ReplaceExtension(url, ".xwa");
+	IO::FileSystem::I().LoadResourceFromCache(_C(url), vData, false);
 	if (vData.size() > 1)
 	{
-		_mimic.Init();
-		_mimic.LoadFromPtr(vData.data());
+		_warp.Init();
+		_warp.LoadFromPtr(reinterpret_cast<SZ>(vData.data()));
 	}
-#endif
 }
 
 void BaseMesh::ComputeDeq(glm::vec3& scale, glm::vec3& bias, const glm::vec3& extents, const glm::vec3& minPos)
@@ -494,37 +490,6 @@ Math::Bounds BaseMesh::GetBounds() const
 	Point3 mn, mx;
 	GetBounds(mn, mx);
 	return Math::Bounds(mn, mx);
-}
-
-void BaseMesh::ForEachVertex(std::function<Continue(RcPoint3, int)> fn)
-{
-	VERUS_FOR(i, _vertCount)
-	{
-		Point3 pos;
-		DequantizeUsingDeq3D(_vBinding0[i]._pos, _posDeq, pos);
-		if (_vBinding1.empty())
-		{
-			if (Continue::no == fn(pos, -1))
-				break;
-		}
-		else
-		{
-			bool done = false;
-			VERUS_FOR(j, 4)
-			{
-				if (_vBinding1[i]._bw[j] > 0)
-				{
-					if (Continue::no == fn(pos, _vBinding1[i]._bi[j]))
-					{
-						done = true;
-						break;
-					}
-				}
-			}
-			if (done)
-				break;
-		}
-	}
 }
 
 String BaseMesh::ToXmlString() const

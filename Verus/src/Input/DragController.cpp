@@ -14,7 +14,7 @@ void DragController::Begin(int x, int y)
 {
 	if (!_pDelegate)
 		return;
-	_active = true;
+	_holding = true;
 	_originCoordX = x;
 	_originCoordY = y;
 	_pDelegate->DragController_Begin();
@@ -23,7 +23,7 @@ void DragController::Begin(int x, int y)
 
 bool DragController::DragTo(int x, int y)
 {
-	if (!_pDelegate || !_active)
+	if (!_pDelegate || !_holding)
 		return false;
 	const float newX = _originX + (x - _originCoordX) * _ratioX;
 	const float newY = _originY + (y - _originCoordY) * _ratioY;
@@ -33,7 +33,7 @@ bool DragController::DragTo(int x, int y)
 
 bool DragController::DragBy(int x, int y)
 {
-	if (!_pDelegate || !_active)
+	if (!_pDelegate || !_holding)
 		return false;
 	_originX += x * _ratioX;
 	_originY += y * _ratioY;
@@ -45,7 +45,7 @@ void DragController::End()
 {
 	if (_pDelegate)
 		_pDelegate->DragController_End();
-	_active = false;
+	_holding = false;
 }
 
 void DragController::SetScale(float s)

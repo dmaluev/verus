@@ -97,6 +97,11 @@ ComPtr<IDXGIAdapter4> RendererD3D12::GetAdapter(ComPtr<IDXGIFactory6> pFactory)
 	ComPtr<IDXGIAdapter4> pAdapter;
 	if (FAILED(hr = pFactory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&pAdapter))))
 		throw VERUS_RUNTIME_ERROR << "EnumAdapterByGpuPreference(), hr=" << VERUS_HR(hr);
+
+	DXGI_ADAPTER_DESC1 adapterDesc = {};
+	pAdapter->GetDesc1(&adapterDesc);
+	const String description = Str::WideToUtf8(adapterDesc.Description);
+	VERUS_LOG_INFO("Adapter desc: " << description);
 	return pAdapter;
 }
 
@@ -141,8 +146,12 @@ void RendererD3D12::InitD3D()
 
 	ComPtr<IDXGIAdapter4> pAdapter = GetAdapter(pFactory);
 
-	if (FAILED(hr = D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&_pDevice))))
+	const D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
+	if (FAILED(hr = D3D12CreateDevice(pAdapter.Get(), featureLevel, IID_PPV_ARGS(&_pDevice))))
 		throw VERUS_RUNTIME_ERROR << "D3D12CreateDevice(), hr=" << VERUS_HR(hr);
+
+	VERUS_RT_ASSERT(D3D_FEATURE_LEVEL_11_0 == featureLevel);
+	VERUS_LOG_INFO("Using feature level: 11_0");
 
 	D3D12MA::ALLOCATOR_DESC allocatorDesc = {};
 	allocatorDesc.pDevice = _pDevice.Get();
@@ -161,7 +170,9 @@ void RendererD3D12::InitD3D()
 
 	_pCommandQueue = CreateCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-	_swapChainBufferCount = settings._screenVSync ? 3 : 2;
+	const bool allowTearing = false; // CheckFeatureSupportAllowTearing(pFactory);
+
+	_swapChainBufferCount = (settings._screenVSync && !allowTearing) ? 3 : 2;
 
 	_swapChainDesc.Width = settings._screenSizeWidth;
 	_swapChainDesc.Height = settings._screenSizeHeight;
@@ -174,7 +185,7 @@ void RendererD3D12::InitD3D()
 	_swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
 	_swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	_swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-	_swapChainDesc.Flags = CheckFeatureSupportAllowTearing(pFactory) ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+	_swapChainDesc.Flags = allowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 
 	SDL_Window* pWnd = renderer.GetMainWindow()->GetSDL();
 	VERUS_RT_ASSERT(pWnd);
@@ -357,7 +368,7 @@ D3D12_STATIC_SAMPLER_DESC RendererD3D12::GetStaticSamplerDesc(Sampler s) const
 	return _vSamplers[+s];
 }
 
-void RendererD3D12::ImGuiInit(int renderPassID)
+void RendererD3D12::ImGuiInit(int renderPassHandle)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_CONST_SETTINGS;
@@ -460,6 +471,8 @@ void RendererD3D12::EndFrame(bool present)
 	}
 
 	ImGui::EndFrame();
+
+	UpdateScheduled();
 }
 
 void RendererD3D12::Present()
@@ -468,8 +481,13 @@ void RendererD3D12::Present()
 	HRESULT hr = 0;
 
 	const bool allowTearing = !!(_swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING);
-	const UINT syncInterval = settings._screenVSync ? 1 : 0;
-	const UINT flags = (allowTearing && !settings._screenVSync) ? DXGI_PRESENT_ALLOW_TEARING : 0;
+	UINT syncInterval = settings._screenVSync ? 1 : 0;
+	UINT flags = 0;
+	if (allowTearing)
+	{
+		syncInterval = 0;
+		flags = DXGI_PRESENT_ALLOW_TEARING;
+	}
 	if (FAILED(hr = _pSwapChain->Present(syncInterval, flags)))
 		throw VERUS_RUNTIME_ERROR << "Present(), hr=" << VERUS_HR(hr);
 
@@ -609,18 +627,18 @@ int RendererD3D12::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, s
 		renderPass._vSubpasses.push_back(std::move(d3dSubpass));
 	}
 
-	const int id = GetNextRenderPassID();
-	if (id >= _vRenderPasses.size())
+	const int handle = GetNextRenderPassHandle();
+	if (handle >= _vRenderPasses.size())
 		_vRenderPasses.push_back(std::move(renderPass));
 	else
-		_vRenderPasses[id] = renderPass;
+		_vRenderPasses[handle] = renderPass;
 
-	return id;
+	return handle;
 }
 
-int RendererD3D12::CreateFramebuffer(int renderPassID, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex)
+int RendererD3D12::CreateFramebuffer(int renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex)
 {
-	RP::RcD3DRenderPass renderPass = GetRenderPassByID(renderPassID);
+	RP::RcD3DRenderPass renderPass = GetRenderPass(renderPassHandle);
 	RP::D3DFramebuffer framebuffer;
 	framebuffer._width = w;
 	framebuffer._height = h;
@@ -728,32 +746,32 @@ int RendererD3D12::CreateFramebuffer(int renderPassID, std::initializer_list<Tex
 		framebuffer._vSubpasses.push_back(std::move(fs));
 	}
 
-	const int id = GetNextFramebufferID();
-	if (id >= _vFramebuffers.size())
+	const int handle = GetNextFramebufferHandle();
+	if (handle >= _vFramebuffers.size())
 		_vFramebuffers.push_back(std::move(framebuffer));
 	else
-		_vFramebuffers[id] = framebuffer;
+		_vFramebuffers[handle] = framebuffer;
 
-	return id;
+	return handle;
 }
 
-void RendererD3D12::DeleteRenderPass(int id)
+void RendererD3D12::DeleteRenderPass(int handle)
 {
-	if (id >= 0)
-		_vRenderPasses[id] = RP::D3DRenderPass();
+	if (handle >= 0)
+		_vRenderPasses[handle] = RP::D3DRenderPass();
 	else
 		_vRenderPasses.clear();
 }
 
-void RendererD3D12::DeleteFramebuffer(int id)
+void RendererD3D12::DeleteFramebuffer(int handle)
 {
-	if (id >= 0)
-		_vFramebuffers[id] = RP::D3DFramebuffer();
+	if (handle >= 0)
+		_vFramebuffers[handle] = RP::D3DFramebuffer();
 	else
 		_vFramebuffers.clear();
 }
 
-int RendererD3D12::GetNextRenderPassID() const
+int RendererD3D12::GetNextRenderPassHandle() const
 {
 	const int count = Utils::Cast32(_vRenderPasses.size());
 	VERUS_FOR(i, count)
@@ -764,7 +782,7 @@ int RendererD3D12::GetNextRenderPassID() const
 	return count;
 }
 
-int RendererD3D12::GetNextFramebufferID() const
+int RendererD3D12::GetNextFramebufferHandle() const
 {
 	const int count = Utils::Cast32(_vFramebuffers.size());
 	VERUS_FOR(i, count)
@@ -775,12 +793,12 @@ int RendererD3D12::GetNextFramebufferID() const
 	return count;
 }
 
-RP::RcD3DRenderPass RendererD3D12::GetRenderPassByID(int id) const
+RP::RcD3DRenderPass RendererD3D12::GetRenderPass(int handle) const
 {
-	return _vRenderPasses[id];
+	return _vRenderPasses[handle];
 }
 
-RP::RcD3DFramebuffer RendererD3D12::GetFramebufferByID(int id) const
+RP::RcD3DFramebuffer RendererD3D12::GetFramebuffer(int handle) const
 {
-	return _vFramebuffers[id];
+	return _vFramebuffers[handle];
 }

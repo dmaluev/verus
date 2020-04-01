@@ -29,7 +29,7 @@ namespace verus
 			void SetSnapToTexels(bool b) { _snapToTexels = b; }
 			bool IsRendering() const { return _rendering; }
 
-			int GetRenderPassID() const { return _rp; }
+			int GetRenderPassHandle() const { return _rp; }
 
 			void Begin(RcVector3 dirToSun, float zNear = 1, float zFar = 0);
 			void BeginLight(RcPoint3 pos, RcPoint3 target, float side = 10);

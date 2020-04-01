@@ -198,16 +198,16 @@ RTransform3 Transform3::operator=(const VMath::Transform3& that)
 	return *this;
 }
 
-Transform3::Transform3(const btTransform& t)
+Transform3::Transform3(const btTransform& tr)
 {
-	t.getOpenGLMatrix(reinterpret_cast<float*>(this));
+	tr.getOpenGLMatrix(reinterpret_cast<float*>(this));
 }
 
 btTransform Transform3::Bullet() const
 {
-	btTransform t;
-	t.setFromOpenGLMatrix(ToPointer());
-	return t;
+	btTransform tr;
+	tr.setFromOpenGLMatrix(ToPointer());
+	return tr;
 }
 
 Transform3::Transform3(const glm::mat4& that)

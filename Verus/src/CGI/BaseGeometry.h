@@ -15,7 +15,7 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(GeometryDesc);
 
-		class BaseGeometry : public Object
+		class BaseGeometry : public Object, public Scheduled
 		{
 		protected:
 			UINT32 _instBindingsMask = 0;

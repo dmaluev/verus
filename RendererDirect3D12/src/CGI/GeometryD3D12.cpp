@@ -62,8 +62,7 @@ void GeometryD3D12::Init(RcGeometryDesc desc)
 
 void GeometryD3D12::Done()
 {
-	_destroyStagingBuffers.Allow();
-	DestroyStagingBuffers();
+	ForceScheduled();
 
 	VERUS_SMART_RELEASE(_indexBuffer._pMaAllocation);
 	VERUS_COM_RELEASE_CHECK(_indexBuffer._pBuffer.Get());
@@ -130,7 +129,7 @@ void GeometryD3D12::CreateVertexBuffer(int count, int binding)
 	}
 }
 
-void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, BaseCommandBuffer* pCB)
+void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, PBaseCommandBuffer pCB)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_D3D12;
@@ -152,22 +151,33 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, BaseCommandBu
 		if (_vStagingVertexBuffers.size() <= binding)
 			_vStagingVertexBuffers.resize(binding + 1);
 
+		bool revertState = true;
 		auto& vb = _vVertexBuffers[binding];
 		auto& svb = _vStagingVertexBuffers[binding];
-		D3D12MA::ALLOCATION_DESC allocDesc = {};
-		allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
-		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
-			&allocDesc,
-			&CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			&svb._pMaAllocation,
-			IID_PPV_ARGS(&svb._pBuffer))))
-			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+		if (!svb._pBuffer)
+		{
+			revertState = false;
+			D3D12MA::ALLOCATION_DESC allocDesc = {};
+			allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+			if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+				&allocDesc,
+				&CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize),
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr,
+				&svb._pMaAllocation,
+				IID_PPV_ARGS(&svb._pBuffer))))
+				throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+		}
 
 		if (!pCB)
 			pCB = &(*renderer.GetCommandBuffer());
 		auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
+		if (revertState)
+		{
+			const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+				vb._pBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_COPY_DEST);
+			pCmdList->ResourceBarrier(1, &barrier);
+		}
 		D3D12_SUBRESOURCE_DATA sd = {};
 		sd.pData = p;
 		sd.RowPitch = vb._bufferSize;
@@ -180,7 +190,7 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, BaseCommandBu
 			vb._pBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 		pCmdList->ResourceBarrier(1, &barrier);
 
-		_destroyStagingBuffers.Schedule();
+		Schedule();
 	}
 }
 
@@ -208,26 +218,37 @@ void GeometryD3D12::CreateIndexBuffer(int count)
 	_indexBufferView.Format = _32BitIndices ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
 }
 
-void GeometryD3D12::UpdateIndexBuffer(const void* p, BaseCommandBuffer* pCB)
+void GeometryD3D12::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
 
-	D3D12MA::ALLOCATION_DESC allocDesc = {};
-	allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
-	if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
-		&allocDesc,
-		&CD3DX12_RESOURCE_DESC::Buffer(_indexBuffer._bufferSize),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		&_stagingIndexBuffer._pMaAllocation,
-		IID_PPV_ARGS(&_stagingIndexBuffer._pBuffer))))
-		throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+	bool revertState = true;
+	if (!_stagingIndexBuffer._pBuffer)
+	{
+		revertState = false;
+		D3D12MA::ALLOCATION_DESC allocDesc = {};
+		allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+			&allocDesc,
+			&CD3DX12_RESOURCE_DESC::Buffer(_indexBuffer._bufferSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			&_stagingIndexBuffer._pMaAllocation,
+			IID_PPV_ARGS(&_stagingIndexBuffer._pBuffer))))
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+	}
 
 	if (!pCB)
 		pCB = &(*renderer.GetCommandBuffer());
 	auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
+	if (revertState)
+	{
+		const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+			_indexBuffer._pBuffer.Get(), D3D12_RESOURCE_STATE_INDEX_BUFFER, D3D12_RESOURCE_STATE_COPY_DEST);
+		pCmdList->ResourceBarrier(1, &barrier);
+	}
 	D3D12_SUBRESOURCE_DATA sd = {};
 	sd.pData = p;
 	sd.RowPitch = _indexBuffer._bufferSize;
@@ -240,13 +261,13 @@ void GeometryD3D12::UpdateIndexBuffer(const void* p, BaseCommandBuffer* pCB)
 		_indexBuffer._pBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER);
 	pCmdList->ResourceBarrier(1, &barrier);
 
-	_destroyStagingBuffers.Schedule();
+	Schedule();
 }
 
-void GeometryD3D12::DestroyStagingBuffers()
+Continue GeometryD3D12::Scheduled_Update()
 {
-	if (!_destroyStagingBuffers.IsAllowed())
-		return;
+	if (!IsScheduledAllowed())
+		return Continue::yes;
 
 	VERUS_SMART_RELEASE(_stagingIndexBuffer._pMaAllocation);
 	VERUS_COM_RELEASE_CHECK(_stagingIndexBuffer._pBuffer.Get());
@@ -258,6 +279,8 @@ void GeometryD3D12::DestroyStagingBuffers()
 		x._pBuffer.Reset();
 	}
 	_vStagingVertexBuffers.clear();
+
+	return Continue::no;
 }
 
 D3D12_INPUT_LAYOUT_DESC GeometryD3D12::GetD3DInputLayoutDesc(UINT32 bindingsFilter, Vector<D3D12_INPUT_ELEMENT_DESC>& vInputElementDesc) const

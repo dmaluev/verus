@@ -1,3 +1,5 @@
+// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+
 struct DS_FSO
 {
 	float4 target0 : SV_Target0; // {color, spec}

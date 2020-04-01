@@ -28,12 +28,12 @@ void CharacterController::Init(RcPoint3 pos, RcDesc desc)
 
 	_offset = _radius + _height * 0.5f;
 
-	btTransform t;
-	t.setIdentity();
-	t.setOrigin(pos.Bullet() + btVector3(0, _offset, 0));
+	btTransform tr;
+	tr.setIdentity();
+	tr.setOrigin(pos.Bullet() + btVector3(0, _offset, 0));
 	_pCapsule = new btCapsuleShape(1, 1);
 	_pGhostObject = new btPairCachingGhostObject();
-	_pGhostObject->setWorldTransform(t);
+	_pGhostObject->setWorldTransform(tr);
 	_pGhostObject->setCollisionShape(_pCapsule);
 	_pGhostObject->setCollisionFlags(btCollisionObject::CF_CHARACTER_OBJECT);
 	_pGhostObject->setUserPointer(this);

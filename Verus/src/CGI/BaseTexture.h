@@ -33,8 +33,10 @@ namespace verus
 				colorAttachment = (1 << 0),
 				inputAttachment = (1 << 1),
 				depthSampled = (1 << 2),
-				generateMips = (1 << 3),
-				sync = (1 << 4)
+				anyShaderResource = (1 << 3), // Will use xsReadOnly as main layout.
+				generateMips = (1 << 4), // Allows GenerateMips calls.
+				forceArrayTexture = (1 << 5), // Create array texture even if arrayLayers=1.
+				sync = (1 << 6)
 			};
 
 			Vector4       _clearValue = Vector4(0);
@@ -52,15 +54,24 @@ namespace verus
 			short         _texturePart = 0;
 
 			TextureDesc(CSZ url = nullptr) : _url(url) {}
+
+			void Reset(int w = 0, int h = 0, Format format = Format::unormR8G8B8A8)
+			{
+				*this = TextureDesc();
+				_format = format;
+				_width = w;
+				_height = h;
+			}
 		};
 		VERUS_TYPEDEFS(TextureDesc);
 
-		class BaseTexture : public Object, public IO::AsyncCallback
+		class BaseTexture : public Object, public IO::AsyncCallback, public Scheduled
 		{
 		protected:
 			Vector4     _size = Vector4(0);
 			String      _name;
 			TextureDesc _desc;
+			ImageLayout _mainLayout = ImageLayout::fsReadOnly;
 			int         _part = 0;
 			int         _bytesPerPixel = 0;
 
@@ -93,7 +104,7 @@ namespace verus
 
 			virtual void Async_Run(CSZ url, RcBlob blob) override;
 
-			virtual void UpdateImage(int mipLevel, const void* p, int arrayLayer = 0, BaseCommandBuffer* pCB = nullptr) = 0;
+			virtual void UpdateSubresource(const void* p, int mipLevel = 0, int arrayLayer = 0, BaseCommandBuffer* pCB = nullptr) = 0;
 
 			virtual void GenerateMips(BaseCommandBuffer* pCB = nullptr) = 0;
 

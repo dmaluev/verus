@@ -29,6 +29,7 @@ void Sound::Init(RcDesc desc)
 	_pitch = desc._pitch;
 	_referenceDistance = desc._referenceDistance;
 	if (desc._randomOffset) SetFlag(SoundFlags::randOff);
+	if (desc._keepPcmBuffer) SetFlag(SoundFlags::keepPcmBuffer);
 
 	IO::Async::I().Load(desc._url, this);
 }
@@ -72,17 +73,22 @@ void Sound::Async_Run(CSZ url, RcBlob blob)
 
 	_length = static_cast<float>(ov_time_total(&ovf, -1));
 	const INT64 pcmSize = ov_pcm_total(&ovf, -1) * 2 * povi->channels + 1;
-	Vector<BYTE> vRaw;
-	vRaw.resize(pcmSize);
+	_vPcmBuffer.resize(pcmSize);
 	int bitstream, offset = 0;
-	long count = ov_read(&ovf, reinterpret_cast<char*>(vRaw.data()), Utils::Cast32(vRaw.size()), 0, 2, 1, &bitstream);
+	long count = ov_read(&ovf, reinterpret_cast<char*>(_vPcmBuffer.data()), Utils::Cast32(_vPcmBuffer.size()), 0, 2, 1, &bitstream);
 	do
 	{
 		offset += count;
-		count = ov_read(&ovf, reinterpret_cast<char*>(&vRaw[offset]), Utils::Cast32(vRaw.size()) - offset, 0, 2, 1, &bitstream);
+		count = ov_read(&ovf, reinterpret_cast<char*>(&_vPcmBuffer[offset]), Utils::Cast32(_vPcmBuffer.size()) - offset, 0, 2, 1, &bitstream);
 	} while (count > 0);
-	alBufferData(_buffer, format, vRaw.data(), offset, povi->rate);
+	alBufferData(_buffer, format, _vPcmBuffer.data(), offset, povi->rate);
 	ov_clear(&ovf);
+
+	if (!IsFlagSet(SoundFlags::keepPcmBuffer))
+	{
+		_vPcmBuffer.clear();
+		_vPcmBuffer.shrink_to_fit();
+	}
 
 	SetFlag(SoundFlags::loaded);
 }
@@ -161,6 +167,11 @@ SourcePtr Sound::NewSource(PSourcePtr pID, Source::RcDesc desc)
 float Sound::GetRandomOffset() const
 {
 	return _length * Utils::I().GetRandom().NextFloat();
+}
+
+Blob Sound::GetPcmBuffer() const
+{
+	return Blob(_vPcmBuffer.data(), _vPcmBuffer.size());
 }
 
 // SoundPtr:

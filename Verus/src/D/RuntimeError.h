@@ -14,7 +14,7 @@ namespace verus
 			UINT32               _line = 0;
 
 		public:
-			RuntimeError(std::thread::id tid = std::this_thread::get_id(), CSZ file = __FILE__, UINT32 line = __LINE__) :
+			RuntimeError(std::thread::id tid = std::this_thread::get_id(), CSZ file = "", UINT32 line = __LINE__) :
 				_tid(tid), _line(line)
 			{
 				CSZ p = strrchr(file, '/');

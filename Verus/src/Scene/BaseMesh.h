@@ -39,6 +39,8 @@ namespace verus
 			Vector<VertexInputBinding2> _vBinding2;
 			Vector<VertexInputBinding3> _vBinding3;
 			Anim::Skeleton              _skeleton;
+			Anim::Warp                  _warp;
+			String                      _warpUrl;
 			String                      _url;
 			int                         _vertCount = 0;
 			int                         _faceCount = 0;
@@ -73,7 +75,7 @@ namespace verus
 			// Load extra:
 			VERUS_P(void LoadPrimaryBones());
 			VERUS_P(void LoadRig());
-			VERUS_P(void LoadMimic());
+			VERUS_P(void LoadWarp());
 
 			// Quantization / dequantization:
 			static void ComputeDeq(glm::vec3& scale, glm::vec3& bias, const glm::vec3& extents, const glm::vec3& minPos);
@@ -100,10 +102,42 @@ namespace verus
 			void GetBounds(RPoint3 mn, RPoint3 mx) const;
 			Math::Bounds GetBounds() const;
 
-			void ForEachVertex(std::function<Continue(RcPoint3, int)> fn);
+			template<typename T>
+			void ForEachVertex(const T& fn, bool matIndices = false)
+			{
+				VERUS_FOR(i, _vertCount)
+				{
+					Point3 pos, uv;
+					DequantizeUsingDeq3D(_vBinding0[i]._pos, _posDeq, pos);
+					DequantizeUsingDeq2D(_vBinding0[i]._tc0, _tc0Deq, uv);
+					if (_vBinding1.empty() || !matIndices)
+					{
+						if (Continue::no == fn(pos, -1, uv))
+							break;
+					}
+					else
+					{
+						bool done = false;
+						VERUS_FOR(j, 4)
+						{
+							if (_vBinding1[i]._bw[j] > 0)
+							{
+								if (Continue::no == fn(pos, _vBinding1[i]._bi[j], uv))
+								{
+									done = true;
+									break;
+								}
+							}
+						}
+						if (done)
+							break;
+					}
+				}
+			}
 
 			Anim::RSkeleton GetSkeleton() { return _skeleton; }
 			Anim::RcSkeleton GetSkeleton() const { return _skeleton; }
+			Anim::RWarp GetWarp() { return _warp; }
 
 			String ToXmlString() const;
 			String ToObjString() const;

@@ -15,17 +15,19 @@ namespace verus
 
 		class TerrainPhysics
 		{
-			btHeightfieldTerrainShape* _pTerrainShape = nullptr;
-			Vector<short>              _vData;
+			btHeightfieldTerrainShape* _pShape = nullptr;
+			btRigidBody* _pRigidBody = nullptr;
+			bool _debugDraw = false;
 
 		public:
 			TerrainPhysics();
 			~TerrainPhysics();
 
-			void Init(Physics::PUserPtr p, int w, int h, float heightScale = 0.01f);
+			void Init(Physics::PUserPtr p, int w, int h, const void* pData, float heightScale = 0.01f);
 			void Done();
 
-			Vector<short>& GetData() { return _vData; }
+			void EnableDebugDraw(bool b);
+			bool IsDebugDrawEnabled() const { return _debugDraw; }
 		};
 		VERUS_TYPEDEFS(TerrainPhysics);
 
@@ -70,7 +72,7 @@ namespace verus
 			void BindTBN(PTBN p);
 			void InitFlat(short height, int mainLayer);
 			void UpdateNormals(Terrain* p, int lod);
-			int GetSplatChannelForLayer(int layer);
+			int GetSplatChannelForLayer(int layer) const;
 		};
 		VERUS_TYPEDEFS(TerrainPatch);
 
@@ -99,7 +101,7 @@ namespace verus
 				TEX_MAX
 			};
 
-			static const int s_maxLayers = 16;
+			static const int s_maxLayers = 32;
 
 			struct PerInstanceData
 			{
@@ -109,8 +111,8 @@ namespace verus
 
 			struct LayerData
 			{
-				float _specAmount = 1;
-				float _detailAmount = 1;
+				float _specStrength = 1;
+				float _detailStrength = 1;
 			};
 
 		protected:
@@ -126,7 +128,11 @@ namespace verus
 			Vector<UINT16>              _vSortedPatchIndices;
 			Vector<PerInstanceData>     _vInstanceBuffer;
 			Vector<String>              _vLayerUrls;
-			Vector<UINT32>              _vBlend;
+			Vector<short>               _vHeightBuffer;
+			Vector<glm::uint16>         _vHeightmapSubresData;
+			Vector<UINT32>              _vNormalsSubresData;
+			Vector<UINT32>              _vBlendBuffer;
+			Vector<BYTE>                _vMainLayerSubresData;
 			float                       _quadtreeFatten = 0.5f;
 			int                         _mapSide = 0;
 			int                         _mapShift = 0;
@@ -134,8 +140,8 @@ namespace verus
 			int                         _vertCount = 0;
 			int                         _indexCount = 0;
 			int                         _instanceCount = 0;
-			int                         _csidVS = -1;
-			int                         _csidFS = -1;
+			int                         _cshVS = -1;
+			int                         _cshFS = -1;
 			TerrainLOD                  _lods[5]; // Level of detail data for (16x16, 8x8, 4x4, 2x2, 1x1).
 			LayerData                   _layerData[s_maxLayers];
 			TerrainPhysics              _physics;
@@ -187,28 +193,43 @@ namespace verus
 			float GetHeightAt(RcPoint3 pos) const;
 			float GetHeightAt(const int ij[2], int lod = 0, short* pRaw = nullptr) const;
 			void SetHeightAt(const int ij[2], short h);
+			void UpdateHeightBuffer();
 
 			// Normals:
 			const char* GetNormalAt(const int ij[2], int lod = 0, TerrainTBN tbn = TerrainTBN::normal) const;
 			Matrix3 GetBasisAt(const int ij[2]) const;
 
 			// Layers:
-			void LoadLayerTexture(int layer, CSZ url);
+			void InsertLayerUrl(int layer, CSZ url);
+			void DeleteAllLayerUrls();
+			void GetLayerUrls(Vector<CSZ>& v);
+			void LoadLayersFromFile(CSZ url = nullptr);
 			void LoadLayerTextures();
 			int GetMainLayerAt(const int ij[2]) const;
+			void UpdateMainLayerAt(const int ij[2]);
+
+			float GetSpecStrength(int layer) const { return _layerData[layer]._specStrength; }
+			float GetDetailStrength(int layer) const { return _layerData[layer]._detailStrength; }
+			void SetSpecStrength(int layer, float x) { _layerData[layer]._specStrength = x; }
+			void SetDetailStrength(int layer, float x) { _layerData[layer]._detailStrength = x; }
 
 			// Textures:
 			void UpdateHeightmapTexture();
 			CGI::TexturePtr GetHeightmapTexture() const;
 			void UpdateNormalsTexture();
 			CGI::TexturePtr GetNormalsTexture() const;
+			void UpdateBlendTexture();
+			CGI::TexturePtr GetBlendTexture() const;
 			void UpdateMainLayerTexture();
 			CGI::TexturePtr GetMainLayerTexture() const;
 			void OnHeightModified();
 
 			// Physics:
 			void AddNewRigidBody();
-			void UpdateRigidBodyData();
+			RTerrainPhysics GetPhysics() { return _physics; }
+
+			void Serialize(IO::RSeekableStream stream);
+			void Deserialize(IO::RStream stream);
 		};
 		VERUS_TYPEDEFS(Terrain);
 	}

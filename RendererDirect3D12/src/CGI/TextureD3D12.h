@@ -15,12 +15,12 @@ namespace verus
 			ResourceEx         _resource;
 			ResourceEx         _uavResource;
 			Vector<ResourceEx> _vStagingBuffers;
+			Vector<int>        _vCshGenerateMips;
 			DescriptorHeap     _dhSRV;
 			DescriptorHeap     _dhUAV;
 			DescriptorHeap     _dhRTV;
 			DescriptorHeap     _dhDSV;
 			DescriptorHeap     _dhSampler;
-			DestroyStaging     _destroyStagingBuffers;
 
 		public:
 			TextureD3D12();
@@ -29,15 +29,15 @@ namespace verus
 			virtual void Init(RcTextureDesc desc) override;
 			virtual void Done() override;
 
-			virtual void UpdateImage(int mipLevel, const void* p, int arrayLayer, PBaseCommandBuffer pCB) override;
+			virtual void UpdateSubresource(const void* p, int mipLevel, int arrayLayer, PBaseCommandBuffer pCB) override;
 
 			virtual void GenerateMips(PBaseCommandBuffer pCB) override;
+
+			virtual Continue Scheduled_Update() override;
 
 			//
 			// D3D12
 			//
-
-			void DestroyStagingBuffers();
 
 			void CreateSampler();
 

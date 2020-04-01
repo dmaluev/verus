@@ -60,9 +60,9 @@ namespace verus
 			UINT64                 _frame = 0;
 			int                    _rp = -1;
 			int                    _fb = -1;
-			int                    _csidLight = -1;
-			int                    _csidCompose = -1;
-			int                    _csidQuad[6];
+			int                    _cshLight = -1;
+			int                    _cshCompose = -1;
+			int                    _cshQuad[6];
 			bool                   _activeGeometryPass = false;
 			bool                   _activeLightingPass = false;
 			bool                   _async_initPipe = false;
@@ -85,7 +85,7 @@ namespace verus
 			bool IsActiveGeometryPass() const { return _activeGeometryPass; }
 			bool IsActiveLightingPass() const { return _activeLightingPass; }
 
-			int GetRenderPassID() const { return _rp; }
+			int GetRenderPassHandle() const { return _rp; }
 
 			void BeginGeometryPass(bool onlySetRT = false, bool spriteBaking = false);
 			void EndGeometryPass(bool resetRT = false);

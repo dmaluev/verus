@@ -70,7 +70,7 @@ namespace verus
 			virtual void CreateDescriptorSet(int setNumber, const void* pSrc, int size, int capacity, std::initializer_list<Sampler> il, ShaderStageFlags stageFlags) override;
 			virtual void CreatePipelineLayout() override;
 			virtual int BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips) override;
-			virtual void FreeDescriptorSet(int complexSetID) override;
+			virtual void FreeDescriptorSet(int& complexSetHandle) override;
 
 			virtual void BeginBindDescriptors() override;
 			virtual void EndBindDescriptors() override;
@@ -86,8 +86,8 @@ namespace verus
 
 			UINT ToRootParameterIndex(int setNumber) const;
 			bool TryRootConstants(int setNumber, RBaseCommandBuffer cb);
-			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateUniformBuffer(int setNumber, int complexSetID, bool copyDescOnly = false);
-			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateSamplers(int setNumber, int complexSetID);
+			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateUniformBuffer(int setNumber, int complexSetHandle, bool copyDescOnly = false);
+			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateSamplers(int setNumber, int complexSetHandle);
 			int GetDescriptorSetCount() const { return static_cast<int>(_vDescriptorSetDesc.size()); }
 			bool IsCompute() const { return _compute; }
 

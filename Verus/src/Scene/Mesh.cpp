@@ -50,6 +50,12 @@ void Mesh::Init(RcDesc desc)
 {
 	VERUS_RT_ASSERT(desc._url);
 
+	if (desc._warpUrl)
+	{
+		_warpUrl = desc._warpUrl;
+		Str::ReplaceExtension(_warpUrl, ".xwx");
+	}
+
 	_instanceCapacity = desc._instanceCapacity;
 
 	BaseMesh::Init(desc._url);
@@ -74,7 +80,7 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 			"#Robotic",
 			"#Skinned"
 		};
-		CGI::PipelineDesc pipeDesc(_geo, s_shader, branches[pipe], renderer.GetDS().GetRenderPassID());
+		CGI::PipelineDesc pipeDesc(_geo, s_shader, branches[pipe], renderer.GetDS().GetRenderPassHandle());
 		switch (pipe)
 		{
 		case PIPE_DEPTH_ROBOTIC:
@@ -126,6 +132,15 @@ void Mesh::UpdateUniformBufferPerMeshVS()
 
 void Mesh::UpdateUniformBufferSkeletonVS()
 {
+	VERUS_ZERO_MEM(s_ubSkeletonVS._vWarpZones);
+	s_ubSkeletonVS._vWarpZones[1].w = FLT_MAX;
+	if (_warp.IsInitialized())
+	{
+		Vector4 warpZones[32];
+		VERUS_ZERO_MEM(warpZones);
+		_warp.Fill(warpZones);
+		memcpy(&s_ubSkeletonVS._vWarpZones, warpZones, sizeof(warpZones));
+	}
 	_skeleton.UpdateUniformBufferArray(s_ubSkeletonVS._vMatBones);
 }
 

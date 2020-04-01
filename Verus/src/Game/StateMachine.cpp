@@ -6,7 +6,7 @@ using namespace verus::Game;
 void StateMachine::HandleInput()
 {
 	PcState pCheck = _pCurrentState;
-	_pCurrentState->_pStateMachine = this;
+	_pCurrentState->SetStateMachine(this);
 	_pCurrentState->HandleInput();
 	_changed = (_pCurrentState != pCheck);
 }
@@ -16,7 +16,7 @@ void StateMachine::Update()
 	VERUS_UPDATE_ONCE_CHECK;
 
 	PcState pCheck = _pCurrentState;
-	_pCurrentState->_pStateMachine = this;
+	_pCurrentState->SetStateMachine(this);
 	_pCurrentState->Update();
 	_changed = (_pCurrentState != pCheck);
 }
@@ -24,7 +24,7 @@ void StateMachine::Update()
 void StateMachine::Draw()
 {
 	PcState pCheck = _pCurrentState;
-	_pCurrentState->_pStateMachine = this;
+	_pCurrentState->SetStateMachine(this);
 	_pCurrentState->Draw();
 	_changed = (_pCurrentState != pCheck);
 }
@@ -41,7 +41,7 @@ PState StateMachine::GetRequestedState() const
 
 bool StateMachine::CanEnterState(RState state, bool allowSameState)
 {
-	state._pStateMachine = this;
+	state.SetStateMachine(this);
 	if (&state == _pCurrentState && !allowSameState)
 		return false;
 	return _pCurrentState ? _pCurrentState->IsValidNextState(&state) : true;
@@ -49,7 +49,7 @@ bool StateMachine::CanEnterState(RState state, bool allowSameState)
 
 bool StateMachine::EnterState(RState state, bool allowSameState)
 {
-	state._pStateMachine = this;
+	state.SetStateMachine(this);
 	if (!CanEnterState(state, allowSameState))
 		return false;
 

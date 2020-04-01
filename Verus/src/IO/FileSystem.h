@@ -65,9 +65,9 @@ namespace verus
 		class Image : public Object
 		{
 		public:
-			Vector<BYTE> _v;
+			Vector<BYTE> _vData;
 			BYTE* _p = nullptr;
-			//ILuint     _name = 0;
+			ILuint       _name = 0;
 			int          _width = 0;
 			int          _height = 0;
 			int          _bytesPerPixel = 0;

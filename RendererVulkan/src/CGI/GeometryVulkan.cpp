@@ -77,8 +77,8 @@ void GeometryVulkan::Done()
 {
 	VERUS_QREF_RENDERER_VULKAN;
 
-	_destroyStagingBuffers.Allow();
-	DestroyStagingBuffers();
+	ForceScheduled();
+
 	VERUS_VULKAN_DESTROY(_indexBuffer._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), _indexBuffer._buffer, _indexBuffer._vmaAllocation));
 	for (auto& x : _vVertexBuffers)
 		VERUS_VULKAN_DESTROY(x._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), x._buffer, x._vmaAllocation));
@@ -109,7 +109,7 @@ void GeometryVulkan::CreateVertexBuffer(int count, int binding)
 	}
 }
 
-void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, BaseCommandBuffer* pCB)
+void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, PBaseCommandBuffer pCB)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
@@ -131,8 +131,11 @@ void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, BaseCommandB
 
 		auto& vb = _vVertexBuffers[binding];
 		auto& svb = _vStagingVertexBuffers[binding];
-		pRendererVulkan->CreateBuffer(vb._bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY,
-			svb._buffer, svb._vmaAllocation);
+		if (VK_NULL_HANDLE == svb._buffer)
+		{
+			pRendererVulkan->CreateBuffer(vb._bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY,
+				svb._buffer, svb._vmaAllocation);
+		}
 
 		void* pData = nullptr;
 		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), svb._vmaAllocation, &pData)))
@@ -142,7 +145,7 @@ void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, BaseCommandB
 
 		pRendererVulkan->CopyBuffer(svb._buffer, vb._buffer, vb._bufferSize, pCB);
 
-		_destroyStagingBuffers.Schedule();
+		Schedule();
 	}
 }
 
@@ -157,13 +160,16 @@ void GeometryVulkan::CreateIndexBuffer(int count)
 		_indexBuffer._buffer, _indexBuffer._vmaAllocation);
 }
 
-void GeometryVulkan::UpdateIndexBuffer(const void* p, BaseCommandBuffer* pCB)
+void GeometryVulkan::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
-	pRendererVulkan->CreateBuffer(_indexBuffer._bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY,
-		_stagingIndexBuffer._buffer, _stagingIndexBuffer._vmaAllocation);
+	if (VK_NULL_HANDLE == _stagingIndexBuffer._buffer)
+	{
+		pRendererVulkan->CreateBuffer(_indexBuffer._bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY,
+			_stagingIndexBuffer._buffer, _stagingIndexBuffer._vmaAllocation);
+	}
 
 	void* pData = nullptr;
 	if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), _stagingIndexBuffer._vmaAllocation, &pData)))
@@ -173,18 +179,20 @@ void GeometryVulkan::UpdateIndexBuffer(const void* p, BaseCommandBuffer* pCB)
 
 	pRendererVulkan->CopyBuffer(_stagingIndexBuffer._buffer, _indexBuffer._buffer, _indexBuffer._bufferSize, pCB);
 
-	_destroyStagingBuffers.Schedule();
+	Schedule();
 }
 
-void GeometryVulkan::DestroyStagingBuffers()
+Continue GeometryVulkan::Scheduled_Update()
 {
-	if (!_destroyStagingBuffers.IsAllowed())
-		return;
+	if (!IsScheduledAllowed())
+		return Continue::yes;
 
 	VERUS_QREF_RENDERER_VULKAN;
 	VERUS_VULKAN_DESTROY(_stagingIndexBuffer._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), _stagingIndexBuffer._buffer, _stagingIndexBuffer._vmaAllocation));
 	for (auto& x : _vStagingVertexBuffers)
 		VERUS_VULKAN_DESTROY(x._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), x._buffer, x._vmaAllocation));
+
+	return Continue::no;
 }
 
 VkPipelineVertexInputStateCreateInfo GeometryVulkan::GetVkPipelineVertexInputStateCreateInfo(UINT32 bindingsFilter,

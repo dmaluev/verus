@@ -12,7 +12,8 @@ namespace verus
 				is3D = (ObjectFlags::user << 1),
 				loop = (ObjectFlags::user << 2),
 				randOff = (ObjectFlags::user << 3),
-				user = (ObjectFlags::user << 4)
+				keepPcmBuffer = (ObjectFlags::user << 4),
+				user = (ObjectFlags::user << 5)
 			};
 		};
 
@@ -20,6 +21,7 @@ namespace verus
 		{
 			Source       _sources[8];
 			String       _url;
+			Vector<BYTE> _vPcmBuffer;
 			ALuint       _buffer = 0;
 			int          _next = 0;
 			int          _refCount = 0;
@@ -38,6 +40,7 @@ namespace verus
 				bool         _is3D = false;
 				bool         _loop = false;
 				bool         _randomOffset = false;
+				bool         _keepPcmBuffer = false;
 
 				Desc(CSZ url) : _url(url) {}
 				Desc& Set3D(bool b = true) { _is3D = b; return *this; }
@@ -74,6 +77,8 @@ namespace verus
 			float GetRandomOffset() const;
 			void SetRandomOffset(bool b) { b ? SetFlag(SoundFlags::randOff) : ResetFlag(SoundFlags::randOff); }
 			bool HasRandomOffset() const { return IsFlagSet(SoundFlags::randOff); }
+
+			Blob GetPcmBuffer() const;
 		};
 		VERUS_TYPEDEFS(Sound);
 

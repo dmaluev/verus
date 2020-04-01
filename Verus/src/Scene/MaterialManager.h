@@ -127,7 +127,7 @@ namespace verus
 			glm::vec4      _userColor = glm::vec4(0, 0, 0, 0);
 			Pick           _userPick;
 			Blending       _blending = Blending::opaque;
-			int            _csid = -1;
+			int            _csh = -1;
 			int            _refCount = 0;
 
 			Material();
@@ -152,7 +152,7 @@ namespace verus
 			void FromString(CSZ txt);
 
 			// Mesh interaction:
-			int GetComplexSetID() const { return _csid; }
+			int GetComplexSetHandle() const { return _csh; }
 			void BindDescriptorSetTextures();
 			bool UpdateMeshUniformBuffer(float motionBlur = 1);
 
@@ -183,7 +183,7 @@ namespace verus
 			TexturePwn _texDefaultNormal;
 			TexturePwn _texDetail;
 			TexturePwn _texStrass;
-			int        _csidDefault = -1; // For missing, non-mandatory materials.
+			int        _cshDefault = -1; // For missing, non-mandatory materials.
 
 		public:
 			MaterialManager();
@@ -200,7 +200,7 @@ namespace verus
 			CGI::TexturePtr GetDetailTexture() { return _texDetail->GetTex(); }
 			CGI::TexturePtr GetStrassTexture() { return _texStrass->GetTex(); }
 
-			int GetDefaultComplexSetID() const { return _csidDefault; }
+			int GetDefaultComplexSetHandle() const { return _cshDefault; }
 
 			// Textures:
 			PTexture InsertTexture(CSZ url);

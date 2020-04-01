@@ -30,6 +30,8 @@ void TextureD3D12::Init(RcTextureDesc desc)
 	const bool renderTarget = (_desc._flags & TextureDesc::Flags::colorAttachment);
 	const bool depthFormat = IsDepthFormat(desc._format);
 	const bool depthSampled = _desc._flags & TextureDesc::Flags::depthSampled;
+	if (_desc._flags & TextureDesc::Flags::anyShaderResource)
+		_mainLayout = ImageLayout::xsReadOnly;
 
 	D3D12_RESOURCE_DESC resDesc = {};
 	resDesc.Dimension = _desc._depth > 1 ? D3D12_RESOURCE_DIMENSION_TEXTURE3D : D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -45,7 +47,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 	if (depthFormat)
 		resDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-	D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COPY_DEST;
+	D3D12_RESOURCE_STATES initialResourceState = ToNativeImageLayout(_mainLayout);
 	D3D12_CLEAR_VALUE clearValue = {};
 	clearValue.Format = ToNativeFormat(_desc._format, false);
 	if (renderTarget)
@@ -74,20 +76,27 @@ void TextureD3D12::Init(RcTextureDesc desc)
 
 	if (_desc._flags & TextureDesc::Flags::generateMips)
 	{
-		resDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		// Create storage image for compute shader's output. No need to have the first mip level.
+		const int uavMipLevels = Math::Max(1, _desc._mipLevels - 1);
+		D3D12_RESOURCE_DESC resDescUAV = resDesc;
+		resDescUAV.Width = Math::Max(1, _desc._width >> 1);
+		resDescUAV.Height = Math::Max(1, _desc._height >> 1);
+		resDescUAV.MipLevels = uavMipLevels;
+		resDescUAV.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
 		D3D12MA::ALLOCATION_DESC allocDesc = {};
 		allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
 		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
 			&allocDesc,
-			&resDesc,
+			&resDescUAV,
 			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
 			nullptr,
 			&_uavResource._pMaAllocation,
 			IID_PPV_ARGS(&_uavResource._pResource))))
 			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
 
-		_dhUAV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, _desc._mipLevels);
-		VERUS_FOR(i, _desc._mipLevels)
+		_dhUAV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, uavMipLevels);
+		VERUS_FOR(i, uavMipLevels)
 		{
 			D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 			uavDesc.Format = resDesc.Format;
@@ -137,8 +146,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 
 void TextureD3D12::Done()
 {
-	_destroyStagingBuffers.Allow();
-	DestroyStagingBuffers();
+	ForceScheduled();
 
 	_dhSampler.Reset();
 	_dhDSV.Reset();
@@ -154,7 +162,7 @@ void TextureD3D12::Done()
 	VERUS_DONE(TextureD3D12);
 }
 
-void TextureD3D12::UpdateImage(int mipLevel, const void* p, int arrayLayer, PBaseCommandBuffer pCB)
+void TextureD3D12::UpdateSubresource(const void* p, int mipLevel, int arrayLayer, PBaseCommandBuffer pCB)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_D3D12;
@@ -171,20 +179,24 @@ void TextureD3D12::UpdateImage(int mipLevel, const void* p, int arrayLayer, PBas
 		_vStagingBuffers.resize(sbIndex + 1);
 
 	auto& sb = _vStagingBuffers[sbIndex];
-	D3D12MA::ALLOCATION_DESC allocDesc = {};
-	allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
-	if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
-		&allocDesc,
-		&CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		&sb._pMaAllocation,
-		IID_PPV_ARGS(&sb._pResource))))
-		throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+	if (!sb._pResource)
+	{
+		D3D12MA::ALLOCATION_DESC allocDesc = {};
+		allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+			&allocDesc,
+			&CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			&sb._pMaAllocation,
+			IID_PPV_ARGS(&sb._pResource))))
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+	}
 
 	if (!pCB)
 		pCB = &(*renderer.GetCommandBuffer());
 	auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
+	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), _mainLayout, ImageLayout::transferDst, mipLevel, arrayLayer);
 	D3D12_SUBRESOURCE_DATA sd = {};
 	sd.pData = p;
 	if (IsBC(_desc._format))
@@ -205,9 +217,9 @@ void TextureD3D12::UpdateImage(int mipLevel, const void* p, int arrayLayer, PBas
 		subresource,
 		1,
 		&sd);
-	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::transferDst, ImageLayout::fsReadOnly, mipLevel, arrayLayer);
+	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::transferDst, _mainLayout, mipLevel, arrayLayer);
 
-	_destroyStagingBuffers.Schedule();
+	Schedule();
 }
 
 void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
@@ -218,20 +230,20 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 	if (!pCB)
 		pCB = &(*renderer.GetCommandBuffer());
 	auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
-
 	auto tex = TexturePtr::From(this);
 
-	pCB->PipelineImageMemoryBarrier(tex, ImageLayout::fsReadOnly, ImageLayout::vsReadOnly, 0);
-	pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::vsReadOnly, Range<int>(1, _desc._mipLevels - 1));
+	// Transition state for sampling in compute shader:
+	if (_mainLayout != ImageLayout::xsReadOnly)
+		pCB->PipelineImageMemoryBarrier(tex, _mainLayout, ImageLayout::xsReadOnly, Range<int>(0, _desc._mipLevels - 1));
 
 	pCB->BindPipeline(renderer.GetPipelineGenerateMips());
 
 	auto shader = renderer.GetShaderGenerateMips();
 	shader->BeginBindDescriptors();
-
 	auto& ub = renderer.GetUbGenerateMips();
-	ub._srgb = false;
 
+	const bool createComplexSets = _vCshGenerateMips.empty();
+	int dispatchIndex = 0;
 	for (int srcMip = 0; srcMip < _desc._mipLevels - 1;)
 	{
 		const int srcWidth = _desc._width >> srcMip;
@@ -239,56 +251,90 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 		const int dstWidth = Math::Max(1, srcWidth >> 1);
 		const int dstHeight = Math::Max(1, srcHeight >> 1);
 
-		ub._srcDimensionCase = (srcHeight & 1) << 1 | (srcWidth & 1);
-
-		int mipCount = 4;
-		mipCount = Math::Min(4, mipCount + 1);
-		mipCount = ((srcMip + mipCount) >= _desc._mipLevels) ? _desc._mipLevels - srcMip - 1 : mipCount;
+		int dispatchMipCount = 4;
+		dispatchMipCount = Math::Min(4, dispatchMipCount + 1);
+		dispatchMipCount = ((srcMip + dispatchMipCount) >= _desc._mipLevels) ? _desc._mipLevels - srcMip - 1 : dispatchMipCount; // Edge case.
 
 		ub._srcMipLevel = srcMip;
-		ub._mipLevelCount = mipCount;
+		ub._mipLevelCount = dispatchMipCount;
+		ub._srcDimensionCase = (srcHeight & 1) << 1 | (srcWidth & 1);
+		ub._srgb = false;
 		ub._texelSize.x = 1.f / dstWidth;
 		ub._texelSize.y = 1.f / dstHeight;
 
-		int mips[5] = {};
-		VERUS_FOR(mip, mipCount)
-			mips[mip + 1] = srcMip + mip + 1;
-
-		const int complexDescSetID = shader->BindDescriptorSetTextures(0, { tex, tex, tex, tex, tex }, mips);
-
-		pCB->BindDescriptors(shader, 0, complexDescSetID);
+		if (createComplexSets)
+		{
+			int mips[5] = {}; // For input texture (always mip 0) and 4 UAV mips.
+			VERUS_FOR(mip, dispatchMipCount)
+				mips[mip + 1] = srcMip + mip;
+			const int complexSetHandle = shader->BindDescriptorSetTextures(0, { tex, tex, tex, tex, tex }, mips);
+			_vCshGenerateMips.push_back(complexSetHandle);
+			pCB->BindDescriptors(shader, 0, complexSetHandle);
+		}
+		else
+		{
+			pCB->BindDescriptors(shader, 0, _vCshGenerateMips[dispatchIndex]);
+		}
 
 		pCB->Dispatch(Math::DivideByMultiple(dstWidth, 8), Math::DivideByMultiple(dstHeight, 8));
 
 		auto rb = CD3DX12_RESOURCE_BARRIER::UAV(_uavResource._pResource.Get());
 		pCmdList->ResourceBarrier(1, &rb);
 
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::vsReadOnly, ImageLayout::transferDst, Range<int>(srcMip + 1, srcMip + mipCount));
-		VERUS_FOR(mip, mipCount)
+		// Transition state for upcoming CopyTextureRegion():
 		{
-			const int sub = srcMip + mip + 1;
-			auto rb = CD3DX12_RESOURCE_BARRIER::Transition(_uavResource._pResource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE, sub);
-			pCmdList->ResourceBarrier(1, &rb);
+			CD3DX12_RESOURCE_BARRIER barriers[4];
+			int barrierCount = 0;
+			VERUS_FOR(mip, dispatchMipCount)
+			{
+				const int subUAV = srcMip + mip;
+				barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(_uavResource._pResource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE, subUAV);
+			}
+			pCmdList->ResourceBarrier(barrierCount, barriers);
+
+			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, ImageLayout::transferDst, Range<int>(srcMip + 1, srcMip + dispatchMipCount));
+		}
+		VERUS_FOR(mip, dispatchMipCount)
+		{
+			const int subUAV = srcMip + mip;
+			const int subSRV = subUAV + 1;
 			pCmdList->CopyTextureRegion(
-				&CD3DX12_TEXTURE_COPY_LOCATION(_resource._pResource.Get(), sub),
+				&CD3DX12_TEXTURE_COPY_LOCATION(_resource._pResource.Get(), subSRV),
 				0, 0, 0,
-				&CD3DX12_TEXTURE_COPY_LOCATION(_uavResource._pResource.Get(), sub),
+				&CD3DX12_TEXTURE_COPY_LOCATION(_uavResource._pResource.Get(), subUAV),
 				nullptr);
 		}
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::vsReadOnly, Range<int>(srcMip + 1, srcMip + mipCount));
+		// Transition state for next Dispatch():
+		{
+			CD3DX12_RESOURCE_BARRIER barriers[4];
+			int barrierCount = 0;
+			VERUS_FOR(mip, dispatchMipCount)
+			{
+				const int subUAV = srcMip + mip;
+				barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(_uavResource._pResource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, subUAV);
+			}
+			pCmdList->ResourceBarrier(barrierCount, barriers);
 
-		srcMip += mipCount;
+			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::xsReadOnly, Range<int>(srcMip + 1, srcMip + dispatchMipCount));
+		}
+
+		srcMip += dispatchMipCount;
+		dispatchIndex++;
 	}
 
-	pCB->PipelineImageMemoryBarrier(tex, ImageLayout::vsReadOnly, ImageLayout::fsReadOnly, Range<int>(0, _desc._mipLevels - 1));
-
 	shader->EndBindDescriptors();
+
+	// Revert to main state:
+	if (_mainLayout != ImageLayout::xsReadOnly)
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, _mainLayout, Range<int>(0, _desc._mipLevels - 1));
+
+	Schedule(0);
 }
 
-void TextureD3D12::DestroyStagingBuffers()
+Continue TextureD3D12::Scheduled_Update()
 {
-	if (!_destroyStagingBuffers.IsAllowed())
-		return;
+	if (!IsScheduledAllowed())
+		return Continue::yes;
 
 	for (auto& x : _vStagingBuffers)
 	{
@@ -297,6 +343,17 @@ void TextureD3D12::DestroyStagingBuffers()
 		x._pResource.Reset();
 	}
 	_vStagingBuffers.clear();
+
+	if (!_vCshGenerateMips.empty())
+	{
+		VERUS_QREF_RENDERER;
+		auto shader = renderer.GetShaderGenerateMips();
+		for (int csh : _vCshGenerateMips)
+			shader->FreeDescriptorSet(csh);
+		_vCshGenerateMips.clear();
+	}
+
+	return Continue::no;
 }
 
 void TextureD3D12::CreateSampler()

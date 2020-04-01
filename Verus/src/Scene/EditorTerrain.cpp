@@ -3,9 +3,24 @@
 using namespace verus;
 using namespace verus::Scene;
 
-// EditorTerrain:
+void EditorTerrain::ConvertToBufferCoords(const float xz[2], int ij[2]) const
+{
+	const int edge = _mapSide - 1;
+	const float half = float(_mapSide >> 1);
+	ij[0] = Math::Clamp(int(xz[1] + half + 0.5f), 0, edge);
+	ij[1] = Math::Clamp(int(xz[0] + half + 0.5f), 0, edge);
+}
 
-void EditorTerrain::SmoothHeight(short stepSize)
+glm::int4 EditorTerrain::ComputeBrushRect(const int ij[2], int radius) const
+{
+	return glm::int4(
+		Math::Clamp(ij[1] - radius, 0, _mapSide),
+		Math::Clamp(ij[0] - radius, 0, _mapSide),
+		Math::Clamp(ij[1] + radius + 1, 0, _mapSide),
+		Math::Clamp(ij[0] + radius + 1, 0, _mapSide));
+}
+
+void EditorTerrain::SmoothenHeight(short stepSize)
 {
 	Vector<short> vCache;
 	vCache.resize(_mapSide * _mapSide);
@@ -23,7 +38,7 @@ void EditorTerrain::SmoothHeight(short stepSize)
 			vCache[(i << _mapShift) + j] = h;
 			if (h != prevH)
 			{
-				if (abs(int(h) - int(prevH)) < stepSize)
+				if (abs(h - prevH) < stepSize)
 				{
 					const int tileCount = j - prevJ;
 					if (tileCount)
@@ -53,10 +68,10 @@ void EditorTerrain::SmoothHeight(short stepSize)
 			const int ij[] = { i, j };
 			GetHeightAt(ij, 0, &h);
 			s = vCache[(i << _mapShift) + j];
-			Terrain::SetHeightAt(ij, s);
+			SetHeightAt(ij, s);
 			if (h != prevH)
 			{
-				if (abs(int(h) - int(prevH)) < stepSize)
+				if (abs(h - prevH) < stepSize)
 				{
 					const int tileCount = i - prevI;
 					if (tileCount)
@@ -65,7 +80,7 @@ void EditorTerrain::SmoothHeight(short stepSize)
 						VERUS_FOR(k, tileCount)
 						{
 							const int ij[] = { prevI + k, j };
-							Terrain::SetHeightAt(ij, prevS + part * k);
+							SetHeightAt(ij, prevS + part * k);
 						}
 					}
 				}
@@ -113,64 +128,43 @@ void EditorTerrain::SmoothHeight(short stepSize)
 		VERUS_FOR(j, _mapSide)
 		{
 			const int ij[] = { i, j };
-			Terrain::SetHeightAt(ij, vCache[(i << _mapShift) + j]);
+			SetHeightAt(ij, vCache[(i << _mapShift) + j]);
 		}
 	});
 }
 
-void EditorTerrain::SetHeightAt(const float xz[2], int amount, int radius)
+void EditorTerrain::ApplyBrushHeight(const float xz[2], int radius, int strength)
 {
-	const int edge = _mapSide - 1;
-	const float half = float(_mapSide >> 1);
-	int ijCenter[2] =
-	{
-		Math::Clamp(int(xz[1] + half), 0, edge),
-		Math::Clamp(int(xz[0] + half), 0, edge)
-	};
-
-	const int iMin = Math::Clamp(ijCenter[0] - radius, 0, _mapSide);
-	const int jMin = Math::Clamp(ijCenter[1] - radius, 0, _mapSide);
-	const int iMax = Math::Clamp(ijCenter[0] + radius, 0, _mapSide);
-	const int jMax = Math::Clamp(ijCenter[1] + radius, 0, _mapSide);
-
+	int ijCenter[2];
+	ConvertToBufferCoords(xz, ijCenter);
+	const glm::int4 rc = ComputeBrushRect(ijCenter, radius);
 	const int r2 = radius * radius;
-	for (int i = iMin; i < iMax; ++i)
+	for (int i = rc.y; i < rc.w; ++i)
 	{
-		for (int j = jMin; j < jMax; ++j)
+		for (int j = rc.x; j < rc.z; ++j)
 		{
 			const int di = ijCenter[0] - i;
 			const int dj = ijCenter[1] - j;
 			const int rr = di * di + dj * dj;
-			if (rr < r2)
+			if (rr <= r2)
 			{
-				const int delta = amount + 3 * amount * (r2 - rr) / r2;
+				const int delta = strength + 3 * strength * (r2 - rr) / r2;
 				const int ij[] = { i, j };
 				short h;
 				GetHeightAt(ij, 0, &h);
-				Terrain::SetHeightAt(ij, Math::Clamp(h + delta, -SHRT_MAX, SHRT_MAX));
+				SetHeightAt(ij, Math::Clamp(h + delta, -SHRT_MAX, SHRT_MAX));
 			}
 		}
 	}
 
-	UpdateNormalsForArea(iMin, iMax, jMin, jMax);
-	UpdateNormalsTexture();
+	UpdateNormalsForArea(rc);
 }
 
-void EditorTerrain::SetHeightFlatAt(const float xz[2], int amount, int radius, bool useNormal, PcVector3 pNormal)
+void EditorTerrain::ApplyBrushFlatten(const float xz[2], int radius, int strength, bool useNormal, PcVector3 pNormal)
 {
-	const int edge = _mapSide - 1;
-	const float half = float(_mapSide >> 1);
-	int ijCenter[2] =
-	{
-		Math::Clamp(int(xz[1] + half), 0, edge),
-		Math::Clamp(int(xz[0] + half), 0, edge)
-	};
-
-	const int iMin = Math::Clamp(ijCenter[0] - radius, 0, _mapSide);
-	const int jMin = Math::Clamp(ijCenter[1] - radius, 0, _mapSide);
-	const int iMax = Math::Clamp(ijCenter[0] + radius, 0, _mapSide);
-	const int jMax = Math::Clamp(ijCenter[1] + radius, 0, _mapSide);
-
+	int ijCenter[2];
+	ConvertToBufferCoords(xz, ijCenter);
+	const glm::int4 rc = ComputeBrushRect(ijCenter, radius);
 	const int r2 = radius * radius;
 	short centerHeight;
 	const float height = GetHeightAt(ijCenter, 0, &centerHeight);
@@ -193,14 +187,14 @@ void EditorTerrain::SetHeightFlatAt(const float xz[2], int amount, int radius, b
 		}
 	}
 
-	for (int i = iMin; i < iMax; ++i)
+	for (int i = rc.y; i < rc.w; ++i)
 	{
-		for (int j = jMin; j < jMax; ++j)
+		for (int j = rc.x; j < rc.z; ++j)
 		{
 			const int di = ijCenter[0] - i;
 			const int dj = ijCenter[1] - j;
 			const int rr = di * di + dj * dj;
-			if (rr < r2)
+			if (rr <= r2)
 			{
 				const int ij[] = { i, j };
 				short h;
@@ -216,50 +210,37 @@ void EditorTerrain::SetHeightFlatAt(const float xz[2], int amount, int radius, b
 
 				int delta = 0;
 				if (h > targetHeight)
-					delta = -std::abs(Math::Min(amount, maxDelta));
+					delta = -std::abs(Math::Min(strength, maxDelta));
 				else if (h < targetHeight)
-					delta = std::abs(Math::Min(amount, maxDelta));
+					delta = std::abs(Math::Min(strength, maxDelta));
 
-				Terrain::SetHeightAt(ij, Math::Clamp(h + delta, -SHRT_MAX, SHRT_MAX));
+				SetHeightAt(ij, Math::Clamp(h + delta, -SHRT_MAX, SHRT_MAX));
 			}
 		}
 	}
 
-	UpdateNormalsForArea(iMin, iMax, jMin, jMax);
-	UpdateNormalsTexture();
+	UpdateNormalsForArea(rc);
 }
 
-void EditorTerrain::SetHeightSmoothAt(const float xz[2], int amount, int radius)
+void EditorTerrain::ApplyBrushSmoothen(const float xz[2], int radius, int strength)
 {
-	const int edge = _mapSide - 1;
-	const float half = float(_mapSide >> 1);
-	int ijCenter[2] =
-	{
-		Math::Clamp(int(xz[1] + half), 0, edge),
-		Math::Clamp(int(xz[0] + half), 0, edge)
-	};
-
-	const int iMin = Math::Clamp(ijCenter[0] - radius, 0, _mapSide);
-	const int jMin = Math::Clamp(ijCenter[1] - radius, 0, _mapSide);
-	const int iMax = Math::Clamp(ijCenter[0] + radius, 0, _mapSide);
-	const int jMax = Math::Clamp(ijCenter[1] + radius, 0, _mapSide);
-
+	int ijCenter[2];
+	ConvertToBufferCoords(xz, ijCenter);
+	const glm::int4 rc = ComputeBrushRect(ijCenter, radius);
 	const int r2 = radius * radius;
-	short centerHeight;
-	const float height = GetHeightAt(ijCenter, 0, &centerHeight);
 
-	if (!amount)
-		amount = radius;
+	if (!strength)
+		strength = radius;
 
-	auto Filter = [this, amount, centerHeight](const int ij[2]) -> short
+	auto Filter = [this, strength](const int ij[2]) -> short
 	{
-		const int r2 = amount * amount;
-		const int iMin = Math::Clamp(ij[0] - amount, 0, _mapSide);
-		const int jMin = Math::Clamp(ij[1] - amount, 0, _mapSide);
-		const int iMax = Math::Clamp(ij[0] + amount, 0, _mapSide);
-		const int jMax = Math::Clamp(ij[1] + amount, 0, _mapSide);
-		int hSum = centerHeight;
-		int count = 1;
+		const int r2 = strength * strength;
+		const int iMin = Math::Clamp(ij[0] - strength, 0, _mapSide);
+		const int jMin = Math::Clamp(ij[1] - strength, 0, _mapSide);
+		const int iMax = Math::Clamp(ij[0] + strength, 0, _mapSide);
+		const int jMax = Math::Clamp(ij[1] + strength, 0, _mapSide);
+		int hSum = 0;
+		int count = 0;
 		for (int i = iMin; i < iMax; ++i)
 		{
 			for (int j = jMin; j < jMax; ++j)
@@ -267,7 +248,7 @@ void EditorTerrain::SetHeightSmoothAt(const float xz[2], int amount, int radius)
 				const int di = ij[0] - i;
 				const int dj = ij[1] - j;
 				const int rr = di * di + dj * dj;
-				if (rr < r2)
+				if (rr <= r2)
 				{
 					const int ij[] = { i, j };
 					short h;
@@ -280,35 +261,35 @@ void EditorTerrain::SetHeightSmoothAt(const float xz[2], int amount, int radius)
 		return Math::Clamp(hSum / count, -SHRT_MAX, SHRT_MAX);
 	};
 
-	for (int i = iMin; i < iMax; ++i)
+	for (int i = rc.y; i < rc.w; ++i)
 	{
-		for (int j = jMin; j < jMax; ++j)
+		for (int j = rc.x; j < rc.z; ++j)
 		{
 			const int di = ijCenter[0] - i;
 			const int dj = ijCenter[1] - j;
 			const int rr = di * di + dj * dj;
-			if (rr < r2)
+			if (rr <= r2)
 			{
 				const int ij[] = { i, j };
-				const short h = Filter(ij);
-				Terrain::SetHeightAt(ij, h);
+				short h;
+				GetHeightAt(ij, 0, &h);
+				const short hFiltered = Filter(ij);
+				SetHeightAt(ij, h + (hFiltered - h) * (r2 - rr) / r2);
 			}
 		}
 	}
 
-	UpdateNormalsForArea(iMin, iMax, jMin, jMax);
-	UpdateNormalsTexture();
+	UpdateNormalsForArea(rc);
 }
 
-void EditorTerrain::UpdateNormalsForArea(int iMin, int iMax, int jMin, int jMax)
+void EditorTerrain::UpdateNormalsForArea(const glm::int4& rc)
 {
 	const int patchShift = _mapShift - 4;
 	const int patchEdge = (_mapSide >> 4) - 1;
-	const int iPatchMin = Math::Clamp((iMin - 1) / 16 - 1, 0, patchEdge);
-	const int iPatchMax = Math::Clamp((iMax + 1) / 16 + 1, 0, patchEdge);
-	const int jPatchMin = Math::Clamp((jMin - 1) / 16 - 1, 0, patchEdge);
-	const int jPatchMax = Math::Clamp((jMax + 1) / 16 + 1, 0, patchEdge);
-
+	const int iPatchMin = Math::Clamp((rc.y - 1) / 16 - 1, 0, patchEdge);
+	const int iPatchMax = Math::Clamp((rc.w + 1) / 16 + 1, 0, patchEdge);
+	const int jPatchMin = Math::Clamp((rc.x - 1) / 16 - 1, 0, patchEdge);
+	const int jPatchMax = Math::Clamp((rc.z + 1) / 16 + 1, 0, patchEdge);
 	VERUS_FOR(lod, 5)
 	{
 		for (int i = iPatchMin; i <= iPatchMax; ++i)
@@ -317,46 +298,74 @@ void EditorTerrain::UpdateNormalsForArea(int iMin, int iMax, int jMin, int jMax)
 	}
 }
 
-void EditorTerrain::SplatTileAt(const int ij[2], int channel, int amount)
+void EditorTerrain::SplatTileAt(const int ij[2], int channel, int strength)
 {
 	const int mapEdge = _mapSide - 1;
 	const int i = Math::Clamp(ij[0], 0, mapEdge);
 	const int j = Math::Clamp(ij[1], 0, mapEdge);
 
-	// Subtract amount from all channels:
+	// Subtract strength from all channels:
 	const int offset = (i << _mapShift) + j;
-	BYTE* rgba = reinterpret_cast<BYTE*>(&_vBlend[offset]);
+	BYTE* rgba = reinterpret_cast<BYTE*>(&_vBlendBuffer[offset]);
 	int rgba32[4];
 	Utils::CopyByteToInt4(rgba, rgba32);
 	int rgbaTemp[4];
 	memcpy(rgbaTemp, rgba32, sizeof(rgba32));
 	rgbaTemp[3] = 255 - rgbaTemp[0] - rgbaTemp[1] - rgbaTemp[2];
 	VERUS_FOR(i, 4)
-		rgbaTemp[i] = Math::Max(0, rgbaTemp[i] - amount);
+		rgbaTemp[i] = Math::Max(0, rgbaTemp[i] - strength);
 
-	// Set correct amount for target channel:
-	int left = 255;
+	// Set correct weight for target channel:
+	int leftover = 255;
 	VERUS_FOR(i, 4)
+	{
 		if (i != channel)
-			left -= rgbaTemp[i];
-	rgbaTemp[channel] = left;
+			leftover -= rgbaTemp[i];
+	}
+	rgbaTemp[channel] = leftover;
 
 	memcpy(rgba32, rgbaTemp, sizeof(int) * 3);
 
 	Utils::CopyIntToByte4(rgba32, rgba);
 }
 
-void EditorTerrain::SplatTileAtEx(const int ij[2], int layer, float maskValue, bool forceAll)
+void EditorTerrain::SplatTileAtEx(const int ij[2], int layer, float maskValue, bool extended)
 {
+	if (!CanSplatTileAt(ij, layer))
+		return;
+
 	const int mapEdge = _mapSide - 1;
 	const int i = Math::Clamp(ij[0], 0, mapEdge);
 	const int j = Math::Clamp(ij[1], 0, mapEdge);
 
-	// Prevent torn blending (by copying from offset 15 to 0 in the next patch):
-	if (!forceAll && (!(i & 0xF) || !(j & 0xF)))
+	// Not allowed to change these two edges. Only extended splat can change them.
+	if (!extended && (!(i & 0xF) || !(j & 0xF)))
 		return;
-	const bool iExtend = ((15 == (i & 0xF)) && (i != mapEdge)) && !forceAll;
-	const bool jExtend = ((15 == (j & 0xF)) && (j != mapEdge)) && !forceAll;
+
+	const bool iExtend = !extended && ((15 == (i & 0xF)) && (i != mapEdge));
+	const bool jExtend = !extended && ((15 == (j & 0xF)) && (j != mapEdge));
+
+	// Test if we can proceed:
+	if (iExtend)
+	{
+		const int ij2[] = { i + 1, j };
+		if (!CanSplatTileAt(ij2, layer))
+			return;
+	}
+	if (jExtend)
+	{
+		const int ij2[] = { i, j + 1 };
+		if (!CanSplatTileAt(ij2, layer))
+			return;
+	}
+	if (iExtend && jExtend)
+	{
+		const int ij2[] = { i + 1, j + 1 };
+		if (!CanSplatTileAt(ij2, layer))
+			return;
+	}
+
+	// Extend this splat if required:
 	if (iExtend)
 	{
 		const int ij2[] = { i + 1, j };
@@ -380,14 +389,14 @@ void EditorTerrain::SplatTileAtEx(const int ij[2], int layer, float maskValue, b
 	int channel = patch.GetSplatChannelForLayer(layer);
 	if (channel >= 0) // Use existing splat channel for patch:
 	{
-		SplatTileAt(ij, channel, int(255 * maskValue));
+		SplatTileAt(ij, channel, static_cast<int>(glm::round(255 * maskValue)));
 	}
 	else if (-1 == channel && patch._usedChannelCount < 4) // Add new splat channel, if there is space for it:
 	{
 		channel = patch._usedChannelCount;
 		patch._layerForChannel[channel] = layer;
 		patch._usedChannelCount++;
-		SplatTileAt(ij, channel, int(255 * maskValue));
+		SplatTileAt(ij, channel, static_cast<int>(glm::round(255 * maskValue)));
 	}
 
 	// Defragment channels:
@@ -437,7 +446,7 @@ void EditorTerrain::SwapSplatLayersAt(const int ij[2], int a, int b)
 		const int offset = i << _mapShift;
 		for (int j = jMin; j < jMax; ++j)
 		{
-			BYTE* rgba = reinterpret_cast<BYTE*>(&_vBlend[offset + j]);
+			BYTE* rgba = reinterpret_cast<BYTE*>(&_vBlendBuffer[offset + j]);
 			int rgba32[4];
 			Utils::CopyByteToInt4(rgba, rgba32);
 			int rgbaTemp[4];
@@ -461,7 +470,7 @@ bool EditorTerrain::IsSplatChannelBlankAt(const int ij[2], int channel) const
 		const int offset = i << _mapShift;
 		for (int j = jMin; j < jMax; ++j)
 		{
-			const BYTE* rgba = reinterpret_cast<const BYTE*>(&_vBlend[offset + j]);
+			const BYTE* rgba = reinterpret_cast<const BYTE*>(&_vBlendBuffer[offset + j]);
 			if (channel != 3)
 			{
 				if (rgba[channel])
@@ -477,22 +486,29 @@ bool EditorTerrain::IsSplatChannelBlankAt(const int ij[2], int channel) const
 	return true;
 }
 
-void EditorTerrain::SplatAt(const float xz[2], int layer, float amount, int radius,
-	TerrainSplatMode mode, const float* pMask, bool updateTexture)
+bool EditorTerrain::CanSplatTileAt(const int ij[2], int layer) const
 {
 	const int mapEdge = _mapSide - 1;
-	const float half = static_cast<float>(_mapSide >> 1);
-	int ijCenter[2] =
-	{
-		Math::Clamp(static_cast<int>(xz[1] + half), 0, mapEdge),
-		Math::Clamp(static_cast<int>(xz[0] + half), 0, mapEdge)
-	};
+	const int i = Math::Clamp(ij[0], 0, mapEdge);
+	const int j = Math::Clamp(ij[1], 0, mapEdge);
 
-	const int iMin = Math::Clamp(ijCenter[0] - radius, 0, mapEdge);
-	const int jMin = Math::Clamp(ijCenter[1] - radius, 0, mapEdge);
-	const int iMax = Math::Clamp(ijCenter[0] + radius, 0, mapEdge);
-	const int jMax = Math::Clamp(ijCenter[1] + radius, 0, mapEdge);
+	const int ijPatch[2] = { i >> 4, j >> 4 };
+	const int offsetPatch = (ijPatch[0] << (_mapShift - 4)) + ijPatch[1];
+	RcTerrainPatch patch = _vPatches[offsetPatch];
 
+	int channel = patch.GetSplatChannelForLayer(layer);
+	if (channel >= 0)
+		return true;
+	else
+		return patch._usedChannelCount < 4;
+}
+
+void EditorTerrain::ApplyBrushSplat(const float xz[2], int layer, int radius, float strength,
+	TerrainSplatMode mode, const float* pMask, bool updateTexture)
+{
+	int ijCenter[2];
+	ConvertToBufferCoords(xz, ijCenter);
+	const glm::int4 rc = ComputeBrushRect(ijCenter, radius);
 	const int r2 = radius * radius;
 	const int diameter = radius * 2;
 	int iZero = 0, jZero = 0;
@@ -502,19 +518,18 @@ void EditorTerrain::SplatAt(const float xz[2], int layer, float amount, int radi
 		std::random_device rd;
 		std::mt19937 gen(rd());
 
-		for (int i = iMin; i <= iMax; ++i)
+		for (int i = rc.y; i < rc.w; ++i)
 		{
-			for (int j = jMin; j <= jMax; ++j)
+			for (int j = rc.x; j < rc.z; ++j)
 			{
-				// Distance from center:
 				const int di = ijCenter[0] - i;
 				const int dj = ijCenter[1] - j;
 				const int rr = di * di + dj * dj;
-				if (rr < r2)
+				if (rr <= r2)
 				{
 					const int ij[2] = { i, j };
 					const float value = float(gen() % 3) * 0.5f;
-					SplatTileAtEx(ij, layer, amount * value);
+					SplatTileAtEx(ij, layer, strength * value);
 				}
 				jZero++;
 			}
@@ -524,25 +539,27 @@ void EditorTerrain::SplatAt(const float xz[2], int layer, float amount, int radi
 	}
 	else
 	{
-		for (int i = iMin; i <= iMax; ++i)
+		for (int i = rc.y; i < rc.w; ++i)
 		{
-			for (int j = jMin; j <= jMax; ++j)
+			for (int j = rc.x; j < rc.z; ++j)
 			{
-				// Distance from center:
 				const int di = ijCenter[0] - i;
 				const int dj = ijCenter[1] - j;
 				const int rr = di * di + dj * dj;
-				if (rr < r2)
+				if (rr <= r2)
 				{
-					// Coords for mask lookup:
-					const int iMask = Math::Clamp(iZero * 16 / diameter, 0, 15);
-					const int jMask = Math::Clamp(jZero * 16 / diameter, 0, 15);
-					float maskValue = 1;
+					const float alpha = 1 - static_cast<float>(rr) / r2;
+					float maskValue = Math::Min(1.f, alpha * 4);
 					if (pMask)
+					{
+						// Coords for mask lookup:
+						const int iMask = Math::Clamp(iZero * 16 / diameter, 0, 15);
+						const int jMask = Math::Clamp(jZero * 16 / diameter, 0, 15);
 						maskValue = pMask[(iMask << 4) + jMask];
-					const float falloff = (TerrainSplatMode::grad == mode) ? 1 - float(rr) / r2 : 1;
+					}
+					const float falloff = (TerrainSplatMode::grad == mode) ? alpha : 1;
 					const int ij[2] = { i, j };
-					SplatTileAtEx(ij, layer, amount * maskValue * falloff);
+					SplatTileAtEx(ij, layer, strength * maskValue * falloff);
 				}
 				jZero++;
 			}
@@ -553,7 +570,7 @@ void EditorTerrain::SplatAt(const float xz[2], int layer, float amount, int radi
 
 	if (updateTexture)
 	{
-		_tex[TEX_BLEND]->UpdateImage(0, _vBlend.data());
+		UpdateBlendTexture();
 		UpdateMainLayerTexture();
 	}
 }
@@ -575,47 +592,11 @@ void EditorTerrain::SplatFromFile(CSZ url, int layer)
 		VERUS_FOR(j, _mapSide)
 		{
 			const BYTE value = image._p[((i << _mapShift) + j) * image._bytesPerPixel];
-			const int amount = value >> 4;
 			const int ij[] = { i, j };
-			VERUS_FOR(k, amount)
-				SplatTileAtEx(ij, layer, 1);
+			SplatTileAtEx(ij, layer, value / 255.f);
 		}
-	}, 0, 16);
+	});
 
-	_tex[TEX_BLEND]->UpdateImage(0, _vBlend.data());
-	_tex[TEX_BLEND]->GenerateMips();
-
+	UpdateBlendTexture();
 	UpdateMainLayerTexture();
-}
-
-void EditorTerrain::UpdateMainLayerAt(const int ij[2])
-{
-	const int mapEdge = _mapSide - 1;
-	const int i = Math::Clamp(ij[0], 0, mapEdge);
-	const int j = Math::Clamp(ij[1], 0, mapEdge);
-
-	const int iLocal = i & 0xF;
-	const int jLocal = j & 0xF;
-
-	const int shiftPatch = _mapShift - 4;
-	const int iPatch = i >> 4;
-	const int jPatch = j >> 4;
-	const int offsetPatch = (iPatch << shiftPatch) + jPatch;
-
-	int maxSplat = 0;
-	int maxSplatChannel = 0;
-	const int offset = (i << _mapShift) + j;
-	const BYTE* rgba = reinterpret_cast<const BYTE*>(&_vBlend[offset]);
-	VERUS_FOR(i, 4)
-	{
-		const int value = (i != 3) ? rgba[i] : 255 - rgba[0] - rgba[1] - rgba[2];
-		if (value > maxSplat)
-		{
-			maxSplat = value;
-			maxSplatChannel = i;
-		}
-	}
-
-	_vPatches[offsetPatch]._mainLayer[(iLocal << 4) + jLocal] =
-		_vPatches[offsetPatch]._layerForChannel[maxSplatChannel];
 }

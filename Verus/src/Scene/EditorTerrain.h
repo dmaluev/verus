@@ -14,26 +14,27 @@ namespace verus
 		class EditorTerrain : public Terrain
 		{
 		public:
+			void ConvertToBufferCoords(const float xz[2], int ij[2]) const;
+			glm::int4 ComputeBrushRect(const int ij[2], int radius) const;
+
 			// Height:
-			void SmoothHeight(short stepSize);
-			void       SetHeightAt(const float xz[2], int amount, int radius);
-			void   SetHeightFlatAt(const float xz[2], int amount, int radius, bool useNormal = false, PcVector3 pNormal = nullptr);
-			void SetHeightSmoothAt(const float xz[2], int amount, int radius);
+			void SmoothenHeight(short stepSize);
+			void   ApplyBrushHeight(const float xz[2], int radius, int strength);
+			void  ApplyBrushFlatten(const float xz[2], int radius, int strength, bool useNormal = false, PcVector3 pNormal = nullptr);
+			void ApplyBrushSmoothen(const float xz[2], int radius, int strength);
 
 			// Normals:
-			void UpdateNormalsForArea(int iMin, int iMax, int jMin, int jMax);
+			void UpdateNormalsForArea(const glm::int4& rc);
 
 			// Splat:
-			void SplatTileAt(const int ij[2], int channel, int amount);
-			void SplatTileAtEx(const int ij[2], int layer, float maskValue, bool forceAll = false);
-			void SwapSplatLayersAt(const int ij[2], int a, int b);
+			void           SplatTileAt(const int ij[2], int channel, int strength);
+			void         SplatTileAtEx(const int ij[2], int layer, float maskValue, bool extended = false);
+			void     SwapSplatLayersAt(const int ij[2], int a, int b);
 			bool IsSplatChannelBlankAt(const int ij[2], int channel) const;
-			void SplatAt(const float xz[2], int layer, float amount, int radius,
+			bool        CanSplatTileAt(const int ij[2], int layer) const;
+			void ApplyBrushSplat(const float xz[2], int layer, int radius, float strength,
 				TerrainSplatMode mode = TerrainSplatMode::solid, const float* pMask = nullptr, bool updateTexture = true);
 			void SplatFromFile(CSZ url, int layer);
-
-			// Main layer:
-			void UpdateMainLayerAt(const int ij[2]);
 		};
 		VERUS_TYPEDEFS(EditorTerrain);
 	}

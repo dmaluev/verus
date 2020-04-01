@@ -127,7 +127,7 @@ namespace verus
 			const VkSampler* GetImmutableSampler(Sampler s) const;
 
 			static void ImGuiCheckVkResultFn(VkResult res);
-			virtual void ImGuiInit(int renderPassID) override;
+			virtual void ImGuiInit(int renderPassHandle) override;
 			virtual void ImGuiRenderDrawData() override;
 
 			virtual void ResizeSwapChain() override;
@@ -155,19 +155,27 @@ namespace verus
 			virtual void DeleteTexture(PBaseTexture p) override;
 
 			virtual int CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) override;
-			virtual int CreateFramebuffer(int renderPassID, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex) override;
-			virtual void DeleteRenderPass(int id) override;
-			virtual void DeleteFramebuffer(int id) override;
-			int GetNextRenderPassID() const;
-			int GetNextFramebufferID() const;
-			VkRenderPass GetRenderPassByID(int id) const;
-			RcFramebuffer GetFramebufferByID(int id) const;
+			virtual int CreateFramebuffer(int renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex) override;
+			virtual void DeleteRenderPass(int handle) override;
+			virtual void DeleteFramebuffer(int handle) override;
+			int GetNextRenderPassHandle() const;
+			int GetNextFramebufferHandle() const;
+			VkRenderPass GetRenderPass(int handle) const;
+			RcFramebuffer GetFramebuffer(int handle) const;
 
 			void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage vmaUsage, VkBuffer& buffer, VmaAllocation& vmaAllocation);
 			void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, PBaseCommandBuffer pCB = nullptr);
 			void CreateImage(const VkImageCreateInfo* pImageCreateInfo, VmaMemoryUsage vmaUsage, VkImage& image, VmaAllocation& vmaAllocation);
-			void CopyImage(VkImage srcImage, VkImage dstImage, uint32_t width, uint32_t height, uint32_t mipLevel, uint32_t arrayLayer, PBaseCommandBuffer pCB = nullptr);
-			void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t mipLevel, uint32_t arrayLayer, PBaseCommandBuffer pCB = nullptr);
+			void CopyImage(
+				VkImage srcImage, uint32_t srcMipLevel, uint32_t srcArrayLayer,
+				VkImage dstImage, uint32_t dstMipLevel, uint32_t dstArrayLayer,
+				uint32_t width, uint32_t height,
+				PBaseCommandBuffer pCB = nullptr);
+			void CopyBufferToImage(
+				VkBuffer buffer,
+				VkImage image, uint32_t mipLevel, uint32_t arrayLayer,
+				uint32_t width, uint32_t height,
+				PBaseCommandBuffer pCB = nullptr);
 		};
 		VERUS_TYPEDEFS(RendererVulkan);
 	}

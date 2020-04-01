@@ -64,7 +64,7 @@ namespace verus
 			ID3D12CommandAllocator* GetD3DCommandAllocator(int ringBufferIndex) const { return _mapCommandAllocators[ringBufferIndex].at(std::this_thread::get_id()).Get(); }
 			D3D12_STATIC_SAMPLER_DESC GetStaticSamplerDesc(Sampler s) const;
 
-			virtual void ImGuiInit(int renderPassID) override;
+			virtual void ImGuiInit(int renderPassHandle) override;
 			virtual void ImGuiRenderDrawData() override;
 
 			virtual void ResizeSwapChain() override;
@@ -92,13 +92,13 @@ namespace verus
 			virtual void DeleteTexture(PBaseTexture p) override;
 
 			virtual int CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) override;
-			virtual int CreateFramebuffer(int renderPassID, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex = -1) override;
-			virtual void DeleteRenderPass(int id) override;
-			virtual void DeleteFramebuffer(int id) override;
-			int GetNextRenderPassID() const;
-			int GetNextFramebufferID() const;
-			RP::RcD3DRenderPass GetRenderPassByID(int id) const;
-			RP::RcD3DFramebuffer GetFramebufferByID(int id) const;
+			virtual int CreateFramebuffer(int renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex = -1) override;
+			virtual void DeleteRenderPass(int handle) override;
+			virtual void DeleteFramebuffer(int handle) override;
+			int GetNextRenderPassHandle() const;
+			int GetNextFramebufferHandle() const;
+			RP::RcD3DRenderPass GetRenderPass(int handle) const;
+			RP::RcD3DFramebuffer GetFramebuffer(int handle) const;
 
 			RDynamicDescriptorHeap GetHeapCbvSrvUav() { return _dhCbvSrvUav; }
 			RDynamicDescriptorHeap GetHeapSampler() { return _dhSamplers; }

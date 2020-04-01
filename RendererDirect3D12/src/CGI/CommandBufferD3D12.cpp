@@ -48,12 +48,12 @@ void CommandBufferD3D12::End()
 		throw VERUS_RUNTIME_ERROR << "Close(), hr=" << VERUS_HR(hr);
 }
 
-void CommandBufferD3D12::BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
+void CommandBufferD3D12::BeginRenderPass(int renderPassHandle, int framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
 {
 	VERUS_QREF_RENDERER_D3D12;
 
-	_pRenderPass = &pRendererD3D12->GetRenderPassByID(renderPassID);
-	_pFramebuffer = &pRendererD3D12->GetFramebufferByID(framebufferID);
+	_pRenderPass = &pRendererD3D12->GetRenderPass(renderPassHandle);
+	_pFramebuffer = &pRendererD3D12->GetFramebuffer(framebufferHandle);
 
 	VERUS_RT_ASSERT(_pRenderPass->_vAttachments.size() == ilClearValues.size());
 
@@ -89,7 +89,7 @@ void CommandBufferD3D12::NextSubpass()
 
 void CommandBufferD3D12::EndRenderPass()
 {
-	auto pCommandList = GetD3DGraphicsCommandList();
+	auto pCmdList = GetD3DGraphicsCommandList();
 
 	CD3DX12_RESOURCE_BARRIER barriers[VERUS_MAX_RT];
 	int barrierCount = 0;
@@ -104,12 +104,12 @@ void CommandBufferD3D12::EndRenderPass()
 		index++;
 		if (VERUS_MAX_RT == barrierCount)
 		{
-			pCommandList->ResourceBarrier(barrierCount, barriers);
+			pCmdList->ResourceBarrier(barrierCount, barriers);
 			barrierCount = 0;
 		}
 	}
 	if (barrierCount)
-		pCommandList->ResourceBarrier(barrierCount, barriers);
+		pCmdList->ResourceBarrier(barrierCount, barriers);
 
 	_pRenderPass = nullptr;
 	_pFramebuffer = nullptr;
@@ -119,7 +119,6 @@ void CommandBufferD3D12::EndRenderPass()
 void CommandBufferD3D12::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilter)
 {
 	auto& geoD3D12 = static_cast<RGeometryD3D12>(*geo);
-	geoD3D12.DestroyStagingBuffers();
 	D3D12_VERTEX_BUFFER_VIEW views[VERUS_MAX_VB];
 	const int count = geoD3D12.GetVertexBufferCount();
 	int at = 0;
@@ -142,17 +141,17 @@ void CommandBufferD3D12::BindIndexBuffer(GeometryPtr geo)
 
 void CommandBufferD3D12::BindPipeline(PipelinePtr pipe)
 {
-	auto pCommandList = GetD3DGraphicsCommandList();
+	auto pCmdList = GetD3DGraphicsCommandList();
 	auto& pipeD3D12 = static_cast<RPipelineD3D12>(*pipe);
-	pCommandList->SetPipelineState(pipeD3D12.GetD3DPipelineState());
+	pCmdList->SetPipelineState(pipeD3D12.GetD3DPipelineState());
 	if (pipeD3D12.IsCompute())
 	{
-		pCommandList->SetComputeRootSignature(pipeD3D12.GetD3DRootSignature());
+		pCmdList->SetComputeRootSignature(pipeD3D12.GetD3DRootSignature());
 	}
 	else
 	{
-		pCommandList->SetGraphicsRootSignature(pipeD3D12.GetD3DRootSignature());
-		pCommandList->IASetPrimitiveTopology(pipeD3D12.GetPrimitiveTopology());
+		pCmdList->SetGraphicsRootSignature(pipeD3D12.GetD3DRootSignature());
+		pCmdList->IASetPrimitiveTopology(pipeD3D12.GetPrimitiveTopology());
 	}
 }
 
@@ -183,7 +182,7 @@ void CommandBufferD3D12::SetBlendConstants(const float* p)
 	GetD3DGraphicsCommandList()->OMSetBlendFactor(p);
 }
 
-bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int setNumber, int complexSetID)
+bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int setNumber, int complexSetHandle)
 {
 	bool copyDescOnly = false;
 	if (setNumber < 0)
@@ -198,24 +197,24 @@ bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int setNumber, int co
 	if (shaderD3D12.TryRootConstants(setNumber, *this))
 		return true;
 
-	const D3D12_GPU_DESCRIPTOR_HANDLE hGPU = shaderD3D12.UpdateUniformBuffer(setNumber, complexSetID, copyDescOnly);
+	const D3D12_GPU_DESCRIPTOR_HANDLE hGPU = shaderD3D12.UpdateUniformBuffer(setNumber, complexSetHandle, copyDescOnly);
 	if (!hGPU.ptr)
 		return false;
 
-	auto pCommandList = GetD3DGraphicsCommandList();
+	auto pCmdList = GetD3DGraphicsCommandList();
 	const UINT rootParameterIndex = shaderD3D12.ToRootParameterIndex(setNumber);
 	if (shaderD3D12.IsCompute())
-		pCommandList->SetComputeRootDescriptorTable(rootParameterIndex, hGPU);
+		pCmdList->SetComputeRootDescriptorTable(rootParameterIndex, hGPU);
 	else
-		pCommandList->SetGraphicsRootDescriptorTable(rootParameterIndex, hGPU);
+		pCmdList->SetGraphicsRootDescriptorTable(rootParameterIndex, hGPU);
 
-	if (complexSetID >= 0 && !shaderD3D12.IsCompute())
+	if (complexSetHandle >= 0 && !shaderD3D12.IsCompute())
 	{
-		const D3D12_GPU_DESCRIPTOR_HANDLE hGPU = shaderD3D12.UpdateSamplers(setNumber, complexSetID);
+		const D3D12_GPU_DESCRIPTOR_HANDLE hGPU = shaderD3D12.UpdateSamplers(setNumber, complexSetHandle);
 		if (hGPU.ptr)
 		{
 			const UINT rootParameterIndex = shaderD3D12.GetDescriptorSetCount();
-			pCommandList->SetGraphicsRootDescriptorTable(rootParameterIndex, hGPU);
+			pCmdList->SetGraphicsRootDescriptorTable(rootParameterIndex, hGPU);
 		}
 	}
 
@@ -269,7 +268,7 @@ ID3D12GraphicsCommandList3* CommandBufferD3D12::GetD3DGraphicsCommandList() cons
 
 void CommandBufferD3D12::PrepareSubpass()
 {
-	auto pCommandList = GetD3DGraphicsCommandList();
+	auto pCmdList = GetD3DGraphicsCommandList();
 
 	RP::RcD3DSubpass subpass = _pRenderPass->_vSubpasses[_subpassIndex];
 	RP::RcD3DFramebufferSubpass fs = _pFramebuffer->_vSubpasses[_subpassIndex];
@@ -309,7 +308,7 @@ void CommandBufferD3D12::PrepareSubpass()
 			_vAttachmentStates[ref._index] = ref._state;
 		}
 	}
-	pCommandList->ResourceBarrier(barrierCount, barriers);
+	pCmdList->ResourceBarrier(barrierCount, barriers);
 
 	// Clear attachments for this subpass:
 	int index = 0;
@@ -317,7 +316,7 @@ void CommandBufferD3D12::PrepareSubpass()
 	{
 		const auto& attachment = _pRenderPass->_vAttachments[ref._index];
 		if (RP::Attachment::LoadOp::clear == attachment._loadOp && attachment._clearSubpassIndex == _subpassIndex)
-			pCommandList->ClearRenderTargetView(fs._dhRTVs.AtCPU(index), &_vClearValues[ref._index << 2], 0, nullptr);
+			pCmdList->ClearRenderTargetView(fs._dhRTVs.AtCPU(index), &_vClearValues[ref._index << 2], 0, nullptr);
 		index++;
 	}
 	if (subpass._depthStencil._index >= 0)
@@ -332,13 +331,13 @@ void CommandBufferD3D12::PrepareSubpass()
 				clearFlags |= D3D12_CLEAR_FLAG_STENCIL;
 				stencil = static_cast<UINT8>(_vClearValues[(subpass._depthStencil._index << 2) + 1]);
 			}
-			pCommandList->ClearDepthStencilView(fs._dhDSV.AtCPU(0), clearFlags, _vClearValues[subpass._depthStencil._index << 2], stencil, 0, nullptr);
+			pCmdList->ClearDepthStencilView(fs._dhDSV.AtCPU(0), clearFlags, _vClearValues[subpass._depthStencil._index << 2], stencil, 0, nullptr);
 		}
 	}
 
 	auto hRTV = fs._dhRTVs.AtCPU(0);
 	auto hDSV = fs._dhDSV.AtCPU(0);
-	pCommandList->OMSetRenderTargets(
+	pCmdList->OMSetRenderTargets(
 		Utils::Cast32(subpass._vColor.size()),
 		fs._dhRTVs.GetD3DDescriptorHeap() ? &hRTV : nullptr,
 		TRUE,

@@ -1,3 +1,5 @@
+// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+
 // See: http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
 float4 ColorToLinear(float4 x)
 {

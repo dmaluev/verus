@@ -15,6 +15,7 @@ Bullet::~Bullet()
 void Bullet::Init()
 {
 	VERUS_INIT();
+	VERUS_QREF_CONST_SETTINGS;
 
 	_pCollisionConfiguration = new btDefaultCollisionConfiguration();
 	_pDispatcher = new btCollisionDispatcher(_pCollisionConfiguration);
@@ -29,10 +30,13 @@ void Bullet::Init()
 		_pConstraintSolver,
 		_pCollisionConfiguration);
 
-#ifdef VERUS_RELEASE_DEBUG
-	_pDiscreteDynamicsWorld->setDebugDrawer(&_debugDraw);
-	EnableDebugDraw(true);
-#endif
+	_pStaticPlaneShape = new btStaticPlaneShape(btVector3(0, 1, 0), 0);
+
+	if (settings._physicsSupportDebugDraw)
+	{
+		_pDiscreteDynamicsWorld->setDebugDrawer(&_debugDraw);
+		SetDebugDrawMode(DebugDrawMode::basic);
+	}
 
 	// See: http://bulletphysics.org/Bullet/phpBB3/viewtopic.php?t=6773:
 	_pDiscreteDynamicsWorld->getDispatchInfo().m_allowedCcdPenetration = 0.0001f;
@@ -41,6 +45,12 @@ void Bullet::Init()
 void Bullet::Done()
 {
 	DeleteAllCollisionObjects();
+
+	if (_pStaticPlaneShape)
+	{
+		delete _pStaticPlaneShape;
+		_pStaticPlaneShape = nullptr;
+	}
 
 	if (_pDiscreteDynamicsWorld)
 	{
@@ -126,26 +136,33 @@ void Bullet::Simulate()
 	VERUS_UPDATE_ONCE_CHECK;
 
 	VERUS_QREF_TIMER;
-	_pDiscreteDynamicsWorld->stepSimulation(dt, s_defaultMaxSubSteps);
+	_pDiscreteDynamicsWorld->stepSimulation(_pauseSimulation ? 0 : dt, s_defaultMaxSubSteps);
 }
 
 void Bullet::DebugDraw()
 {
-#ifdef VERUS_RELEASE_DEBUG
-	if (!_pDiscreteDynamicsWorld)
+	if (!_pDiscreteDynamicsWorld || !_pDiscreteDynamicsWorld->getDebugDrawer())
 		return;
 
 	VERUS_QREF_DD;
 	dd.Begin(CGI::DebugDraw::Type::lines, nullptr, false);
 	_pDiscreteDynamicsWorld->debugDrawWorld();
 	dd.End();
-#endif
 }
 
-void Bullet::EnableDebugDraw(bool b)
+void Bullet::SetDebugDrawMode(DebugDrawMode mode)
 {
-#ifdef VERUS_RELEASE_DEBUG
-	if (b)
+	if (!_pDiscreteDynamicsWorld->getDebugDrawer())
+		return;
+
+	switch (mode)
+	{
+	case DebugDrawMode::none:
+	{
+		_pDiscreteDynamicsWorld->getDebugDrawer()->setDebugMode(btIDebugDraw::DBG_NoDebug);
+	}
+	break;
+	case DebugDrawMode::basic:
 	{
 		_pDiscreteDynamicsWorld->getDebugDrawer()->setDebugMode(
 			btIDebugDraw::DBG_DrawWireframe |
@@ -153,11 +170,30 @@ void Bullet::EnableDebugDraw(bool b)
 			btIDebugDraw::DBG_DrawConstraintLimits |
 			btIDebugDraw::DBG_DrawFrames);
 	}
+	break;
+	}
+}
+
+void Bullet::EnableDebugPlane(bool b)
+{
+	if (b == !!_pStaticPlaneRigidBody)
+		return;
+
+	if (b)
+	{
+		btTransform tr;
+		tr.setIdentity();
+		_pStaticPlaneRigidBody = AddNewRigidBody(0, tr, _pStaticPlaneShape, +Physics::Group::sceneBounds);
+		_pStaticPlaneRigidBody->setFriction(GetFriction(Physics::Material::wood));
+		_pStaticPlaneRigidBody->setRestitution(GetRestitution(Physics::Material::wood));
+	}
 	else
 	{
-		_pDiscreteDynamicsWorld->getDebugDrawer()->setDebugMode(btIDebugDraw::DBG_NoDebug);
+		_pDiscreteDynamicsWorld->removeRigidBody(_pStaticPlaneRigidBody);
+		delete _pStaticPlaneRigidBody->getMotionState();
+		delete _pStaticPlaneRigidBody;
+		_pStaticPlaneRigidBody = nullptr;
 	}
-#endif
 }
 
 float Bullet::GetFriction(Material m)

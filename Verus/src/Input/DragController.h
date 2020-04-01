@@ -24,7 +24,7 @@ namespace verus
 			int                     _originCoordY = 0;
 			float                   _ratioX = 1;
 			float                   _ratioY = 1;
-			bool                    _active = false;
+			bool                    _holding = false;
 
 		public:
 			void SetDelegate(PDragControllerDelegate p);
@@ -33,6 +33,8 @@ namespace verus
 			bool DragTo(int x, int y);
 			bool DragBy(int x, int y);
 			void End();
+
+			bool IsHolding() const { return _holding; }
 
 			void SetScale(float s);
 		};

@@ -1,3 +1,5 @@
+// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+
 #include "Lib.hlsl"
 #include "LibColor.hlsl"
 #include "GenerateMips.inc.hlsl"

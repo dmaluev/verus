@@ -1,3 +1,5 @@
+// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+
 #include "Lib.hlsl"
 #include "LibColor.hlsl"
 #include "LibDeferredShading.hlsl"
@@ -23,17 +25,19 @@ struct VSI
 {
 	VK_LOCATION_POSITION int4 pos : POSITION;
 
-	VK_LOCATION(16)      int4 posPatch : TEXCOORD8;
-	VK_LOCATION(17)      int4 layers : TEXCOORD9;
+	VK_LOCATION(16)      int4 posPatch        : TEXCOORD8;
+	VK_LOCATION(17)      int4 layerForChannel : TEXCOORD9;
 };
 
 struct VSO
 {
-	float4 pos           : SV_Position;
+	float4 pos             : SV_Position;
+	float4 layerForChannel : TEXCOORD0;
 #ifndef DEF_DEPTH
-	float4 tcLayer_tcMap : TEXCOORD0;
+	float3 tcBlend         : TEXCOORD1;
+	float4 tcLayer_tcMap   : TEXCOORD2;
 #endif
-	float2 depth         : TEXCOORD1;
+	float2 depth           : TEXCOORD3;
 };
 
 #ifdef _VS
@@ -47,6 +51,7 @@ VSO mainVS(VSI si)
 	const float2 edgeCorrection = si.pos.yw;
 	si.pos.yw = 0.0;
 	float3 pos = si.pos.xyz + si.posPatch.xyz * float3(1, HEIGHT_SCALE, 1);
+	const float2 posBlend = pos.xz + edgeCorrection * 0.5;
 
 	const float bestPrecision = 50.0;
 	const float2 tcMap = pos.xz * mapSideInv + 0.5; // Range [0, 1).
@@ -61,7 +66,10 @@ VSO mainVS(VSI si)
 	pos.y = lerp(yA, yB, geomipsLodFrac);
 
 	so.pos = mul(float4(pos, 1), g_ubDrawDepth._matVP);
+	so.layerForChannel = si.layerForChannel;
 #ifndef DEF_DEPTH
+	so.tcBlend.xy = posBlend * mapSideInv + 0.5;
+	so.tcBlend.z = pos.y + 0.75;
 	so.tcLayer_tcMap.xy = pos.xz * (1.0 / 8.0);
 	so.tcLayer_tcMap.zw = (pos.xz + 0.5) * mapSideInv + 0.5; // Texel's center.
 #endif
@@ -81,30 +89,94 @@ DS_FSO mainFS(VSO si)
 	const float2 tcLayer = si.tcLayer_tcMap.xy;
 	const float2 tcMap = si.tcLayer_tcMap.zw;
 
-	const float4 rawAlbedo = g_texLayers.Sample(g_samLayers, float3(tcLayer, 1.0));
+	const float gloss = 4.0;
+
+	const float4 layerForChannel = round(si.layerForChannel);
+
+	const float4 rawBlend = g_texBlend.Sample(g_samBlend, si.tcBlend.xy);
+	float4 weights = float4(rawBlend.rgb, 1.0 - dot(rawBlend.rgb, float3(1, 1, 1)));
 
 	// <Basis>
-	const float4 rawBasis = g_texNormal.Sample(g_samNormal, tcMap);
-	const float4 basis = rawBasis * 2.0 - 1.0;
-	float3 basisNrm = float3(basis.x, 0, basis.y);
-	float3 basisTan = float3(0, basis.z, basis.w);
-	basisNrm.y = CalcNormalZ(basisNrm.xz);
-	basisTan.x = CalcNormalZ(basisTan.yz);
-	const float3 basisBin = cross(basisTan, basisNrm);
+	float3 basisTan, basisBin, basisNrm;
+	{
+		const float4 rawBasis = g_texNormal.Sample(g_samNormal, tcMap);
+		const float4 basis = rawBasis * 2.0 - 1.0;
+		basisNrm = float3(basis.x, 0, basis.y);
+		basisTan = float3(0, basis.z, basis.w);
+		basisNrm.y = ComputeNormalZ(basisNrm.xz);
+		basisTan.x = ComputeNormalZ(basisTan.yz);
+		basisBin = cross(basisTan, basisNrm);
+	}
 	_TBN_SPACE(
 		mul(basisTan, (float3x3)g_ubDrawDepth._matWV),
 		mul(basisBin, (float3x3)g_ubDrawDepth._matWV),
 		mul(basisNrm, (float3x3)g_ubDrawDepth._matWV));
 	// </Basis>
 
+	// <Albedo>
+	float4 albedo;
+	float specStrength;
+	float detailStrength;
+	{
+		const float4 rawAlbedos[4] =
+		{
+			g_texLayers.Sample(g_samLayers, float3(tcLayer, layerForChannel.r)),
+			g_texLayers.Sample(g_samLayers, float3(tcLayer, layerForChannel.g)),
+			g_texLayers.Sample(g_samLayers, float3(tcLayer, layerForChannel.b)),
+			g_texLayers.Sample(g_samLayers, float3(tcLayer, layerForChannel.a))
+		};
+		const float4 mask = saturate((float4(
+			Grayscale(rawAlbedos[0].rgb),
+			Grayscale(rawAlbedos[1].rgb),
+			Grayscale(rawAlbedos[2].rgb),
+			Grayscale(rawAlbedos[3].rgb)) - 0.25) * 8.0 + 0.25);
+		weights = saturate(weights + weights * mask);
+		const float weightsSum = dot(weights, 1.0);
+		weights /= weightsSum;
+		float4 accAlbedo = 0.0;
+		accAlbedo += rawAlbedos[0] * weights.r;
+		accAlbedo += rawAlbedos[1] * weights.g;
+		accAlbedo += rawAlbedos[2] * weights.b;
+		accAlbedo += rawAlbedos[3] * weights.a;
+		albedo = accAlbedo;
+
+		static float vSpecStrength[_MAX_TERRAIN_LAYERS] = (float[_MAX_TERRAIN_LAYERS])g_ubPerMaterialFS._vSpecStrength;
+		static float vDetailStrength[_MAX_TERRAIN_LAYERS] = (float[_MAX_TERRAIN_LAYERS])g_ubPerMaterialFS._vDetailStrength;
+		const float4 specStrengthForChannel = float4(
+			vSpecStrength[layerForChannel.r],
+			vSpecStrength[layerForChannel.g],
+			vSpecStrength[layerForChannel.b],
+			vSpecStrength[layerForChannel.a]);
+		const float4 detailStrengthForChannel = float4(
+			vDetailStrength[layerForChannel.r],
+			vDetailStrength[layerForChannel.g],
+			vDetailStrength[layerForChannel.b],
+			vDetailStrength[layerForChannel.a]);
+		specStrength = dot(specStrengthForChannel, weights) * albedo.a;
+		detailStrength = dot(detailStrengthForChannel, weights);
+	}
+	// </Albedo>
+
 	// <Normal>
-	const float3 normalWV = mul(float3(0, 0, 1), matFromTBN);
+	float3 normalWV;
+	float4 normalAA;
+	{
+		float4 accNormal = 0.0;
+		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.r)) * weights.r;
+		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.g)) * weights.g;
+		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.b)) * weights.b;
+		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.a)) * weights.a;
+		normalAA = NormalMapAA(accNormal);
+		normalWV = normalize(mul(normalAA.xyz, matFromTBN));
+	}
 	// </Normal>
 
 	DS_Test(so, 0.0, 0.5, 16.0);
-	DS_SetAlbedo(so, rawAlbedo.rgb);
+	DS_SetAlbedo(so, albedo.rgb);
 	DS_SetDepth(so, si.depth.x / si.depth.y);
 	DS_SetNormal(so, normalWV + NormalDither(rand));
+	DS_SetSpec(so, normalAA.w * specStrength);
+	DS_SetGloss(so, normalAA.w * gloss);
 
 	return so;
 }

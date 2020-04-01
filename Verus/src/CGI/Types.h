@@ -18,8 +18,8 @@ namespace verus
 			colorAttachment, // Must only be used as a color or resolve attachment.
 			depthStencilAttachment, // Must only be used as a depth/stencil or depth/stencil resolve attachment.
 			depthStencilReadOnly, // Must only be used as a read-only depth/stencil attachment or as a read-only image in a shader.
-			vsReadOnly, // Must only be used as a read-only image in vertex shader.
-			fsReadOnly, // Must only be used as a read-only image in any shader.
+			xsReadOnly, // Must only be used as a read-only image in any shader.
+			fsReadOnly, // Must only be used as a read-only image in fragment shader.
 			transferSrc, // Must only be used as a source image of a transfer command.
 			transferDst, // Must only be used as a destination image of a transfer command.
 			presentSrc // Must only be used for presenting a presentable image for display.

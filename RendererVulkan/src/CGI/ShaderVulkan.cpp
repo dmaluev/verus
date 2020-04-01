@@ -346,19 +346,19 @@ int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list
 	VkResult res = VK_SUCCESS;
 
 	// New complex descriptor set's ID:
-	int complexSetID = -1;
+	int complexSetHandle = -1;
 	VERUS_FOR(i, _vComplexDescriptorSets.size())
 	{
 		if (VK_NULL_HANDLE == _vComplexDescriptorSets[i])
 		{
-			complexSetID = i;
+			complexSetHandle = i;
 			break;
 		}
 	}
-	if (-1 == complexSetID)
+	if (-1 == complexSetHandle)
 	{
-		complexSetID = Utils::Cast32(_vComplexDescriptorSets.size());
-		_vComplexDescriptorSets.resize(complexSetID + 1);
+		complexSetHandle = Utils::Cast32(_vComplexDescriptorSets.size());
+		_vComplexDescriptorSets.resize(complexSetHandle + 1);
 	}
 
 	auto& dsd = _vDescriptorSetDesc[setNumber];
@@ -373,7 +373,7 @@ int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list
 	VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
 	if (VK_SUCCESS != (res = vkAllocateDescriptorSets(pRendererVulkan->GetVkDevice(), &vkdsai, &descriptorSet)))
 		throw VERUS_RUNTIME_ERROR << "vkAllocateDescriptorSets(), res=" << res;
-	_vComplexDescriptorSets[complexSetID] = descriptorSet;
+	_vComplexDescriptorSets[complexSetHandle] = descriptorSet;
 
 	// Info structures:
 	VkDescriptorBufferInfo vkdbi = {};
@@ -448,20 +448,21 @@ int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list
 
 	vkUpdateDescriptorSets(pRendererVulkan->GetVkDevice(), Utils::Cast32(vWriteDescriptorSet.size()), vWriteDescriptorSet.data(), 0, nullptr);
 
-	return complexSetID;
+	return complexSetHandle;
 }
 
-void ShaderVulkan::FreeDescriptorSet(int complexSetID)
+void ShaderVulkan::FreeDescriptorSet(int& complexSetHandle)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
-	if (complexSetID >= 0 && complexSetID < _vComplexDescriptorSets.size() && _vComplexDescriptorSets[complexSetID] != VK_NULL_HANDLE)
+	if (complexSetHandle >= 0 && complexSetHandle < _vComplexDescriptorSets.size() && _vComplexDescriptorSets[complexSetHandle] != VK_NULL_HANDLE)
 	{
-		if (VK_SUCCESS != (res = vkFreeDescriptorSets(pRendererVulkan->GetVkDevice(), _descriptorPool, 1, &_vComplexDescriptorSets[complexSetID])))
+		if (VK_SUCCESS != (res = vkFreeDescriptorSets(pRendererVulkan->GetVkDevice(), _descriptorPool, 1, &_vComplexDescriptorSets[complexSetHandle])))
 			throw VERUS_RUNTIME_ERROR << "vkFreeDescriptorSets(), res=" << res;
-		_vComplexDescriptorSets[complexSetID] = VK_NULL_HANDLE;
+		_vComplexDescriptorSets[complexSetHandle] = VK_NULL_HANDLE;
 	}
+	complexSetHandle = -1;
 }
 
 void ShaderVulkan::BeginBindDescriptors()

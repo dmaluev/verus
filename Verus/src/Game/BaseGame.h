@@ -55,13 +55,11 @@ namespace verus
 			RSpirit GetCameraSpirit();
 
 			// Configuration:
-			void EnableBulletDebugDraw(bool b);
 			void EnableDefaultCameraMovement(bool b);
 			void EnableEscapeKeyExitGame(bool b);
 			void EnableRawInputEvents(bool b);
 			void ShowFPS(bool b);
 
-			bool IsBulletDebugDrawEnabled() const;
 			void BulletDebugDraw();
 		};
 		VERUS_TYPEDEFS(BaseGame);

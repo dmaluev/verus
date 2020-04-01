@@ -99,8 +99,9 @@ void FileSystem::PreloadCache(CSZ pak, CSZ types[])
 				throw VERUS_RUNTIME_ERROR << "uncompress(), " << ret;
 
 			_cacheSize += vData.size();
-			String key(pak);
-			Str::ReplaceExtension(key, ":");
+			String key("[");
+			key += pak;
+			Str::ReplaceExtension(key, "]:");
 			key += fileEntry;
 			_mapCache[key] = std::move(vData);
 
@@ -411,10 +412,10 @@ String FileSystem::ConvertAbsolutePathToRelative(RcString path)
 	const size_t data = path.rfind("\\Data\\");
 	if (data != String::npos)
 	{
-		s = path.substr(data + 6);
+		s = "[" + path.substr(data + 6);
 		const size_t colon = s.find('\\');
 		if (colon != String::npos)
-			s.replace(colon, 1, ":");
+			s.replace(colon, 1, "]:");
 	}
 	Str::ReplaceAll(s, "\\", "/");
 	return s;
@@ -555,29 +556,25 @@ Image::~Image()
 
 void Image::Init(CSZ url)
 {
-#if 0
 	VERUS_INIT();
-	FileSystem::LoadResourceFromFile(url, _v);
+	FileSystem::LoadResourceFromFile(url, _vData);
 	ilGenImages(1, &_name);
 	ilBindImage(_name);
-	ilLoadL(IL_TYPE_UNKNOWN, _v.data(), _v.size());
+	ilLoadL(IL_TYPE_UNKNOWN, _vData.data(), _vData.size());
 	_width = ilGetInteger(IL_IMAGE_WIDTH);
 	_height = ilGetInteger(IL_IMAGE_HEIGHT);
 	_bytesPerPixel = ilGetInteger(IL_IMAGE_BYTES_PER_PIXEL);
 	_p = ilGetData();
-#endif
 }
 
 void Image::Done()
 {
-#if 0
 	if (_name)
 	{
 		ilBindImage(_name);
 		ilDeleteImages(1, &_name);
 		_name = 0;
 	}
-	_v.clear();
+	_vData.clear();
 	VERUS_DONE(Image);
-#endif
 }

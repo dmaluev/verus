@@ -159,7 +159,7 @@ void Settings::SetQuality(Quality q)
 	_sceneGrassDensity = 1000;
 	_sceneShadowQuality = ShadowQuality::multisampled;
 	_sceneWaterQuality = WaterQuality::distortedReflection;
-	_screenVSync = false;
+	_screenVSync = true;
 	_screenWindowed = true;
 
 	switch (q)

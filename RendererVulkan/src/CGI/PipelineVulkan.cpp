@@ -203,7 +203,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	vkgpci.pColorBlendState = &colorBlendState;
 	vkgpci.pDynamicState = &dynamicState;
 	vkgpci.layout = shader.GetVkPipelineLayout();
-	vkgpci.renderPass = pRendererVulkan->GetRenderPassByID(desc._renderPassID);
+	vkgpci.renderPass = pRendererVulkan->GetRenderPass(desc._renderPassHandle);
 	vkgpci.subpass = desc._subpass;
 	vkgpci.basePipelineHandle = VK_NULL_HANDLE;
 	if (VK_SUCCESS != (res = vkCreateGraphicsPipelines(pRendererVulkan->GetVkDevice(), VK_NULL_HANDLE, 1, &vkgpci, pRendererVulkan->GetAllocator(), &_pipeline)))

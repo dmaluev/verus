@@ -368,9 +368,9 @@ void Material::FromString(CSZ txt)
 
 void Material::BindDescriptorSetTextures()
 {
-	VERUS_RT_ASSERT(-1 == _csid);
+	VERUS_RT_ASSERT(-1 == _csh);
 	VERUS_RT_ASSERT(IsLoaded());
-	_csid = Scene::Mesh::GetShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTex(), _texNormal->GetTex() });
+	_csh = Scene::Mesh::GetShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTex(), _texNormal->GetTex() });
 }
 
 bool Material::UpdateMeshUniformBuffer(float motionBlur)
@@ -454,7 +454,7 @@ void MaterialManager::InitCmd()
 	//_texDetail.Init("[Textures]:Detail.FX.dds");
 	//_texStrass.Init("[Textures]:Strass.dds");
 
-	_csidDefault = Scene::Mesh::GetShader()->BindDescriptorSetTextures(1, { _texDefaultAlbedo->GetTex(), _texDefaultNormal->GetTex() });
+	_cshDefault = Scene::Mesh::GetShader()->BindDescriptorSetTextures(1, { _texDefaultAlbedo->GetTex(), _texDefaultNormal->GetTex() });
 }
 
 void MaterialManager::Done()

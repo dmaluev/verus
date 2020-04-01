@@ -3,6 +3,7 @@
 #include "Types.h"
 #include "Formats.h"
 #include "RenderPass.h"
+#include "Scheduled.h"
 
 #include "BaseGeometry.h"
 #include "BaseTexture.h"
@@ -15,7 +16,6 @@
 #include "DeferredShading.h"
 #include "Renderer.h"
 #include "RendererParser.h"
-#include "DestroyStaging.h"
 
 namespace verus
 {

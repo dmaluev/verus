@@ -1,3 +1,5 @@
+// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+
 VERUS_UBUFFER UB_DrawDepth
 {
 	mataff _matW;
@@ -8,5 +10,6 @@ VERUS_UBUFFER UB_DrawDepth
 
 VERUS_UBUFFER UB_PerMaterialFS
 {
-	float4 _dummy;
+	float4 _vSpecStrength[8];
+	float4 _vDetailStrength[8];
 };

@@ -402,9 +402,6 @@
     <ClInclude Include="src\Game\Spirit.h">
       <Filter>src\Game</Filter>
     </ClInclude>
-    <ClInclude Include="src\CGI\DestroyStaging.h">
-      <Filter>src\CGI</Filter>
-    </ClInclude>
     <ClInclude Include="src\ThirdParty\zlib-1.2.11\crc32.h">
       <Filter>src\ThirdParty\zlib-1.2.11</Filter>
     </ClInclude>
@@ -545,6 +542,15 @@
     </ClInclude>
     <ClInclude Include="src\Extra\FileParser.h">
       <Filter>src\Extra</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Anim\Warp.h">
+      <Filter>src\Anim</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\Scheduled.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\IO\Xxx.h">
+      <Filter>src\IO</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -901,6 +907,15 @@
     </ClCompile>
     <ClCompile Include="src\D\D.cpp">
       <Filter>src\D</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Anim\Warp.cpp">
+      <Filter>src\Anim</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\Scheduled.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\IO\Xxx.cpp">
+      <Filter>src\IO</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

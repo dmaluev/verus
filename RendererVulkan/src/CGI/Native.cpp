@@ -6,8 +6,6 @@ VkFormat CGI::ToNativeFormat(Format format)
 {
 	switch (format)
 	{
-	case Format::unormB4G4R4A4:     return VK_FORMAT_B4G4R4A4_UNORM_PACK16;
-	case Format::unormB5G6R5:       return VK_FORMAT_B5G6R5_UNORM_PACK16;
 	case Format::unormR10G10B10A2:  return VK_FORMAT_A2B10G10R10_UNORM_PACK32;
 	case Format::sintR16:           return VK_FORMAT_R16_SINT;
 	case Format::floatR11G11B10:    return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
@@ -64,7 +62,7 @@ VkImageLayout CGI::ToNativeImageLayout(ImageLayout layout)
 	case ImageLayout::colorAttachment:        return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	case ImageLayout::depthStencilAttachment: return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	case ImageLayout::depthStencilReadOnly:   return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-	case ImageLayout::vsReadOnly:             return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	case ImageLayout::xsReadOnly:             return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	case ImageLayout::fsReadOnly:             return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	case ImageLayout::transferSrc:            return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 	case ImageLayout::transferDst:            return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;

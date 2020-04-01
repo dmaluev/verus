@@ -6,9 +6,12 @@ namespace verus
 	{
 		class StateMachine;
 
-		struct State
+		class State
 		{
 			StateMachine* _pStateMachine = nullptr;
+
+		public:
+			StateMachine* SetStateMachine(StateMachine* p) { return Utils::Swap(_pStateMachine, p); }
 
 			virtual bool IsValidNextState(State* p);
 			virtual void OnEnter(State* pPrev);

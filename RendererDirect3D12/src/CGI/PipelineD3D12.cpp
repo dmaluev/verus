@@ -41,7 +41,7 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 	_pRootSignature = shader.GetD3DRootSignature();
 	_topology = ToNativePrimitiveTopology(desc._topology);
 
-	RP::RcD3DRenderPass renderPass = pRendererD3D12->GetRenderPassByID(desc._renderPassID);
+	RP::RcD3DRenderPass renderPass = pRendererD3D12->GetRenderPass(desc._renderPassHandle);
 	RP::RcD3DSubpass subpass = renderPass._vSubpasses[desc._subpass];
 
 	auto GetStripCutValue = [&geo]()

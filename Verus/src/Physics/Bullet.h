@@ -17,6 +17,12 @@ namespace verus
 			wood
 		};
 
+		enum class DebugDrawMode : int
+		{
+			none,
+			basic
+		};
+
 		class Bullet : public Singleton<Bullet>, public Object
 		{
 			static const int s_defaultMaxSubSteps = 8;
@@ -26,8 +32,11 @@ namespace verus
 			btConstraintSolver* _pConstraintSolver = nullptr;
 			btCollisionConfiguration* _pCollisionConfiguration = nullptr;
 			btDiscreteDynamicsWorld* _pDiscreteDynamicsWorld = nullptr;
+			btStaticPlaneShape* _pStaticPlaneShape = nullptr;
+			btRigidBody* _pStaticPlaneRigidBody = nullptr;
 			btGhostPairCallback _ghostPairCallback;
 			BulletDebugDraw _debugDraw;
+			bool _pauseSimulation = false;
 
 		public:
 			Bullet();
@@ -45,13 +54,15 @@ namespace verus
 				short group = 1,
 				short mask = -1,
 				const btTransform* pCenterOfMassOffset = nullptr);
-
 			void DeleteAllCollisionObjects();
 
 			void Simulate();
+			void PauseSimualtion(bool b) { _pauseSimulation = b; }
+			bool IsSimulationPaused() const { return _pauseSimulation; }
 
 			void DebugDraw();
-			void EnableDebugDraw(bool b);
+			void SetDebugDrawMode(DebugDrawMode mode);
+			void EnableDebugPlane(bool b);
 
 			static float GetFriction(Material m);
 			static float GetRestitution(Material m);

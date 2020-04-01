@@ -67,6 +67,7 @@ namespace verus
 			int	          _gpuTextureLodLevel = 0;
 			bool          _gpuTrilinearFilter = false;
 			float         _inputMouseSensitivity = 1;
+			bool          _physicsSupportDebugDraw = false;
 			bool          _postProcessBloom = false;
 			bool          _postProcessCinema = false;
 			bool          _postProcessMotionBlur = false;
@@ -78,7 +79,7 @@ namespace verus
 			float         _screenFOV = 70;
 			int           _screenSizeHeight = 720;
 			int           _screenSizeWidth = 1280;
-			bool          _screenVSync = false;
+			bool          _screenVSync = true;
 			bool          _screenWindowed = true;
 			String        _uiLang = "EN";
 			CommandLine   _commandLine;

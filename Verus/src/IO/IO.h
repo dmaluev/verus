@@ -9,6 +9,7 @@
 #include "Json.h"
 #include "Xml.h"
 #include "Dictionary.h"
+#include "Xxx.h"
 
 namespace verus
 {

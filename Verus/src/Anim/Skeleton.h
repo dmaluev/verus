@@ -52,6 +52,7 @@ namespace verus
 				float              _width = 0;
 				float              _length = 0;
 				float              _mass = 0;
+				float              _friction = 0;
 				int                _shaderIndex = 0; //!< Index of a matrix in the vertex shader.
 				bool               _ready = false;
 				bool               _rigBone = true;

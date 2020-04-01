@@ -382,6 +382,14 @@ void RendererVulkan::PickPhysicalDevice()
 	}
 	if (VK_NULL_HANDLE == _physicalDevice)
 		throw VERUS_RUNTIME_ERROR << "PhysicalDevice not found";
+
+	VkPhysicalDeviceProperties vkpdp = {};
+	vkGetPhysicalDeviceProperties(_physicalDevice, &vkpdp);
+	const uint32_t major = VK_VERSION_MAJOR(vkpdp.apiVersion);
+	const uint32_t minor = VK_VERSION_MINOR(vkpdp.apiVersion);
+	const uint32_t patch = VK_VERSION_PATCH(vkpdp.apiVersion);
+	VERUS_LOG_INFO("Vulkan version supported: " << major << "." << minor << "." << patch);
+	VERUS_LOG_INFO("Device name: " << vkpdp.deviceName);
 }
 
 void RendererVulkan::CreateDevice()
@@ -479,7 +487,7 @@ void RendererVulkan::CreateSwapChain(VkSwapchainKHR oldSwapchain)
 	vksci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 	vksci.preTransform = swapChainInfo._surfaceCapabilities.currentTransform;
 	vksci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-	vksci.presentMode = settings._screenVSync ? VK_PRESENT_MODE_MAILBOX_KHR : VK_PRESENT_MODE_FIFO_KHR;
+	vksci.presentMode = settings._screenVSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
 	vksci.clipped = VK_TRUE;
 	vksci.oldSwapchain = oldSwapchain;
 	const uint32_t queueFamilyIndicesArray[] =
@@ -684,7 +692,7 @@ void RendererVulkan::ImGuiCheckVkResultFn(VkResult res)
 		throw VERUS_RUNTIME_ERROR << "ImGuiCheckVkResultFn(), res=" << res;
 }
 
-void RendererVulkan::ImGuiInit(int renderPassID)
+void RendererVulkan::ImGuiInit(int renderPassHandle)
 {
 	VkResult res = VK_SUCCESS;
 	VkDescriptorPoolSize vkdps = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 };
@@ -730,7 +738,7 @@ void RendererVulkan::ImGuiInit(int renderPassID)
 	info.MinImageCount = settings._screenVSync ? 3 : 2;;
 	info.ImageCount = s_ringBufferSize;
 	info.CheckVkResultFn = ImGuiCheckVkResultFn;
-	ImGui_ImplVulkan_Init(&info, _vRenderPasses[renderPassID]);
+	ImGui_ImplVulkan_Init(&info, _vRenderPasses[renderPassHandle]);
 
 	CommandBufferVulkan commandBuffer;
 	commandBuffer.InitOneTimeSubmit();
@@ -822,6 +830,8 @@ void RendererVulkan::EndFrame(bool present)
 	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
 
 	ImGui::EndFrame();
+
+	UpdateScheduled();
 }
 
 void RendererVulkan::Present()
@@ -1101,16 +1111,16 @@ int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, 
 	if (VK_SUCCESS != (res = vkCreateRenderPass(_device, &vkrpci, GetAllocator(), &renderPass)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateRenderPass(), res=" << res;
 
-	const int id = GetNextRenderPassID();
-	if (id >= _vRenderPasses.size())
+	const int handle = GetNextRenderPassHandle();
+	if (handle >= _vRenderPasses.size())
 		_vRenderPasses.push_back(renderPass);
 	else
-		_vRenderPasses[id] = renderPass;
+		_vRenderPasses[handle] = renderPass;
 
-	return id;
+	return handle;
 }
 
-int RendererVulkan::CreateFramebuffer(int renderPassID, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex)
+int RendererVulkan::CreateFramebuffer(int renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex)
 {
 	VkResult res = VK_SUCCESS;
 
@@ -1118,7 +1128,7 @@ int RendererVulkan::CreateFramebuffer(int renderPassID, std::initializer_list<Te
 	VkFramebuffer framebuffer = VK_NULL_HANDLE;
 	VkFramebufferCreateInfo vkfci = {};
 	vkfci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	vkfci.renderPass = GetRenderPassByID(renderPassID);
+	vkfci.renderPass = GetRenderPass(renderPassHandle);
 	int count = 0;
 	if (swapChainBufferIndex >= 0)
 	{
@@ -1139,25 +1149,25 @@ int RendererVulkan::CreateFramebuffer(int renderPassID, std::initializer_list<Te
 	if (VK_SUCCESS != (res = vkCreateFramebuffer(_device, &vkfci, GetAllocator(), &framebuffer)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateFramebuffer(), res=" << res;
 
-	const int id = GetNextFramebufferID();
+	const int handle = GetNextFramebufferHandle();
 	Framebuffer fb;
 	fb._framebuffer = framebuffer;
 	fb._width = w;
 	fb._height = h;
-	if (id >= _vFramebuffers.size())
+	if (handle >= _vFramebuffers.size())
 		_vFramebuffers.push_back(fb);
 	else
-		_vFramebuffers[id] = fb;
+		_vFramebuffers[handle] = fb;
 
-	return id;
+	return handle;
 }
 
-void RendererVulkan::DeleteRenderPass(int id)
+void RendererVulkan::DeleteRenderPass(int handle)
 {
-	if (id >= 0)
+	if (handle >= 0)
 	{
-		vkDestroyRenderPass(_device, _vRenderPasses[id], GetAllocator());
-		_vRenderPasses[id] = VK_NULL_HANDLE;
+		vkDestroyRenderPass(_device, _vRenderPasses[handle], GetAllocator());
+		_vRenderPasses[handle] = VK_NULL_HANDLE;
 	}
 	else
 	{
@@ -1167,12 +1177,12 @@ void RendererVulkan::DeleteRenderPass(int id)
 	}
 }
 
-void RendererVulkan::DeleteFramebuffer(int id)
+void RendererVulkan::DeleteFramebuffer(int handle)
 {
-	if (id >= 0)
+	if (handle >= 0)
 	{
-		vkDestroyFramebuffer(_device, _vFramebuffers[id]._framebuffer, GetAllocator());
-		_vFramebuffers[id]._framebuffer = VK_NULL_HANDLE;
+		vkDestroyFramebuffer(_device, _vFramebuffers[handle]._framebuffer, GetAllocator());
+		_vFramebuffers[handle]._framebuffer = VK_NULL_HANDLE;
 	}
 	else
 	{
@@ -1182,7 +1192,7 @@ void RendererVulkan::DeleteFramebuffer(int id)
 	}
 }
 
-int RendererVulkan::GetNextRenderPassID() const
+int RendererVulkan::GetNextRenderPassHandle() const
 {
 	const int count = Utils::Cast32(_vRenderPasses.size());
 	VERUS_FOR(i, count)
@@ -1193,7 +1203,7 @@ int RendererVulkan::GetNextRenderPassID() const
 	return count;
 }
 
-int RendererVulkan::GetNextFramebufferID() const
+int RendererVulkan::GetNextFramebufferHandle() const
 {
 	const int count = Utils::Cast32(_vFramebuffers.size());
 	VERUS_FOR(i, count)
@@ -1204,14 +1214,14 @@ int RendererVulkan::GetNextFramebufferID() const
 	return count;
 }
 
-VkRenderPass RendererVulkan::GetRenderPassByID(int id) const
+VkRenderPass RendererVulkan::GetRenderPass(int handle) const
 {
-	return _vRenderPasses[id];
+	return _vRenderPasses[handle];
 }
 
-RendererVulkan::RcFramebuffer RendererVulkan::GetFramebufferByID(int id) const
+RendererVulkan::RcFramebuffer RendererVulkan::GetFramebuffer(int handle) const
 {
-	return _vFramebuffers[id];
+	return _vFramebuffers[handle];
 }
 
 void RendererVulkan::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage vmaUsage, VkBuffer& buffer, VmaAllocation& vmaAllocation)
@@ -1251,7 +1261,11 @@ void RendererVulkan::CreateImage(const VkImageCreateInfo* pImageCreateInfo, VmaM
 		throw VERUS_RECOVERABLE << "vmaCreateImage(), res=" << res;
 }
 
-void RendererVulkan::CopyImage(VkImage srcImage, VkImage dstImage, uint32_t width, uint32_t height, uint32_t mipLevel, uint32_t arrayLayer, PBaseCommandBuffer pCB)
+void RendererVulkan::CopyImage(
+	VkImage srcImage, uint32_t srcMipLevel, uint32_t srcArrayLayer,
+	VkImage dstImage, uint32_t dstMipLevel, uint32_t dstArrayLayer,
+	uint32_t width, uint32_t height,
+	PBaseCommandBuffer pCB)
 {
 	VERUS_QREF_RENDERER;
 
@@ -1261,19 +1275,23 @@ void RendererVulkan::CopyImage(VkImage srcImage, VkImage dstImage, uint32_t widt
 
 	VkImageCopy region = {};
 	region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	region.srcSubresource.mipLevel = mipLevel;
-	region.srcSubresource.baseArrayLayer = arrayLayer;
+	region.srcSubresource.mipLevel = srcMipLevel;
+	region.srcSubresource.baseArrayLayer = srcArrayLayer;
 	region.srcSubresource.layerCount = 1;
 	region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	region.dstSubresource.mipLevel = mipLevel;
-	region.dstSubresource.baseArrayLayer = arrayLayer;
+	region.dstSubresource.mipLevel = dstMipLevel;
+	region.dstSubresource.baseArrayLayer = dstArrayLayer;
 	region.dstSubresource.layerCount = 1;
 	region.extent = { width, height, 1 };
 
 	vkCmdCopyImage(commandBuffer, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
 
-void RendererVulkan::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t mipLevel, uint32_t arrayLayer, PBaseCommandBuffer pCB)
+void RendererVulkan::CopyBufferToImage(
+	VkBuffer buffer,
+	VkImage image, uint32_t mipLevel, uint32_t arrayLayer,
+	uint32_t width, uint32_t height,
+	PBaseCommandBuffer pCB)
 {
 	VERUS_QREF_RENDERER;
 

@@ -7,8 +7,6 @@ DXGI_FORMAT CGI::ToNativeFormat(Format format, bool typeless)
 {
 	switch (format)
 	{
-	case Format::unormB4G4R4A4:     return DXGI_FORMAT_B4G4R4A4_UNORM;
-	case Format::unormB5G6R5:       return DXGI_FORMAT_B5G6R5_UNORM;
 	case Format::unormR10G10B10A2:  return DXGI_FORMAT_R10G10B10A2_UNORM;
 	case Format::sintR16:           return DXGI_FORMAT_R16_SINT;
 	case Format::floatR11G11B10:    return DXGI_FORMAT_R11G11B10_FLOAT;
@@ -77,7 +75,7 @@ D3D12_RESOURCE_STATES CGI::ToNativeImageLayout(ImageLayout layout)
 	case ImageLayout::colorAttachment:        return D3D12_RESOURCE_STATE_RENDER_TARGET;
 	case ImageLayout::depthStencilAttachment: return D3D12_RESOURCE_STATE_DEPTH_WRITE;
 	case ImageLayout::depthStencilReadOnly:   return D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	case ImageLayout::vsReadOnly:             return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	case ImageLayout::xsReadOnly:             return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 	case ImageLayout::fsReadOnly:             return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 	case ImageLayout::transferSrc:            return D3D12_RESOURCE_STATE_COPY_SOURCE;
 	case ImageLayout::transferDst:            return D3D12_RESOURCE_STATE_COPY_DEST;

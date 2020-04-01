@@ -154,9 +154,11 @@ void MainCamera::GetPickingRay(RPoint3 pos, RVector3 dir) const
 
 	int x, y;
 	_pCpp->GetPos(x, y);
+	const float clipSpaceX = (float(x + x + 1) / renderer.GetSwapChainWidth()) - 1;
+	const float clipSpaceY = 1 - (float(y + y + 1) / renderer.GetSwapChainHeight());
 	const Vector3 v(
-		((float(x + x) / renderer.GetSwapChainWidth()) - 1) / GetMatrixP().getElem(0, 0),
-		-((float(y + y) / renderer.GetSwapChainHeight()) - 1) / GetMatrixP().getElem(1, 1),
+		clipSpaceX / GetMatrixP().getElem(0, 0),
+		clipSpaceY / GetMatrixP().getElem(1, 1),
 		-1);
 	dir = GetMatrixVi().getUpper3x3() * v;
 	pos = GetMatrixVi().getTranslation();

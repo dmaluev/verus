@@ -1,3 +1,5 @@
+// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+
 float SinAcos(float x)
 {
 	return sqrt(saturate(1.0 - x * x));

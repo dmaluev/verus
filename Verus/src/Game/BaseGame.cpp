@@ -37,7 +37,6 @@ struct BaseGame::Pimpl : AllocatorAware
 	PBaseGame         _p = nullptr;
 	Scene::MainCamera _camera;
 	Spirit            _cameraSpirit;
-	bool              _bulletDebugDrawEnabled = false;
 	bool              _defaultCameraMovement = true;
 	bool              _escapeKeyExitGame = true;
 	bool              _minimized = false;
@@ -199,8 +198,12 @@ void BaseGame::Run(bool relativeMouseMode)
 					case SDL_WINDOWEVENT_RESIZED:
 					{
 						renderer.OnWindowResized(event.window.data1, event.window.data2);
-						sm.GetCamera()->SetAspectRatio(renderer.GetSwapChainAspectRatio());
-						sm.GetCamera()->Update();
+						Scene::PCamera pCamera = sm.GetCamera();
+						if (pCamera)
+						{
+							pCamera->SetAspectRatio(renderer.GetSwapChainAspectRatio());
+							pCamera->Update();
+						}
 						BaseGame_OnWindowResized();
 					}
 					break;
@@ -349,11 +352,6 @@ RSpirit BaseGame::GetCameraSpirit()
 	return _p->_cameraSpirit;
 }
 
-void BaseGame::EnableBulletDebugDraw(bool b)
-{
-	_p->_bulletDebugDrawEnabled = b;
-}
-
 void BaseGame::EnableDefaultCameraMovement(bool b)
 {
 	_p->_defaultCameraMovement = b;
@@ -374,18 +372,8 @@ void BaseGame::ShowFPS(bool b)
 	_p->_showFPS = b;
 }
 
-bool BaseGame::IsBulletDebugDrawEnabled() const
-{
-	return _p->_bulletDebugDrawEnabled;
-}
-
 void BaseGame::BulletDebugDraw()
 {
-#ifdef VERUS_RELEASE_DEBUG
-	if (_p->_bulletDebugDrawEnabled)
-	{
-		VERUS_QREF_BULLET;
-		bullet.DebugDraw();
-	}
-#endif
+	VERUS_QREF_BULLET;
+	bullet.DebugDraw();
 }

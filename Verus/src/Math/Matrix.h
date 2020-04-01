@@ -69,7 +69,7 @@ namespace verus
 		Transform3(const VMath::Matrix4& that) : VMath::Transform3(that.getUpper3x3(), that.getTranslation()) {}
 		Transform3& operator=(const VMath::Transform3& that);
 
-		Transform3(const btTransform& t);
+		Transform3(const btTransform& tr);
 		btTransform Bullet() const;
 
 		Transform3(const glm::mat4& that);

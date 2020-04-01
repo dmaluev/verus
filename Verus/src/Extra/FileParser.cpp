@@ -543,10 +543,10 @@ void FileParser::Done()
 
 void FileParser::LoadBoneNames(CSZ pathname)
 {
-	Vector<BYTE> v;
-	IO::FileSystem::LoadResource(pathname, v, IO::FileSystem::LoadDesc(true));
+	Vector<BYTE> vData;
+	IO::FileSystem::LoadResource(pathname, vData, IO::FileSystem::LoadDesc(true));
 	Vector<String> vLines;
-	Str::ReadLines(reinterpret_cast<CSZ>(v.data()), vLines);
+	Str::ReadLines(reinterpret_cast<CSZ>(vData.data()), vLines);
 	for (const auto& line : vLines)
 	{
 		Vector<String> vPair;

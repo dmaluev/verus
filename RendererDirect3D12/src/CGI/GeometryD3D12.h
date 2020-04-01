@@ -21,7 +21,6 @@ namespace verus
 			D3D12_INDEX_BUFFER_VIEW          _indexBufferView;
 			Vector<D3D12_INPUT_ELEMENT_DESC> _vInputElementDesc;
 			Vector<int>                      _vStrides;
-			DestroyStaging                   _destroyStagingBuffers;
 
 		public:
 			GeometryD3D12();
@@ -36,11 +35,11 @@ namespace verus
 			virtual void CreateIndexBuffer(int count) override;
 			virtual void UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB) override;
 
+			virtual Continue Scheduled_Update() override;
+
 			//
 			// D3D12
 			//
-
-			void DestroyStagingBuffers();
 
 			D3D12_INPUT_LAYOUT_DESC GetD3DInputLayoutDesc(UINT32 bindingsFilter, Vector<D3D12_INPUT_ELEMENT_DESC>& vInputElementDesc) const;
 

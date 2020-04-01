@@ -4,7 +4,7 @@ namespace verus
 {
 	namespace CGI
 	{
-		class BaseCommandBuffer : public Object
+		class BaseCommandBuffer : public Object, public Scheduled
 		{
 		protected:
 			BaseCommandBuffer() = default;
@@ -17,7 +17,7 @@ namespace verus
 			virtual void Begin() = 0;
 			virtual void End() = 0;
 
-			virtual void BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor = true) = 0;
+			virtual void BeginRenderPass(int renderPassHandle, int framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor = true) = 0;
 			virtual void NextSubpass() = 0;
 			virtual void EndRenderPass() = 0;
 
@@ -29,7 +29,7 @@ namespace verus
 			virtual void SetScissor(std::initializer_list<Vector4> il) = 0;
 			virtual void SetBlendConstants(const float* p) = 0;
 
-			virtual bool BindDescriptors(ShaderPtr shader, int setNumber, int complexSetID = -1) = 0;
+			virtual bool BindDescriptors(ShaderPtr shader, int setNumber, int complexSetHandle = -1) = 0;
 			virtual void PushConstants(ShaderPtr shader, int offset, int size, const void* p, ShaderStageFlags stageFlags = ShaderStageFlags::vs_fs) = 0;
 
 			virtual void PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout,

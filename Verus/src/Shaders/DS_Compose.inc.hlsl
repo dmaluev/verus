@@ -1,3 +1,5 @@
+// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+
 VERUS_UBUFFER UB_ComposeVS
 {
 	mataff _matW;

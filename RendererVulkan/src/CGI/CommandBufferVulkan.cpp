@@ -44,14 +44,14 @@ void CommandBufferVulkan::End()
 		throw VERUS_RUNTIME_ERROR << "vkEndCommandBuffer(), res=" << res;
 }
 
-void CommandBufferVulkan::BeginRenderPass(int renderPassID, int framebufferID, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
+void CommandBufferVulkan::BeginRenderPass(int renderPassHandle, int framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 	VERUS_QREF_CONST_SETTINGS;
-	RendererVulkan::RcFramebuffer framebuffer = pRendererVulkan->GetFramebufferByID(framebufferID);
+	RendererVulkan::RcFramebuffer framebuffer = pRendererVulkan->GetFramebuffer(framebufferHandle);
 	VkRenderPassBeginInfo vkrpbi = {};
 	vkrpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	vkrpbi.renderPass = pRendererVulkan->GetRenderPassByID(renderPassID);
+	vkrpbi.renderPass = pRendererVulkan->GetRenderPass(renderPassHandle);
 	vkrpbi.framebuffer = framebuffer._framebuffer;
 	vkrpbi.renderArea.extent.width = framebuffer._width;
 	vkrpbi.renderArea.extent.height = framebuffer._height;
@@ -86,7 +86,6 @@ void CommandBufferVulkan::EndRenderPass()
 void CommandBufferVulkan::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilter)
 {
 	auto& geoVulkan = static_cast<RGeometryVulkan>(*geo);
-	geoVulkan.DestroyStagingBuffers();
 	VkBuffer buffers[VERUS_MAX_VB];
 	VkDeviceSize offsets[VERUS_MAX_VB];
 	const int count = geoVulkan.GetVertexBufferCount();
@@ -156,7 +155,7 @@ void CommandBufferVulkan::SetBlendConstants(const float* p)
 	vkCmdSetBlendConstants(GetVkCommandBuffer(), p);
 }
 
-bool CommandBufferVulkan::BindDescriptors(ShaderPtr shader, int setNumber, int complexSetID)
+bool CommandBufferVulkan::BindDescriptors(ShaderPtr shader, int setNumber, int complexSetHandle)
 {
 	if (setNumber < 0)
 		return true;
@@ -168,8 +167,8 @@ bool CommandBufferVulkan::BindDescriptors(ShaderPtr shader, int setNumber, int c
 	if (offset < 0)
 		return false;
 
-	const VkDescriptorSet descriptorSet = (complexSetID >= 0) ?
-		shaderVulkan.GetComplexVkDescriptorSet(complexSetID) : shaderVulkan.GetVkDescriptorSet(setNumber);
+	const VkDescriptorSet descriptorSet = (complexSetHandle >= 0) ?
+		shaderVulkan.GetComplexVkDescriptorSet(complexSetHandle) : shaderVulkan.GetVkDescriptorSet(setNumber);
 	const uint32_t dynamicOffset = offset;
 	const uint32_t dynamicOffsetCount = 1;
 	vkCmdBindDescriptorSets(GetVkCommandBuffer(),
@@ -191,7 +190,7 @@ void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout
 	auto& texVulkan = static_cast<RTextureVulkan>(*tex);
 	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Waiting for this stage to finish (TOP_OF_PIPE means wait for nothing).
 	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; // Which stage is waiting to start (BOTTOM_OF_PIPE means nothing is waiting).
-	const VkPipelineStageFlags dstStageMaskVS = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+	const VkPipelineStageFlags dstStageMaskXS = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 	VkImageMemoryBarrier vkimb[16];
 	VERUS_RT_ASSERT(mipLevels.GetRange() < VERUS_COUNT_OF(vkimb));
 	int index = 0;
@@ -248,7 +247,7 @@ void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout
 			// Render target initialization.
 			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 			vkimb[index].srcAccessMask = 0;
-			dstStageMask = (ImageLayout::vsReadOnly == newLayout) ? dstStageMaskVS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			dstStageMask = (ImageLayout::xsReadOnly == newLayout) ? dstStageMaskXS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		}
 		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
@@ -272,7 +271,7 @@ void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout
 			// To support vertex texture fetch.
 			srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 			vkimb[index].srcAccessMask = 0;
-			dstStageMask = (ImageLayout::vsReadOnly == newLayout) ? dstStageMaskVS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			dstStageMask = (ImageLayout::xsReadOnly == newLayout) ? dstStageMaskXS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		}
 		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
@@ -283,12 +282,20 @@ void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout
 			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
 			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 		}
+		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_GENERAL)
+		{
+			// To restore storage image after transfer during mipmap generation.
+			srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			vkimb[index].srcAccessMask = 0;
+			dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		}
 		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 		{
-			// Regular texture's first and only update (after transfer).
+			// To sample regular texture after update.
 			srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
 			vkimb[index].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-			dstStageMask = (ImageLayout::vsReadOnly == newLayout) ? dstStageMaskVS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			dstStageMask = (ImageLayout::xsReadOnly == newLayout) ? dstStageMaskXS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		}
 		else

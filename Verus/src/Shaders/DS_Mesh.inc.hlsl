@@ -1,3 +1,5 @@
+// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+
 VERUS_UBUFFER UB_PerFrame
 {
 	mataff _matV;
@@ -35,6 +37,7 @@ VERUS_UBUFFER UB_PerMeshVS
 
 VERUS_UBUFFER UB_SkeletonVS
 {
+	float4 _vWarpZones[32];
 	mataff _vMatBones[VERUS_MAX_BONES];
 };
 

@@ -18,14 +18,14 @@ TerrainPhysics::~TerrainPhysics()
 	Done();
 }
 
-void TerrainPhysics::Init(Physics::PUserPtr p, int w, int h, float heightScale)
+void TerrainPhysics::Init(Physics::PUserPtr p, int w, int h, const void* pData, float heightScale)
 {
 	VERUS_QREF_BULLET;
 
-	_pTerrainShape = new btHeightfieldTerrainShape(
+	_pShape = new btHeightfieldTerrainShape(
 		w,
 		h,
-		_vData.data(),
+		pData,
 		heightScale,
 		-SHRT_MAX * heightScale,
 		SHRT_MAX * heightScale,
@@ -33,29 +33,45 @@ void TerrainPhysics::Init(Physics::PUserPtr p, int w, int h, float heightScale)
 		PHY_SHORT,
 		false);
 
-	_pTerrainShape->setLocalScaling(btVector3(1, 1, 1));
+	_pShape->setLocalScaling(btVector3(1, 1, 1));
 
-	btTransform t;
-	t.setIdentity();
-	t.setOrigin(btVector3(-0.5f, 0, -0.5f));
+	btTransform tr;
+	tr.setIdentity();
+	tr.setOrigin(btVector3(-0.5f, 0, -0.5f));
+	_pRigidBody = bullet.AddNewRigidBody(0, tr, _pShape, +Physics::Group::terrain);
+	_pRigidBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::wood));
+	_pRigidBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::wood));
+	_pRigidBody->setUserPointer(p);
 
-	btRigidBody* pBody = bullet.AddNewRigidBody(0, t, _pTerrainShape, +Physics::Group::terrain);
-	pBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::wood));
-	pBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::wood));
-	pBody->setUserPointer(p);
-#ifndef _DEBUG
-	if (w >= 128 || h >= 128)
-#endif
-	{
-		const int f = pBody->getCollisionFlags();
-		pBody->setCollisionFlags(f | btCollisionObject::CF_DISABLE_VISUALIZE_OBJECT);
-	}
+	EnableDebugDraw(false);
 }
 
 void TerrainPhysics::Done()
 {
-	VERUS_SMART_DELETE(_pTerrainShape);
-	_vData.clear();
+	if (_pRigidBody)
+	{
+		VERUS_QREF_BULLET;
+		bullet.GetWorld()->removeRigidBody(_pRigidBody);
+		delete _pRigidBody->getMotionState();
+		delete _pRigidBody;
+		_pRigidBody = nullptr;
+	}
+	VERUS_SMART_DELETE(_pShape);
+}
+
+void TerrainPhysics::EnableDebugDraw(bool b)
+{
+	_debugDraw = b;
+	if (_debugDraw)
+	{
+		const int f = _pRigidBody->getCollisionFlags();
+		_pRigidBody->setCollisionFlags(f & ~btCollisionObject::CF_DISABLE_VISUALIZE_OBJECT);
+	}
+	else
+	{
+		const int f = _pRigidBody->getCollisionFlags();
+		_pRigidBody->setCollisionFlags(f | btCollisionObject::CF_DISABLE_VISUALIZE_OBJECT);
+	}
 }
 
 // TerrainLOD:
@@ -256,7 +272,7 @@ void TerrainPatch::UpdateNormals(PTerrain p, int lod)
 	}
 }
 
-int TerrainPatch::GetSplatChannelForLayer(int layer)
+int TerrainPatch::GetSplatChannelForLayer(int layer) const
 {
 	VERUS_FOR(i, _usedChannelCount)
 	{
@@ -398,7 +414,7 @@ void Terrain::Init(RcDesc desc)
 	_vInstanceBuffer.resize(maxInstances);
 
 	{
-		CGI::PipelineDesc pipeDesc(_geo, s_shader, "#", renderer.GetDS().GetRenderPassID());
+		CGI::PipelineDesc pipeDesc(_geo, s_shader, "#", renderer.GetDS().GetRenderPassHandle());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
@@ -410,7 +426,7 @@ void Terrain::Init(RcDesc desc)
 	}
 	{
 		VERUS_QREF_ATMO;
-		CGI::PipelineDesc pipeDesc(_geo, s_shader, "#Depth", atmo.GetShadowMap().GetRenderPassID());
+		CGI::PipelineDesc pipeDesc(_geo, s_shader, "#Depth", atmo.GetShadowMap().GetRenderPassHandle());
 		pipeDesc._colorAttachBlendEqs[0] = "";
 		pipeDesc.EnableDepthBias();
 		_pipe[PIPE_DEPTH_LIST].Init(pipeDesc);
@@ -424,6 +440,7 @@ void Terrain::Init(RcDesc desc)
 	texDesc._width = _mapSide;
 	texDesc._height = _mapSide;
 	texDesc._mipLevels = 0;
+	texDesc._flags = CGI::TextureDesc::Flags::anyShaderResource;
 	_tex[TEX_HEIGHTMAP].Init(texDesc);
 
 	texDesc._format = CGI::Format::unormR8G8B8A8;
@@ -434,7 +451,15 @@ void Terrain::Init(RcDesc desc)
 	_tex[TEX_NORMALS].Init(texDesc);
 	_tex[TEX_BLEND].Init(texDesc);
 
-	_csidVS = s_shader->BindDescriptorSetTextures(0, { _tex[TEX_HEIGHTMAP] });
+	s_shader->FreeDescriptorSet(_cshVS);
+	_cshVS = s_shader->BindDescriptorSetTextures(0, { _tex[TEX_HEIGHTMAP] });
+
+	_vBlendBuffer.resize(_mapSide * _mapSide);
+	VERUS_P_FOR(i, _vBlendBuffer.size())
+	{
+		_vBlendBuffer[i] = VERUS_COLOR_RGBA(255, 0, 0, 255);
+	});
+	UpdateBlendTexture();
 
 	OnHeightModified();
 	AddNewRigidBody();
@@ -444,6 +469,9 @@ void Terrain::Init(RcDesc desc)
 
 void Terrain::Done()
 {
+	s_shader->FreeDescriptorSet(_cshVS);
+	s_shader->FreeDescriptorSet(_cshFS);
+
 	_tex.Done();
 	_pipe.Done();
 	_geo.Done();
@@ -509,6 +537,12 @@ void Terrain::Draw()
 	s_ubDrawDepth._posEye_mapSideInv = float4(atmo.GetEyePosition().GLM(), 0);
 	s_ubDrawDepth._posEye_mapSideInv.w = 1.f / _mapSide;
 
+	VERUS_FOR(i, VERUS_COUNT_OF(_layerData))
+	{
+		s_ubPerMaterialFS._vSpecStrength[i >> 2][i & 0x3] = _layerData[i]._specStrength;
+		s_ubPerMaterialFS._vDetailStrength[i >> 2][i & 0x3] = _layerData[i]._detailStrength;
+	}
+
 	renderer.GetCommandBuffer()->BindVertexBuffers(_geo);
 	renderer.GetCommandBuffer()->BindIndexBuffer(_geo);
 
@@ -532,14 +566,14 @@ void Terrain::Draw()
 				if (drawingDepth)
 				{
 					renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_DEPTH_LIST]);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _csidVS);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _csidFS);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _cshVS);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _cshFS);
 				}
 				else
 				{
 					renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_LIST]);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _csidVS);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _csidFS);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _cshVS);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _cshFS);
 				}
 			}
 			else if (!strip)
@@ -548,15 +582,15 @@ void Terrain::Draw()
 				{
 					strip = true;
 					renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_DEPTH_STRIP]);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _csidVS);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _csidFS);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _cshVS);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _cshFS);
 				}
 				else
 				{
 					strip = true;
 					renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_STRIP]);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _csidVS);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _csidFS);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _cshVS);
+					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _cshFS);
 				}
 			}
 
@@ -710,6 +744,22 @@ void Terrain::SetHeightAt(const int ij[2], short h)
 	_vPatches[offsetPatch]._height[(iLocal << 4) + jLocal] = h;
 }
 
+void Terrain::UpdateHeightBuffer()
+{
+	_vHeightBuffer.resize(_mapSide * _mapSide);
+	VERUS_P_FOR(i, _mapSide)
+	{
+		const int offset = i << _mapShift;
+		VERUS_FOR(j, _mapSide)
+		{
+			const int ij[] = { i, j };
+			short h;
+			GetHeightAt(ij, 0, &h);
+			_vHeightBuffer[offset + j] = h;
+		}
+	});
+}
+
 const char* Terrain::GetNormalAt(const int ij[2], int lod, TerrainTBN tbn) const
 {
 	VERUS_RT_ASSERT(lod >= 0 && lod <= 4);
@@ -753,7 +803,7 @@ Matrix3 Terrain::GetBasisAt(const int ij[2]) const
 	return Matrix3(Vector3(c0), Vector3(c2), Vector3(c1));
 }
 
-void Terrain::LoadLayerTexture(int layer, CSZ url)
+void Terrain::InsertLayerUrl(int layer, CSZ url)
 {
 	VERUS_RT_ASSERT(layer >= 0 && layer < s_maxLayers);
 	VERUS_RT_ASSERT(url);
@@ -762,10 +812,46 @@ void Terrain::LoadLayerTexture(int layer, CSZ url)
 	_vLayerUrls[layer] = url;
 }
 
+void Terrain::DeleteAllLayerUrls()
+{
+	_vLayerUrls.clear();
+}
+
+void Terrain::GetLayerUrls(Vector<CSZ>& v)
+{
+	v.clear();
+	v.reserve(_vLayerUrls.size());
+	for (const auto& url : _vLayerUrls)
+		v.push_back(_C(url));
+}
+
+void Terrain::LoadLayersFromFile(CSZ url)
+{
+	DeleteAllLayerUrls();
+	if (!url)
+		url = "[Misc]:TerrainLayers.xml";
+	Vector<BYTE> vData;
+	IO::FileSystem::LoadResource(url, vData);
+	pugi::xml_document doc;
+	const pugi::xml_parse_result result = doc.load_buffer_inplace(vData.data(), vData.size());
+	if (!result)
+		throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+	pugi::xml_node root = doc.first_child();
+	for (auto node : root.children("layer"))
+	{
+		const int id = node.attribute("id").as_int();
+		InsertLayerUrl(id, node.attribute("url").as_string());
+	}
+	LoadLayerTextures();
+}
+
 void Terrain::LoadLayerTextures()
 {
 	if (_vLayerUrls.empty())
 		return;
+
+	VERUS_QREF_RENDERER;
+	renderer->WaitIdle();
 
 	_tex[TEX_LAYERS].Done();
 	_tex[TEX_LAYERS_NM].Done();
@@ -798,7 +884,8 @@ void Terrain::LoadLayerTextures()
 	texDesc._urls = vLayerUrlsPtrNM.data();
 	_tex[TEX_LAYERS_NM].Init(texDesc);
 
-	_csidFS = s_shader->BindDescriptorSetTextures(1, { _tex[TEX_NORMALS], _tex[TEX_BLEND], _tex[TEX_LAYERS], _tex[TEX_LAYERS_NM] });
+	s_shader->FreeDescriptorSet(_cshFS);
+	_cshFS = s_shader->BindDescriptorSetTextures(1, { _tex[TEX_NORMALS], _tex[TEX_BLEND], _tex[TEX_LAYERS], _tex[TEX_LAYERS_NM] });
 }
 
 int Terrain::GetMainLayerAt(const int ij[2]) const
@@ -818,10 +905,42 @@ int Terrain::GetMainLayerAt(const int ij[2]) const
 	return _vPatches[offsetPatch]._mainLayer[(iLocal << 4) + jLocal];
 }
 
+void Terrain::UpdateMainLayerAt(const int ij[2])
+{
+	const int mapEdge = _mapSide - 1;
+	const int i = Math::Clamp(ij[0], 0, mapEdge);
+	const int j = Math::Clamp(ij[1], 0, mapEdge);
+
+	const int iLocal = i & 0xF;
+	const int jLocal = j & 0xF;
+
+	const int shiftPatch = _mapShift - 4;
+	const int iPatch = i >> 4;
+	const int jPatch = j >> 4;
+	const int offsetPatch = (iPatch << shiftPatch) + jPatch;
+
+	int maxSplat = 0;
+	int maxSplatChannel = 0;
+	const int offset = (i << _mapShift) + j;
+	const BYTE* rgba = reinterpret_cast<const BYTE*>(&_vBlendBuffer[offset]);
+	VERUS_FOR(i, 4)
+	{
+		const int value = (i != 3) ? rgba[i] : 255 - rgba[0] - rgba[1] - rgba[2];
+		if (value > maxSplat)
+		{
+			maxSplat = value;
+			maxSplatChannel = i;
+		}
+	}
+
+	_vPatches[offsetPatch]._mainLayer[(iLocal << 4) + jLocal] =
+		_vPatches[offsetPatch]._layerForChannel[maxSplatChannel];
+}
+
 void Terrain::UpdateHeightmapTexture()
 {
 	VERUS_QREF_RENDERER;
-	Vector<glm::uint16> v(_mapSide * _mapSide);
+	_vHeightmapSubresData.resize(_mapSide * _mapSide);
 	const int mipLevels = Math::ComputeMipLevels(_mapSide, _mapSide);
 	VERUS_FOR(lod, mipLevels)
 	{
@@ -834,11 +953,10 @@ void Terrain::UpdateHeightmapTexture()
 			{
 				const int ij[] = { i * step, j * step };
 				const float bestPrecision = 50;
-				v[offset + j] = glm::packHalf1x16(GetHeightAt(ij, 0) - bestPrecision);
+				_vHeightmapSubresData[offset + j] = glm::packHalf1x16(GetHeightAt(ij, 0) - bestPrecision);
 			}
 		});
-		_tex[TEX_HEIGHTMAP]->UpdateImage(lod, v.data());
-		renderer.GetCommandBuffer()->PipelineImageMemoryBarrier(_tex[TEX_HEIGHTMAP], CGI::ImageLayout::fsReadOnly, CGI::ImageLayout::vsReadOnly, lod);
+		_tex[TEX_HEIGHTMAP]->UpdateSubresource(_vHeightmapSubresData.data(), lod);
 	}
 }
 
@@ -849,7 +967,7 @@ CGI::TexturePtr Terrain::GetHeightmapTexture() const
 
 void Terrain::UpdateNormalsTexture()
 {
-	Vector<UINT32> v(_mapSide * _mapSide);
+	_vNormalsSubresData.resize(_mapSide * _mapSide);
 	VERUS_P_FOR(i, _mapSide)
 	{
 		VERUS_FOR(j, _mapSide)
@@ -866,15 +984,11 @@ void Terrain::UpdateNormalsTexture()
 				tan[1] + 127,
 				tan[2] + 127
 			};
-			memcpy(&v[(i << _mapShift) + j], rgba, sizeof(UINT32));
+			memcpy(&_vNormalsSubresData[(i << _mapShift) + j], rgba, sizeof(UINT32));
 		}
 	});
-	_tex[TEX_NORMALS]->UpdateImage(0, v.data());
+	_tex[TEX_NORMALS]->UpdateSubresource(_vNormalsSubresData.data());
 	_tex[TEX_NORMALS]->GenerateMips();
-
-
-	_tex[TEX_BLEND]->UpdateImage(0, v.data());
-	_tex[TEX_BLEND]->GenerateMips();
 }
 
 CGI::TexturePtr Terrain::GetNormalsTexture() const
@@ -882,19 +996,30 @@ CGI::TexturePtr Terrain::GetNormalsTexture() const
 	return _tex[TEX_NORMALS];
 }
 
+void Terrain::UpdateBlendTexture()
+{
+	_tex[TEX_BLEND]->UpdateSubresource(_vBlendBuffer.data());
+	_tex[TEX_BLEND]->GenerateMips();
+}
+
+CGI::TexturePtr Terrain::GetBlendTexture() const
+{
+	return _tex[TEX_BLEND];
+}
+
 void Terrain::UpdateMainLayerTexture()
 {
-	Vector<BYTE> v(_mapSide * _mapSide);
+	_vMainLayerSubresData.resize(_mapSide * _mapSide);
 	VERUS_P_FOR(i, _mapSide)
 	{
 		const int offset = i << _mapShift;
 		VERUS_FOR(j, _mapSide)
 		{
 			const int ij[] = { i, j };
-			v[offset + j] = GetMainLayerAt(ij) * 16 + 4;
+			_vMainLayerSubresData[offset + j] = GetMainLayerAt(ij) * 16 + 4;
 		}
 	});
-	_tex[TEX_MAIN_LAYER]->UpdateImage(0, v.data());
+	//_tex[TEX_MAIN_LAYER]->UpdateSubresource(_vMainLayerSubresData.data());
 }
 
 CGI::TexturePtr Terrain::GetMainLayerTexture() const
@@ -907,23 +1032,24 @@ void Terrain::OnHeightModified()
 	_quadtree.Done();
 	_quadtree.Init(_mapSide, 16, this, _quadtreeFatten);
 
-	//ComputeForcedLOD();
+	UpdateHeightBuffer();
 	UpdateHeightmapTexture();
 	UpdateNormalsTexture();
-	//UpdateLandTexture();
-	UpdateRigidBodyData();
 }
 
 void Terrain::AddNewRigidBody()
 {
-	_physics.Init(this, _mapSide, _mapSide, ConvertHeight(static_cast<short>(1)));
+	_physics.Init(this, _mapSide, _mapSide, _vHeightBuffer.data(), ConvertHeight(static_cast<short>(1)));
 }
 
-void Terrain::UpdateRigidBodyData()
+void Terrain::Serialize(IO::RSeekableStream stream)
 {
-	auto& v = _physics.GetData();
-	v.resize(_mapSide * _mapSide);
-	VERUS_P_FOR(i, _mapSide)
+	stream.WriteText(VERUS_CRNL VERUS_CRNL "<TR>");
+	stream.BeginBlock();
+	stream.WriteString(_C(std::to_string(_mapSide)));
+
+	// Tiles (height):
+	VERUS_FOR(i, _mapSide)
 	{
 		const int offset = i << _mapShift;
 		VERUS_FOR(j, _mapSide)
@@ -931,7 +1057,151 @@ void Terrain::UpdateRigidBodyData()
 			const int ij[] = { i, j };
 			short h;
 			GetHeightAt(ij, 0, &h);
-			v[offset + j] = h;
+			stream << h;
+			stream << char(0);
 		}
-	});
+	}
+
+	// Texture names:
+	BYTE layerCount = _vLayerUrls.size();
+	stream << layerCount;
+	VERUS_FOR(i, layerCount)
+	{
+		stream.WriteString(_C(_vLayerUrls[i]));
+		stream << _layerData[i]._specStrength;
+		stream << _layerData[i]._detailStrength;
+	}
+
+	// Patches:
+	const int patchesSide = _mapSide >> 4;
+	const int patchCount = patchesSide * patchesSide;
+	VERUS_FOR(i, patchCount)
+	{
+		RTerrainPatch patch = _vPatches[i];
+		const BYTE count = patch._usedChannelCount;
+		stream << count;
+		VERUS_FOR(j, patch._usedChannelCount)
+		{
+			const char layer = patch._layerForChannel[j];
+			stream << layer;
+		}
+	}
+
+	// Blend channels:
+	VERUS_FOR(i, _mapSide)
+	{
+		const int offset = i << _mapShift;
+		VERUS_FOR(j, _mapSide)
+		{
+			const UINT32 b = _vBlendBuffer[offset + j];
+			const UINT16 data = Convert::Uint8x4ToUint4x4(b);
+			stream << data;
+		}
+	}
+
+	stream.EndBlock();
+}
+
+void Terrain::Deserialize(IO::RStream stream)
+{
+	VERUS_QREF_CONST_SETTINGS;
+	VERUS_QREF_SM;
+
+	char buffer[IO::Stream::s_bufferSize] = {};
+
+	Done();
+	stream.ReadString(buffer);
+	Desc desc;
+	desc._mapSide = atoi(buffer);
+	Init(desc);
+
+	const int patchSide = _mapSide >> 4;
+	const int patchShift = _mapShift - 4;
+	const int patchCount = patchSide * patchSide;
+
+	// <Height>
+	VERUS_FOR(i, _mapSide)
+	{
+		const int offset = i << _mapShift;
+		VERUS_FOR(j, _mapSide)
+		{
+			short h;
+			char hole;
+			stream >> h;
+			stream >> hole;
+			const int ij[] = { i, j };
+			SetHeightAt(ij, h);
+		}
+	}
+	// </Height>
+
+	// <Layers>
+	DeleteAllLayerUrls();
+	BYTE layerCount = 0;
+	stream >> layerCount;
+	VERUS_FOR(i, layerCount)
+	{
+		char url[IO::Stream::s_bufferSize] = {};
+		stream.ReadString(url);
+
+		if (*url != '[')
+		{
+			String newUrl("[");
+			newUrl += url;
+			Str::ReplaceAll(newUrl, ":", "]:");
+			strcpy_s(url, _C(newUrl));
+		}
+
+		InsertLayerUrl(i, url);
+		stream >> _layerData[i]._specStrength;
+		stream >> _layerData[i]._detailStrength;
+	}
+	LoadLayerTextures();
+	// </Layers>
+
+	// <Patches>
+	VERUS_FOR(i, patchCount)
+	{
+		BYTE count = 0;
+		stream >> count;
+		_vPatches[i]._usedChannelCount = Math::Clamp<int>(count, 1, 4);
+		VERUS_FOR(j, 4)
+		{
+			if (j < count)
+			{
+				BYTE layer = 0;
+				stream >> layer;
+				_vPatches[i]._layerForChannel[j] = Math::Clamp<int>(layer, 0, s_maxLayers - 1);
+			}
+			else
+			{
+				_vPatches[i]._layerForChannel[j] = -1;
+			}
+		}
+	}
+	VERUS_FOR(lod, 5)
+	{
+		VERUS_FOR(i, _vPatches.size())
+			_vPatches[i].UpdateNormals(this, lod);
+	}
+	// </Patches>
+
+	// <Blend>
+	VERUS_FOR(i, _mapSide)
+	{
+		const int offset = i << _mapShift;
+		VERUS_FOR(j, _mapSide)
+		{
+			UINT16 data;
+			stream >> data;
+			_vBlendBuffer[offset + j] = Convert::Uint4x4ToUint8x4(data);
+			const int ij[] = { i, j };
+			UpdateMainLayerAt(ij);
+		}
+	}
+	UpdateBlendTexture();
+	// </Blend>
+
+	OnHeightModified();
+	AddNewRigidBody();
 }

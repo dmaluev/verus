@@ -5,6 +5,7 @@ using namespace verus::CGI;
 
 BaseRenderer::BaseRenderer()
 {
+	_vScheduled.reserve(128);
 }
 
 BaseRenderer::~BaseRenderer()
@@ -22,6 +23,26 @@ PBaseRenderer BaseRenderer::Load(CSZ dll, RBaseRendererDesc desc)
 		dlsym(dlopen("./libRenderOpenGL.so", RTLD_LAZY), "CreateRenderer"));
 	return CreateRenderer(VERUS_SDK_VERSION, &desc);
 #endif
+}
+
+void BaseRenderer::Schedule(PScheduled p)
+{
+	if (_vScheduled.end() != std::find(_vScheduled.begin(), _vScheduled.end(), p))
+		return;
+	_vScheduled.push_back(p);
+}
+
+void BaseRenderer::Unschedule(PScheduled p)
+{
+	_vScheduled.erase(std::remove(_vScheduled.begin(), _vScheduled.end(), p), _vScheduled.end());
+}
+
+void BaseRenderer::UpdateScheduled()
+{
+	_vScheduled.erase(std::remove_if(_vScheduled.begin(), _vScheduled.end(), [](PScheduled p)
+		{
+			return Continue::no == p->Scheduled_Update();
+		}), _vScheduled.end());
 }
 
 void BaseRenderer::SetAlphaBlendHelper(

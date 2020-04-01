@@ -380,25 +380,25 @@ int ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_list<
 {
 	VERUS_QREF_RENDERER_D3D12;
 
-	int complexSetID = -1;
+	int complexSetHandle = -1;
 	VERUS_FOR(i, _vComplexSets.size())
 	{
 		if (_vComplexSets[i]._vTextures.empty())
 		{
-			complexSetID = i;
+			complexSetHandle = i;
 			break;
 		}
 	}
-	if (-1 == complexSetID)
+	if (-1 == complexSetHandle)
 	{
-		complexSetID = Utils::Cast32(_vComplexSets.size());
-		_vComplexSets.resize(complexSetID + 1);
+		complexSetHandle = Utils::Cast32(_vComplexSets.size());
+		_vComplexSets.resize(complexSetHandle + 1);
 	}
 
 	auto& dsd = _vDescriptorSetDesc[setNumber];
 	VERUS_RT_ASSERT(dsd._vSamplers.size() == il.size());
 
-	RComplexSet complexSet = _vComplexSets[complexSetID];
+	RComplexSet complexSet = _vComplexSets[complexSetHandle];
 	complexSet._vTextures.reserve(il.size());
 	complexSet._dhSrvUav.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Utils::Cast32(il.size()));
 	if (!dsd._staticSamplersOnly)
@@ -433,17 +433,18 @@ int ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_list<
 		index++;
 	}
 
-	return complexSetID;
+	return complexSetHandle;
 }
 
-void ShaderD3D12::FreeDescriptorSet(int complexSetID)
+void ShaderD3D12::FreeDescriptorSet(int& complexSetHandle)
 {
-	if (complexSetID >= 0 && complexSetID < _vComplexSets.size())
+	if (complexSetHandle >= 0 && complexSetHandle < _vComplexSets.size())
 	{
-		_vComplexSets[complexSetID]._vTextures.clear();
-		_vComplexSets[complexSetID]._dhSrvUav.Reset();
-		_vComplexSets[complexSetID]._dhSamplers.Reset();
+		_vComplexSets[complexSetHandle]._vTextures.clear();
+		_vComplexSets[complexSetHandle]._dhSrvUav.Reset();
+		_vComplexSets[complexSetHandle]._dhSamplers.Reset();
 	}
+	complexSetHandle = -1;
 }
 
 void ShaderD3D12::BeginBindDescriptors()
@@ -507,7 +508,7 @@ bool ShaderD3D12::TryRootConstants(int setNumber, RBaseCommandBuffer cb)
 	return false;
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, int complexSetID, bool copyDescOnly)
+CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, int complexSetHandle, bool copyDescOnly)
 {
 	VERUS_QREF_RENDERER_D3D12;
 
@@ -538,10 +539,10 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, in
 		hpBase._hCPU,
 		dsd._dhDynamicOffsets.AtCPU(at),
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	if (complexSetID >= 0)
+	if (complexSetHandle >= 0)
 	{
 		// Copy SRVs:
-		const auto& complexSet = _vComplexSets[complexSetID];
+		const auto& complexSet = _vComplexSets[complexSetHandle];
 		const int count = Utils::Cast32(complexSet._vTextures.size());
 		pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(count,
 			pRendererD3D12->GetHeapCbvSrvUav().GetNextHandlePair(count)._hCPU,
@@ -552,16 +553,16 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, in
 	return hpBase._hGPU;
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateSamplers(int setNumber, int complexSetID)
+CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateSamplers(int setNumber, int complexSetHandle)
 {
 	VERUS_QREF_RENDERER_D3D12;
-	VERUS_RT_ASSERT(complexSetID >= 0);
+	VERUS_RT_ASSERT(complexSetHandle >= 0);
 
 	auto& dsd = _vDescriptorSetDesc[setNumber];
 	if (dsd._staticSamplersOnly)
 		return CD3DX12_GPU_DESCRIPTOR_HANDLE();
 
-	const auto& complexSet = _vComplexSets[complexSetID];
+	const auto& complexSet = _vComplexSets[complexSetHandle];
 	const int count = Utils::Cast32(complexSet._vTextures.size());
 	auto hpSampler = pRendererD3D12->GetHeapSampler().GetNextHandlePair(count);
 	pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(count,

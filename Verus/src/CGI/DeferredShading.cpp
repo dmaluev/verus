@@ -148,7 +148,7 @@ void DeferredShading::InitGBuffers(int w, int h)
 void DeferredShading::InitByAtmosphere(TexturePtr texShadow)
 {
 	_texShadowAtmo = texShadow;
-	_csidLight = _shader[S_LIGHT]->BindDescriptorSetTextures(1,
+	_cshLight = _shader[S_LIGHT]->BindDescriptorSetTextures(1,
 		{
 			_tex[TEX_GBUFFER_0],
 			_tex[TEX_GBUFFER_1],
@@ -170,11 +170,10 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 
 	if (done)
 	{
-		_shader[S_LIGHT]->FreeDescriptorSet(_csidLight);
-
-		VERUS_FOR(i, VERUS_COUNT_OF(_csidQuad))
-			renderer.GetShaderQuad()->FreeDescriptorSet(_csidQuad[i]);
-		_shader[S_COMPOSE]->FreeDescriptorSet(_csidCompose);
+		_shader[S_LIGHT]->FreeDescriptorSet(_cshLight);
+		VERUS_FOR(i, VERUS_COUNT_OF(_cshQuad))
+			renderer.GetShaderQuad()->FreeDescriptorSet(_cshQuad[i]);
+		_shader[S_COMPOSE]->FreeDescriptorSet(_cshCompose);
 
 		renderer->DeleteFramebuffer(_fb);
 
@@ -218,7 +217,7 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 			renderer.GetSwapChainWidth(),
 			renderer.GetSwapChainHeight());
 
-		_csidCompose = _shader[S_COMPOSE]->BindDescriptorSetTextures(1,
+		_cshCompose = _shader[S_COMPOSE]->BindDescriptorSetTextures(1,
 			{
 				_tex[TEX_GBUFFER_0],
 				_tex[TEX_GBUFFER_1],
@@ -227,8 +226,8 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 				_tex[TEX_LIGHT_ACC_DIFF],
 				_tex[TEX_LIGHT_ACC_SPEC]
 			});
-		VERUS_FOR(i, VERUS_COUNT_OF(_csidQuad))
-			_csidQuad[i] = renderer.GetShaderQuad()->BindDescriptorSetTextures(1, { _tex[TEX_GBUFFER_0 + i] });
+		VERUS_FOR(i, VERUS_COUNT_OF(_cshQuad))
+			_cshQuad[i] = renderer.GetShaderQuad()->BindDescriptorSetTextures(1, { _tex[TEX_GBUFFER_0 + i] });
 
 		if (_texShadowAtmo)
 			InitByAtmosphere(_texShadowAtmo);
@@ -262,19 +261,19 @@ void DeferredShading::Draw(int gbuffer)
 	if (-1 == gbuffer)
 	{
 		renderer.GetCommandBuffer()->SetViewport({ Vector4(0, 0, w, h) });
-		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _csidQuad[0]);
+		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _cshQuad[0]);
 		renderer.DrawQuad();
 
 		renderer.GetCommandBuffer()->SetViewport({ Vector4(w, 0, w, h) });
-		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _csidQuad[1]);
+		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _cshQuad[1]);
 		renderer.DrawQuad();
 
 		renderer.GetCommandBuffer()->SetViewport({ Vector4(0, h, w, h) });
-		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _csidQuad[2]);
+		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _cshQuad[2]);
 		renderer.DrawQuad();
 
 		renderer.GetCommandBuffer()->SetViewport({ Vector4(w, h, w, h) });
-		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _csidQuad[3]);
+		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _cshQuad[3]);
 		renderer.DrawQuad();
 
 		renderer.GetCommandBuffer()->SetViewport({ Vector4(0, 0, w * 2, h * 2) });
@@ -282,18 +281,18 @@ void DeferredShading::Draw(int gbuffer)
 	else if (-2 == gbuffer)
 	{
 		renderer.GetCommandBuffer()->SetViewport({ Vector4(0, 0, w, h) });
-		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _csidQuad[4]);
+		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _cshQuad[4]);
 		renderer.DrawQuad();
 
 		renderer.GetCommandBuffer()->SetViewport({ Vector4(w, 0, w, h) });
-		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _csidQuad[5]);
+		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _cshQuad[5]);
 		renderer.DrawQuad();
 
 		renderer.GetCommandBuffer()->SetViewport({ Vector4(0, 0, w * 2, h * 2) });
 	}
 	else
 	{
-		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _csidQuad[gbuffer]);
+		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _cshQuad[gbuffer]);
 		renderer.DrawQuad();
 	}
 
@@ -415,7 +414,7 @@ void DeferredShading::Compose(RcVector4 bgColor)
 	s_ubComposeFS._fogColor = Vector4(0.5f, 0.5f, 0.5f, 0.002f).GLM();
 	s_ubComposeFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
 	renderer.GetCommandBuffer()->BindDescriptors(_shader[S_COMPOSE], 0);
-	renderer.GetCommandBuffer()->BindDescriptors(_shader[S_COMPOSE], 1, _csidCompose);
+	renderer.GetCommandBuffer()->BindDescriptors(_shader[S_COMPOSE], 1, _cshCompose);
 	_shader[S_COMPOSE]->EndBindDescriptors();
 
 	renderer.DrawQuad();
@@ -458,7 +457,7 @@ void DeferredShading::OnNewLightType(LightType type, bool wireframe)
 	}
 
 	renderer.GetCommandBuffer()->BindDescriptors(_shader[S_LIGHT], 0);
-	renderer.GetCommandBuffer()->BindDescriptors(_shader[S_LIGHT], 1, _csidLight);
+	renderer.GetCommandBuffer()->BindDescriptors(_shader[S_LIGHT], 1, _cshLight);
 
 	// Shadow:
 	s_ubShadowFS._matSunShadow = atmo.GetShadowMap().GetShadowMatrixDS(0).UniformBufferFormat();

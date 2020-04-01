@@ -1,3 +1,5 @@
+// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+
 #define VERUS_UBUFFER struct
 #define mataff float4x3
 
@@ -57,6 +59,8 @@
 
 #define _SINGULARITY_FIX 0.001
 
+#define _MAX_TERRAIN_LAYERS 32
+
 matrix ToFloat4x4(mataff m)
 {
 	return matrix(
@@ -66,7 +70,7 @@ matrix ToFloat4x4(mataff m)
 		float4(m[3], 1));
 }
 
-float CalcNormalZ(float2 v)
+float ComputeNormalZ(float2 v)
 {
 	return sqrt(saturate(1.0 - dot(v.rg, v.rg)));
 }
@@ -74,7 +78,7 @@ float CalcNormalZ(float2 v)
 float4 NormalMapAA(float4 rawNormal)
 {
 	float3 normal = rawNormal.agb * -2.0 + 1.0; // Dmitry's reverse!
-	normal.b = CalcNormalZ(normal.rg);
+	normal.b = ComputeNormalZ(normal.rg);
 	return float4(normal, 0.8 + rawNormal.b * 0.8);
 }
 

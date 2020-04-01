@@ -30,7 +30,7 @@ namespace verus
 			{
 				const size_t len = strlen(sz);
 				if (len > UCHAR_MAX)
-					throw VERUS_RUNTIME_ERROR << "WriteString(), Invalid string length";
+					throw verus::D::RuntimeError(std::this_thread::get_id(), "Stream.h", __LINE__) << "WriteString(), Invalid string length";
 				(*this) << static_cast<BYTE>(len);
 				const INT64 ret = Write(sz, len);
 				return ret + 1;

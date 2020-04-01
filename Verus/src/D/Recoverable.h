@@ -7,7 +7,7 @@ namespace verus
 		class Recoverable : public RuntimeError
 		{
 		public:
-			Recoverable(std::thread::id tid = std::this_thread::get_id(), CSZ file = __FILE__, UINT32 line = __LINE__) : RuntimeError(tid, file, line) {}
+			Recoverable(std::thread::id tid = std::this_thread::get_id(), CSZ file = "", UINT32 line = __LINE__) : RuntimeError(tid, file, line) {}
 			Recoverable(const Recoverable& that)
 			{
 				*this = that;

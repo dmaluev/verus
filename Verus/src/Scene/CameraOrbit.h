@@ -18,6 +18,7 @@ namespace verus
 			virtual void DragController_GetRatio(float& x, float& y) override;
 
 			float GetRadius() const { return _radius; }
+			void SetRadius(float r) { _radius = r; }
 			void MulRadiusBy(float a);
 
 			float GetPitch() const { return _pitch; }
