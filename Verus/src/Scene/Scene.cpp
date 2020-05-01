@@ -8,9 +8,11 @@ namespace verus
 		Scene::MaterialManager::Make();
 		Scene::SceneManager::Make();
 		Scene::Atmosphere::Make();
+		Scene::Water::Make();
 	}
 	void Free_Scene()
 	{
+		Scene::Water::Free();
 		Scene::Atmosphere::Free();
 		Scene::SceneManager::Free();
 		Scene::MaterialManager::Free();

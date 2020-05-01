@@ -90,6 +90,8 @@ VkPrimitiveTopology CGI::ToNativePrimitiveTopology(PrimitiveTopology primitiveTo
 	case PrimitiveTopology::lineStrip:     return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
 	case PrimitiveTopology::triangleList:  return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	case PrimitiveTopology::triangleStrip: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+	case PrimitiveTopology::patchList3:    return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+	case PrimitiveTopology::patchList4:    return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
 	default: throw VERUS_RECOVERABLE << "ToNativePrimitiveTopology()";
 	}
 }
@@ -148,14 +150,16 @@ int CGI::ToNativeLocation(IeUsage usage, int usageIndex)
 	switch (usage)
 	{
 	case IeUsage::position: return 0;
-	case IeUsage::blendWeight: return 1;
+	case IeUsage::blendWeights: return 1;
 	case IeUsage::blendIndices: return 6;
 	case IeUsage::normal: return 2;
-	case IeUsage::psize: return 7;
-	case IeUsage::texCoord: return 8 + usageIndex;
 	case IeUsage::tangent: return 14;
 	case IeUsage::binormal: return 15;
 	case IeUsage::color: return 3 + usageIndex;
+	case IeUsage::psize: return 7;
+	case IeUsage::texCoord: return 8 + usageIndex;
+	case IeUsage::instData: return 16 + usageIndex;
+	case IeUsage::attr: return usageIndex;
 	default: throw VERUS_RECOVERABLE << "ToNativeLocation()";
 	}
 }

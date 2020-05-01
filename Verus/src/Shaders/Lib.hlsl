@@ -6,12 +6,14 @@
 #ifdef _VULKAN
 #	define VK_LOCATION(x)           [[vk::location(x)]]
 #	define VK_LOCATION_POSITION     [[vk::location(0)]]
-#	define VK_LOCATION_BLENDWEIGHT  [[vk::location(1)]]
+#	define VK_LOCATION_BLENDWEIGHTS [[vk::location(1)]]
 #	define VK_LOCATION_BLENDINDICES [[vk::location(6)]]
 #	define VK_LOCATION_NORMAL       [[vk::location(2)]]
-#	define VK_LOCATION_PSIZE        [[vk::location(7)]]
+#	define VK_LOCATION_TANGENT      [[vk::location(14)]]
+#	define VK_LOCATION_BINORMAL     [[vk::location(15)]]
 #	define VK_LOCATION_COLOR0       [[vk::location(3)]]
 #	define VK_LOCATION_COLOR1       [[vk::location(4)]]
+#	define VK_LOCATION_PSIZE        [[vk::location(7)]]
 
 #	define VK_PUSH_CONSTANT [[vk::push_constant]]
 #	define VK_SUBPASS_INPUT(index, tex, sam, t, s, space) layout(input_attachment_index = index) SubpassInput<float4> tex : register(t, space)
@@ -26,12 +28,14 @@
 #else
 #	define VK_LOCATION(x)
 #	define VK_LOCATION_POSITION
-#	define VK_LOCATION_BLENDWEIGHT
+#	define VK_LOCATION_BLENDWEIGHTS
 #	define VK_LOCATION_BLENDINDICES
 #	define VK_LOCATION_NORMAL
-#	define VK_LOCATION_PSIZE
+#	define VK_LOCATION_TANGENT
+#	define VK_LOCATION_BINORMAL
 #	define VK_LOCATION_COLOR0
 #	define VK_LOCATION_COLOR1
+#	define VK_LOCATION_PSIZE
 
 #	define VK_PUSH_CONSTANT
 #	define VK_SUBPASS_INPUT(index, tex, sam, t, s, space)\
@@ -45,10 +49,10 @@
 
 #ifdef DEF_INSTANCED
 #	define _PER_INSTANCE_DATA\
-	VK_LOCATION(16) float4 matPart0 : TEXCOORD8;\
-	VK_LOCATION(17) float4 matPart1 : TEXCOORD9;\
-	VK_LOCATION(18) float4 matPart2 : TEXCOORD10;\
-	VK_LOCATION(19) float4 instData : TEXCOORD11;
+	VK_LOCATION(16) float4 matPart0 : INSTDATA0;\
+	VK_LOCATION(17) float4 matPart1 : INSTDATA1;\
+	VK_LOCATION(18) float4 matPart2 : INSTDATA2;\
+	VK_LOCATION(19) float4 instData : INSTDATA3;
 #else
 #	define _PER_INSTANCE_DATA
 #endif
@@ -56,6 +60,8 @@
 #define _TBN_SPACE(tan, bin, nrm)\
 	const float3x3 matFromTBN = float3x3(tan, bin, nrm);\
 	const float3x3 matToTBN   = transpose(matFromTBN);
+
+#define _PI 3.141592654
 
 #define _SINGULARITY_FIX 0.001
 
@@ -70,18 +76,6 @@ matrix ToFloat4x4(mataff m)
 		float4(m[3], 1));
 }
 
-float ComputeNormalZ(float2 v)
-{
-	return sqrt(saturate(1.0 - dot(v.rg, v.rg)));
-}
-
-float4 NormalMapAA(float4 rawNormal)
-{
-	float3 normal = rawNormal.agb * -2.0 + 1.0; // Dmitry's reverse!
-	normal.b = ComputeNormalZ(normal.rg);
-	return float4(normal, 0.8 + rawNormal.b * 0.8);
-}
-
 float3 Rand(float2 uv)
 {
 	return frac(sin(dot(uv, float2(12.9898, 78.233)) * float3(1, 2, 3)) * 43758.5453);
@@ -92,3 +86,19 @@ float3 NormalDither(float3 rand)
 	const float2 rr = rand.xy * (1.0 / 333.0) - (0.5 / 333.0);
 	return float3(rr, 0);
 }
+
+static const float2 _POINT_SPRITE_POS_OFFSETS[4] =
+{
+	float2(-0.5,  0.5),
+	float2(-0.5, -0.5),
+	float2(0.5,  0.5),
+	float2(0.5, -0.5)
+};
+
+static const float2 _POINT_SPRITE_TEX_COORDS[4] =
+{
+	float2(0, 0),
+	float2(0, 1),
+	float2(1, 0),
+	float2(1, 1)
+};

@@ -552,6 +552,15 @@
     <ClInclude Include="src\IO\Xxx.h">
       <Filter>src\IO</Filter>
     </ClInclude>
+    <ClInclude Include="src\Scene\Grass.h">
+      <Filter>src\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\TextureRAM.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\Water.h">
+      <Filter>src\Scene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -917,6 +926,15 @@
     <ClCompile Include="src\IO\Xxx.cpp">
       <Filter>src\IO</Filter>
     </ClCompile>
+    <ClCompile Include="src\Scene\Grass.cpp">
+      <Filter>src\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\TextureRAM.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\Water.cpp">
+      <Filter>src\Scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\Shaders\Lib.hlsl">
@@ -977,6 +995,42 @@
       <Filter>src\Shaders</Filter>
     </None>
     <None Include="src\Shaders\DebugDraw.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\LibSurface.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\LibTessellation.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\Sky.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\Sky.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_Grass.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_Grass.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\Water.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\Water.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\WaterGen.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\WaterGen.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\SimpleTerrain.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\SimpleTerrain.inc.hlsl">
       <Filter>src\Shaders</Filter>
     </None>
   </ItemGroup>

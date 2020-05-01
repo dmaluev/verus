@@ -66,12 +66,12 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 
 	while (*branches)
 	{
-		String entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages;
+		String entry, stageEntries[+Stage::count], stages;
 		Vector<String> vMacroName;
 		Vector<String> vMacroValue;
-		const String entry = Parse(*branches, entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages, vMacroName, vMacroValue, "DEF_");
+		const String branch = Parse(*branches, entry, stageEntries, stages, vMacroName, vMacroValue, "DEF_");
 
-		if (IsInIgnoreList(_C(entry)))
+		if (IsInIgnoreList(_C(branch)))
 		{
 			branches++;
 			continue;
@@ -118,12 +118,13 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		// </System defines>
 
 		Compiled compiled;
+		compiled._entry = entry;
 
 		if (strchr(_C(stages), 'V'))
 		{
 			compiled._stageCount++;
 			vDefines[typeIndex].Name = "_VS";
-			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(entryVS), _C("vs_" + version), flags, 0, &compiled._pBlobs[+Stage::vs], &pErrorMsgs);
+			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(stageEntries[+Stage::vs]), _C("vs_" + version), flags, 0, &compiled._pBlobs[+Stage::vs], &pErrorMsgs);
 			CheckErrorMsgs(pErrorMsgs);
 		}
 
@@ -131,7 +132,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		{
 			compiled._stageCount++;
 			vDefines[typeIndex].Name = "_HS";
-			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(entryHS), _C("hs_" + version), flags, 0, &compiled._pBlobs[+Stage::hs], &pErrorMsgs);
+			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(stageEntries[+Stage::hs]), _C("hs_" + version), flags, 0, &compiled._pBlobs[+Stage::hs], &pErrorMsgs);
 			CheckErrorMsgs(pErrorMsgs);
 		}
 
@@ -139,7 +140,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		{
 			compiled._stageCount++;
 			vDefines[typeIndex].Name = "_DS";
-			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(entryDS), _C("ds_" + version), flags, 0, &compiled._pBlobs[+Stage::ds], &pErrorMsgs);
+			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(stageEntries[+Stage::ds]), _C("ds_" + version), flags, 0, &compiled._pBlobs[+Stage::ds], &pErrorMsgs);
 			CheckErrorMsgs(pErrorMsgs);
 		}
 
@@ -147,7 +148,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		{
 			compiled._stageCount++;
 			vDefines[typeIndex].Name = "_GS";
-			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(entryGS), _C("gs_" + version), flags, 0, &compiled._pBlobs[+Stage::gs], &pErrorMsgs);
+			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(stageEntries[+Stage::gs]), _C("gs_" + version), flags, 0, &compiled._pBlobs[+Stage::gs], &pErrorMsgs);
 			CheckErrorMsgs(pErrorMsgs);
 		}
 
@@ -155,7 +156,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		{
 			compiled._stageCount++;
 			vDefines[typeIndex].Name = "_FS";
-			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(entryFS), _C("ps_" + version), flags, 0, &compiled._pBlobs[+Stage::fs], &pErrorMsgs);
+			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(stageEntries[+Stage::fs]), _C("ps_" + version), flags, 0, &compiled._pBlobs[+Stage::fs], &pErrorMsgs);
 			CheckErrorMsgs(pErrorMsgs);
 		}
 
@@ -163,12 +164,12 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		{
 			compiled._stageCount++;
 			vDefines[typeIndex].Name = "_CS";
-			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(entryCS), _C("cs_" + version), flags, 0, &compiled._pBlobs[+Stage::cs], &pErrorMsgs);
+			hr = D3DCompile(source, len, sourceName, vDefines.data(), &inc, _C(stageEntries[+Stage::cs]), _C("cs_" + version), flags, 0, &compiled._pBlobs[+Stage::cs], &pErrorMsgs);
 			CheckErrorMsgs(pErrorMsgs);
 			_compute = true;
 		}
 
-		_mapCompiled[entry] = compiled;
+		_mapCompiled[branch] = compiled;
 
 		branches++;
 	}
@@ -284,6 +285,16 @@ void ShaderD3D12::CreatePipelineLayout()
 			stageFlags |= dsd._stageFlags;
 			if (dsd._capacity > 0)
 			{
+				D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
+				switch (dsd._stageFlags)
+				{
+				case ShaderStageFlags::vs: visibility = D3D12_SHADER_VISIBILITY_VERTEX; break;
+				case ShaderStageFlags::hs: visibility = D3D12_SHADER_VISIBILITY_HULL; break;
+				case ShaderStageFlags::ds: visibility = D3D12_SHADER_VISIBILITY_DOMAIN; break;
+				case ShaderStageFlags::gs: visibility = D3D12_SHADER_VISIBILITY_GEOMETRY; break;
+				case ShaderStageFlags::fs: visibility = D3D12_SHADER_VISIBILITY_PIXEL; break;
+				}
+
 				CD3DX12_DESCRIPTOR_RANGE1 descRange;
 				descRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, space);
 				vDescRanges.push_back(descRange);
@@ -313,18 +324,15 @@ void ShaderD3D12::CreatePipelineLayout()
 						{
 							Sampler s = dsd._vSamplers[i];
 							if (Sampler::input == s)
-								s = Sampler::nearest2D;
+								s = Sampler::nearestMipN;
 							D3D12_STATIC_SAMPLER_DESC samplerDesc = pRendererD3D12->GetStaticSamplerDesc(s);
 							samplerDesc.ShaderRegister = i + 1;
 							samplerDesc.RegisterSpace = space;
-							samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+							samplerDesc.ShaderVisibility = visibility;
 							vStaticSamplers.push_back(samplerDesc);
 						}
 					}
 				}
-				D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
-				if (ShaderStageFlags::fs == dsd._stageFlags)
-					visibility = D3D12_SHADER_VISIBILITY_PIXEL;
 				CD3DX12_ROOT_PARAMETER1 rootParam;
 				rootParam.InitAsDescriptorTable(1 + textureCount, pDescriptorRanges, visibility);
 				vRootParams.push_back(rootParam);
@@ -359,6 +367,8 @@ void ShaderD3D12::CreatePipelineLayout()
 			rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
 	}
 
+	UpdateDebugInfo(vRootParams, vStaticSamplers, rootSignatureFlags);
+
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
 	rootSignatureDesc.Init_1_1(
 		Utils::Cast32(vRootParams.size()), vRootParams.data(),
@@ -376,7 +386,7 @@ void ShaderD3D12::CreatePipelineLayout()
 		throw VERUS_RUNTIME_ERROR << "CreateRootSignature(), hr=" << VERUS_HR(hr);
 }
 
-int ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips)
+CSHandle ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips)
 {
 	VERUS_QREF_RENDERER_D3D12;
 
@@ -400,7 +410,7 @@ int ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_list<
 
 	RComplexSet complexSet = _vComplexSets[complexSetHandle];
 	complexSet._vTextures.reserve(il.size());
-	complexSet._dhSrvUav.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Utils::Cast32(il.size()));
+	complexSet._dhViews.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Utils::Cast32(il.size()));
 	if (!dsd._staticSamplersOnly)
 		complexSet._dhSamplers.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, Utils::Cast32(il.size()));
 	int index = 0;
@@ -412,14 +422,14 @@ int ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_list<
 		if (Sampler::storage == dsd._vSamplers[index])
 		{
 			pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
-				complexSet._dhSrvUav.AtCPU(index),
+				complexSet._dhViews.AtCPU(index),
 				texD3D12.GetDescriptorHeapUAV().AtCPU(mip),
 				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		}
 		else
 		{
 			pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
-				complexSet._dhSrvUav.AtCPU(index),
+				complexSet._dhViews.AtCPU(index),
 				texD3D12.GetDescriptorHeapSRV().AtCPU(mip),
 				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 			if (Sampler::custom == dsd._vSamplers[index])
@@ -433,18 +443,18 @@ int ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_list<
 		index++;
 	}
 
-	return complexSetHandle;
+	return CSHandle::Make(complexSetHandle);
 }
 
-void ShaderD3D12::FreeDescriptorSet(int& complexSetHandle)
+void ShaderD3D12::FreeDescriptorSet(CSHandle& complexSetHandle)
 {
-	if (complexSetHandle >= 0 && complexSetHandle < _vComplexSets.size())
+	if (complexSetHandle.IsSet() && complexSetHandle.Get() < _vComplexSets.size())
 	{
-		_vComplexSets[complexSetHandle]._vTextures.clear();
-		_vComplexSets[complexSetHandle]._dhSrvUav.Reset();
-		_vComplexSets[complexSetHandle]._dhSamplers.Reset();
+		_vComplexSets[complexSetHandle.Get()]._vTextures.clear();
+		_vComplexSets[complexSetHandle.Get()]._dhViews.Reset();
+		_vComplexSets[complexSetHandle.Get()]._dhSamplers.Reset();
 	}
-	complexSetHandle = -1;
+	complexSetHandle = CSHandle();
 }
 
 void ShaderD3D12::BeginBindDescriptors()
@@ -532,7 +542,7 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, in
 		dsd._index++;
 	}
 
-	auto hpBase = pRendererD3D12->GetHeapCbvSrvUav().GetNextHandlePair();
+	auto hpBase = pRendererD3D12->GetViewHeap().GetNextHandlePair();
 
 	// Copy CBV:
 	pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
@@ -545,8 +555,8 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, in
 		const auto& complexSet = _vComplexSets[complexSetHandle];
 		const int count = Utils::Cast32(complexSet._vTextures.size());
 		pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(count,
-			pRendererD3D12->GetHeapCbvSrvUav().GetNextHandlePair(count)._hCPU,
-			complexSet._dhSrvUav.AtCPU(0),
+			pRendererD3D12->GetViewHeap().GetNextHandlePair(count)._hCPU,
+			complexSet._dhViews.AtCPU(0),
 			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
 
@@ -562,15 +572,24 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateSamplers(int setNumber, int com
 	if (dsd._staticSamplersOnly)
 		return CD3DX12_GPU_DESCRIPTOR_HANDLE();
 
+	CD3DX12_GPU_DESCRIPTOR_HANDLE hOffset = CD3DX12_GPU_DESCRIPTOR_HANDLE();
 	const auto& complexSet = _vComplexSets[complexSetHandle];
-	const int count = Utils::Cast32(complexSet._vTextures.size());
-	auto hpSampler = pRendererD3D12->GetHeapSampler().GetNextHandlePair(count);
-	pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(count,
-		hpSampler._hCPU,
-		complexSet._dhSamplers.AtCPU(0),
-		D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+	const int maxCount = Utils::Cast32(complexSet._vTextures.size());
+	VERUS_FOR(i, maxCount)
+	{
+		if (Sampler::custom == dsd._vSamplers[i])
+		{
+			auto hpSampler = pRendererD3D12->GetSamplerHeap().GetNextHandlePair(1);
+			if (!hOffset.ptr)
+				hOffset = hpSampler._hGPU;
+			pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
+				hpSampler._hCPU,
+				complexSet._dhSamplers.AtCPU(i),
+				D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+		}
+	}
 
-	return hpSampler._hGPU;
+	return hOffset;
 }
 
 void ShaderD3D12::OnError(CSZ s)
@@ -586,4 +605,113 @@ void ShaderD3D12::OnError(CSZ s)
 		renderer.OnShaderError(s);
 	else
 		renderer.OnShaderWarning(s);
+}
+
+void ShaderD3D12::UpdateDebugInfo(
+	const Vector<CD3DX12_ROOT_PARAMETER1>& vRootParams,
+	const Vector<D3D12_STATIC_SAMPLER_DESC>& vStaticSamplers,
+	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags)
+{
+	StringStream ss;
+
+	auto PrintShaderVisibility = [&ss](D3D12_SHADER_VISIBILITY shaderVisibility)
+	{
+		switch (shaderVisibility)
+		{
+		case D3D12_SHADER_VISIBILITY_ALL: ss << "All"; break;
+		case D3D12_SHADER_VISIBILITY_VERTEX: ss << "V"; break;
+		case D3D12_SHADER_VISIBILITY_HULL: ss << "H"; break;
+		case D3D12_SHADER_VISIBILITY_DOMAIN: ss << "D"; break;
+		case D3D12_SHADER_VISIBILITY_GEOMETRY: ss << "G"; break;
+		case D3D12_SHADER_VISIBILITY_PIXEL: ss << "P"; break;
+		}
+	};
+
+	int totalSize = 0;
+	int index = 0;
+	for (const auto& rootParam : vRootParams)
+	{
+		ss << "Index=" << index;
+		ss << ", Type=";
+		switch (rootParam.ParameterType)
+		{
+		case D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE: ss << "Table"; totalSize += 4; break;
+		case D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS: ss << "Const"; totalSize += 4 * rootParam.Constants.Num32BitValues; break;
+		case D3D12_ROOT_PARAMETER_TYPE_CBV: ss << "CBV"; totalSize += 8; break;
+		case D3D12_ROOT_PARAMETER_TYPE_SRV: ss << "SRV"; totalSize += 8; break;
+		case D3D12_ROOT_PARAMETER_TYPE_UAV: ss << "UAV"; totalSize += 8; break;
+		}
+		ss << ", Visibility=";
+		PrintShaderVisibility(rootParam.ShaderVisibility);
+		if (totalSize > 64)
+			ss << " (spilled)";
+		ss << std::endl;
+		switch (rootParam.ParameterType)
+		{
+		case D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE:
+		{
+			VERUS_FOR(i, rootParam.DescriptorTable.NumDescriptorRanges)
+			{
+				auto& descRange = rootParam.DescriptorTable.pDescriptorRanges[i];
+				ss << "    Type=";
+				switch (descRange.RangeType)
+				{
+				case D3D12_DESCRIPTOR_RANGE_TYPE_SRV: ss << "SRV"; break;
+				case D3D12_DESCRIPTOR_RANGE_TYPE_UAV: ss << "UAV"; break;
+				case D3D12_DESCRIPTOR_RANGE_TYPE_CBV: ss << "CBV"; break;
+				case D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER: ss << "Sampler"; break;
+				}
+				ss << ", Count=" << descRange.NumDescriptors;
+				ss << ", Register=" << descRange.BaseShaderRegister;
+				ss << ", Space=" << descRange.RegisterSpace;
+				ss << ", Flags=" << descRange.Flags;
+				ss << ", Offset=" << static_cast<int>(descRange.OffsetInDescriptorsFromTableStart);
+				ss << std::endl;
+			}
+		}
+		break;
+		case D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS:
+		{
+			ss << "    ";
+			ss << "Register=" << rootParam.Constants.ShaderRegister;
+			ss << ", Space=" << rootParam.Constants.RegisterSpace;
+			ss << ", Count=" << rootParam.Constants.Num32BitValues << "x4 bytes";
+			ss << std::endl;
+		}
+		break;
+		default:
+		{
+		}
+		break;
+		}
+		index++;
+	}
+	for (const auto& sampler : vStaticSamplers)
+	{
+		ss << "StaticSampler Register=" << sampler.ShaderRegister;
+		ss << ", Space=" << sampler.RegisterSpace;
+		ss << ", Visibility=";
+		PrintShaderVisibility(sampler.ShaderVisibility);
+		ss << std::endl;
+	}
+	ss << "TotalSize=" << totalSize << " bytes (256 max)";
+	ss << ", Flags=";
+	if (rootSignatureFlags & D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)
+		ss << "[AIAIL]";
+	if (rootSignatureFlags & D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS)
+		ss << "[DVSRA]";
+	if (rootSignatureFlags & D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS)
+		ss << "[DHSRA]";
+	if (rootSignatureFlags & D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS)
+		ss << "[DDSRA]";
+	if (rootSignatureFlags & D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS)
+		ss << "[DGSRA]";
+	if (rootSignatureFlags & D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS)
+		ss << "[DPSRA]";
+	if (rootSignatureFlags & D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT)
+		ss << "[ASO]";
+	if (rootSignatureFlags & D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE)
+		ss << "[LRS]";
+
+	_debugInfo = ss.str();
 }

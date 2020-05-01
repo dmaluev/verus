@@ -24,24 +24,17 @@ void ShadowMap::Init(int side)
 
 	_side = side;
 
-	_rp = renderer->CreateRenderPass(
-		{
-			CGI::RP::Attachment("Depth", CGI::Format::unormD16).LoadOpClear().Layout(CGI::ImageLayout::depthStencilReadOnly),
-		},
-		{
-			CGI::RP::Subpass("Sp0").Color({}).DepthStencil(CGI::RP::Ref("Depth", CGI::ImageLayout::depthStencilAttachment)),
-		},
-		{});
+	_rph = renderer->CreateShadowRenderPass(CGI::Format::unormD24uintS8);
 
 	CGI::TextureDesc texDesc;
 	texDesc._clearValue = Vector4(1);
-	texDesc._format = CGI::Format::unormD16;
+	texDesc._format = CGI::Format::unormD24uintS8;
 	texDesc._width = _side;
 	texDesc._height = _side;
-	texDesc._flags = CGI::TextureDesc::Flags::depthSampled;
+	texDesc._flags = CGI::TextureDesc::Flags::depthSampledR;
 	_tex.Init(texDesc);
 
-	_fb = renderer->CreateFramebuffer(_rp,
+	_fbh = renderer->CreateFramebuffer(_rph,
 		{
 			_tex
 		},
@@ -61,9 +54,9 @@ void ShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar)
 
 	const Vector3 up(0, 1, 0);
 	Point3 eye, at;
-	const float size = 4096 * 0.01f;
+	const float size = 4096 * 0.005f;
 	if (0 == zFar)
-		zFar = 0x10000 * 0.005f;
+		zFar = 1001;
 
 	at = sm.GetCamera()->GetEyePosition() + sm.GetCamera()->GetFrontDirection() * (size * (1 / 3.f));
 	if (_snapToTexels)
@@ -77,7 +70,7 @@ void ShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar)
 		atPosShadowSpaceSnapped.setY(atPosShadowSpaceSnapped.getY() - fmod(static_cast<float>(atPosShadowSpaceSnapped.getY()), texelSize));
 		at = (matFromShadowSpace * atPosShadowSpaceSnapped).getXYZ();
 	}
-	eye = at + dirToSun * ((zNear + zFar) * 0.5f);
+	eye = at + dirToSun * ((zFar - zNear) * 0.5f);
 
 	// Setup light space camera and use it (used for terrain draw, etc.):
 	_camera.SetUpDirection(up);
@@ -91,9 +84,9 @@ void ShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar)
 	_camera.Update();
 	_pSceneCamera = sm.SetCamera(&_camera);
 
-	_config.setX((zFar - zNear) * 2);
+	_config._penumbraScale = (zFar - zNear) * 2;
 
-	renderer.GetCommandBuffer()->BeginRenderPass(_rp, _fb,
+	renderer.GetCommandBuffer()->BeginRenderPass(_rph, _fbh,
 		{
 			_tex->GetClearValue()
 		});
@@ -199,25 +192,20 @@ void CascadedShadowMap::Init(int side)
 	VERUS_QREF_RENDERER;
 
 	_side = side;
+	if (settings._sceneShadowQuality >= App::Settings::ShadowQuality::ultra)
+		_side *= 2;
 
-	_rp = renderer->CreateRenderPass(
-		{
-			CGI::RP::Attachment("Depth", CGI::Format::floatD32).LoadOpClear().Layout(CGI::ImageLayout::depthStencilReadOnly),
-		},
-		{
-			CGI::RP::Subpass("Sp0").Color({}).DepthStencil(CGI::RP::Ref("Depth", CGI::ImageLayout::depthStencilAttachment)),
-		},
-		{});
+	_rph = renderer->CreateShadowRenderPass(CGI::Format::unormD24uintS8);
 
 	CGI::TextureDesc texDesc;
 	texDesc._clearValue = Vector4(1);
-	texDesc._format = CGI::Format::floatD32;
+	texDesc._format = CGI::Format::unormD24uintS8;
 	texDesc._width = _side;
 	texDesc._height = _side;
-	texDesc._flags = CGI::TextureDesc::Flags::depthSampled;
+	texDesc._flags = CGI::TextureDesc::Flags::depthSampledR;
 	_tex.Init(texDesc);
 
-	_fb = renderer->CreateFramebuffer(_rp,
+	_fbh = renderer->CreateFramebuffer(_rph,
 		{
 			_tex
 		},
@@ -251,12 +239,14 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 
 	const Vector3 up(0, 1, 0);
 	Point3 eye, at;
+	int sideW, sideH, side;
 	float sizeW, sizeH;
 
 	float zNearFrustum, zFarFrustum;
-	const float closerToLight = 10000;
+	const float closerToLight = 1500;
 	const Matrix4 matToLightSpace = Matrix4::lookAt(Point3(0), Point3(-dirToSun), up);
-	const float range = Math::Min(1000.f, cam.GetZFar() - cam.GetZNear()); // Clip terrain, etc.
+	const float maxRange = (settings._sceneShadowQuality >= App::Settings::ShadowQuality::ultra) ? 850 : 350;
+	const float range = Math::Min<float>(maxRange, cam.GetZFar() - cam.GetZNear()); // Clip terrain, etc.
 	_camera = cam;
 
 	if (0 == _currentSplit)
@@ -277,8 +267,10 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 		if (0 == zFar)
 			zFar = abs(zFarFrustum - zNearFrustum) + closerToLight;
 
-		sizeW = static_cast<float>(int(frustumBounds.getZ() - frustumBounds.getX() + 0.5f) + 2);
-		sizeH = static_cast<float>(int(frustumBounds.getW() - frustumBounds.getY() + 0.5f) + 2);
+		sideW = static_cast<int>(frustumBounds.getZ() - frustumBounds.getX() + 2.5f);
+		sideH = static_cast<int>(frustumBounds.getW() - frustumBounds.getY() + 2.5f);
+		sizeW = sideW;
+		sizeH = sideH;
 
 		// Setup CSM light space camera for full range (used for terrain layout, etc.):
 		_cameraCSM.SetUpDirection(up);
@@ -327,14 +319,26 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 		(frustumBounds.getY() + frustumBounds.getW()) * 0.5f,
 		zNearFrustum);
 
-	sizeW = static_cast<float>(int(frustumBounds.getZ() - frustumBounds.getX() + 0.5f) + 2);
-	sizeH = static_cast<float>(int(frustumBounds.getW() - frustumBounds.getY() + 0.5f) + 2);
+	sideW = static_cast<int>(frustumBounds.getZ() - frustumBounds.getX() + 2.5f);
+	sideH = static_cast<int>(frustumBounds.getW() - frustumBounds.getY() + 2.5f);
+	if (_currentSplit < 3)
+	{
+		side = (sideW < sideH) ? sideH : sideW;
+		side = Math::NextPowerOfTwo(side);
+		sizeW = side;
+		sizeH = side;
+	}
+	else
+	{
+		sizeW = sideW;
+		sizeH = sideH;
+	}
 
 	if (_snapToTexels)
 	{
 		const float sideInv = 2.f / _side;
-		pos.setX(pos.getX() - fmod(static_cast<float>(pos.getX()), sizeW* sideInv));
-		pos.setY(pos.getY() - fmod(static_cast<float>(pos.getY()), sizeH* sideInv));
+		pos.setX(pos.getX() - fmod(static_cast<float>(pos.getX()), sizeW * sideInv));
+		pos.setY(pos.getY() - fmod(static_cast<float>(pos.getY()), sizeH * sideInv));
 	}
 	pos = (VMath::orthoInverse(matToLightSpace) * pos).getXYZ(); // To world space.
 
@@ -357,11 +361,11 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 	_camera.Update();
 	_pSceneCamera = sm.SetCamera(&_camera);
 
-	_config.setX((zFar - zNear) * 2);
+	_config._penumbraScale = (zFar - zNear) * 2;
 
 	if (0 == _currentSplit)
 	{
-		renderer.GetCommandBuffer()->BeginRenderPass(_rp, _fb,
+		renderer.GetCommandBuffer()->BeginRenderPass(_rph, _fbh,
 			{
 				_tex->GetClearValue()
 			});

@@ -19,13 +19,13 @@ void GeometryVulkan::Init(RcGeometryDesc desc)
 	_dynBindingsMask = desc._dynBindingsMask;
 	_32BitIndices = desc._32BitIndices;
 
-	const int bindingCount = GetBindingCount(desc._pInputElementDesc);
+	const int bindingCount = GetBindingCount(desc._pVertexInputAttrDesc);
 	_vVertexInputBindingDesc.reserve(bindingCount);
-	_vVertexInputAttributeDesc.reserve(GetInputElementDescCount(desc._pInputElementDesc));
+	_vVertexInputAttributeDesc.reserve(GetVertexInputAttrDescCount(desc._pVertexInputAttrDesc));
 	int i = 0;
-	while (desc._pInputElementDesc[i]._offset >= 0)
+	while (desc._pVertexInputAttrDesc[i]._offset >= 0)
 	{
-		int binding = desc._pInputElementDesc[i]._binding;
+		int binding = desc._pVertexInputAttrDesc[i]._binding;
 		VkVertexInputRate inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 		if (binding < 0)
 		{
@@ -53,10 +53,10 @@ void GeometryVulkan::Init(RcGeometryDesc desc)
 		}
 
 		VkVertexInputAttributeDescription vkviad = {};
-		vkviad.location = ToNativeLocation(desc._pInputElementDesc[i]._usage, desc._pInputElementDesc[i]._usageIndex);
+		vkviad.location = ToNativeLocation(desc._pVertexInputAttrDesc[i]._usage, desc._pVertexInputAttrDesc[i]._usageIndex);
 		vkviad.binding = binding;
-		vkviad.format = ToNativeFormat(desc._pInputElementDesc[i]._usage, desc._pInputElementDesc[i]._type, desc._pInputElementDesc[i]._components);
-		vkviad.offset = desc._pInputElementDesc[i]._offset;
+		vkviad.format = ToNativeFormat(desc._pVertexInputAttrDesc[i]._usage, desc._pVertexInputAttrDesc[i]._type, desc._pVertexInputAttrDesc[i]._components);
+		vkviad.offset = desc._pVertexInputAttrDesc[i]._offset;
 		_vVertexInputAttributeDesc.push_back(vkviad);
 		i++;
 	}

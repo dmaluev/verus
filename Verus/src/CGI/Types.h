@@ -37,7 +37,9 @@ namespace verus
 			lineList,
 			lineStrip,
 			triangleList,
-			triangleStrip
+			triangleStrip,
+			patchList3,
+			patchList4
 		};
 
 		struct PipelineRasterizationState
@@ -72,7 +74,9 @@ namespace verus
 			gs = (1 << 3),
 			fs = (1 << 4),
 			cs = (1 << 5),
-			vs_fs = vs | fs
+			vs_fs = vs | fs,
+			vs_hs_ds = vs | hs | ds,
+			vs_hs_ds_fs = vs | hs | ds | fs
 		};
 
 		enum class IeType : int
@@ -82,22 +86,24 @@ namespace verus
 			shorts
 		};
 
-		// See: https://docs.microsoft.com/en-us/windows/desktop/direct3d9/d3ddeclusage
+		// See: https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3ddeclusage
 		enum class IeUsage : int
 		{
 			position,
-			blendWeight,
+			blendWeights,
 			blendIndices,
 			normal,
-			psize,
-			texCoord,
 			tangent,
 			binormal,
-			color
+			color,
+			psize,
+			texCoord,
+			instData,
+			attr
 		};
 
-		// See: https://docs.microsoft.com/en-us/windows/desktop/direct3d9/d3dvertexelement9
-		struct InputElementDesc
+		// See: https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3dvertexelement9
+		struct VertexInputAttrDesc
 		{
 			int     _binding;
 			int     _offset;
@@ -106,9 +112,9 @@ namespace verus
 			IeUsage _usage;
 			int     _usageIndex;
 
-			static constexpr InputElementDesc End() { return { -1, -1, IeType::floats, 0, IeUsage::position, 0 }; }
+			static constexpr VertexInputAttrDesc End() { return { -1, -1, IeType::floats, 0, IeUsage::position, 0 }; }
 		};
-		VERUS_TYPEDEFS(InputElementDesc);
+		VERUS_TYPEDEFS(VertexInputAttrDesc);
 
 		enum class Sampler : int
 		{
@@ -117,15 +123,51 @@ namespace verus
 			input,
 			shadow,
 			aniso, // Most common sampler for 3D.
-			linear3D,
-			nearest3D,
-			linear2D,
-			nearest2D,
-			linearClamp3D,
-			nearestClamp3D,
-			linearClamp2D,
-			nearestClamp2D,
+			linearMipL,
+			nearestMipL,
+			linearMipN,
+			nearestMipN,
+			linearClampMipL,
+			nearestClampMipL,
+			linearClampMipN,
+			nearestClampMipN,
 			count
+		};
+
+		template<typename T>
+		class BaseHandle
+		{
+			int _h = -1;
+
+		protected:
+			static T Make(int value)
+			{
+				T ret;
+				ret._h = value;
+				return ret;
+			}
+
+		public:
+			int Get() const { return _h; }
+			bool IsSet() const { return _h >= 0; }
+		};
+
+		class RPHandle : public BaseHandle<RPHandle>
+		{
+		public:
+			static RPHandle Make(int value) { return BaseHandle::Make(value); }
+		};
+
+		class FBHandle : public BaseHandle<FBHandle>
+		{
+		public:
+			static FBHandle Make(int value) { return BaseHandle::Make(value); }
+		};
+
+		class CSHandle : public BaseHandle<CSHandle>
+		{
+		public:
+			static CSHandle Make(int value) { return BaseHandle::Make(value); }
 		};
 	}
 }

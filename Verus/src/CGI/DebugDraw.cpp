@@ -25,13 +25,13 @@ void DebugDraw::Init()
 	_shader->CreatePipelineLayout();
 
 	GeometryDesc geoDesc;
-	const InputElementDesc ied[] =
+	const VertexInputAttrDesc viaDesc[] =
 	{
 		{0, offsetof(Vertex, _pos),   IeType::floats, 3, IeUsage::position, 0},
 		{0, offsetof(Vertex, _color), IeType::ubytes, 4, IeUsage::color, 0},
-		InputElementDesc::End()
+		VertexInputAttrDesc::End()
 	};
-	geoDesc._pInputElementDesc = ied;
+	geoDesc._pVertexInputAttrDesc = viaDesc;
 	const int strides[] = { sizeof(Vertex), 0 };
 	geoDesc._pStrides = strides;
 	geoDesc._dynBindingsMask = 0x1;
@@ -43,7 +43,7 @@ void DebugDraw::Init()
 	_offset = 0;
 
 	{
-		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPass_SwapChainDepth());
+		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPassHandle_SwapChainDepth());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		pipeDesc._topology = PrimitiveTopology::pointList;
 		_pipe[PIPE_POINTS].Init(pipeDesc);
@@ -51,7 +51,7 @@ void DebugDraw::Init()
 		_pipe[PIPE_POINTS_NO_Z].Init(pipeDesc);
 	}
 	{
-		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPass_SwapChainDepth());
+		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPassHandle_SwapChainDepth());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		pipeDesc._topology = PrimitiveTopology::lineList;
 		_pipe[PIPE_LINES].Init(pipeDesc);
@@ -59,7 +59,7 @@ void DebugDraw::Init()
 		_pipe[PIPE_LINES_NO_Z].Init(pipeDesc);
 	}
 	{
-		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPass_SwapChainDepth());
+		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPassHandle_SwapChainDepth());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		pipeDesc._rasterizationState._polygonMode = PolygonMode::line;
 		pipeDesc._topology = PrimitiveTopology::triangleList;

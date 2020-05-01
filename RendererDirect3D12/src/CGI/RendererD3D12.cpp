@@ -40,13 +40,13 @@ void RendererD3D12::Done()
 		Renderer::I().ImGuiSetCurrentContext(nullptr);
 	}
 
-	DeleteFramebuffer(-1);
-	DeleteRenderPass(-1);
+	DeleteFramebuffer(FBHandle::Make(-2));
+	DeleteRenderPass(RPHandle::Make(-2));
 
 	_vSamplers.clear();
 
 	_dhSamplers.Reset();
-	_dhCbvSrvUav.Reset();
+	_dhViews.Reset();
 
 	if (_hFence != INVALID_HANDLE_VALUE)
 	{
@@ -210,7 +210,7 @@ void RendererD3D12::InitD3D()
 	_pFence = CreateFence();
 	_hFence = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
-	_dhCbvSrvUav.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, settings.GetLimits()._d3d12_dhCbvSrvUavCapacity, 16, true);
+	_dhViews.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, settings.GetLimits()._d3d12_dhViewsCapacity, 16, true);
 	_dhSamplers.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, settings.GetLimits()._d3d12_dhSamplersCapacity, 0, true);
 
 	CreateSamplers();
@@ -326,40 +326,40 @@ void RendererD3D12::CreateSamplers()
 
 	// <Wrap>
 	desc = init;
-	_vSamplers[+Sampler::linear3D] = desc;
+	_vSamplers[+Sampler::linearMipL] = desc;
 
 	desc = init;
 	desc.Filter = ApplyTrilinearFilter(D3D12_FILTER_MIN_MAG_MIP_POINT);
-	_vSamplers[+Sampler::nearest3D] = desc;
+	_vSamplers[+Sampler::nearestMipL] = desc;
 
 	desc = init;
 	desc.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
-	_vSamplers[+Sampler::linear2D] = desc;
+	_vSamplers[+Sampler::linearMipN] = desc;
 
 	desc = init;
 	desc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-	_vSamplers[+Sampler::nearest2D] = desc;
+	_vSamplers[+Sampler::nearestMipN] = desc;
 	// </Wrap>
 
 	// <Clamp>
 	desc = init;
 	desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	_vSamplers[+Sampler::linearClamp3D] = desc;
+	_vSamplers[+Sampler::linearClampMipL] = desc;
 
 	desc = init;
 	desc.Filter = ApplyTrilinearFilter(D3D12_FILTER_MIN_MAG_MIP_POINT);
 	desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	_vSamplers[+Sampler::nearestClamp3D] = desc;
+	_vSamplers[+Sampler::nearestClampMipL] = desc;
 
 	desc = init;
 	desc.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
 	desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	_vSamplers[+Sampler::linearClamp2D] = desc;
+	_vSamplers[+Sampler::linearClampMipN] = desc;
 
 	desc = init;
 	desc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
 	desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	_vSamplers[+Sampler::nearestClamp2D] = desc;
+	_vSamplers[+Sampler::nearestClampMipN] = desc;
 	// </Clamp>
 }
 
@@ -368,7 +368,7 @@ D3D12_STATIC_SAMPLER_DESC RendererD3D12::GetStaticSamplerDesc(Sampler s) const
 	return _vSamplers[+s];
 }
 
-void RendererD3D12::ImGuiInit(int renderPassHandle)
+void RendererD3D12::ImGuiInit(RPHandle renderPassHandle)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_CONST_SETTINGS;
@@ -392,12 +392,12 @@ void RendererD3D12::ImGuiInit(int renderPassHandle)
 	ImGui::StyleColorsDark();
 
 	ImGui_ImplSDL2_InitForD3D(renderer.GetMainWindow()->GetSDL());
-	auto hp = _dhCbvSrvUav.GetStaticHandlePair(0);
+	auto hp = _dhViews.GetStaticHandlePair(0);
 	ImGui_ImplDX12_Init(
 		_pDevice.Get(),
 		s_ringBufferSize,
 		DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
-		_dhCbvSrvUav.GetD3DDescriptorHeap(),
+		_dhViews.GetD3DDescriptorHeap(),
 		hp._hCPU,
 		hp._hGPU);
 }
@@ -450,7 +450,7 @@ void RendererD3D12::BeginFrame(bool present)
 
 	renderer.GetCommandBuffer()->Begin();
 
-	ID3D12DescriptorHeap* ppHeaps[] = { _dhCbvSrvUav.GetD3DDescriptorHeap(), _dhSamplers.GetD3DDescriptorHeap() };
+	ID3D12DescriptorHeap* ppHeaps[] = { _dhViews.GetD3DDescriptorHeap(), _dhSamplers.GetD3DDescriptorHeap() };
 	static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->SetDescriptorHeaps(2, ppHeaps);
 }
 
@@ -552,7 +552,7 @@ void RendererD3D12::DeleteTexture(PBaseTexture p)
 	TStoreTextures::Delete(static_cast<PTextureD3D12>(p));
 }
 
-int RendererD3D12::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD)
+RPHandle RendererD3D12::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD)
 {
 	RP::D3DRenderPass renderPass;
 
@@ -627,16 +627,16 @@ int RendererD3D12::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, s
 		renderPass._vSubpasses.push_back(std::move(d3dSubpass));
 	}
 
-	const int handle = GetNextRenderPassHandle();
-	if (handle >= _vRenderPasses.size())
+	const int nextIndex = GetNextRenderPassIndex();
+	if (nextIndex >= _vRenderPasses.size())
 		_vRenderPasses.push_back(std::move(renderPass));
 	else
-		_vRenderPasses[handle] = renderPass;
+		_vRenderPasses[nextIndex] = renderPass;
 
-	return handle;
+	return RPHandle::Make(nextIndex);
 }
 
-int RendererD3D12::CreateFramebuffer(int renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex)
+FBHandle RendererD3D12::CreateFramebuffer(RPHandle renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex)
 {
 	RP::RcD3DRenderPass renderPass = GetRenderPass(renderPassHandle);
 	RP::D3DFramebuffer framebuffer;
@@ -746,32 +746,32 @@ int RendererD3D12::CreateFramebuffer(int renderPassHandle, std::initializer_list
 		framebuffer._vSubpasses.push_back(std::move(fs));
 	}
 
-	const int handle = GetNextFramebufferHandle();
-	if (handle >= _vFramebuffers.size())
+	const int nextIndex = GetNextFramebufferIndex();
+	if (nextIndex >= _vFramebuffers.size())
 		_vFramebuffers.push_back(std::move(framebuffer));
 	else
-		_vFramebuffers[handle] = framebuffer;
+		_vFramebuffers[nextIndex] = framebuffer;
 
-	return handle;
+	return FBHandle::Make(nextIndex);
 }
 
-void RendererD3D12::DeleteRenderPass(int handle)
+void RendererD3D12::DeleteRenderPass(RPHandle handle)
 {
-	if (handle >= 0)
-		_vRenderPasses[handle] = RP::D3DRenderPass();
-	else
+	if (handle.IsSet())
+		_vRenderPasses[handle.Get()] = RP::D3DRenderPass();
+	else if (-2 == handle.Get())
 		_vRenderPasses.clear();
 }
 
-void RendererD3D12::DeleteFramebuffer(int handle)
+void RendererD3D12::DeleteFramebuffer(FBHandle handle)
 {
-	if (handle >= 0)
-		_vFramebuffers[handle] = RP::D3DFramebuffer();
-	else
+	if (handle.IsSet())
+		_vFramebuffers[handle.Get()] = RP::D3DFramebuffer();
+	else if (-2 == handle.Get())
 		_vFramebuffers.clear();
 }
 
-int RendererD3D12::GetNextRenderPassHandle() const
+int RendererD3D12::GetNextRenderPassIndex() const
 {
 	const int count = Utils::Cast32(_vRenderPasses.size());
 	VERUS_FOR(i, count)
@@ -782,7 +782,7 @@ int RendererD3D12::GetNextRenderPassHandle() const
 	return count;
 }
 
-int RendererD3D12::GetNextFramebufferHandle() const
+int RendererD3D12::GetNextFramebufferIndex() const
 {
 	const int count = Utils::Cast32(_vFramebuffers.size());
 	VERUS_FOR(i, count)
@@ -793,12 +793,12 @@ int RendererD3D12::GetNextFramebufferHandle() const
 	return count;
 }
 
-RP::RcD3DRenderPass RendererD3D12::GetRenderPass(int handle) const
+RP::RcD3DRenderPass RendererD3D12::GetRenderPass(RPHandle handle) const
 {
-	return _vRenderPasses[handle];
+	return _vRenderPasses[handle.Get()];
 }
 
-RP::RcD3DFramebuffer RendererD3D12::GetFramebuffer(int handle) const
+RP::RcD3DFramebuffer RendererD3D12::GetFramebuffer(FBHandle handle) const
 {
-	return _vFramebuffers[handle];
+	return _vFramebuffers[handle.Get()];
 }

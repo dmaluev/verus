@@ -36,32 +36,24 @@ void BaseShader::Load(CSZ url)
 
 String BaseShader::Parse(
 	CSZ branchDesc,
-	RString entryVS,
-	RString entryHS,
-	RString entryDS,
-	RString entryGS,
-	RString entryFS,
-	RString entryCS,
+	RString entry,
+	String stageEntries[],
 	RString stages,
 	Vector<String>& vMacroName,
 	Vector<String>& vMacroValue,
 	CSZ prefix)
 {
 	VERUS_RT_ASSERT(branchDesc);
-	entryVS.clear();
-	entryHS.clear();
-	entryDS.clear();
-	entryGS.clear();
-	entryFS.clear();
-	entryCS.clear();
+	VERUS_FOR(i, +Stage::count)
+		stageEntries[i].clear();
 	stages = "(VF)";
 	vMacroName.clear();
 	vMacroValue.clear();
 
 	CSZ space = strchr(branchDesc, ' ');
 
-	String entry;
-	space ? entry.assign(branchDesc, space) : entry.assign(branchDesc);
+	String entryBranch;
+	space ? entryBranch.assign(branchDesc, space) : entryBranch.assign(branchDesc);
 
 	if (space)
 	{
@@ -97,44 +89,46 @@ String BaseShader::Parse(
 		} while (branchDesc);
 	}
 
-	const size_t colon = entry.find(":");
+	const size_t colon = entryBranch.find(":");
 	if (String::npos == colon)
 	{
-		entryVS = entry + "VS";
-		entryHS = entry + "HS";
-		entryDS = entry + "DS";
-		entryGS = entry + "GS";
-		entryFS = entry + "FS";
-		entryCS = entry + "CS";
-		return entry;
+		entry = entryBranch;
+		stageEntries[+Stage::vs] = entryBranch + "VS";
+		stageEntries[+Stage::hs] = entryBranch + "HS";
+		stageEntries[+Stage::ds] = entryBranch + "DS";
+		stageEntries[+Stage::gs] = entryBranch + "GS";
+		stageEntries[+Stage::fs] = entryBranch + "FS";
+		stageEntries[+Stage::cs] = entryBranch + "CS";
+		return entryBranch;
 	}
 	else
 	{
-		const String func = entry.substr(0, colon);
-		entryVS = func + "VS";
-		entryHS = func + "HS";
-		entryDS = func + "DS";
-		entryGS = func + "GS";
-		entryFS = func + "FS";
-		entryCS = func + "CS";
-		return entry.substr(colon + 1);
+		const String func = entryBranch.substr(0, colon);
+		entry = func;
+		stageEntries[+Stage::vs] = func + "VS";
+		stageEntries[+Stage::hs] = func + "HS";
+		stageEntries[+Stage::ds] = func + "DS";
+		stageEntries[+Stage::gs] = func + "GS";
+		stageEntries[+Stage::fs] = func + "FS";
+		stageEntries[+Stage::cs] = func + "CS";
+		return entryBranch.substr(colon + 1);
 	}
 }
 
 void BaseShader::TestParse()
 {
-	String entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages;
+	String entry, stageEntries[+Stage::count], stages;
 	Vector<String> vMacroName;
 	Vector<String> vMacroValue;
 
 	Parse("",
-		entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages, vMacroName, vMacroValue, "DEF_");
+		entry, stageEntries, stages, vMacroName, vMacroValue, "DEF_");
 	Parse("Foo",
-		entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages, vMacroName, vMacroValue, "DEF_");
+		entry, stageEntries, stages, vMacroName, vMacroValue, "DEF_");
 	Parse("Bar FOO BAR XYZ (VGF)",
-		entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages, vMacroName, vMacroValue, "DEF_");
+		entry, stageEntries, stages, vMacroName, vMacroValue, "DEF_");
 	Parse("FooBar FOO=1 BAR=xyz XYZ= XYZ2=",
-		entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages, vMacroName, vMacroValue, "DEF_");
+		entry, stageEntries, stages, vMacroName, vMacroValue, "DEF_");
 }
 
 bool BaseShader::IsInIgnoreList(CSZ name) const

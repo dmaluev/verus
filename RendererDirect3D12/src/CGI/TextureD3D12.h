@@ -13,9 +13,9 @@ namespace verus
 			};
 
 			ResourceEx         _resource;
-			ResourceEx         _uavResource;
+			ResourceEx         _uaResource;
 			Vector<ResourceEx> _vStagingBuffers;
-			Vector<int>        _vCshGenerateMips;
+			Vector<CSHandle>   _vCshGenerateMips;
 			DescriptorHeap     _dhSRV;
 			DescriptorHeap     _dhUAV;
 			DescriptorHeap     _dhRTV;

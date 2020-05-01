@@ -1,37 +1,5 @@
 // Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
 
-// See: http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
-float4 ColorToLinear(float4 x)
-{
-	const float3 rgb = x.rgb < 0.04045 ? x.rgb * (1.0 / 12.92) : pow(abs(x.rgb + 0.055) / 1.055, 2.4);
-	return float4(rgb, x.a);
-}
-float4 ColorToSRGB(float4 x)
-{
-	const float3 rgb = x.rgb < 0.0031308 ? 12.92 * x.rgb : 1.055 * pow(abs(x.rgb), 1.0 / 2.4) - 0.055;
-	return float4(rgb, x.a);
-}
-
-float4 HDRColorToLinear(float4 x)
-{
-	return float4(x.rgb * x.rgb * 12.0, x.a);
-}
-float4 HDRColorToSRGB(float4 x)
-{
-	return float4(sqrt(saturate(x.rgb * (1.0 / 12.0))), x.a);
-}
-
-// See: https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
-float3 ToneMappingACES(float3 x)
-{
-	const float a = 2.51f;
-	const float b = 0.03f;
-	const float c = 2.43f;
-	const float d = 0.59f;
-	const float e = 0.14f;
-	return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
-}
-
 // See: https://en.wikipedia.org/wiki/Grayscale
 float Grayscale(float3 color)
 {
@@ -42,12 +10,6 @@ float3 Desaturate(float3 color, float alpha, float lum = 1.0)
 {
 	const float gray = Grayscale(color) * lum;
 	return lerp(color, gray, alpha);
-}
-
-float3 DesaturateFilmic(float3 color)
-{
-	const float gray = Grayscale(color);
-	return lerp(color, gray, saturate(gray * gray * gray));
 }
 
 // See: http://www.chilliant.com/rgb2hsv.html
@@ -95,4 +57,42 @@ float2 AlphaSwitch(float4 albedo, float2 tc, float2 alphaSwitch)
 		return float2(albedo.a, Grayscale(albedo.rgb)); // 8-bit alpha.
 	else
 		return saturate(float2(albedo.a * 8.0, (albedo.a - 0.15) / 0.85)); // 5-bit alpha.
+}
+
+// See: http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
+float4 ColorToLinear(float4 x)
+{
+	const float3 rgb = x.rgb < 0.04045 ? x.rgb * (1.0 / 12.92) : pow(abs(x.rgb + 0.055) / 1.055, 2.4);
+	return float4(rgb, x.a);
+}
+float4 ColorToSRGB(float4 x)
+{
+	const float3 rgb = x.rgb < 0.0031308 ? 12.92 * x.rgb : 1.055 * pow(abs(x.rgb), 1.0 / 2.4) - 0.055;
+	return float4(rgb, x.a);
+}
+
+float4 HDRColorToLinear(float4 x)
+{
+	return float4(x.rgb * x.rgb * 12.0, x.a);
+}
+float4 HDRColorToSRGB(float4 x)
+{
+	return float4(sqrt(saturate(x.rgb * (1.0 / 12.0))), x.a);
+}
+
+// See: https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
+float3 ToneMappingACES(float3 x)
+{
+	const float a = 2.51f;
+	const float b = 0.03f;
+	const float c = 2.43f;
+	const float d = 0.59f;
+	const float e = 0.14f;
+	return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
+float3 VerusToneMapping(float3 hdr, float filmicLook = 1.0)
+{
+	const float3 ldr = lerp(1.0 - exp(-hdr), ToneMappingACES(hdr), filmicLook);
+	return saturate(ldr);
 }

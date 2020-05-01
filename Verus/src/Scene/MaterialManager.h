@@ -17,7 +17,7 @@ namespace verus
 			Texture();
 			~Texture();
 
-			void Init(CSZ url, bool streamParts = false, bool sync = false);
+			void Init(CSZ url, bool streamParts = false, bool sync = false, CGI::PcSamplerDesc pSamplerDes = nullptr);
 			bool Done();
 			void AddRef() { _refCount++; }
 
@@ -33,7 +33,7 @@ namespace verus
 		class TexturePtr : public Ptr<Texture>
 		{
 		public:
-			void Init(CSZ url, bool streamParts = false, bool sync = false);
+			void Init(CSZ url, bool streamParts = false, bool sync = false, CGI::PcSamplerDesc pSamplerDes = nullptr);
 		};
 		VERUS_TYPEDEFS(TexturePtr);
 
@@ -127,7 +127,7 @@ namespace verus
 			glm::vec4      _userColor = glm::vec4(0, 0, 0, 0);
 			Pick           _userPick;
 			Blending       _blending = Blending::opaque;
-			int            _csh = -1;
+			CGI::CSHandle  _csh;
 			int            _refCount = 0;
 
 			Material();
@@ -152,7 +152,7 @@ namespace verus
 			void FromString(CSZ txt);
 
 			// Mesh interaction:
-			int GetComplexSetHandle() const { return _csh; }
+			CGI::CSHandle GetComplexSetHandle() const { return _csh; }
 			void BindDescriptorSetTextures();
 			bool UpdateMeshUniformBuffer(float motionBlur = 1);
 
@@ -179,11 +179,11 @@ namespace verus
 		typedef StoreUnique<String, Material> TStoreMaterials;
 		class MaterialManager : public Singleton<MaterialManager>, public Object, private TStoreTextures, private TStoreMaterials
 		{
-			TexturePwn _texDefaultAlbedo;
-			TexturePwn _texDefaultNormal;
-			TexturePwn _texDetail;
-			TexturePwn _texStrass;
-			int        _cshDefault = -1; // For missing, non-mandatory materials.
+			TexturePwn    _texDefaultAlbedo;
+			TexturePwn    _texDefaultNormal;
+			TexturePwn    _texDetail;
+			TexturePwn    _texStrass;
+			CGI::CSHandle _cshDefault; // For missing, non-mandatory materials.
 
 		public:
 			MaterialManager();
@@ -200,7 +200,7 @@ namespace verus
 			CGI::TexturePtr GetDetailTexture() { return _texDetail->GetTex(); }
 			CGI::TexturePtr GetStrassTexture() { return _texStrass->GetTex(); }
 
-			int GetDefaultComplexSetHandle() const { return _cshDefault; }
+			CGI::CSHandle GetDefaultComplexSetHandle() const { return _cshDefault; }
 
 			// Textures:
 			PTexture InsertTexture(CSZ url);

@@ -9,6 +9,18 @@ bool Math::IsPowerOfTwo(int x)
 	return !(x & (x - 1));
 }
 
+UINT32 Math::NextPowerOfTwo(UINT32 x)
+{
+	x--;
+	x |= x >> 1;
+	x |= x >> 2;
+	x |= x >> 4;
+	x |= x >> 8;
+	x |= x >> 16;
+	x++;
+	return x;
+}
+
 int Math::HighestBit(int x)
 {
 	int bit = -1;
@@ -59,6 +71,11 @@ float Math::LinearToCos(float t)
 	return cos(t * VERUS_PI) * -0.5f + 0.5f; // [1 to -1] -> [0 to 1].
 }
 
+float Math::EaseInOutSine(float x)
+{
+	return -(cos(VERUS_PI * x) - 1) * 0.5f;
+}
+
 Vector3 Math::TriangleNormal(RcPoint3 a, RcPoint3 b, RcPoint3 c)
 {
 	return VMath::normalize(VMath::cross(a - b, a - c));
@@ -77,15 +94,15 @@ float Math::TriangleArea(
 	return sqrt(s * (s - a) * (s - b) * (s - c));
 }
 
-int Math::GetStripGridIndexCount(int polyCountWidth, int polyCountHeight)
+int Math::StripGridIndexCount(int polyCountWidth, int polyCountHeight)
 {
 	const int vertCountWidth = polyCountWidth + 1;
 	return (vertCountWidth * 2) * polyCountHeight + (polyCountHeight - 1) * 2; // Strip and primitive restart values.
 }
 
-void Math::BuildStripGrid(int polyCountWidth, int polyCountHeight, Vector<UINT16>& vIndices)
+void Math::CreateStripGrid(int polyCountWidth, int polyCountHeight, Vector<UINT16>& vIndices)
 {
-	vIndices.resize(GetStripGridIndexCount(polyCountWidth, polyCountHeight));
+	vIndices.resize(StripGridIndexCount(polyCountWidth, polyCountHeight));
 	int offset = 0;
 	const int vertCountWidth = polyCountWidth + 1;
 	VERUS_FOR(h, polyCountHeight)
@@ -114,7 +131,7 @@ void Math::BuildStripGrid(int polyCountWidth, int polyCountHeight, Vector<UINT16
 	}
 }
 
-void Math::BuildListGrid(int polyCountWidth, int polyCountHeight, Vector<UINT16>& vIndices)
+void Math::CreateListGrid(int polyCountWidth, int polyCountHeight, Vector<UINT16>& vIndices)
 {
 	vIndices.resize(polyCountWidth * polyCountHeight * 6);
 	int offset = 0;
@@ -148,6 +165,23 @@ void Math::BuildListGrid(int polyCountWidth, int polyCountHeight, Vector<UINT16>
 	}
 }
 
+bool Math::CheckIndexBuffer(Vector<UINT16>& vIndices, int maxIndex)
+{
+	Vector<UINT16> vTemp(vIndices.begin(), vIndices.end());
+	std::sort(vTemp.begin(), vTemp.end());
+	auto itRestart = std::find(vTemp.begin(), vTemp.end(), 0xFFFF);
+	if (itRestart != vTemp.end())
+		vTemp.erase(itRestart, vTemp.end());
+	if (vTemp.empty())
+		return false;
+	if (vTemp.front() != 0)
+		return false;
+	if (vTemp.back() != maxIndex)
+		return false;
+	auto it = std::adjacent_find(vTemp.begin(), vTemp.end(), [](UINT16 a, UINT16 b) {return (b - a) > 1; });
+	return vTemp.end() == it;
+}
+
 Transform3 Math::BoundsDrawMatrix(RcPoint3 mn, RcPoint3 mx)
 {
 	const Vector3 d = mx - mn;
@@ -159,6 +193,13 @@ float Math::ComputeOnePixelDistance(float size, float screenHeight, float fovY)
 {
 	const float viewSliceSize = size * screenHeight;
 	return viewSliceSize / (tan(fovY * 0.5f) * 2);
+}
+
+float Math::ComputeDistToMipScale(float texSize, float screenSize, float realSize, float fovY)
+{
+	const float fillScreenScale = screenSize / texSize;
+	const float a = realSize * fillScreenScale * 0.5f;
+	return tan(fovY * 0.5f) / a;
 }
 
 void Math::Quadrant(const int** ppSrcMinMax, int** ppDestMinMax, int half, int id)
@@ -395,7 +436,7 @@ void Math::Test()
 
 	{
 		Vector<UINT16> v;
-		BuildStripGrid(2, 2, v);
+		CreateStripGrid(2, 2, v);
 		VERUS_RT_ASSERT(v.size() == 14);
 		VERUS_RT_ASSERT(0 == v[0] && 3 == v[1] && 1 == v[2]); // First triangle is CCW.
 	}

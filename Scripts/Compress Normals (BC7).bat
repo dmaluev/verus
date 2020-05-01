@@ -1,0 +1,1 @@
+"C:\Home\Projects\Verus\verus\Bin\TextureTool.exe" --normal-map %1

@@ -15,6 +15,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VulkanShaderCompiler", "Vul
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PAKBuilder", "PAKBuilder\PAKBuilder.vcxproj", "{EBF1E2F9-65AA-419D-A3D3-AD66EB086E57}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TextureTool", "TextureTool\TextureTool.vcxproj", "{5A1A3E76-7F69-48B6-B1E3-F6BB281B7E73}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -45,6 +47,10 @@ Global
 		{EBF1E2F9-65AA-419D-A3D3-AD66EB086E57}.Debug|x64.Build.0 = Debug|x64
 		{EBF1E2F9-65AA-419D-A3D3-AD66EB086E57}.Release|x64.ActiveCfg = Release|x64
 		{EBF1E2F9-65AA-419D-A3D3-AD66EB086E57}.Release|x64.Build.0 = Release|x64
+		{5A1A3E76-7F69-48B6-B1E3-F6BB281B7E73}.Debug|x64.ActiveCfg = Debug|x64
+		{5A1A3E76-7F69-48B6-B1E3-F6BB281B7E73}.Debug|x64.Build.0 = Debug|x64
+		{5A1A3E76-7F69-48B6-B1E3-F6BB281B7E73}.Release|x64.ActiveCfg = Release|x64
+		{5A1A3E76-7F69-48B6-B1E3-F6BB281B7E73}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

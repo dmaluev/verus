@@ -28,8 +28,10 @@ void BaseTexture::LoadDDS(CSZ url, int texturePart)
 	IO::Async::I().Load(url, this, IO::Async::TaskDesc(false, false, texturePart));
 }
 
-void BaseTexture::LoadDDS(RcBlob blob)
+void BaseTexture::LoadDDS(CSZ url, RcBlob blob)
 {
+	_name = url;
+
 	int offset = sizeof(IO::DDSHeader);
 	IO::DDSHeader header;
 	memcpy(&header, blob._p, sizeof(header));
@@ -70,6 +72,7 @@ void BaseTexture::LoadDDS(RcBlob blob)
 		desc._width = header._width >> lod;
 		desc._height = header._height >> lod;
 		desc._mipLevels = header._mipMapCount - lod;
+		desc._pSamplerDesc = _desc._pSamplerDesc;
 
 		Init(desc);
 
@@ -97,6 +100,7 @@ void BaseTexture::LoadDDS(RcBlob blob)
 			desc._width = header._width;
 			desc._height = header._height;
 			desc._mipLevels = header._mipMapCount;
+			desc._pSamplerDesc = _desc._pSamplerDesc;
 
 			Init(desc);
 
@@ -118,6 +122,7 @@ void BaseTexture::LoadDDS(RcBlob blob)
 			desc._width = header._width;
 			desc._height = header._height;
 			desc._mipLevels = header._mipMapCount;
+			desc._pSamplerDesc = _desc._pSamplerDesc;
 
 			Init(desc);
 
@@ -151,6 +156,7 @@ void BaseTexture::LoadDDS(RcBlob blob)
 			desc._width = header._width;
 			desc._height = header._height;
 			desc._mipLevels = header._mipMapCount;
+			desc._pSamplerDesc = _desc._pSamplerDesc;
 
 			Init(desc);
 
@@ -202,10 +208,17 @@ void BaseTexture::LoadDDSArray(CSZ* urls)
 		const BYTE* pData = vData.data();
 		const size_t size = vData.size();
 
+		int offset = sizeof(IO::DDSHeader);
 		IO::DDSHeader header;
 		memcpy(&header, pData, sizeof(header));
 		if (!header.Validate())
 			throw VERUS_RUNTIME_ERROR << "Invalid DDS header: " << _name;
+		IO::DDSHeaderDXT10 header10;
+		if (header.IsDXT10())
+		{
+			memcpy(&header10, pData + offset, sizeof(header10));
+			offset += sizeof(IO::DDSHeaderDXT10);
+		}
 
 		VERUS_QREF_CONST_SETTINGS;
 
@@ -240,9 +253,12 @@ void BaseTexture::LoadDDSArray(CSZ* urls)
 				desc._format = SelectFormat(Format::unormBC2, Format::srgbBC2);
 			else if (header.IsBC3())
 				desc._format = SelectFormat(Format::unormBC3, Format::srgbBC3);
+			else if (header10.IsBC7())
+				desc._format = SelectFormat(Format::unormBC7, Format::srgbBC7);
 			desc._width = w;
 			desc._height = h;
 			desc._mipLevels = header._mipMapCount - lod;
+			desc._pSamplerDesc = _desc._pSamplerDesc;
 
 			if (init)
 			{
@@ -250,7 +266,6 @@ void BaseTexture::LoadDDSArray(CSZ* urls)
 				Init(desc);
 			}
 
-			int offset = sizeof(header);
 			VERUS_U_FOR(i, header._mipMapCount)
 			{
 				UINT32 w = header._width >> i;
@@ -274,7 +289,7 @@ void BaseTexture::LoadDDSArray(CSZ* urls)
 
 void BaseTexture::Async_Run(CSZ url, RcBlob blob)
 {
-	LoadDDS(blob);
+	LoadDDS(url, blob);
 }
 
 int BaseTexture::FormatToBytesPerPixel(Format format)
@@ -307,6 +322,20 @@ int BaseTexture::FormatToBytesPerPixel(Format format)
 	return 0;
 }
 
+bool BaseTexture::IsSRGBFormat(Format format)
+{
+	switch (format)
+	{
+	case Format::srgbR8G8B8A8: return true;
+	case Format::srgbB8G8R8A8: return true;
+	case Format::srgbBC1:      return true;
+	case Format::srgbBC2:      return true;
+	case Format::srgbBC3:      return true;
+	case Format::srgbBC7:      return true;
+	}
+	return false;
+}
+
 bool BaseTexture::IsBC(Format format)
 {
 	return format >= Format::unormBC1 && format <= Format::srgbBC7;
@@ -329,11 +358,12 @@ void TexturePtr::Init(RcTextureDesc desc)
 	VERUS_QREF_RENDERER;
 	VERUS_RT_ASSERT(!_p);
 	_p = renderer->InsertTexture();
+	_p->SetSamplerDesc(desc._pSamplerDesc);
 	if (desc._flags & TextureDesc::Flags::sync)
 	{
-		Vector<BYTE> v;
-		IO::FileSystem::LoadResource(desc._url, v);
-		_p->LoadDDS(Blob(v.data(), v.size()));
+		Vector<BYTE> vData;
+		IO::FileSystem::LoadResource(desc._url, vData);
+		_p->LoadDDS(desc._url, Blob(vData.data(), vData.size()));
 	}
 	else
 	{

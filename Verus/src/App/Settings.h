@@ -7,7 +7,7 @@ namespace verus
 		class Limits
 		{
 		public:
-			int _d3d12_dhCbvSrvUavCapacity = 10000;
+			int _d3d12_dhViewsCapacity = 10000;
 			int _d3d12_dhSamplersCapacity = 500;
 			int _mesh_ubPerFrameCapacity = 100;
 			int _mesh_ubPerMaterialFSCapacity = 1000;
@@ -64,6 +64,7 @@ namespace verus
 			int           _gapi = 0;
 			int           _gpuAnisotropyLevel = 4;
 			int           _gpuAntialiasingLevel = 0;
+			bool          _gpuTessellation = true;
 			int	          _gpuTextureLodLevel = 0;
 			bool          _gpuTrilinearFilter = false;
 			float         _inputMouseSensitivity = 1;

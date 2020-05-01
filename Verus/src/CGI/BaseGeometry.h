@@ -8,10 +8,10 @@ namespace verus
 
 		struct GeometryDesc
 		{
-			PcInputElementDesc _pInputElementDesc;
+			PcVertexInputAttrDesc _pVertexInputAttrDesc;
 			const int* _pStrides = nullptr;
-			UINT32             _dynBindingsMask = 0;
-			bool               _32BitIndices = false;
+			UINT32                _dynBindingsMask = 0;
+			bool                  _32BitIndices = false;
 		};
 		VERUS_TYPEDEFS(GeometryDesc);
 
@@ -35,8 +35,8 @@ namespace verus
 			virtual void CreateIndexBuffer(int count) = 0;
 			virtual void UpdateIndexBuffer(const void* p, BaseCommandBuffer* pCB = nullptr) = 0;
 
-			static int GetInputElementDescCount(PcInputElementDesc p);
-			static int GetBindingCount(PcInputElementDesc p);
+			static int GetVertexInputAttrDescCount(PcVertexInputAttrDesc p);
+			static int GetBindingCount(PcVertexInputAttrDesc p);
 
 			bool Has32BitIndices() const { return _32BitIndices; }
 		};

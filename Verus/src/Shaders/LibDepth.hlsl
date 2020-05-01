@@ -13,9 +13,10 @@ float4 ToLinearDepth(float4 d, float4 zNearFarEx)
 	return zNearFarEx.w / (d - zNearFarEx.z);
 }
 
-float ComputeFog(float depth, float density)
+float ComputeFog(float depth, float density, float height = 0.0)
 {
-	const float fog = 1.0 / exp(depth * density);
+	const float strength = 1.0 - saturate(height * 0.003);
+	const float fog = 1.0 / exp(depth * lerp(0.0, density, strength * strength));
 	return 1.0 - saturate(fog);
 }
 
@@ -76,9 +77,10 @@ float PCF(
 	if (dzBlockers_blockerCount.y > 0.0)
 	{
 		const float penumbraScale = config.x;
+		const float penumbraContrastMask = config.y;
 		const float dzBlockers = dzBlockers_blockerCount.x / dzBlockers_blockerCount.y;
 		const float penumbra = saturate(dzFrag - dzBlockers);
-		const float contrast = 1.0 + max(0.0, 3.0 - penumbra * penumbraScale);
+		const float contrast = 1.0 + max(0.0, 3.0 - penumbra * penumbraScale) * penumbraContrastMask;
 		return saturate((ret - 0.5) * contrast + 0.5);
 	}
 	else
@@ -122,7 +124,7 @@ float ShadowMapCSM(
 	float ret = 1.0;
 	const float4 p = float4(pos.xyz, 1);
 	float contrast = 1.0;
-	const float contrastScale = 2.8;
+	const float contrastScale = config.w;
 
 	if (pos.w > ranges.x)
 	{

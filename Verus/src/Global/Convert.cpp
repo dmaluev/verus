@@ -71,16 +71,31 @@ UINT16 Convert::Uint8x4ToUint4x4(UINT32 in)
 	return (x[0] << 12) | (x[1] << 8) | (x[2] << 4) | (x[3]);
 }
 
-UINT32 Convert::Uint4x4ToUint8x4(UINT16 in)
+UINT32 Convert::Uint4x4ToUint8x4(UINT16 in, bool scaleTo255)
 {
 	int x[4] =
 	{
-		(in >> 12) & 0xF,
-		(in >> 8) & 0xF,
-		(in >> 4) & 0xF,
-		(in >> 0) & 0xF
+		((in >> 12) & 0xF) << 4,
+		((in >> 8) & 0xF) << 4,
+		((in >> 4) & 0xF) << 4,
+		((in >> 0) & 0xF) << 4
 	};
-	return (x[0] << 28) | (x[1] << 20) | (x[2] << 12) | (x[3] << 4);
+	if (scaleTo255)
+	{
+		VERUS_FOR(i, 4)
+			x[i] = x[i] * 255 / 0xF0;
+	}
+	return (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | (x[3] << 0);
+}
+
+float Convert::SRGBToLinear(float color)
+{
+	return color < 0.04045f ? color * (1 / 12.92f) : pow((color + 0.055f) * (1 / 1.055f), 2.4f);
+}
+
+float Convert::LinearToSRGB(float color)
+{
+	return color < 0.0031308f ? 12.92f * color : 1.055f * pow(color, 1 / 2.4f) - 0.055f;
 }
 
 UINT32 Convert::Color16To32(UINT16 in)
@@ -93,20 +108,35 @@ UINT32 Convert::Color16To32(UINT16 in)
 
 void Convert::ColorInt32ToFloat(UINT32 in, float* out, bool sRGB)
 {
-	const float gamma = sRGB ? 2.2f : 1.f;
-	out[0] = pow(float(int((in >> 0) & 0xFF))* (1 / 255.f), gamma);
-	out[1] = pow(float(int((in >> 8) & 0xFF))* (1 / 255.f), gamma);
-	out[2] = pow(float(int((in >> 16) & 0xFF))* (1 / 255.f), gamma);
-	out[3] = float(int((in >> 24) & 0xFF))* (1 / 255.f);
+	out[0] = ((in >> 0) & 0xFF) * (1 / 255.f);
+	out[1] = ((in >> 8) & 0xFF) * (1 / 255.f);
+	out[2] = ((in >> 16) & 0xFF) * (1 / 255.f);
+	out[3] = ((in >> 24) & 0xFF) * (1 / 255.f);
+	if (sRGB)
+	{
+		out[0] = SRGBToLinear(out[0]);
+		out[1] = SRGBToLinear(out[1]);
+		out[2] = SRGBToLinear(out[2]);
+	}
 }
 
 UINT32 Convert::ColorFloatToInt32(const float* in, bool sRGB)
 {
-	const float gamma = sRGB ? 1 / 2.2f : 1.f;
-	const int r = Math::Clamp(int(pow(in[0], gamma) * 255.5f), 0, 255);
-	const int g = Math::Clamp(int(pow(in[1], gamma) * 255.5f), 0, 255);
-	const int b = Math::Clamp(int(pow(in[2], gamma) * 255.5f), 0, 255);
-	const int a = Math::Clamp(int(in[3] * 255.5f), 0, 255);
+	float out[4];
+	out[0] = in[0];
+	out[1] = in[1];
+	out[2] = in[2];
+	out[3] = in[3];
+	if (sRGB)
+	{
+		out[0] = LinearToSRGB(out[0]);
+		out[1] = LinearToSRGB(out[1]);
+		out[2] = LinearToSRGB(out[2]);
+	}
+	const int r = Math::Clamp(static_cast<int>(out[0] * 255 + 0.5f), 0, 255);
+	const int g = Math::Clamp(static_cast<int>(out[1] * 255 + 0.5f), 0, 255);
+	const int b = Math::Clamp(static_cast<int>(out[2] * 255 + 0.5f), 0, 255);
+	const int a = Math::Clamp(static_cast<int>(out[3] * 255 + 0.5f), 0, 255);
 	return VERUS_COLOR_RGBA(r, g, b, a);
 }
 
@@ -140,11 +170,16 @@ void Convert::ColorTextToFloat4(CSZ sz, float* out, bool sRGB)
 		if (3 == count)
 			color[3] = 255;
 	}
-	const float gamma = sRGB ? 2.2f : 1.f;
-	out[0] = pow(float(color[0]) * (1 / 255.f), gamma);
-	out[1] = pow(float(color[1]) * (1 / 255.f), gamma);
-	out[2] = pow(float(color[2]) * (1 / 255.f), gamma);
-	out[3] = float(color[3]) * (1 / 255.f);
+	out[0] = color[0] * (1 / 255.f);
+	out[1] = color[1] * (1 / 255.f);
+	out[2] = color[2] * (1 / 255.f);
+	out[3] = color[3] * (1 / 255.f);
+	if (sRGB)
+	{
+		out[0] = SRGBToLinear(out[0]);
+		out[1] = SRGBToLinear(out[1]);
+		out[2] = SRGBToLinear(out[2]);
+	}
 }
 
 UINT32 Convert::ColorTextToInt32(CSZ sz)
@@ -321,6 +356,8 @@ String Convert::ToMd5String(const Vector<BYTE>& vBin)
 
 void Convert::Test()
 {
+	const float e = 1e-6f;
+
 	BYTE dataUint8[] = { 0, 127, 255 };
 	UINT16 dataUint16[] = { 0, 127, 65535, 65534 };
 	char dataSint8[] = { 64, -127, -128 };
@@ -335,6 +372,32 @@ void Convert::Test()
 	SnormToSint8(dataFloat, dataSint8, 3);
 	Sint16ToSnorm(dataSint16, dataFloat, 4);
 	SnormToSint16(dataFloat, dataSint16, 4);
+
+	BYTE colorIn[20];
+	VERUS_FOR(i, 16)
+		colorIn[i] = i;
+	colorIn[16] = 64;
+	colorIn[17] = 128;
+	colorIn[18] = 192;
+	colorIn[19] = 255;
+	float colorOut[20];
+	VERUS_FOR(i, 20)
+		colorOut[i] = SRGBToLinear(colorIn[i] * (1 / 255.f));
+	BYTE colorTest[20];
+	VERUS_FOR(i, 20)
+		colorTest[i] = static_cast<BYTE>(LinearToSRGB(colorOut[i]) * 255 + 0.5f);
+	VERUS_FOR(i, 20)
+	{
+		if (i < 19)
+		{
+			const float d = colorOut[i + 1] - colorOut[i];
+			if (i < 10)
+				VERUS_RT_ASSERT(glm::epsilonEqual(d, colorOut[1], e));
+			else
+				VERUS_RT_ASSERT(glm::epsilonNotEqual(d, colorOut[1], e));
+		}
+		VERUS_RT_ASSERT(colorIn[i] == colorTest[i]);
+	}
 
 	Vector<BYTE> vBin;
 	vBin.resize(16);

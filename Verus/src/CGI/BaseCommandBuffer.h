@@ -7,6 +7,8 @@ namespace verus
 		class BaseCommandBuffer : public Object, public Scheduled
 		{
 		protected:
+			Vector4 _viewportSize = Vector4(0);
+
 			BaseCommandBuffer() = default;
 			virtual ~BaseCommandBuffer() = default;
 
@@ -17,7 +19,7 @@ namespace verus
 			virtual void Begin() = 0;
 			virtual void End() = 0;
 
-			virtual void BeginRenderPass(int renderPassHandle, int framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor = true) = 0;
+			virtual void BeginRenderPass(RPHandle renderPassHandle, FBHandle framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor = true) = 0;
 			virtual void NextSubpass() = 0;
 			virtual void EndRenderPass() = 0;
 
@@ -29,7 +31,7 @@ namespace verus
 			virtual void SetScissor(std::initializer_list<Vector4> il) = 0;
 			virtual void SetBlendConstants(const float* p) = 0;
 
-			virtual bool BindDescriptors(ShaderPtr shader, int setNumber, int complexSetHandle = -1) = 0;
+			virtual bool BindDescriptors(ShaderPtr shader, int setNumber, CSHandle complexSetHandle = CSHandle()) = 0;
 			virtual void PushConstants(ShaderPtr shader, int offset, int size, const void* p, ShaderStageFlags stageFlags = ShaderStageFlags::vs_fs) = 0;
 
 			virtual void PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout,
@@ -39,6 +41,8 @@ namespace verus
 			virtual void DrawIndexed(int indexCount, int instanceCount = 1, int firstIndex = 0, int vertexOffset = 0, int firstInstance = 0) = 0;
 
 			virtual void Dispatch(int groupCountX, int groupCountY, int groupCountZ = 1) = 0;
+
+			RcVector4 GetViewportSize() const { return _viewportSize; }
 		};
 		VERUS_TYPEDEFS(BaseCommandBuffer);
 

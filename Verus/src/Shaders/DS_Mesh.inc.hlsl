@@ -3,8 +3,9 @@
 VERUS_UBUFFER UB_PerFrame
 {
 	mataff _matV;
-	matrix _matP;
 	matrix _matVP;
+	matrix _matP;
+	float4 _viewportSize;
 };
 
 VERUS_UBUFFER UB_PerMaterialFS

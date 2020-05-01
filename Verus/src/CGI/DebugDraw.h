@@ -16,7 +16,7 @@ namespace verus
 				PIPE_LINES_NO_Z,
 				PIPE_POLY,
 				PIPE_POLY_NO_Z,
-				PIPE_MAX
+				PIPE_COUNT
 			};
 
 		public:
@@ -36,16 +36,16 @@ namespace verus
 
 			static UB_DebugDraw s_ubDebugDraw;
 
-			GeometryPwn            _geo;
-			ShaderPwn              _shader;
-			PipelinePwns<PIPE_MAX> _pipe;
-			Vector<Vertex>         _vDynamicBuffer;
-			UINT64                 _currentFrame = UINT64_MAX;
-			const int              _maxVerts = 0x10000;
-			int                    _vertCount = 0;
-			int                    _offset = 0;
-			int                    _peakLoad = 0;
-			Type                   _type = Type::points;
+			GeometryPwn              _geo;
+			ShaderPwn                _shader;
+			PipelinePwns<PIPE_COUNT> _pipe;
+			Vector<Vertex>           _vDynamicBuffer;
+			UINT64                   _currentFrame = UINT64_MAX;
+			const int                _maxVerts = 0x10000;
+			int                      _vertCount = 0;
+			int                      _offset = 0;
+			int                      _peakLoad = 0;
+			Type                     _type = Type::points;
 
 		public:
 			DebugDraw();

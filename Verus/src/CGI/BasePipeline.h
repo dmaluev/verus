@@ -14,7 +14,7 @@ namespace verus
 			PipelineRasterizationState _rasterizationState;
 			PrimitiveTopology          _topology = PrimitiveTopology::triangleList;
 			int                        _sampleCount = 1;
-			int                        _renderPassHandle = -1;
+			RPHandle                   _renderPassHandle;
 			int                        _subpass = 0;
 			int                        _multiViewport = 1; // See SV_ViewportArrayIndex semantic output by a geometry shader.
 			UINT32                     _vertexInputBindingsFilter = UINT32_MAX;
@@ -26,7 +26,7 @@ namespace verus
 			bool                       _compute = false; // Compute pipeline, use PipelineDesc(ShaderPtr, CSZ) to set this to true.
 
 			// What to draw (geo)? How to draw (shader)? Where to draw (render pass)?
-			PipelineDesc(GeometryPtr geo, ShaderPtr shader, CSZ branch, int renderPassHandle, int subpass = 0) :
+			PipelineDesc(GeometryPtr geo, ShaderPtr shader, CSZ branch, RPHandle renderPassHandle, int subpass = 0) :
 				_geometry(geo), _shader(shader), _shaderBranch(branch), _renderPassHandle(renderPassHandle), _subpass(subpass)
 			{
 				_colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;

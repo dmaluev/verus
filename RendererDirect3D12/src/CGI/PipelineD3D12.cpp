@@ -51,11 +51,12 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsDesc = {};
 	gpsDesc.pRootSignature = _pRootSignature;
-	gpsDesc.VS = ToBytecode(shader.GetD3DBlob(desc._shaderBranch, BaseShader::Stage::vs));
-	gpsDesc.PS = ToBytecode(shader.GetD3DBlob(desc._shaderBranch, BaseShader::Stage::fs));
-	gpsDesc.DS = ToBytecode(shader.GetD3DBlob(desc._shaderBranch, BaseShader::Stage::ds));
-	gpsDesc.HS = ToBytecode(shader.GetD3DBlob(desc._shaderBranch, BaseShader::Stage::hs));
-	gpsDesc.GS = ToBytecode(shader.GetD3DBlob(desc._shaderBranch, BaseShader::Stage::gs));
+	ShaderD3D12::RcCompiled compiled = shader.GetCompiled(desc._shaderBranch);
+	gpsDesc.VS = ToBytecode(compiled._pBlobs[+BaseShader::Stage::vs].Get());
+	gpsDesc.PS = ToBytecode(compiled._pBlobs[+BaseShader::Stage::fs].Get());
+	gpsDesc.DS = ToBytecode(compiled._pBlobs[+BaseShader::Stage::ds].Get());
+	gpsDesc.HS = ToBytecode(compiled._pBlobs[+BaseShader::Stage::hs].Get());
+	gpsDesc.GS = ToBytecode(compiled._pBlobs[+BaseShader::Stage::gs].Get());
 	gpsDesc.StreamOutput = {};
 
 	gpsDesc.BlendState = {};
@@ -141,7 +142,7 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 	gpsDesc.RasterizerState.SlopeScaledDepthBias = desc._rasterizationState._depthBiasSlopeFactor;
 	gpsDesc.RasterizerState.DepthClipEnable = desc._rasterizationState._depthClampEnable;
 	gpsDesc.RasterizerState.MultisampleEnable = FALSE;
-	gpsDesc.RasterizerState.AntialiasedLineEnable = TRUE;
+	gpsDesc.RasterizerState.AntialiasedLineEnable = (desc._colorAttachBlendEqs[0] == VERUS_COLOR_BLEND_ALPHA) ? TRUE : FALSE;
 	gpsDesc.RasterizerState.ForcedSampleCount = 0;
 	gpsDesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
@@ -200,7 +201,8 @@ void PipelineD3D12::InitCompute(RcPipelineDesc desc)
 
 	D3D12_COMPUTE_PIPELINE_STATE_DESC cpsDesc = {};
 	cpsDesc.pRootSignature = _pRootSignature;
-	cpsDesc.CS = ToBytecode(shader.GetD3DBlob(desc._shaderBranch, BaseShader::Stage::cs));
+	ShaderD3D12::RcCompiled compiled = shader.GetCompiled(desc._shaderBranch);
+	cpsDesc.CS = ToBytecode(compiled._pBlobs[+BaseShader::Stage::cs].Get());
 	cpsDesc.NodeMask = 0;
 	cpsDesc.CachedPSO = { nullptr, 0 };
 	cpsDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;

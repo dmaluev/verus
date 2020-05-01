@@ -3,6 +3,8 @@
 #include "Lib.hlsl"
 #include "LibColor.hlsl"
 #include "LibDeferredShading.hlsl"
+#include "LibSurface.hlsl"
+#include "LibTessellation.hlsl"
 #include "LibVertex.hlsl"
 #include "DS_Mesh.inc.hlsl"
 
@@ -17,8 +19,10 @@ Texture2D    g_texAlbedo : register(t1, space1);
 SamplerState g_samAlbedo : register(s1, space1);
 Texture2D    g_texNormal : register(t2, space1);
 SamplerState g_samNormal : register(s2, space1);
-//Texture2D    g_texDetail : register(t3, space1);
-//SamplerState g_samDetail : register(s3, space1);
+Texture2D    g_texDetail : register(t3, space1);
+SamplerState g_samDetail : register(s3, space1);
+Texture2D    g_texStrass : register(t4, space1);
+SamplerState g_samStrass : register(s4, space1);
 
 struct VSI
 {
@@ -28,32 +32,32 @@ struct VSI
 	VK_LOCATION(8)       int4 tc0   : TEXCOORD0;
 	// Binding 1:
 #ifdef DEF_SKINNED
-	VK_LOCATION(12)      int4 bw : TEXCOORD4;
-	VK_LOCATION(13)      int4 bi : TEXCOORD5;
+	VK_LOCATION_BLENDWEIGHTS int4 bw : BLENDWEIGHTS;
+	VK_LOCATION_BLENDINDICES int4 bi : BLENDINDICES;
 #endif
 	// Binding 2:
-	VK_LOCATION(14)      float4 tan : TEXCOORD6;
-	VK_LOCATION(15)      float4 bin : TEXCOORD7;
+	VK_LOCATION_TANGENT  float4 tan : TANGENT;
+	VK_LOCATION_BINORMAL float4 bin : BINORMAL;
 	// Binding 3:
 #if 0
-	VK_LOCATION(9)       int4 tc1     : TEXCOORD1;
-	VK_LOCATION_COLOR0   float4 color : COLOR0;
+	VK_LOCATION(9)     int4 tc1     : TEXCOORD1;
+	VK_LOCATION_COLOR0 float4 color : COLOR0;
 #endif
-
 	_PER_INSTANCE_DATA
 };
 
 struct VSO
 {
-	float4 pos : SV_Position;
-	float2 tc0 : TEXCOORD0;
-#ifndef DEF_DEPTH
-	float4 matTBN0 : TEXCOORD2;
-	float4 matTBN1 : TEXCOORD3;
-	float4 matTBN2 : TEXCOORD4;
-	float4 color0 : COLOR0;
+	float4 pos     : SV_Position;
+	float2 tc0     : TEXCOORD0;
+#if !defined(DEF_DEPTH)
+	float4 color0  : COLOR0;
+#if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
+	float4 matTBN0 : TEXCOORD1;
+	float4 matTBN1 : TEXCOORD2;
+	float4 matTBN2 : TEXCOORD3;
 #endif
-	float2 depth : TEXCOORD6;
+#endif
 };
 
 #ifdef _VS
@@ -142,15 +146,76 @@ VSO mainVS(VSI si)
 #endif
 	}
 
-	so.pos = mul(float4(posW, 1), g_ubPerFrame._matVP);
+	so.pos = MulTessPos(float4(posW, 1), g_ubPerFrame._matV, g_ubPerFrame._matVP);
 	so.tc0 = intactTc0;
-#ifndef DEF_DEPTH
+#if !defined(DEF_DEPTH)
+	so.color0 = userColor;
+#if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
 	so.matTBN0 = float4(tanWV, posW.x);
 	so.matTBN1 = float4(binWV, posW.y);
 	so.matTBN2 = float4(nrmWV, posW.z);
-	so.color0 = userColor;
 #endif
-	so.depth = so.pos.zw;
+#endif
+
+	return so;
+}
+#endif
+
+_HSO_STRUCT;
+
+#ifdef _HS
+PCFO PatchConstFunc(const OutputPatch<HSO, 3> outputPatch)
+{
+	PCFO so;
+	_HS_PCF_BODY(g_ubPerFrame._matP);
+	return so;
+}
+
+[domain("tri")]
+//[maxtessfactor(7.0)]
+[outputcontrolpoints(3)]
+[outputtopology("triangle_cw")]
+[partitioning(_PARTITION_METHOD)]
+[patchconstantfunc("PatchConstFunc")]
+HSO mainHS(InputPatch<VSO, 3> inputPatch, uint id : SV_OutputControlPointID)
+{
+	HSO so;
+
+	_HS_PN_BODY(matTBN2, g_ubPerFrame._matP, g_ubPerFrame._viewportSize);
+
+	_HS_COPY(pos);
+	_HS_COPY(tc0);
+#if !defined(DEF_DEPTH)
+	_HS_COPY(color0);
+#if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
+	_HS_COPY(matTBN0);
+	_HS_COPY(matTBN1);
+	_HS_COPY(matTBN2);
+#endif
+#endif
+
+	return so;
+}
+#endif
+
+#ifdef _DS
+[domain("tri")]
+VSO mainDS(_IN_DS)
+{
+	VSO so;
+
+	_DS_INIT_SMOOTH_POS;
+
+	so.pos = ApplyProjection(smoothPosWV, g_ubPerFrame._matP);
+	_DS_COPY(tc0);
+#if !defined(DEF_DEPTH)
+	_DS_COPY(color0);
+#if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
+	_DS_COPY(matTBN0);
+	_DS_COPY(matTBN1);
+	_DS_COPY(matTBN2);
+#endif
+#endif
 
 	return so;
 }
@@ -170,13 +235,8 @@ DS_FSO mainFS(VSO si)
 {
 	DS_FSO so;
 
-#ifdef DEF_SOLID
-	DS_Reset(so);
-	DS_SetAlbedo(so, si.color0.rgb);
-	DS_SetDepth(so, si.depth.x / si.depth.y);
-	DS_SetNormal(so, float3(0, 0, 1));
-	DS_SetEmission(so, 1.0, 0.0);
-	DS_SetMetallicity(so, 1.0, 0.0);
+#ifdef DEF_SOLID_COLOR
+	DS_SolidColor(so, si.color0.rgb);
 #else
 	_TBN_SPACE(
 		si.matTBN0.xyz,
@@ -185,11 +245,16 @@ DS_FSO mainFS(VSO si)
 	const float3 rand = Rand(si.pos.xy);
 
 	// <Albedo>
-	const float texAlbedoEnable = ceil(g_ubPerMaterialFS._texEnableAlbedo.a);
-	float4 rawAlbedo = g_texAlbedo.Sample(g_samAlbedo, si.tc0 * texAlbedoEnable);
-	rawAlbedo.rgb = lerp(g_ubPerMaterialFS._texEnableAlbedo.rgb, rawAlbedo.rgb, g_ubPerMaterialFS._texEnableAlbedo.a);
-	const float2 alpha_spec = AlphaSwitch(rawAlbedo, si.tc0, g_ubPerMaterialFS._ssb_as.zw);
+	float4 rawAlbedo;
+	{
+		const float texAlbedoEnable = ceil(g_ubPerMaterialFS._texEnableAlbedo.a);
+		rawAlbedo = g_texAlbedo.Sample(g_samAlbedo, si.tc0 * texAlbedoEnable);
+		rawAlbedo.rgb = lerp(g_ubPerMaterialFS._texEnableAlbedo.rgb, rawAlbedo.rgb, g_ubPerMaterialFS._texEnableAlbedo.a);
+	}
+	const float gray = Grayscale(rawAlbedo.rgb);
+	// </Albedo>
 
+	const float2 alpha_spec = AlphaSwitch(rawAlbedo, si.tc0, g_ubPerMaterialFS._ssb_as.zw);
 	const float emitAlpha = PickAlpha(rawAlbedo.rgb, g_ubPerMaterialFS._emitPick, 16.0);
 	const float emitXAlpha = PickAlpha(rawAlbedo.rgb, g_ubPerMaterialFS._emitXPick, 16.0);
 	const float eyeAlpha = PickAlphaRound(g_ubPerMaterialFS._eyePick, si.tc0);
@@ -199,61 +264,79 @@ DS_FSO mainFS(VSO si)
 	const float skinAlpha = PickAlpha(rawAlbedo.rgb, g_ubPerMaterialFS._skinPick, 16.0);
 	const float userAlpha = PickAlphaHue(rawAlbedo.rgb, g_ubPerMaterialFS._userPick, 32.0);
 
-	// Add details:
-#if 0
-	const float3 colorDetail = (g_texDetail.Sample(g_samDetail, frac(si.tc0 * g_ubPerMaterialFS._ds_scale.zw)).rgb - 0.5) *
-		g_ubPerMaterialFS._ds_scale.x + 0.5;
-	rawAlbedo.rgb = rawAlbedo.rgb * colorDetail * 2.0;
-#endif
-
-	const float gray = Grayscale(rawAlbedo.rgb);
 	rawAlbedo.rgb = lerp(rawAlbedo.rgb, Overlay(gray, si.color0.rgb), userAlpha * si.color0.a);
-	// </Albedo>
-
-	// <Normal>
-	const float texNormalEnable = ceil(g_ubPerMaterialFS._texEnableNormal.a);
-	float4 rawNormal = g_texNormal.Sample(g_samNormal, si.tc0 * texNormalEnable);
-	rawNormal = lerp(g_ubPerMaterialFS._texEnableNormal.rgbr, rawNormal, g_ubPerMaterialFS._texEnableNormal.a);
-	const float4 normalAA = NormalMapAA(rawNormal);
-	const float3 normalTBN = normalAA.xyz;
-	const float3 normalWV = normalize(mul(normalTBN, matFromTBN));
-
-	const float3 anisoWV = normalize(mul(cross(normalTBN, cross(g_ubPerMaterialFS._hairParams.xyz, normalTBN)), matFromTBN));
-	// Almost solid hair color is used for picking.
-	// Final albedo is calculated using specualar component.
 	const float3 hairAlbedo = Overlay(alpha_spec.y, Desaturate(rawAlbedo.rgb, hairAlpha * g_ubPerMaterialFS._hairParams.w));
-	// </Normal>
-
-	// <LambertianScaleBias>
-	float2 lamScaleBias = g_ubPerMaterialFS._lsb_gloss_lp.xy + float2(0, rawNormal.r * 8.0 * g_ubPerMaterialFS._lsb_gloss_lp.w);
-	lamScaleBias = lerp(lamScaleBias, float2(1, 0.45), skinAlpha);
-	// </LambertianScaleBias>
 
 	// <Gloss>
-	float gloss = lerp(g_ubPerMaterialFS._lsb_gloss_lp.z, g_ubPerMaterialFS._motionBlur_glossX.y, glossXAlpha);
+	//float gloss = lerp(g_ubPerMaterialFS._lsb_gloss_lp.z, g_ubPerMaterialFS._motionBlur_glossX.y, glossXAlpha);
+	float gloss = lerp(4.4, 16.0, alpha_spec.y);
 	gloss = lerp(gloss, 4.0 + alpha_spec.y, skinAlpha);
 	gloss = lerp(gloss, 0.0, eyeAlpha);
 	// </Gloss>
 
-	const float strass = 0.0;
+	// <Normal>
+	float3 normalWV;
+	float toksvigFactor;
+	float lightPassStrength;
+	float3 anisoWV;
+	{
+		const float texNormalEnable = ceil(g_ubPerMaterialFS._texEnableNormal.a);
+		float4 rawNormal = g_texNormal.Sample(g_samNormal, si.tc0 * texNormalEnable);
+		rawNormal = lerp(g_ubPerMaterialFS._texEnableNormal.rgbr, rawNormal, g_ubPerMaterialFS._texEnableNormal.a);
+		const float4 normalAA = NormalMapAA(rawNormal);
+		const float3 normalTBN = normalAA.xyz;
+		normalWV = normalize(mul(normalTBN, matFromTBN));
+		toksvigFactor = ComputeToksvigFactor(normalAA.a, gloss);
+		lightPassStrength = rawNormal.r;
+		anisoWV = normalize(mul(cross(normalTBN, cross(g_ubPerMaterialFS._hairParams.xyz, normalTBN)), matFromTBN));
+	}
+	// </Normal>
+
+	// <Detail>
+	{
+		const float3 rawDetail = g_texDetail.Sample(g_samDetail, si.tc0 * g_ubPerMaterialFS._ds_scale.zw).rgb;
+		rawAlbedo.rgb = rawAlbedo.rgb * lerp(0.5, rawDetail, g_ubPerMaterialFS._ds_scale.x) * 2.0;
+	}
+	// </Detail>
+
+	// <Strass>
+	float strass;
+	{
+		const float rawStrass = g_texStrass.Sample(g_samStrass, si.tc0 * g_ubPerMaterialFS._ds_scale.zw * 2.0).r;
+		strass = saturate(rawStrass * (0.3 + 0.7 * alpha_spec.y) * 4.0) * g_ubPerMaterialFS._ds_scale.y;
+	}
+	// </Strass>
+
+	// <LambertianScaleBias>
+	float2 lamScaleBias = g_ubPerMaterialFS._lsb_gloss_lp.xy + float2(0, lightPassStrength * 8.0 * g_ubPerMaterialFS._lsb_gloss_lp.w);
+	lamScaleBias += float2(-0.1, -0.3) * alpha_spec.y + float2(0.1, 0.2); // We bring the noise!
+	lamScaleBias = lerp(lamScaleBias, float2(1, 0.45), skinAlpha);
+	// </LambertianScaleBias>
 
 	// <RimAlbedo>
-	//const float rimA = lerp(0.3 + alpha_spec.y*0.3, 0.7, skinAlpha);
-	//const float3 rimAlbedo = saturate(rawAlbedo.rgb*rimA*2.0);
-	//const float rimAlbedoAmount = 1.0 - abs(normalWV.z);
-	//rawAlbedo.rgb = lerp(rawAlbedo.rgb, rimAlbedo, rimAlbedoAmount*rimAlbedoAmount);
+	{
+		const float3 newColor = saturate((rawAlbedo.rgb + gray) * 0.6);
+		const float mask = 1.0 - abs(normalWV.z);
+		rawAlbedo.rgb = lerp(rawAlbedo.rgb, newColor, mask * mask * (1.0 - alpha_spec.y));
+	}
 	// </RimAlbedo>
 
-	DS_Reset(so);
-	DS_SetAlbedo(so, lerp(rawAlbedo.rgb, hairAlbedo, hairAlpha));
-	DS_SetSpec(so, normalAA.w * max(eyeAlpha, max(strass,
-		alpha_spec.y * (1.0 + hairAlpha * 0.75) * g_ubPerMaterialFS._ssb_as.x + g_ubPerMaterialFS._ssb_as.y)));
-	DS_SetDepth(so, si.depth.x / si.depth.y);
-	DS_SetNormal(so, normalWV + NormalDither(rand));
-	DS_SetEmission(so, max(emitAlpha, emitXAlpha) * alpha_spec.y, skinAlpha);
-	DS_SetLamScaleBias(so, lamScaleBias, float4(anisoWV, hairAlpha));
-	DS_SetMetallicity(so, metalAlpha, hairAlpha);
-	DS_SetGloss(so, normalAA.w * gloss);
+	{
+		DS_Reset(so);
+
+		DS_SetAlbedo(so, lerp(rawAlbedo.rgb, hairAlbedo, hairAlpha));
+		DS_SetSpec(so, max(eyeAlpha, max(strass,
+			alpha_spec.y * (1.0 + hairAlpha * 0.75) * g_ubPerMaterialFS._ssb_as.x + g_ubPerMaterialFS._ssb_as.y)));
+
+		DS_SetNormal(so, normalWV + NormalDither(rand));
+		DS_SetEmission(so, max(emitAlpha, emitXAlpha) * alpha_spec.y, skinAlpha);
+
+		DS_SetLamScaleBias(so, lamScaleBias, float4(anisoWV, hairAlpha));
+		DS_SetMetallicity(so, metalAlpha, hairAlpha);
+		DS_SetGloss(so, gloss * lerp(toksvigFactor, 1.0, eyeAlpha));
+	}
+
+	clip(alpha_spec.x - 0.5);
 #endif
 
 	return so;
@@ -262,8 +345,19 @@ DS_FSO mainFS(VSO si)
 #endif
 
 //@main:#
-//@main:#DepthRobotic DEPTH ROBOTIC (V)
-//@main:#DepthSkinned DEPTH SKINNED (V)
-//@main:#Instanced    INSTANCED
-//@main:#Robotic      ROBOTIC
-//@main:#Skinned      SKINNED
+//@main:#Robotic           ROBOTIC
+//@main:#Skinned           SKINNED
+
+//@main:#Instanced         INSTANCED
+
+//@main:#Depth             DEPTH (V)
+//@main:#DepthRobotic      DEPTH ROBOTIC (V)
+//@main:#DepthSkinned      DEPTH SKINNED (V)
+
+//@main:#SolidColor        SOLID_COLOR
+//@main:#SolidColorRobotic SOLID_COLOR ROBOTIC
+//@main:#SolidColorSkinned SOLID_COLOR SKINNED
+
+//@main:#Tess              TESS (VHDF)
+//@main:#TessRobotic       TESS ROBOTIC (VHDF)
+//@main:#TessSkinned       TESS SKINNED (VHDF)

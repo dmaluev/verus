@@ -20,7 +20,7 @@ namespace verus
 			ComPtr<IDXGISwapChain4>           _pSwapChain;
 			Vector<ComPtr<ID3D12Resource>>    _vSwapChainBuffers;
 			DescriptorHeap                    _dhSwapChainBuffersRTVs;
-			DynamicDescriptorHeap             _dhCbvSrvUav;
+			DynamicDescriptorHeap             _dhViews;
 			DynamicDescriptorHeap             _dhSamplers;
 			TMapCommandAllocators             _mapCommandAllocators[s_ringBufferSize];
 			ComPtr<ID3D12Fence>               _pFence;
@@ -64,7 +64,7 @@ namespace verus
 			ID3D12CommandAllocator* GetD3DCommandAllocator(int ringBufferIndex) const { return _mapCommandAllocators[ringBufferIndex].at(std::this_thread::get_id()).Get(); }
 			D3D12_STATIC_SAMPLER_DESC GetStaticSamplerDesc(Sampler s) const;
 
-			virtual void ImGuiInit(int renderPassHandle) override;
+			virtual void ImGuiInit(RPHandle renderPassHandle) override;
 			virtual void ImGuiRenderDrawData() override;
 
 			virtual void ResizeSwapChain() override;
@@ -91,17 +91,17 @@ namespace verus
 			virtual void DeleteShader(PBaseShader p) override;
 			virtual void DeleteTexture(PBaseTexture p) override;
 
-			virtual int CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) override;
-			virtual int CreateFramebuffer(int renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex = -1) override;
-			virtual void DeleteRenderPass(int handle) override;
-			virtual void DeleteFramebuffer(int handle) override;
-			int GetNextRenderPassHandle() const;
-			int GetNextFramebufferHandle() const;
-			RP::RcD3DRenderPass GetRenderPass(int handle) const;
-			RP::RcD3DFramebuffer GetFramebuffer(int handle) const;
+			virtual RPHandle CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) override;
+			virtual FBHandle CreateFramebuffer(RPHandle renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex = -1) override;
+			virtual void DeleteRenderPass(RPHandle handle) override;
+			virtual void DeleteFramebuffer(FBHandle handle) override;
+			int GetNextRenderPassIndex() const;
+			int GetNextFramebufferIndex() const;
+			RP::RcD3DRenderPass GetRenderPass(RPHandle handle) const;
+			RP::RcD3DFramebuffer GetFramebuffer(FBHandle handle) const;
 
-			RDynamicDescriptorHeap GetHeapCbvSrvUav() { return _dhCbvSrvUav; }
-			RDynamicDescriptorHeap GetHeapSampler() { return _dhSamplers; }
+			RDynamicDescriptorHeap GetViewHeap() { return _dhViews; }
+			RDynamicDescriptorHeap GetSamplerHeap() { return _dhSamplers; }
 		};
 		VERUS_TYPEDEFS(RendererD3D12);
 	}

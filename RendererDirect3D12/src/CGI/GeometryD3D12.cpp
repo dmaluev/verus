@@ -20,11 +20,11 @@ void GeometryD3D12::Init(RcGeometryDesc desc)
 	_dynBindingsMask = desc._dynBindingsMask;
 	_32BitIndices = desc._32BitIndices;
 
-	_vInputElementDesc.reserve(GetInputElementDescCount(desc._pInputElementDesc));
+	_vInputElementDesc.reserve(GetVertexInputAttrDescCount(desc._pVertexInputAttrDesc));
 	int i = 0;
-	while (desc._pInputElementDesc[i]._offset >= 0)
+	while (desc._pVertexInputAttrDesc[i]._offset >= 0)
 	{
-		int binding = desc._pInputElementDesc[i]._binding;
+		int binding = desc._pVertexInputAttrDesc[i]._binding;
 		D3D12_INPUT_CLASSIFICATION inputClassification = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
 		UINT instanceDataStepRate = 0;
 		if (binding < 0)
@@ -36,11 +36,11 @@ void GeometryD3D12::Init(RcGeometryDesc desc)
 		}
 		D3D12_INPUT_ELEMENT_DESC ieDesc =
 		{
-			ToNativeSemanticName(desc._pInputElementDesc[i]._usage),
-			static_cast<UINT>(desc._pInputElementDesc[i]._usageIndex),
-			ToNativeFormat(desc._pInputElementDesc[i]._usage, desc._pInputElementDesc[i]._type, desc._pInputElementDesc[i]._components),
+			ToNativeSemanticName(desc._pVertexInputAttrDesc[i]._usage),
+			static_cast<UINT>(desc._pVertexInputAttrDesc[i]._usageIndex),
+			ToNativeFormat(desc._pVertexInputAttrDesc[i]._usage, desc._pVertexInputAttrDesc[i]._type, desc._pVertexInputAttrDesc[i]._components),
 			static_cast<UINT>(binding),
-			static_cast<UINT>(desc._pInputElementDesc[i]._offset),
+			static_cast<UINT>(desc._pVertexInputAttrDesc[i]._offset),
 			inputClassification,
 			instanceDataStepRate
 		};
@@ -48,7 +48,7 @@ void GeometryD3D12::Init(RcGeometryDesc desc)
 		i++;
 	}
 
-	_vStrides.reserve(GetBindingCount(desc._pInputElementDesc));
+	_vStrides.reserve(GetBindingCount(desc._pVertexInputAttrDesc));
 	i = 0;
 	while (desc._pStrides[i] > 0)
 	{

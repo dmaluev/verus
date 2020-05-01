@@ -16,8 +16,8 @@ RWTexture2D<float4> g_uavOutMip4 : register(u5, space0);
 
 struct CSI
 {
-	uint3 _DispatchThreadID : SV_DispatchThreadID;
-	uint  _GroupIndex       : SV_GroupIndex;
+	uint3 dispatchThreadID : SV_DispatchThreadID;
+	uint  groupIndex       : SV_GroupIndex;
 };
 
 #define THREAD_GROUP_SIZE 8
@@ -67,14 +67,14 @@ void mainCS(CSI si)
 	{
 	case DIM_CASE_WE_HE:
 	{
-		const float2 tc = g_ub._texelSize * (si._DispatchThreadID.xy + 0.5);
+		const float2 tc = g_ub._texelSize * (si.dispatchThreadID.xy + 0.5);
 
 		srcColor1 = g_texSrcMip.SampleLevel(g_samSrcMip, tc, g_ub._srcMipLevel);
 	}
 	break;
 	case DIM_CASE_WO_HE:
 	{
-		const float2 tc = g_ub._texelSize * (si._DispatchThreadID.xy + float2(0.25, 0.5));
+		const float2 tc = g_ub._texelSize * (si.dispatchThreadID.xy + float2(0.25, 0.5));
 		const float2 offset = g_ub._texelSize * float2(0.5, 0.0);
 
 		srcColor1 = lerp(
@@ -85,7 +85,7 @@ void mainCS(CSI si)
 	break;
 	case DIM_CASE_WE_HO:
 	{
-		const float2 tc = g_ub._texelSize * (si._DispatchThreadID.xy + float2(0.5, 0.25));
+		const float2 tc = g_ub._texelSize * (si.dispatchThreadID.xy + float2(0.5, 0.25));
 		const float2 offset = g_ub._texelSize * float2(0.0, 0.5);
 
 		srcColor1 = lerp(
@@ -96,7 +96,7 @@ void mainCS(CSI si)
 	break;
 	case DIM_CASE_WO_HO:
 	{
-		const float2 tc = g_ub._texelSize * (si._DispatchThreadID.xy + float2(0.25, 0.25));
+		const float2 tc = g_ub._texelSize * (si.dispatchThreadID.xy + float2(0.25, 0.25));
 		const float2 offset = g_ub._texelSize * 0.5;
 
 		srcColor1 = lerp(
@@ -112,24 +112,24 @@ void mainCS(CSI si)
 	break;
 	}
 
-	g_uavOutMip1[si._DispatchThreadID.xy] = PackColor(srcColor1);
+	g_uavOutMip1[si.dispatchThreadID.xy] = PackColor(srcColor1);
 
 	if (1 == g_ub._mipLevelCount)
 		return;
 
-	StoreColor(si._GroupIndex, srcColor1);
+	StoreColor(si.groupIndex, srcColor1);
 
 	GroupMemoryBarrierWithGroupSync();
 
-	if ((si._GroupIndex & 0x9) == 0) // 16 threads:
+	if ((si.groupIndex & 0x9) == 0) // 16 threads:
 	{
-		const float4 srcColor2 = LoadColor(si._GroupIndex + 0x01); // {+0, +1}
-		const float4 srcColor3 = LoadColor(si._GroupIndex + 0x08); // {+1, +0}
-		const float4 srcColor4 = LoadColor(si._GroupIndex + 0x09); // {+1, +1}
+		const float4 srcColor2 = LoadColor(si.groupIndex + 0x01); // {+0, +1}
+		const float4 srcColor3 = LoadColor(si.groupIndex + 0x08); // {+1, +0}
+		const float4 srcColor4 = LoadColor(si.groupIndex + 0x09); // {+1, +1}
 		srcColor1 = 0.25 * (srcColor1 + srcColor2 + srcColor3 + srcColor4);
 
-		g_uavOutMip2[si._DispatchThreadID.xy >> 1] = PackColor(srcColor1);
-		StoreColor(si._GroupIndex, srcColor1);
+		g_uavOutMip2[si.dispatchThreadID.xy >> 1] = PackColor(srcColor1);
+		StoreColor(si.groupIndex, srcColor1);
 	}
 
 	if (2 == g_ub._mipLevelCount)
@@ -137,15 +137,15 @@ void mainCS(CSI si)
 
 	GroupMemoryBarrierWithGroupSync();
 
-	if ((si._GroupIndex & 0x1B) == 0) // 4 threads:
+	if ((si.groupIndex & 0x1B) == 0) // 4 threads:
 	{
-		const float4 srcColor2 = LoadColor(si._GroupIndex + 0x02); // {+0, +2}
-		const float4 srcColor3 = LoadColor(si._GroupIndex + 0x10); // {+2, +0}
-		const float4 srcColor4 = LoadColor(si._GroupIndex + 0x12); // {+2, +2}
+		const float4 srcColor2 = LoadColor(si.groupIndex + 0x02); // {+0, +2}
+		const float4 srcColor3 = LoadColor(si.groupIndex + 0x10); // {+2, +0}
+		const float4 srcColor4 = LoadColor(si.groupIndex + 0x12); // {+2, +2}
 		srcColor1 = 0.25 * (srcColor1 + srcColor2 + srcColor3 + srcColor4);
 
-		g_uavOutMip3[si._DispatchThreadID.xy >> 2] = PackColor(srcColor1);
-		StoreColor(si._GroupIndex, srcColor1);
+		g_uavOutMip3[si.dispatchThreadID.xy >> 2] = PackColor(srcColor1);
+		StoreColor(si.groupIndex, srcColor1);
 	}
 
 	if (3 == g_ub._mipLevelCount)
@@ -153,14 +153,14 @@ void mainCS(CSI si)
 
 	GroupMemoryBarrierWithGroupSync();
 
-	if (si._GroupIndex == 0) // 1 thread:
+	if (si.groupIndex == 0) // 1 thread:
 	{
-		const float4 srcColor2 = LoadColor(si._GroupIndex + 0x04); // {+0, +4}
-		const float4 srcColor3 = LoadColor(si._GroupIndex + 0x20); // {+4, +0}
-		const float4 srcColor4 = LoadColor(si._GroupIndex + 0x24); // {+4, +4}
+		const float4 srcColor2 = LoadColor(si.groupIndex + 0x04); // {+0, +4}
+		const float4 srcColor3 = LoadColor(si.groupIndex + 0x20); // {+4, +0}
+		const float4 srcColor4 = LoadColor(si.groupIndex + 0x24); // {+4, +4}
 		srcColor1 = 0.25 * (srcColor1 + srcColor2 + srcColor3 + srcColor4);
 
-		g_uavOutMip4[si._DispatchThreadID.xy >> 3] = PackColor(srcColor1);
+		g_uavOutMip4[si.dispatchThreadID.xy >> 3] = PackColor(srcColor1);
 	}
 }
 #endif

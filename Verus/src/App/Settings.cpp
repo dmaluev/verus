@@ -25,6 +25,7 @@ void Settings::Load()
 	_gapi = GetI("gapi", _gapi);
 	_gpuAnisotropyLevel = GetI("gpuAnisotropyLevel", _gpuAnisotropyLevel);
 	_gpuAntialiasingLevel = GetI("gpuAntialiasingLevel", _gpuAntialiasingLevel);
+	_gpuTessellation = GetB("gpuTessellation", _gpuTessellation);
 	_gpuTextureLodLevel = GetI("gpuTextureLodLevel", _gpuTextureLodLevel);
 	_gpuTrilinearFilter = GetB("gpuTrilinearFilter", _gpuTrilinearFilter);
 	_inputMouseSensitivity = GetF("inputMouseSensitivity", _inputMouseSensitivity);
@@ -67,6 +68,7 @@ void Settings::Save()
 	Set("gapi", _gapi);
 	Set("gpuAnisotropyLevel", _gpuAnisotropyLevel);
 	Set("gpuAntialiasingLevel", _gpuAntialiasingLevel);
+	Set("gpuTessellation", _gpuTessellation);
 	Set("gpuTextureLodLevel", _gpuTextureLodLevel);
 	Set("gpuTrilinearFilter", _gpuTrilinearFilter);
 	Set("inputMouseSensitivity", _inputMouseSensitivity);

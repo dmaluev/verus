@@ -18,7 +18,7 @@ ConstantBuffer<UB_PerObject>  g_ubPerObject  : register(b0, space4);
 VK_SUBPASS_INPUT(0, g_texGBuffer0, g_samGBuffer0, t1, s1, space1);
 VK_SUBPASS_INPUT(1, g_texGBuffer1, g_samGBuffer1, t2, s2, space1);
 VK_SUBPASS_INPUT(2, g_texGBuffer2, g_samGBuffer2, t3, s3, space1);
-VK_SUBPASS_INPUT(3, g_texGBuffer3, g_samGBuffer3, t4, s4, space1);
+VK_SUBPASS_INPUT(3, g_texDepth, g_samDepth, t4, s4, space1);
 Texture2D              g_texShadowCmp : register(t5, space1);
 SamplerComparisonState g_samShadowCmp : register(s5, space1);
 Texture2D              g_texShadow    : register(t6, space1);
@@ -26,18 +26,16 @@ SamplerState           g_samShadow    : register(s6, space1);
 
 struct VSI
 {
-	// Binding 0:
 	VK_LOCATION_POSITION int4 pos   : POSITION;
 	VK_LOCATION_NORMAL   float3 nrm : NORMAL;
 	VK_LOCATION(8)       int4 tc0   : TEXCOORD0;
-
 	_PER_INSTANCE_DATA
 };
 
 struct VSO
 {
 	float4 pos							/**/ : SV_Position;
-	float4 posFS						/**/ : TEXCOORD0;
+	float4 clipSpacePos					/**/ : TEXCOORD0;
 #if defined(DEF_OMNI) || defined(DEF_SPOT)
 	float3 radius_radiusSq_invRadiusSq	/**/ : TEXCOORD1;
 	float3 lightPosWV					/**/ : TEXCOORD2;
@@ -55,8 +53,6 @@ struct VSO
 VSO mainVS(VSI si)
 {
 	VSO so;
-
-	const float3 intactPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMeshVS._posDeqScale.xyz, g_ubPerMeshVS._posDeqBias.xyz);
 
 	// World matrix, instance data:
 #ifdef DEF_INSTANCED
@@ -84,13 +80,15 @@ VSO mainVS(VSI si)
 	const float3x3 matV33 = (float3x3)g_ubPerFrame._matV;
 	const float3x3 matWV33 = (float3x3)matWV;
 
+	const float3 intactPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMeshVS._posDeqScale.xyz, g_ubPerMeshVS._posDeqBias.xyz);
+
 #ifdef DEF_DIR
 	so.pos = float4(mul(float4(intactPos, 1), g_ubPerFrame._matQuad), 1);
-	so.posFS = float4(intactPos, 1);
+	so.clipSpacePos = float4(intactPos, 1);
 #else
 	const float3 posW = mul(float4(intactPos, 1), matW);
 	so.pos = mul(float4(posW, 1), g_ubPerFrame._matVP);
-	so.posFS = so.pos;
+	so.clipSpacePos = so.pos;
 #endif
 
 	// <MoreLightParams>
@@ -128,15 +126,13 @@ DS_ACC_FSO mainFS(VSO si)
 {
 	DS_ACC_FSO so;
 
-	// Clip-space position:
 #ifdef DEF_DIR
-	const float3 posCS = si.posFS.xyz;
+	const float3 ndcPos = si.clipSpacePos.xyz;
 #else
-	const float3 posCS = si.posFS.xyz / si.posFS.w;
+	const float3 ndcPos = si.clipSpacePos.xyz / si.clipSpacePos.w;
 #endif
 
-	// GBuffer tex. coord. from posCS:
-	const float2 tc0 = mul(float4(posCS.xy, 0, 1), g_ubPerFrame._matToUV).xy;
+	const float2 tc0 = mul(float4(ndcPos.xy, 0, 1), g_ubPerFrame._matToUV).xy;
 
 	// For Omni & Spot: light's radius and position:
 #if defined(DEF_OMNI) || defined(DEF_SPOT)
@@ -163,8 +159,8 @@ DS_ACC_FSO mainFS(VSO si)
 #endif
 
 	// GBuffer1:
-	const float rawGBuffer1 = VK_SUBPASS_LOAD(g_texGBuffer1, g_samGBuffer1, tc0).r;
-	const float3 posWV = DS_GetPosition(rawGBuffer1, g_ubPerFrame._matInvP, posCS.xy);
+	const float depth = VK_SUBPASS_LOAD(g_texDepth, g_samDepth, tc0).r;
+	const float3 posWV = DS_GetPosition(depth, g_ubPerFrame._matInvP, ndcPos.xy);
 
 	so.target0 = 0.0;
 	so.target1 = 0.0;
@@ -174,35 +170,34 @@ DS_ACC_FSO mainFS(VSO si)
 #endif
 	{
 		// Light's diffuse & specular color:
-		const float3 colorDiff = si.color_coneOut.rgb;
-		const float3 colorSpec = saturate(colorDiff + dot(colorDiff, 0.1));
+		const float3 hdrLightColor = si.color_coneOut.rgb;
 
-		// GBuffer0 (color, spec):
+		// GBuffer0 (albedo, spec):
 		const float4 rawGBuffer0 = VK_SUBPASS_LOAD(g_texGBuffer0, g_samGBuffer0, tc0);
 		const float spec = rawGBuffer0.a;
 		const float3 dirToEyeWV = normalize(-posWV);
 
 		// GBuffer2 (normal, emission, motion):
-		const float4 rawGBuffer2 = VK_SUBPASS_LOAD(g_texGBuffer2, g_samGBuffer2, tc0);
-		const float3 normalWV = DS_GetNormal(rawGBuffer2);
-		const float2 emission = DS_GetEmission(rawGBuffer2);
+		const float4 rawGBuffer1 = VK_SUBPASS_LOAD(g_texGBuffer1, g_samGBuffer1, tc0);
+		const float3 normalWV = DS_GetNormal(rawGBuffer1);
+		const float2 emission = DS_GetEmission(rawGBuffer1);
 
 		// GBuffer3 (lam, metal, gloss):
-		const float4 rawGBuffer3 = VK_SUBPASS_LOAD(g_texGBuffer3, g_samGBuffer3, tc0);
-		const float3 anisoWV = DS_GetAnisoSpec(rawGBuffer3);
-		const float2 lamScaleBias = DS_GetLamScaleBias(rawGBuffer3);
-		const float2 metal = DS_GetMetallicity(rawGBuffer3);
-		const float gloss64 = rawGBuffer3.a * 64.0;
+		const float4 rawGBuffer2 = VK_SUBPASS_LOAD(g_texGBuffer2, g_samGBuffer2, tc0);
+		const float3 anisoWV = DS_GetAnisoSpec(rawGBuffer2);
+		const float2 lamScaleBias = DS_GetLamScaleBias(rawGBuffer2);
+		const float2 metal = DS_GetMetallicity(rawGBuffer2);
+		const float gloss64 = rawGBuffer2.a * 64.0;
 		const float gloss64Scaled = gloss64 * glossScale;
 
 		// Special:
-		const float skinAlpha = emission.y;
-		const float hairAlpha = metal.y;
-		const float eyeAlpha = saturate(1.0 - gloss64);
-		const float rim = pow(1.0 - normalWV.z, 2.0) * (0.05 + 0.2 * skinAlpha);
-		const float glossEye = 25.0 * glossScale;
+		const float skinMask = emission.y;
+		const float hairMask = metal.y;
+		const float eyeMask = saturate(1.0 - gloss64);
+		const float eyeGloss = 25.0 * glossScale;
+		const float2 lamScaleBiasWithHair = lerp(lamScaleBias, float2(1, 0.4), hairMask);
 
-		const float gloss = lerp(gloss64Scaled * gloss64Scaled * gloss64Scaled, glossEye * glossEye * glossEye, eyeAlpha);
+		const float gloss = lerp(gloss64Scaled * gloss64Scaled * gloss64Scaled, eyeGloss * eyeGloss * eyeGloss, eyeMask);
 
 #ifdef DEF_DIR
 		const float3 dirToLightWV = -lightDirWV;
@@ -225,63 +220,65 @@ DS_ACC_FSO mainFS(VSO si)
 #endif
 
 		const float4 litRet = VerusLit(dirToLightWV, normalWV, dirToEyeWV,
-			lerp(gloss * (2.0 - lightFalloff), 12.0, hairAlpha),
-			lerp(lamScaleBias, float2(1, 0.4), hairAlpha),
-			float4(anisoWV, hairAlpha));
+			lerp(gloss * (2.0 - lightFalloff), 12.0, hairMask),
+			lamScaleBiasWithHair,
+			float4(anisoWV, hairMask));
 
-		// Shadow:
+		// <Shadow>
+		float shadowMask = 1.0;
+		{
 #ifdef DEF_DIR
-		const float4 tcShadow = ShadowCoords(float4(posWV, 1), g_ubShadowFS._matSunShadow, -posWV.z);
-		const float shadowAlpha = ShadowMapCSM(
-			g_texShadowCmp,
-			g_samShadowCmp,
-			g_texShadow,
-			g_samShadow,
-			tcShadow,
-			g_ubShadowFS._shadowConfig,
-			g_ubShadowFS._splitRanges,
-			g_ubShadowFS._matSunShadow,
-			g_ubShadowFS._matSunShadowCSM1,
-			g_ubShadowFS._matSunShadowCSM2,
-			g_ubShadowFS._matSunShadowCSM3);
-#else
-		const float shadowAlpha = 1.0;
+			float4 config = g_ubShadowFS._shadowConfig;
+			const float lamBiasMask = saturate(lamScaleBiasWithHair.y * config.y);
+			config.y = 1.0 - lamBiasMask; // Keep penumbra blurry.
+			const float scale = -posWV.z - 5.0;
+			const float3 posForShadow = posWV + normalWV * 0.012 * max(1.0, scale * 0.2) + dirToLightWV * max(0.0, scale * 0.002);
+			const float4 tcShadow = ShadowCoords(float4(posForShadow, 1), g_ubShadowFS._matSunShadow, -posForShadow.z);
+			shadowMask = ShadowMapCSM(
+				g_texShadowCmp,
+				g_samShadowCmp,
+				g_texShadow,
+				g_samShadow,
+				tcShadow,
+				config,
+				g_ubShadowFS._splitRanges,
+				g_ubShadowFS._matSunShadow,
+				g_ubShadowFS._matSunShadowCSM1,
+				g_ubShadowFS._matSunShadowCSM2,
+				g_ubShadowFS._matSunShadowCSM3);
 #endif
+		}
+		// </Shadow>
 
-		const float intensityDiff = lightFalloff * coneIntensity * shadowAlpha;
-		const float intensitySpec = saturate(intensityDiff * 2.0) * shadowAlpha;
-		const float maxSpecAdd = lerp(0.2 * spec, 0.1 + spec * 0.5, metal.x);
+		const float lightFalloffWithCone = lightFalloff * coneIntensity;
+		const float diffLightMask = lightFalloffWithCone * shadowMask;
+		const float specLightMask = saturate(lightFalloffWithCone * 2.0) * shadowMask;
+		const float maxSpecAdd = (1.0 - spec) * lerp(0.01, 0.5, metal.x);
 
 		// Subsurface scattering effect for front & back faces:
-		const float3 colorSkinSSS_Face = float3(1.6, 1.2, 0.3);
-		const float3 colorSkinSSS_Back = float3(1.6, 0.8, 0.5);
-		const float3 colorDiffSSS_Face = lerp(colorDiff, colorDiff * colorSkinSSS_Face, skinAlpha * pow(1.0 - litRet.y, 2.0));
-		const float3 colorDiffSSS_Back = lerp(colorDiffSSS_Face, colorDiff * colorSkinSSS_Back, skinAlpha * litRet.x);
+		const float3 frontSkinSSSColor = float3(1.6, 1.2, 0.3);
+		const float3 backSkinSSSColor = float3(1.6, 0.8, 0.5);
+		const float frontSkinSSSMask = 1.0 - litRet.y;
+		const float3 hdrLightFaceColor = hdrLightColor * lerp(1.0, frontSkinSSSColor, skinMask * frontSkinSSSMask * frontSkinSSSMask);
+		const float3 hdrLightColorSSS = lerp(hdrLightFaceColor, hdrLightColor * backSkinSSSColor, skinMask * litRet.x);
 
 		const float gray = Grayscale(rawGBuffer0.rgb);
 		const float3 metalSpec = saturate(rawGBuffer0.rgb / (gray + _SINGULARITY_FIX));
 
-		const float3 matSpec = lerp(float3(1, 1, 1), metalSpec, saturate(metal.x + (hairAlpha - eyeAlpha) * 0.4)) * FresnelSchlick(spec, maxSpecAdd, litRet.w);
-		const float3 maxDiff = colorDiffSSS_Back * intensityDiff;
-		const float3 maxSpec = matSpec * colorSpec + float3(-0.03, 0.0, 0.05) * skinAlpha;
-#ifdef DEF_DIR
-		const float skyIntensity = 1.0;
-		const float3 skySpec = skyColor * matSpec * skyIntensity;
-#endif
-
-		// Very bright light:
-		const float3 overbright = saturate(dot(maxDiff, 1.0 / 3.0) - 1.0); // Intensity above one.
-		const float3 diffBoost = overbright * maxDiff * litRet.y * (0.25 + rawGBuffer0.rgb);
+		const float3 specHue = saturate(lerp(float3(1, 1, 1), metalSpec, saturate(metal.x + (hairMask - eyeMask) * 0.4)) +
+			float3(-0.03, 0.0, 0.05) * skinMask);
+		const float3 hdrMaxDiff = hdrLightColorSSS * diffLightMask;
+		const float3 hdrMaxSpec = hdrLightColorSSS * specLightMask * specHue * FresnelSchlick(spec, maxSpecAdd, litRet.w);
 
 #ifdef DEF_DIR
-		so.target0.rgb = maxDiff * litRet.y; // Lambert's cosine law.
-		so.target1.rgb = maxSpec * saturate(litRet.z * intensitySpec + rim) + diffBoost;
+		so.target0.rgb = hdrMaxDiff * litRet.y;
+		so.target1.rgb = hdrMaxSpec * litRet.z;
 #else
-		so.target0.rgb = maxDiff * litRet.y; // Lambert's cosine law.
-		so.target1.rgb = maxSpec * saturate(litRet.z * intensitySpec) + diffBoost;
+		so.target0.rgb = hdrMaxDiff * litRet.y;
+		so.target1.rgb = hdrMaxSpec * litRet.z;
 #endif
-		so.target0.rgb = max(so.target0.rgb, emission.x);
-		so.target1.rgb = min(so.target1.rgb, 1.0 - emission.x);
+		//so.target0.rgb = max(so.target0.rgb, emission.x);
+		//so.target1.rgb = min(so.target1.rgb, 1.0 - emission.x);
 		so.target0.a = 1.0;
 		so.target1.a = 1.0;
 	}

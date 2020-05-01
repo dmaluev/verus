@@ -328,7 +328,7 @@ void BaseMesh::LoadPrimaryBones()
 			VERUS_FOR(i, 4)
 				it->bi[i] = _skeleton.RemapBoneIndex(it->bi[i]);
 		}
-		BufferDataVB(_vBinding1.data(), 1);
+		UpdateVertexBuffer(_vBinding1.data(), 1);
 	}
 #endif
 }
@@ -367,8 +367,8 @@ void BaseMesh::LoadWarp()
 			_vBinding2[i]._tan[3] = g * SHRT_MAX / 9;
 			_vBinding2[i]._bin[3] = b * SHRT_MAX / 9;
 		}
-		BufferDataVB(_vBinding0.data(), 0);
-		BufferDataVB(_vBinding2.data(), 2);
+		UpdateVertexBuffer(_vBinding0.data(), 0);
+		UpdateVertexBuffer(_vBinding2.data(), 2);
 	}
 
 	vData.clear();

@@ -29,7 +29,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 	_bytesPerPixel = FormatToBytesPerPixel(desc._format);
 	const bool renderTarget = (_desc._flags & TextureDesc::Flags::colorAttachment);
 	const bool depthFormat = IsDepthFormat(desc._format);
-	const bool depthSampled = _desc._flags & TextureDesc::Flags::depthSampled;
+	const bool depthSampled = _desc._flags & (TextureDesc::Flags::depthSampledR | TextureDesc::Flags::depthSampledW);
 	if (_desc._flags & TextureDesc::Flags::anyShaderResource)
 		_mainLayout = ImageLayout::xsReadOnly;
 
@@ -50,17 +50,13 @@ void TextureD3D12::Init(RcTextureDesc desc)
 	D3D12_RESOURCE_STATES initialResourceState = ToNativeImageLayout(_mainLayout);
 	D3D12_CLEAR_VALUE clearValue = {};
 	clearValue.Format = ToNativeFormat(_desc._format, false);
-	if (renderTarget)
-	{
-		initialResourceState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-		memcpy(clearValue.Color, _desc._clearValue.ToPointer(), sizeof(clearValue.Color));
-	}
+	memcpy(clearValue.Color, _desc._clearValue.ToPointer(), sizeof(clearValue.Color));
 	if (depthFormat)
 	{
 		initialResourceState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 		clearValue.DepthStencil.Depth = _desc._clearValue.getX();
 		clearValue.DepthStencil.Stencil = static_cast<UINT8>(_desc._clearValue.getY());
-		if (depthSampled)
+		if (_desc._flags & TextureDesc::Flags::depthSampledR)
 			initialResourceState = D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 	}
 	D3D12MA::ALLOCATION_DESC allocDesc = {};
@@ -83,6 +79,12 @@ void TextureD3D12::Init(RcTextureDesc desc)
 		resDescUAV.Height = Math::Max(1, _desc._height >> 1);
 		resDescUAV.MipLevels = uavMipLevels;
 		resDescUAV.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		// sRGB cannot be used with UAV:
+		switch (resDescUAV.Format)
+		{
+		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB: resDescUAV.Format = DXGI_FORMAT_R8G8B8A8_UNORM; break;
+		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB: resDescUAV.Format = DXGI_FORMAT_B8G8R8A8_UNORM; break;
+		}
 
 		D3D12MA::ALLOCATION_DESC allocDesc = {};
 		allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
@@ -91,18 +93,18 @@ void TextureD3D12::Init(RcTextureDesc desc)
 			&resDescUAV,
 			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
 			nullptr,
-			&_uavResource._pMaAllocation,
-			IID_PPV_ARGS(&_uavResource._pResource))))
+			&_uaResource._pMaAllocation,
+			IID_PPV_ARGS(&_uaResource._pResource))))
 			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
 
 		_dhUAV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, uavMipLevels);
 		VERUS_FOR(i, uavMipLevels)
 		{
 			D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-			uavDesc.Format = resDesc.Format;
+			uavDesc.Format = resDescUAV.Format;
 			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 			uavDesc.Texture2D.MipSlice = i;
-			pRendererD3D12->GetD3DDevice()->CreateUnorderedAccessView(_uavResource._pResource.Get(), nullptr, &uavDesc, _dhUAV.AtCPU(i));
+			pRendererD3D12->GetD3DDevice()->CreateUnorderedAccessView(_uaResource._pResource.Get(), nullptr, &uavDesc, _dhUAV.AtCPU(i));
 		}
 	}
 
@@ -152,9 +154,9 @@ void TextureD3D12::Done()
 	_dhDSV.Reset();
 	_dhRTV.Reset();
 	_dhSRV.Reset();
-	VERUS_SMART_RELEASE(_uavResource._pMaAllocation);
-	VERUS_COM_RELEASE_CHECK(_uavResource._pResource.Get());
-	_uavResource._pResource.Reset();
+	VERUS_SMART_RELEASE(_uaResource._pMaAllocation);
+	VERUS_COM_RELEASE_CHECK(_uaResource._pResource.Get());
+	_uaResource._pResource.Reset();
 	VERUS_SMART_RELEASE(_resource._pMaAllocation);
 	VERUS_COM_RELEASE_CHECK(_resource._pResource.Get());
 	_resource._pResource.Reset();
@@ -258,7 +260,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 		ub._srcMipLevel = srcMip;
 		ub._mipLevelCount = dispatchMipCount;
 		ub._srcDimensionCase = (srcHeight & 1) << 1 | (srcWidth & 1);
-		ub._srgb = false;
+		ub._srgb = IsSRGBFormat(_desc._format);
 		ub._texelSize.x = 1.f / dstWidth;
 		ub._texelSize.y = 1.f / dstHeight;
 
@@ -267,7 +269,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 			int mips[5] = {}; // For input texture (always mip 0) and 4 UAV mips.
 			VERUS_FOR(mip, dispatchMipCount)
 				mips[mip + 1] = srcMip + mip;
-			const int complexSetHandle = shader->BindDescriptorSetTextures(0, { tex, tex, tex, tex, tex }, mips);
+			const CSHandle complexSetHandle = shader->BindDescriptorSetTextures(0, { tex, tex, tex, tex, tex }, mips);
 			_vCshGenerateMips.push_back(complexSetHandle);
 			pCB->BindDescriptors(shader, 0, complexSetHandle);
 		}
@@ -278,7 +280,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 
 		pCB->Dispatch(Math::DivideByMultiple(dstWidth, 8), Math::DivideByMultiple(dstHeight, 8));
 
-		auto rb = CD3DX12_RESOURCE_BARRIER::UAV(_uavResource._pResource.Get());
+		auto rb = CD3DX12_RESOURCE_BARRIER::UAV(_uaResource._pResource.Get());
 		pCmdList->ResourceBarrier(1, &rb);
 
 		// Transition state for upcoming CopyTextureRegion():
@@ -288,7 +290,8 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 			VERUS_FOR(mip, dispatchMipCount)
 			{
 				const int subUAV = srcMip + mip;
-				barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(_uavResource._pResource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE, subUAV);
+				barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(_uaResource._pResource.Get(),
+					D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE, subUAV);
 			}
 			pCmdList->ResourceBarrier(barrierCount, barriers);
 
@@ -301,7 +304,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 			pCmdList->CopyTextureRegion(
 				&CD3DX12_TEXTURE_COPY_LOCATION(_resource._pResource.Get(), subSRV),
 				0, 0, 0,
-				&CD3DX12_TEXTURE_COPY_LOCATION(_uavResource._pResource.Get(), subUAV),
+				&CD3DX12_TEXTURE_COPY_LOCATION(_uaResource._pResource.Get(), subUAV),
 				nullptr);
 		}
 		// Transition state for next Dispatch():
@@ -311,7 +314,8 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 			VERUS_FOR(mip, dispatchMipCount)
 			{
 				const int subUAV = srcMip + mip;
-				barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(_uavResource._pResource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, subUAV);
+				barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(_uaResource._pResource.Get(),
+					D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, subUAV);
 			}
 			pCmdList->ResourceBarrier(barrierCount, barriers);
 
@@ -348,7 +352,7 @@ Continue TextureD3D12::Scheduled_Update()
 	{
 		VERUS_QREF_RENDERER;
 		auto shader = renderer.GetShaderGenerateMips();
-		for (int csh : _vCshGenerateMips)
+		for (auto& csh : _vCshGenerateMips)
 			shader->FreeDescriptorSet(csh);
 		_vCshGenerateMips.clear();
 	}

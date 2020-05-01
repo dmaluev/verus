@@ -48,6 +48,7 @@ namespace verus
 	{
 		// Bits:
 		bool IsPowerOfTwo(int x);
+		UINT32 NextPowerOfTwo(UINT32 x);
 		int HighestBit(int x);
 		bool IsNaN(float x);
 
@@ -61,19 +62,22 @@ namespace verus
 		float SmoothStep(float a, float b, float t);
 		float LinearToSin(float t);
 		float LinearToCos(float t);
+		float EaseInOutSine(float x);
 
 		// Shapes:
 		Vector3 TriangleNormal(RcPoint3 a, RcPoint3 b, RcPoint3 c);
 		float TriangleArea(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2);
 
 		// Geometry:
-		int GetStripGridIndexCount(int polyCountWidth, int polyCountHeight);
-		void BuildStripGrid(int polyCountWidth, int polyCountHeight, Vector<UINT16>& vIndices);
-		void BuildListGrid(int polyCountWidth, int polyCountHeight, Vector<UINT16>& vIndices);
+		int StripGridIndexCount(int polyCountWidth, int polyCountHeight);
+		void CreateStripGrid(int polyCountWidth, int polyCountHeight, Vector<UINT16>& vIndices);
+		void CreateListGrid(int polyCountWidth, int polyCountHeight, Vector<UINT16>& vIndices);
+		bool CheckIndexBuffer(Vector<UINT16>& vIndices, int maxIndex);
 
 		// Scene:
 		Transform3 BoundsDrawMatrix(RcPoint3 mn, RcPoint3 mx);
 		float ComputeOnePixelDistance(float size, float screenHeight = 120, float fovY = VERUS_PI / 4);
+		float ComputeDistToMipScale(float texSize, float screenSize, float realSize, float fovY);
 		void Quadrant(const int** ppSrcMinMax, int** ppDestMinMax, int half, int id);
 
 		int ComputeMipLevels(int w, int h, int d = 1);

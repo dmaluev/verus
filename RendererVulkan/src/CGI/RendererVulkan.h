@@ -127,7 +127,7 @@ namespace verus
 			const VkSampler* GetImmutableSampler(Sampler s) const;
 
 			static void ImGuiCheckVkResultFn(VkResult res);
-			virtual void ImGuiInit(int renderPassHandle) override;
+			virtual void ImGuiInit(RPHandle renderPassHandle) override;
 			virtual void ImGuiRenderDrawData() override;
 
 			virtual void ResizeSwapChain() override;
@@ -154,14 +154,14 @@ namespace verus
 			virtual void DeleteShader(PBaseShader p) override;
 			virtual void DeleteTexture(PBaseTexture p) override;
 
-			virtual int CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) override;
-			virtual int CreateFramebuffer(int renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex) override;
-			virtual void DeleteRenderPass(int handle) override;
-			virtual void DeleteFramebuffer(int handle) override;
-			int GetNextRenderPassHandle() const;
-			int GetNextFramebufferHandle() const;
-			VkRenderPass GetRenderPass(int handle) const;
-			RcFramebuffer GetFramebuffer(int handle) const;
+			virtual RPHandle CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) override;
+			virtual FBHandle CreateFramebuffer(RPHandle renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex) override;
+			virtual void DeleteRenderPass(RPHandle handle) override;
+			virtual void DeleteFramebuffer(FBHandle handle) override;
+			int GetNextRenderPassIndex() const;
+			int GetNextFramebufferIndex() const;
+			VkRenderPass GetRenderPass(RPHandle handle) const;
+			RcFramebuffer GetFramebuffer(FBHandle handle) const;
 
 			void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage vmaUsage, VkBuffer& buffer, VmaAllocation& vmaAllocation);
 			void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, PBaseCommandBuffer pCB = nullptr);

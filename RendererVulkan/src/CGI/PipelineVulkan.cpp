@@ -38,27 +38,31 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 		attachmentCount++;
 	}
 
+	const bool tess = desc._topology >= PrimitiveTopology::patchList3 && desc._topology <= PrimitiveTopology::patchList4;
+
+	ShaderVulkan::RcCompiled compiled = shader.GetCompiled(desc._shaderBranch);
+	Vector<String> entryNames(+BaseShader::Stage::count);
 	Vector<VkPipelineShaderStageCreateInfo> vShaderStages;
-	vShaderStages.reserve(shader.GetStageCount(desc._shaderBranch));
-	auto PushShaderStage = [&vShaderStages, &shader, &desc](CSZ name, BaseShader::Stage stage, VkShaderStageFlagBits shaderStageFlagBits)
+	vShaderStages.reserve(compiled._stageCount);
+	auto PushShaderStage = [&vShaderStages, &compiled, &entryNames](CSZ suffix, BaseShader::Stage stage, VkShaderStageFlagBits shaderStageFlagBits)
 	{
-		const VkShaderModule shaderModule = shader.GetVkShaderModule(desc._shaderBranch, stage);
+		const VkShaderModule shaderModule = compiled._shaderModules[+stage];
+		entryNames[+stage] = compiled._entry + suffix;
 		if (shaderModule != VK_NULL_HANDLE)
 		{
 			VkPipelineShaderStageCreateInfo vkpssci = {};
 			vkpssci.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 			vkpssci.stage = shaderStageFlagBits;
 			vkpssci.module = shaderModule;
-			vkpssci.pName = name;
+			vkpssci.pName = _C(entryNames[+stage]);
 			vShaderStages.push_back(vkpssci);
 		}
 	};
-
-	PushShaderStage("mainVS", BaseShader::Stage::vs, VK_SHADER_STAGE_VERTEX_BIT);
-	PushShaderStage("mainHS", BaseShader::Stage::hs, VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-	PushShaderStage("mainDS", BaseShader::Stage::ds, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-	PushShaderStage("mainGS", BaseShader::Stage::gs, VK_SHADER_STAGE_GEOMETRY_BIT);
-	PushShaderStage("mainFS", BaseShader::Stage::fs, VK_SHADER_STAGE_FRAGMENT_BIT);
+	PushShaderStage("VS", BaseShader::Stage::vs, VK_SHADER_STAGE_VERTEX_BIT);
+	PushShaderStage("HS", BaseShader::Stage::hs, VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+	PushShaderStage("DS", BaseShader::Stage::ds, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+	PushShaderStage("GS", BaseShader::Stage::gs, VK_SHADER_STAGE_GEOMETRY_BIT);
+	PushShaderStage("FS", BaseShader::Stage::fs, VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	Vector<VkVertexInputBindingDescription> vVertexInputBindingDesc;
 	Vector<VkVertexInputAttributeDescription> vVertexInputAttributeDesc;
@@ -70,6 +74,14 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	inputAssemblyState.topology = ToNativePrimitiveTopology(desc._topology);
 	inputAssemblyState.primitiveRestartEnable = desc._primitiveRestartEnable;
 
+	VkPipelineTessellationStateCreateInfo tessellationState = {};
+	tessellationState.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
+	tessellationState.patchControlPoints = 3;
+	switch (desc._topology)
+	{
+	case PrimitiveTopology::patchList4: tessellationState.patchControlPoints = 4; break;
+	}
+
 	VkPipelineViewportStateCreateInfo viewportState = {};
 	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	viewportState.viewportCount = desc._multiViewport;
@@ -77,7 +89,9 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 
 	VkPipelineRasterizationLineStateCreateInfoEXT rasterizationLineState = {};
 	rasterizationLineState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_LINE_STATE_CREATE_INFO_EXT;
-	rasterizationLineState.lineRasterizationMode = VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH_EXT;
+	rasterizationLineState.lineRasterizationMode = VK_LINE_RASTERIZATION_MODE_BRESENHAM_EXT;
+	if (desc._colorAttachBlendEqs[0] == VERUS_COLOR_BLEND_ALPHA)
+		rasterizationLineState.lineRasterizationMode = VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH_EXT;
 	VkPipelineRasterizationStateCreateInfo rasterizationState = {};
 	rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	rasterizationState.pNext = &rasterizationLineState;
@@ -94,7 +108,6 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 
 	VkPipelineMultisampleStateCreateInfo multisampleState = {};
 	multisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisampleState.sampleShadingEnable = VK_FALSE;
 	multisampleState.rasterizationSamples = ToNativeSampleCount(desc._sampleCount);
 
 	VkPipelineDepthStencilStateCreateInfo depthStencilState = {};
@@ -196,6 +209,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	vkgpci.pStages = vShaderStages.data();
 	vkgpci.pVertexInputState = &vertexInputState;
 	vkgpci.pInputAssemblyState = &inputAssemblyState;
+	vkgpci.pTessellationState = tess ? &tessellationState : nullptr;
 	vkgpci.pViewportState = &viewportState;
 	vkgpci.pRasterizationState = &rasterizationState;
 	vkgpci.pMultisampleState = &multisampleState;
@@ -225,14 +239,17 @@ void PipelineVulkan::InitCompute(RcPipelineDesc desc)
 	VkResult res = VK_SUCCESS;
 
 	RcShaderVulkan shader = static_cast<RcShaderVulkan>(*desc._shader);
-	const VkShaderModule shaderModule = shader.GetVkShaderModule(desc._shaderBranch, BaseShader::Stage::cs);
+
+	ShaderVulkan::RcCompiled compiled = shader.GetCompiled(desc._shaderBranch);
+	const VkShaderModule shaderModule = compiled._shaderModules[+BaseShader::Stage::cs];
+	String entryName = compiled._entry + "CS";
 
 	VkComputePipelineCreateInfo vkcpci = {};
 	vkcpci.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
 	vkcpci.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	vkcpci.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 	vkcpci.stage.module = shaderModule;
-	vkcpci.stage.pName = "mainCS";
+	vkcpci.stage.pName = _C(entryName);
 	vkcpci.layout = shader.GetVkPipelineLayout();
 	if (VK_SUCCESS != (res = vkCreateComputePipelines(pRendererVulkan->GetVkDevice(), VK_NULL_HANDLE, 1, &vkcpci, pRendererVulkan->GetAllocator(), &_pipeline)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateComputePipelines(), res=" << res;

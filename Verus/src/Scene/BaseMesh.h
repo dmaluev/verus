@@ -96,7 +96,7 @@ namespace verus
 
 			// GPU:
 			virtual void CreateDeviceBuffers() {}
-			virtual void BufferDataVB(const void* p, int binding) {}
+			virtual void UpdateVertexBuffer(const void* p, int binding) {}
 
 			// Bounds:
 			void GetBounds(RPoint3 mn, RPoint3 mx) const;

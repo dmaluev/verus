@@ -6,11 +6,16 @@ namespace verus
 	{
 		class ShaderVulkan : public BaseShader
 		{
+		public:
 			struct Compiled
 			{
 				VkShaderModule _shaderModules[+Stage::count] = {};
+				String         _entry;
 				int            _stageCount = 0;
 			};
+			VERUS_TYPEDEFS(Compiled);
+
+		private:
 			typedef Map<String, Compiled> TMapCompiled;
 
 			struct DescriptorSetDesc
@@ -36,6 +41,7 @@ namespace verus
 			Vector<VkDescriptorSet>       _vComplexDescriptorSets;
 			VkDescriptorPool              _descriptorPool = VK_NULL_HANDLE;
 			VkPipelineLayout              _pipelineLayout = VK_NULL_HANDLE;
+			String                        _debugInfo;
 			UINT64                        _currentFrame = UINT64_MAX;
 			uint32_t                      _poolComplexUniformBuffers = 0;
 			uint32_t                      _poolComplexImageSamplers = 0;
@@ -52,8 +58,8 @@ namespace verus
 
 			virtual void CreateDescriptorSet(int setNumber, const void* pSrc, int size, int capacity, std::initializer_list<Sampler> il, ShaderStageFlags stageFlags) override;
 			virtual void CreatePipelineLayout() override;
-			virtual int BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips) override;
-			virtual void FreeDescriptorSet(int& complexSetHandle) override;
+			virtual CSHandle BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips) override;
+			virtual void FreeDescriptorSet(CSHandle& complexSetHandle) override;
 
 			virtual void BeginBindDescriptors() override;
 			virtual void EndBindDescriptors() override;
@@ -65,10 +71,9 @@ namespace verus
 			void CreateDescriptorPool();
 			void CreateDescriptorSets();
 			VkDescriptorSet GetVkDescriptorSet(int setNumber);
-			VkDescriptorSet GetComplexVkDescriptorSet(int descSetID);
+			VkDescriptorSet GetComplexVkDescriptorSet(CSHandle descSetID);
 
-			VkShaderModule GetVkShaderModule(CSZ branch, Stage stage) const { return _mapCompiled.at(branch)._shaderModules[+stage]; }
-			int GetStageCount(CSZ branch) const { return _mapCompiled.at(branch)._stageCount; }
+			RcCompiled GetCompiled(CSZ branch) const { return _mapCompiled.at(branch); }
 
 			VkPipelineLayout GetVkPipelineLayout() const { return _pipelineLayout; }
 

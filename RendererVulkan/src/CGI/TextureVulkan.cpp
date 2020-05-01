@@ -28,9 +28,8 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	_desc._mipLevels = desc._mipLevels ? desc._mipLevels : Math::ComputeMipLevels(desc._width, desc._height, desc._depth);
 	_bytesPerPixel = FormatToBytesPerPixel(desc._format);
 	const bool renderTarget = (_desc._flags & TextureDesc::Flags::colorAttachment);
-	const bool inputAttach = (_desc._flags & TextureDesc::Flags::inputAttachment);
 	const bool depthFormat = IsDepthFormat(desc._format);
-	const bool depthSampled = _desc._flags & TextureDesc::Flags::depthSampled;
+	const bool depthSampled = _desc._flags & (TextureDesc::Flags::depthSampledR | TextureDesc::Flags::depthSampledW);
 	if (_desc._flags & TextureDesc::Flags::anyShaderResource)
 		_mainLayout = ImageLayout::xsReadOnly;
 
@@ -50,14 +49,16 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	vkici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	if (renderTarget)
 		vkici.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	if (inputAttach)
-		vkici.usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+	if (_desc._flags & TextureDesc::Flags::generateMips)
+		vkici.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	if (depthFormat)
 	{
 		vkici.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 		if (depthSampled)
 			vkici.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
 	}
+	if (_desc._flags & TextureDesc::Flags::inputAttachment)
+		vkici.usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
 	pRendererVulkan->CreateImage(&vkici, VMA_MEMORY_USAGE_GPU_ONLY, _image, _vmaAllocation);
 
 	if (_desc._flags & TextureDesc::Flags::generateMips)
@@ -68,6 +69,12 @@ void TextureVulkan::Init(RcTextureDesc desc)
 		vkiciStorage.extent.height = Math::Max(1, _desc._height >> 1);
 		vkiciStorage.mipLevels = Math::Max(1, _desc._mipLevels - 1);
 		vkiciStorage.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+		// sRGB cannot be used with storage image:
+		switch (vkiciStorage.format)
+		{
+		case VK_FORMAT_R8G8B8A8_SRGB: vkiciStorage.format = VK_FORMAT_R8G8B8A8_UNORM; break;
+		case VK_FORMAT_B8G8R8A8_SRGB: vkiciStorage.format = VK_FORMAT_B8G8R8A8_UNORM; break;
+		}
 		pRendererVulkan->CreateImage(&vkiciStorage, VMA_MEMORY_USAGE_GPU_ONLY, _storageImage, _storageVmaAllocation);
 
 		_vCshGenerateMips.reserve((_desc._mipLevels + 3) / 4);
@@ -78,7 +85,7 @@ void TextureVulkan::Init(RcTextureDesc desc)
 			vkivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 			vkivci.image = _storageImage;
 			vkivci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-			vkivci.format = vkici.format;
+			vkivci.format = vkiciStorage.format;
 			vkivci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 			vkivci.subresourceRange.baseMipLevel = mip;
 			vkivci.subresourceRange.levelCount = 1;
@@ -103,6 +110,12 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	vkivci.subresourceRange.layerCount = vkici.arrayLayers;
 	if (VK_SUCCESS != (res = vkCreateImageView(pRendererVulkan->GetVkDevice(), &vkivci, pRendererVulkan->GetAllocator(), &_imageView)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateImageView(), res=" << res;
+	if (renderTarget)
+	{
+		vkivci.subresourceRange.levelCount = 1;
+		if (VK_SUCCESS != (res = vkCreateImageView(pRendererVulkan->GetVkDevice(), &vkivci, pRendererVulkan->GetAllocator(), &_imageViewLevelZero)))
+			throw VERUS_RUNTIME_ERROR << "vkCreateImageView(LevelZero), res=" << res;
+	}
 
 	if (_desc._pSamplerDesc)
 		CreateSampler();
@@ -116,7 +129,7 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	}
 	if (depthFormat)
 	{
-		const ImageLayout layout = depthSampled ? ImageLayout::depthStencilReadOnly : ImageLayout::depthStencilAttachment;
+		const ImageLayout layout = (_desc._flags & TextureDesc::Flags::depthSampledR) ? ImageLayout::depthStencilReadOnly : ImageLayout::depthStencilAttachment;
 		CommandBufferVulkan commandBuffer;
 		commandBuffer.InitOneTimeSubmit();
 		commandBuffer.PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, layout, 0, 0);
@@ -134,6 +147,7 @@ void TextureVulkan::Done()
 	ForceScheduled();
 
 	VERUS_VULKAN_DESTROY(_sampler, vkDestroySampler(pRendererVulkan->GetVkDevice(), _sampler, pRendererVulkan->GetAllocator()));
+	VERUS_VULKAN_DESTROY(_imageViewLevelZero, vkDestroyImageView(pRendererVulkan->GetVkDevice(), _imageViewLevelZero, pRendererVulkan->GetAllocator()));
 	VERUS_VULKAN_DESTROY(_imageView, vkDestroyImageView(pRendererVulkan->GetVkDevice(), _imageView, pRendererVulkan->GetAllocator()));
 	for (auto view : _vStorageImageViews)
 		VERUS_VULKAN_DESTROY(view, vkDestroyImageView(pRendererVulkan->GetVkDevice(), view, pRendererVulkan->GetAllocator()));
@@ -237,7 +251,7 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 		ub._srcMipLevel = srcMip;
 		ub._mipLevelCount = dispatchMipCount;
 		ub._srcDimensionCase = (srcHeight & 1) << 1 | (srcWidth & 1);
-		ub._srgb = false;
+		ub._srgb = IsSRGBFormat(_desc._format);
 		ub._texelSize.x = 1.f / dstWidth;
 		ub._texelSize.y = 1.f / dstHeight;
 
@@ -246,7 +260,7 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 			int mips[5] = {}; // For input texture (always mip 0) and 4 storage mips.
 			VERUS_FOR(mip, dispatchMipCount)
 				mips[mip + 1] = srcMip + mip;
-			const int complexSetHandle = shader->BindDescriptorSetTextures(0, { tex, tex, tex, tex, tex }, mips);
+			const CSHandle complexSetHandle = shader->BindDescriptorSetTextures(0, { tex, tex, tex, tex, tex }, mips);
 			_vCshGenerateMips.push_back(complexSetHandle);
 			pCB->BindDescriptors(shader, 0, complexSetHandle);
 		}
@@ -312,7 +326,7 @@ Continue TextureVulkan::Scheduled_Update()
 	{
 		VERUS_QREF_RENDERER;
 		auto shader = renderer.GetShaderGenerateMips();
-		for (int csh : _vCshGenerateMips)
+		for (auto& csh : _vCshGenerateMips)
 			shader->FreeDescriptorSet(csh);
 		_vCshGenerateMips.clear();
 	}

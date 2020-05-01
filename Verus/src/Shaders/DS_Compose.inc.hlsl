@@ -9,8 +9,10 @@ VERUS_UBUFFER UB_ComposeVS
 VERUS_UBUFFER UB_ComposeFS
 {
 	mataff _matInvV;
+	matrix _matInvVP;
 	float4 _colorAmbient;
 	float4 _colorBackground;
 	float4 _fogColor;
 	float4 _zNearFarEx;
+	float4 _toneMappingConfig;
 };

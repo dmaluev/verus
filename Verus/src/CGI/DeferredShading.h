@@ -17,11 +17,11 @@ namespace verus
 #include "../Shaders/DS.inc.hlsl"
 #include "../Shaders/DS_Compose.inc.hlsl"
 
-			enum S
+			enum SHADER
 			{
-				S_LIGHT,
-				S_COMPOSE,
-				S_MAX
+				SHADER_LIGHT,
+				SHADER_COMPOSE,
+				SHADER_COUNT
 			};
 
 			enum PIPE
@@ -30,19 +30,20 @@ namespace verus
 				PIPE_INSTANCED_OMNI,
 				PIPE_INSTANCED_SPOT,
 				PIPE_COMPOSE,
+				PIPE_TONE_MAPPING,
 				PIPE_QUAD,
-				PIPE_MAX
+				PIPE_COUNT
 			};
 
 			enum TEX
 			{
-				TEX_GBUFFER_0, // Albedo RGB, A = motion blur.
-				TEX_GBUFFER_1, // Depth.
-				TEX_GBUFFER_2, // RG - Normals in screen space, Emission, Metallicity.
-				TEX_GBUFFER_3, // LamScale, LamBias, Specular, Gloss.
+				TEX_GBUFFER_0, // Albedo, Spec.
+				TEX_GBUFFER_1, // RG - Normals, Emission, Motion.
+				TEX_GBUFFER_2, // LamScale, LamBias, Metallicity, Gloss.
 				TEX_LIGHT_ACC_DIFF,
 				TEX_LIGHT_ACC_SPEC,
-				TEX_MAX
+				TEX_COMPOSED,
+				TEX_COUNT
 			};
 
 			static UB_PerFrame   s_ubPerFrame;
@@ -53,21 +54,31 @@ namespace verus
 			static UB_ComposeVS  s_ubComposeVS;
 			static UB_ComposeFS  s_ubComposeFS;
 
-			ShaderPwns<S_MAX>      _shader;
-			PipelinePwns<PIPE_MAX> _pipe;
-			TexturePwns<TEX_MAX>   _tex;
-			TexturePtr             _texShadowAtmo;
-			UINT64                 _frame = 0;
-			int                    _rp = -1;
-			int                    _fb = -1;
-			int                    _cshLight = -1;
-			int                    _cshCompose = -1;
-			int                    _cshQuad[6];
-			bool                   _activeGeometryPass = false;
-			bool                   _activeLightingPass = false;
-			bool                   _async_initPipe = false;
+			ShaderPwns<SHADER_COUNT> _shader;
+			PipelinePwns<PIPE_COUNT> _pipe;
+			TexturePwns<TEX_COUNT>   _tex;
+			TexturePtr               _texShadowAtmo;
+			UINT64                   _frame = 0;
+			RPHandle                 _rph;
+			RPHandle                 _rphCompose;
+			FBHandle                 _fbh;
+			FBHandle                 _fbhCompose;
+			CSHandle                 _cshLight;
+			CSHandle                 _cshCompose;
+			CSHandle                 _cshToneMapping;
+			CSHandle                 _cshQuad[6];
+			bool                     _activeGeometryPass = false;
+			bool                     _activeLightingPass = false;
+			bool                     _async_initPipe = false;
 
 		public:
+			struct ToneMappingConfig
+			{
+				float _exposure = 0.005f;
+				float _filmicLook = 0.5f;
+				float _albedoScale = 0.5f;
+			} _toneMappingConfig;
+
 			DeferredShading();
 			~DeferredShading();
 
@@ -85,13 +96,17 @@ namespace verus
 			bool IsActiveGeometryPass() const { return _activeGeometryPass; }
 			bool IsActiveLightingPass() const { return _activeLightingPass; }
 
-			int GetRenderPassHandle() const { return _rp; }
+			RPHandle GetRenderPassHandle() const { return _rph; }
+			RPHandle GetRenderPassHandle_Compose() const { return _rphCompose; }
+			int GetSubpass_Compose() const { return 1; }
 
 			void BeginGeometryPass(bool onlySetRT = false, bool spriteBaking = false);
 			void EndGeometryPass(bool resetRT = false);
 			bool BeginLightingPass();
 			void EndLightingPass();
-			void Compose(RcVector4 bgColor = Vector4(0));
+			void BeginCompose(RcVector4 bgColor = Vector4(0));
+			void EndCompose();
+			void ToneMapping();
 			void AntiAliasing();
 
 			static bool IsLightUrl(CSZ url);

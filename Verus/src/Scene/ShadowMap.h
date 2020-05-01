@@ -6,16 +6,26 @@ namespace verus
 	{
 		class ShadowMap : public Object
 		{
+		public:
+			struct Config
+			{
+				float _penumbraScale = 0;
+				float _penumbraLamBiasScale = 2.5f;
+				float _normalDepthBias = 0.012f;
+				float _csmContrastScale = 2.8f;
+			};
+			VERUS_TYPEDEFS(Config);
+
 		protected:
 			Matrix4         _matShadow;
 			Matrix4         _matShadowDS;
-			Vector4         _config = Vector4(0);
+			Config          _config;
 			CGI::TexturePwn _tex;
 			Camera          _camera;
 			PCamera         _pSceneCamera = nullptr;
 			int             _side = 0;
-			int             _rp = -1;
-			int             _fb = -1;
+			CGI::RPHandle   _rph;
+			CGI::FBHandle   _fbh;
 			bool            _snapToTexels = true;
 			bool            _rendering = false;
 
@@ -29,7 +39,7 @@ namespace verus
 			void SetSnapToTexels(bool b) { _snapToTexels = b; }
 			bool IsRendering() const { return _rendering; }
 
-			int GetRenderPassHandle() const { return _rp; }
+			CGI::RPHandle GetRenderPassHandle() const { return _rph; }
 
 			void Begin(RcVector3 dirToSun, float zNear = 1, float zFar = 0);
 			void BeginLight(RcPoint3 pos, RcPoint3 target, float side = 10);
@@ -38,7 +48,7 @@ namespace verus
 			RcMatrix4 GetShadowMatrix() const;
 			RcMatrix4 GetShadowMatrixDS() const;
 
-			RcVector4 GetConfig() { return _config; }
+			RConfig GetConfig() { return _config; }
 
 			CGI::TexturePtr GetTexture() const;
 

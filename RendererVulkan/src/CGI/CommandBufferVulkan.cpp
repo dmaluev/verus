@@ -44,7 +44,7 @@ void CommandBufferVulkan::End()
 		throw VERUS_RUNTIME_ERROR << "vkEndCommandBuffer(), res=" << res;
 }
 
-void CommandBufferVulkan::BeginRenderPass(int renderPassHandle, int framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
+void CommandBufferVulkan::BeginRenderPass(RPHandle renderPassHandle, FBHandle framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 	VERUS_QREF_CONST_SETTINGS;
@@ -120,6 +120,13 @@ void CommandBufferVulkan::BindPipeline(PipelinePtr pipe)
 
 void CommandBufferVulkan::SetViewport(std::initializer_list<Vector4> il, float minDepth, float maxDepth)
 {
+	if (il.size() > 0)
+	{
+		const float w = il.begin()->Width();
+		const float h = il.begin()->Height();
+		_viewportSize = Vector4(w, h, 1 / w, 1 / h);
+	}
+
 	VkViewport vpVulkan[VERUS_MAX_RT];
 	int count = 0;
 	for (const auto& rc : il)
@@ -155,7 +162,7 @@ void CommandBufferVulkan::SetBlendConstants(const float* p)
 	vkCmdSetBlendConstants(GetVkCommandBuffer(), p);
 }
 
-bool CommandBufferVulkan::BindDescriptors(ShaderPtr shader, int setNumber, int complexSetHandle)
+bool CommandBufferVulkan::BindDescriptors(ShaderPtr shader, int setNumber, CSHandle complexSetHandle)
 {
 	if (setNumber < 0)
 		return true;
@@ -167,7 +174,7 @@ bool CommandBufferVulkan::BindDescriptors(ShaderPtr shader, int setNumber, int c
 	if (offset < 0)
 		return false;
 
-	const VkDescriptorSet descriptorSet = (complexSetHandle >= 0) ?
+	const VkDescriptorSet descriptorSet = complexSetHandle.IsSet() ?
 		shaderVulkan.GetComplexVkDescriptorSet(complexSetHandle) : shaderVulkan.GetVkDescriptorSet(setNumber);
 	const uint32_t dynamicOffset = offset;
 	const uint32_t dynamicOffsetCount = 1;

@@ -100,8 +100,8 @@ void RendererVulkan::Done()
 		Renderer::I().ImGuiSetCurrentContext(nullptr);
 	}
 
-	DeleteFramebuffer(-1);
-	DeleteRenderPass(-1);
+	DeleteFramebuffer(FBHandle::Make(-2));
+	DeleteRenderPass(RPHandle::Make(-2));
 
 	for (auto sampler : _vSamplers)
 		VERUS_VULKAN_DESTROY(sampler, vkDestroySampler(_device, sampler, GetAllocator()));
@@ -189,7 +189,8 @@ VKAPI_ATTR VkBool32 VKAPI_CALL RendererVulkan::DebugUtilsMessengerCallback(
 		severity = D::Log::Severity::warning;
 	if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
 		severity = D::Log::Severity::error;
-	D::Log::I().Write(pCallbackData->pMessage, std::this_thread::get_id(), __FILE__, __LINE__, severity);
+	if (!strstr(pCallbackData->pMessage, "ptr to input arr[1] of struct of"))
+		D::Log::I().Write(pCallbackData->pMessage, std::this_thread::get_id(), __FILE__, __LINE__, severity);
 	return VK_FALSE;
 }
 
@@ -394,10 +395,12 @@ void RendererVulkan::PickPhysicalDevice()
 
 void RendererVulkan::CreateDevice()
 {
+	VERUS_QREF_CONST_SETTINGS;
 	VkResult res = VK_SUCCESS;
 
 	VkPhysicalDeviceLineRasterizationFeaturesEXT lineRasterizationFeatures = {};
 	lineRasterizationFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT;
+	lineRasterizationFeatures.bresenhamLines = VK_TRUE;
 	lineRasterizationFeatures.smoothLines = VK_TRUE;
 
 	_queueFamilyIndices = FindQueueFamilyIndices(_physicalDevice);
@@ -416,6 +419,8 @@ void RendererVulkan::CreateDevice()
 		vDeviceQueueCreateInfos.push_back(vkdqci);
 	}
 	VkPhysicalDeviceFeatures physicalDeviceFeatures = {};
+	physicalDeviceFeatures.geometryShader = VK_TRUE;
+	physicalDeviceFeatures.tessellationShader = settings._gpuTessellation ? VK_TRUE : VK_FALSE;
 	physicalDeviceFeatures.fillModeNonSolid = VK_TRUE;
 	physicalDeviceFeatures.multiViewport = VK_TRUE;
 	physicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
@@ -624,46 +629,46 @@ void RendererVulkan::CreateSamplers()
 
 	// <Repeat>
 	vksci = init;
-	_vSamplers[+Sampler::linear3D] = Create(vksci);
+	_vSamplers[+Sampler::linearMipL] = Create(vksci);
 
 	vksci = init;
 	vksci.magFilter = VK_FILTER_NEAREST;
 	vksci.minFilter = VK_FILTER_NEAREST;
-	_vSamplers[+Sampler::nearest3D] = Create(vksci);
+	_vSamplers[+Sampler::nearestMipL] = Create(vksci);
 
 	vksci = init;
 	vksci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-	_vSamplers[+Sampler::linear2D] = Create(vksci);
+	_vSamplers[+Sampler::linearMipN] = Create(vksci);
 
 	vksci = init;
 	vksci.magFilter = VK_FILTER_NEAREST;
 	vksci.minFilter = VK_FILTER_NEAREST;
 	vksci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-	_vSamplers[+Sampler::nearest2D] = Create(vksci);
+	_vSamplers[+Sampler::nearestMipN] = Create(vksci);
 	// </Repeat>
 
 	// <Clamp>
 	vksci = init;
 	vksci.addressModeU = vksci.addressModeV = vksci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	_vSamplers[+Sampler::linearClamp3D] = Create(vksci);
+	_vSamplers[+Sampler::linearClampMipL] = Create(vksci);
 
 	vksci = init;
 	vksci.magFilter = VK_FILTER_NEAREST;
 	vksci.minFilter = VK_FILTER_NEAREST;
 	vksci.addressModeU = vksci.addressModeV = vksci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	_vSamplers[+Sampler::nearestClamp3D] = Create(vksci);
+	_vSamplers[+Sampler::nearestClampMipL] = Create(vksci);
 
 	vksci = init;
 	vksci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 	vksci.addressModeU = vksci.addressModeV = vksci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	_vSamplers[+Sampler::linearClamp2D] = Create(vksci);
+	_vSamplers[+Sampler::linearClampMipN] = Create(vksci);
 
 	vksci = init;
 	vksci.magFilter = VK_FILTER_NEAREST;
 	vksci.minFilter = VK_FILTER_NEAREST;
 	vksci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 	vksci.addressModeU = vksci.addressModeV = vksci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	_vSamplers[+Sampler::nearestClamp2D] = Create(vksci);
+	_vSamplers[+Sampler::nearestClampMipN] = Create(vksci);
 	// </Clamp>
 }
 
@@ -692,7 +697,7 @@ void RendererVulkan::ImGuiCheckVkResultFn(VkResult res)
 		throw VERUS_RUNTIME_ERROR << "ImGuiCheckVkResultFn(), res=" << res;
 }
 
-void RendererVulkan::ImGuiInit(int renderPassHandle)
+void RendererVulkan::ImGuiInit(RPHandle renderPassHandle)
 {
 	VkResult res = VK_SUCCESS;
 	VkDescriptorPoolSize vkdps = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 };
@@ -720,7 +725,7 @@ void RendererVulkan::ImGuiInit(int renderPassHandle)
 		IO::FileSystem::LoadResource(_C(settings._imguiFont), vData);
 		void* pFontData = IM_ALLOC(vData.size());
 		memcpy(pFontData, vData.data(), vData.size());
-		io.Fonts->AddFontFromMemoryTTF(pFontData, Utils::Cast32(vData.size()), settings.GetFontSize(), nullptr, io.Fonts->GetGlyphRangesCyrillic());
+		io.Fonts->AddFontFromMemoryTTF(pFontData, Utils::Cast32(vData.size()), static_cast<float>(settings.GetFontSize()), nullptr, io.Fonts->GetGlyphRangesCyrillic());
 	}
 
 	ImGui::StyleColorsDark();
@@ -738,7 +743,7 @@ void RendererVulkan::ImGuiInit(int renderPassHandle)
 	info.MinImageCount = settings._screenVSync ? 3 : 2;;
 	info.ImageCount = s_ringBufferSize;
 	info.CheckVkResultFn = ImGuiCheckVkResultFn;
-	ImGui_ImplVulkan_Init(&info, _vRenderPasses[renderPassHandle]);
+	ImGui_ImplVulkan_Init(&info, _vRenderPasses[renderPassHandle.Get()]);
 
 	CommandBufferVulkan commandBuffer;
 	commandBuffer.InitOneTimeSubmit();
@@ -912,7 +917,7 @@ void RendererVulkan::DeleteTexture(PBaseTexture p)
 	TStoreTextures::Delete(static_cast<PTextureVulkan>(p));
 }
 
-int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD)
+RPHandle RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD)
 {
 	VkResult res = VK_SUCCESS;
 
@@ -1111,16 +1116,16 @@ int RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> ilA, 
 	if (VK_SUCCESS != (res = vkCreateRenderPass(_device, &vkrpci, GetAllocator(), &renderPass)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateRenderPass(), res=" << res;
 
-	const int handle = GetNextRenderPassHandle();
-	if (handle >= _vRenderPasses.size())
+	const int nextIndex = GetNextRenderPassIndex();
+	if (nextIndex >= _vRenderPasses.size())
 		_vRenderPasses.push_back(renderPass);
 	else
-		_vRenderPasses[handle] = renderPass;
+		_vRenderPasses[nextIndex] = renderPass;
 
-	return handle;
+	return RPHandle::Make(nextIndex);
 }
 
-int RendererVulkan::CreateFramebuffer(int renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex)
+FBHandle RendererVulkan::CreateFramebuffer(RPHandle renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex)
 {
 	VkResult res = VK_SUCCESS;
 
@@ -1138,7 +1143,7 @@ int RendererVulkan::CreateFramebuffer(int renderPassHandle, std::initializer_lis
 	for (const auto& x : il)
 	{
 		auto& texVulkan = static_cast<RTextureVulkan>(*x);
-		imageViews[count] = texVulkan.GetVkImageView();
+		imageViews[count] = texVulkan.GetVkImageViewForFramebuffer();
 		count++;
 	}
 	vkfci.attachmentCount = count;
@@ -1149,27 +1154,27 @@ int RendererVulkan::CreateFramebuffer(int renderPassHandle, std::initializer_lis
 	if (VK_SUCCESS != (res = vkCreateFramebuffer(_device, &vkfci, GetAllocator(), &framebuffer)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateFramebuffer(), res=" << res;
 
-	const int handle = GetNextFramebufferHandle();
+	const int nextIndex = GetNextFramebufferIndex();
 	Framebuffer fb;
 	fb._framebuffer = framebuffer;
 	fb._width = w;
 	fb._height = h;
-	if (handle >= _vFramebuffers.size())
+	if (nextIndex >= _vFramebuffers.size())
 		_vFramebuffers.push_back(fb);
 	else
-		_vFramebuffers[handle] = fb;
+		_vFramebuffers[nextIndex] = fb;
 
-	return handle;
+	return FBHandle::Make(nextIndex);
 }
 
-void RendererVulkan::DeleteRenderPass(int handle)
+void RendererVulkan::DeleteRenderPass(RPHandle handle)
 {
-	if (handle >= 0)
+	if (handle.IsSet())
 	{
-		vkDestroyRenderPass(_device, _vRenderPasses[handle], GetAllocator());
-		_vRenderPasses[handle] = VK_NULL_HANDLE;
+		vkDestroyRenderPass(_device, _vRenderPasses[handle.Get()], GetAllocator());
+		_vRenderPasses[handle.Get()] = VK_NULL_HANDLE;
 	}
-	else
+	else if (-2 == handle.Get())
 	{
 		for (auto renderPass : _vRenderPasses)
 			vkDestroyRenderPass(_device, renderPass, GetAllocator());
@@ -1177,14 +1182,14 @@ void RendererVulkan::DeleteRenderPass(int handle)
 	}
 }
 
-void RendererVulkan::DeleteFramebuffer(int handle)
+void RendererVulkan::DeleteFramebuffer(FBHandle handle)
 {
-	if (handle >= 0)
+	if (handle.IsSet())
 	{
-		vkDestroyFramebuffer(_device, _vFramebuffers[handle]._framebuffer, GetAllocator());
-		_vFramebuffers[handle]._framebuffer = VK_NULL_HANDLE;
+		vkDestroyFramebuffer(_device, _vFramebuffers[handle.Get()]._framebuffer, GetAllocator());
+		_vFramebuffers[handle.Get()]._framebuffer = VK_NULL_HANDLE;
 	}
-	else
+	else if (-2 == handle.Get())
 	{
 		for (auto framebuffer : _vFramebuffers)
 			vkDestroyFramebuffer(_device, framebuffer._framebuffer, GetAllocator());
@@ -1192,7 +1197,7 @@ void RendererVulkan::DeleteFramebuffer(int handle)
 	}
 }
 
-int RendererVulkan::GetNextRenderPassHandle() const
+int RendererVulkan::GetNextRenderPassIndex() const
 {
 	const int count = Utils::Cast32(_vRenderPasses.size());
 	VERUS_FOR(i, count)
@@ -1203,7 +1208,7 @@ int RendererVulkan::GetNextRenderPassHandle() const
 	return count;
 }
 
-int RendererVulkan::GetNextFramebufferHandle() const
+int RendererVulkan::GetNextFramebufferIndex() const
 {
 	const int count = Utils::Cast32(_vFramebuffers.size());
 	VERUS_FOR(i, count)
@@ -1214,14 +1219,14 @@ int RendererVulkan::GetNextFramebufferHandle() const
 	return count;
 }
 
-VkRenderPass RendererVulkan::GetRenderPass(int handle) const
+VkRenderPass RendererVulkan::GetRenderPass(RPHandle handle) const
 {
-	return _vRenderPasses[handle];
+	return _vRenderPasses[handle.Get()];
 }
 
-RendererVulkan::RcFramebuffer RendererVulkan::GetFramebuffer(int handle) const
+RendererVulkan::RcFramebuffer RendererVulkan::GetFramebuffer(FBHandle handle) const
 {
-	return _vFramebuffers[handle];
+	return _vFramebuffers[handle.Get()];
 }
 
 void RendererVulkan::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage vmaUsage, VkBuffer& buffer, VmaAllocation& vmaAllocation)

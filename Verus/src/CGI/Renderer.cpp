@@ -52,35 +52,15 @@ void Renderer::Init(PRendererDelegate pDelegate)
 
 	_commandBuffer.Init();
 
-	GeometryDesc geoDesc;
-	const InputElementDesc ied[] =
-	{
-		{0, offsetof(Vertex, _pos), IeType::floats, 2, IeUsage::position, 0},
-		InputElementDesc::End()
-	};
-	geoDesc._pInputElementDesc = ied;
-	const int strides[] = { sizeof(Vertex), 0 };
-	geoDesc._pStrides = strides;
-	_geoQuad.Init(geoDesc);
-
-	_shader[S_GENERATE_MIPS].Init("[Shaders]:GenerateMips.hlsl");
-	_shader[S_GENERATE_MIPS]->CreateDescriptorSet(0, &_ubGenerateMips, sizeof(_ubGenerateMips), 100,
-		{ Sampler::linearClamp2D, Sampler::storage, Sampler::storage, Sampler::storage, Sampler::storage }, ShaderStageFlags::cs);
-	_shader[S_GENERATE_MIPS]->CreatePipelineLayout();
-
-	_shader[S_QUAD].Init("[Shaders]:Quad.hlsl");
-	_shader[S_QUAD]->CreateDescriptorSet(0, &_ubQuadVS, sizeof(_ubQuadVS), 100, {}, ShaderStageFlags::vs);
-	_shader[S_QUAD]->CreateDescriptorSet(1, &_ubQuadFS, sizeof(_ubQuadFS), 100, { Sampler::linearClamp2D }, ShaderStageFlags::fs);
-	_shader[S_QUAD]->CreatePipelineLayout();
-
-	PipelineDesc pipeDesc(_shader[S_GENERATE_MIPS], "#");
-	_pipeGenerateMips.Init(pipeDesc);
-
-	_rpSwapChain = _pBaseRenderer->CreateRenderPass(
-		{ RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().Layout(ImageLayout::undefined, ImageLayout::presentSrc) },
-		{ RP::Subpass("Sp0").Color({RP::Ref("Color", ImageLayout::colorAttachment)}) },
+	_rphSwapChain = _pBaseRenderer->CreateRenderPass(
+		{
+			RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().Layout(ImageLayout::undefined, ImageLayout::presentSrc)
+		},
+		{
+			RP::Subpass("Sp0").Color({RP::Ref("Color", ImageLayout::colorAttachment)})
+		},
 		{});
-	_rpSwapChainDepth = _pBaseRenderer->CreateRenderPass(
+	_rphSwapChainDepth = _pBaseRenderer->CreateRenderPass(
 		{
 			RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().Layout(ImageLayout::undefined, ImageLayout::presentSrc),
 			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilAttachment),
@@ -93,9 +73,40 @@ void Renderer::Init(PRendererDelegate pDelegate)
 		},
 		{});
 
+	GeometryDesc geoDesc;
+	const VertexInputAttrDesc viaDesc[] =
+	{
+		{0, offsetof(Vertex, _pos), IeType::floats, 2, IeUsage::position, 0},
+		VertexInputAttrDesc::End()
+	};
+	geoDesc._pVertexInputAttrDesc = viaDesc;
+	const int strides[] = { sizeof(Vertex), 0 };
+	geoDesc._pStrides = strides;
+	_geoQuad.Init(geoDesc);
+
+	_shader[S_GENERATE_MIPS].Init("[Shaders]:GenerateMips.hlsl");
+	_shader[S_GENERATE_MIPS]->CreateDescriptorSet(0, &_ubGenerateMips, sizeof(_ubGenerateMips), 100,
+		{
+			Sampler::linearClampMipN,
+			Sampler::storage,
+			Sampler::storage,
+			Sampler::storage,
+			Sampler::storage
+		},
+		ShaderStageFlags::cs);
+	_shader[S_GENERATE_MIPS]->CreatePipelineLayout();
+
+	_shader[S_QUAD].Init("[Shaders]:Quad.hlsl");
+	_shader[S_QUAD]->CreateDescriptorSet(0, &_ubQuadVS, sizeof(_ubQuadVS), 100, {}, ShaderStageFlags::vs);
+	_shader[S_QUAD]->CreateDescriptorSet(1, &_ubQuadFS, sizeof(_ubQuadFS), 100, { Sampler::linearClampMipN }, ShaderStageFlags::fs);
+	_shader[S_QUAD]->CreatePipelineLayout();
+
+	PipelineDesc pipeDesc(_shader[S_GENERATE_MIPS], "#");
+	_pipeGenerateMips.Init(pipeDesc);
+
 	OnSwapChainResized(true, false);
 
-	_pBaseRenderer->ImGuiInit(_rpSwapChainDepth);
+	_pBaseRenderer->ImGuiInit(_rphSwapChainDepth);
 	ImGuiUpdateStyle();
 
 	_ds.Init();
@@ -126,6 +137,7 @@ void Renderer::Done()
 		_geoQuad.Done();
 		_commandBuffer.Done();
 
+		Scene::Grass::DoneStatic();
 		Scene::Terrain::DoneStatic();
 		Scene::Mesh::DoneStatic();
 
@@ -151,7 +163,7 @@ void Renderer::Present()
 	_frameCount++;
 
 	VERUS_QREF_TIMER;
-	_fps = _fps * 0.75f + timer.GetDeltaTimeInv() * 0.25f;
+	_fps = Math::Lerp(_fps, timer.GetDeltaTimeInv(), 0.25f);
 }
 
 void Renderer::OnWindowResized(int w, int h)
@@ -170,10 +182,10 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 {
 	if (done)
 	{
-		VERUS_FOR(i, _fbSwapChainDepth.size())
-			_pBaseRenderer->DeleteFramebuffer(_fbSwapChainDepth[i]);
-		VERUS_FOR(i, _fbSwapChain.size())
-			_pBaseRenderer->DeleteFramebuffer(_fbSwapChain[i]);
+		VERUS_FOR(i, _fbhSwapChainDepth.size())
+			_pBaseRenderer->DeleteFramebuffer(_fbhSwapChainDepth[i]);
+		VERUS_FOR(i, _fbhSwapChain.size())
+			_pBaseRenderer->DeleteFramebuffer(_fbhSwapChain[i]);
 
 		_texDepthStencil.Done();
 	}
@@ -185,14 +197,15 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 		texDesc._format = Format::unormD24uintS8;
 		texDesc._width = _swapChainWidth;
 		texDesc._height = _swapChainHeight;
+		texDesc._flags = TextureDesc::Flags::inputAttachment | TextureDesc::Flags::depthSampledW;
 		_texDepthStencil.Init(texDesc);
 
-		_fbSwapChain.resize(_pBaseRenderer->GetSwapChainBufferCount());
-		VERUS_FOR(i, _fbSwapChain.size())
-			_fbSwapChain[i] = _pBaseRenderer->CreateFramebuffer(_rpSwapChain, {}, _swapChainWidth, _swapChainHeight, i);
-		_fbSwapChainDepth.resize(_pBaseRenderer->GetSwapChainBufferCount());
-		VERUS_FOR(i, _fbSwapChainDepth.size())
-			_fbSwapChainDepth[i] = _pBaseRenderer->CreateFramebuffer(_rpSwapChainDepth, { _texDepthStencil }, _swapChainWidth, _swapChainHeight, i);
+		_fbhSwapChain.resize(_pBaseRenderer->GetSwapChainBufferCount());
+		VERUS_FOR(i, _fbhSwapChain.size())
+			_fbhSwapChain[i] = _pBaseRenderer->CreateFramebuffer(_rphSwapChain, {}, _swapChainWidth, _swapChainHeight, i);
+		_fbhSwapChainDepth.resize(_pBaseRenderer->GetSwapChainBufferCount());
+		VERUS_FOR(i, _fbhSwapChainDepth.size())
+			_fbhSwapChainDepth[i] = _pBaseRenderer->CreateFramebuffer(_rphSwapChainDepth, { _texDepthStencil }, _swapChainWidth, _swapChainHeight, i);
 	}
 }
 

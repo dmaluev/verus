@@ -12,6 +12,7 @@
 #include "BaseCommandBuffer.h"
 #include "BaseRenderer.h"
 
+#include "TextureRAM.h"
 #include "DebugDraw.h"
 #include "DeferredShading.h"
 #include "Renderer.h"

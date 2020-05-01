@@ -1,0 +1,100 @@
+// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+
+#include "Lib.hlsl"
+#include "LibDepth.hlsl"
+#include "LibLighting.hlsl"
+#include "LibSurface.hlsl"
+#include "WaterGen.inc.hlsl"
+
+ConstantBuffer<UB_Gen>            g_ubGen            : register(b0, space0);
+ConstantBuffer<UB_GenHeightmapFS> g_ubGenHeightmapFS : register(b0, space1);
+ConstantBuffer<UB_GenNormalsFS>   g_ubGenNormalsFS   : register(b0, space2);
+
+Texture2D    g_texSourceHeightmap : register(t1, space1);
+SamplerState g_samSourceHeightmap : register(s1, space1);
+Texture2D    g_texGenHeightmap    : register(t1, space2);
+SamplerState g_samGenHeightmap    : register(s1, space2);
+
+struct VSI
+{
+	VK_LOCATION_POSITION float4 pos : POSITION;
+};
+
+struct VSO
+{
+	float4 pos : SV_Position;
+	float2 tc0 : TEXCOORD0;
+};
+
+struct FSO
+{
+	float4 color : SV_Target0;
+};
+
+#ifdef _VS
+VSO mainGenHeightmapVS(VSI si)
+{
+	VSO so;
+
+	so.pos = float4(mul(si.pos, g_ubGen._matW), 1);
+	so.tc0 = mul(si.pos, g_ubGen._matV).xy;
+
+	return so;
+}
+#endif
+
+#ifdef _VS
+VSO mainGenNormalsVS(VSI si)
+{
+	VSO so;
+
+	so.pos = float4(mul(si.pos, g_ubGen._matW), 1);
+	so.tc0 = mul(si.pos, g_ubGen._matV).xy;
+
+	return so;
+}
+#endif
+
+#ifdef _FS
+FSO mainGenHeightmapFS(VSO si)
+{
+	FSO so;
+
+	const float4 amplitudes = g_ubGenHeightmapFS._amplitudes; // Local copy.
+	const float2 dirs[4] =
+	{
+		float2(+1, +0),
+		float2(+0, +1),
+		float2(-1, +0),
+		float2(+0, -1)
+	};
+	const float4 offsets = float4(0, 0.3, 0.5, 0.7);
+	float accHeight = 0.0;
+	[unroll] for (uint i = 0; i < 4; ++i)
+	{
+		float height = g_texSourceHeightmap.Sample(g_samSourceHeightmap, (si.tc0 + offsets[i]) * (i / 2 + 1) + g_ubGenHeightmapFS._phase.x * dirs[i]).r - 0.5;
+		height *= amplitudes[i]; // Must be local float4 to work in D3D12!
+		accHeight += height;
+	}
+	const float splash = max(0.0, accHeight);
+	so.color = accHeight * 4.0 + splash * splash * splash * 10.0;
+
+	return so;
+}
+#endif
+
+#ifdef _FS
+FSO mainGenNormalsFS(VSO si)
+{
+	FSO so;
+
+	const float damp = (1.0 / 512.0 / 2.0) * g_ubGenNormalsFS._waterScale.x * g_ubGenNormalsFS._textureSize.x;
+	so.color.rgb = ComputeNormals(g_texGenHeightmap, g_samGenHeightmap, si.tc0, damp, 2);
+	so.color.a = 1.0;
+
+	return so;
+}
+#endif
+
+//@mainGenHeightmap:#GenHeightmap
+//@mainGenNormals:#GenNormals

@@ -12,12 +12,24 @@ namespace verus
 			enum PIPE
 			{
 				PIPE_MAIN,
-				PIPE_DEPTH_ROBOTIC,
-				PIPE_DEPTH_SKINNED,
-				PIPE_INSTANCED,
 				PIPE_ROBOTIC,
 				PIPE_SKINNED,
-				PIPE_MAX
+
+				PIPE_INSTANCED,
+
+				PIPE_DEPTH,
+				PIPE_DEPTH_ROBOTIC,
+				PIPE_DEPTH_SKINNED,
+
+				PIPE_TESS,
+				PIPE_TESS_ROBOTIC,
+				PIPE_TESS_SKINNED,
+
+				PIPE_WIREFRAME,
+				PIPE_WIREFRAME_ROBOTIC,
+				PIPE_WIREFRAME_SKINNED,
+
+				PIPE_COUNT
 			};
 
 			struct PerInstanceData
@@ -29,13 +41,13 @@ namespace verus
 			};
 
 		private:
-			static CGI::ShaderPwn              s_shader;
-			static CGI::PipelinePwns<PIPE_MAX> s_pipe;
-			static UB_PerFrame                 s_ubPerFrame;
-			static UB_PerMaterialFS            s_ubPerMaterialFS;
-			static UB_PerMeshVS                s_ubPerMeshVS;
-			static UB_SkeletonVS               s_ubSkeletonVS;
-			static UB_PerObject                s_ubPerObject;
+			static CGI::ShaderPwn                s_shader;
+			static CGI::PipelinePwns<PIPE_COUNT> s_pipe;
+			static UB_PerFrame                   s_ubPerFrame;
+			static UB_PerMaterialFS              s_ubPerMaterialFS;
+			static UB_PerMeshVS                  s_ubPerMeshVS;
+			static UB_SkeletonVS                 s_ubSkeletonVS;
+			static UB_PerObject                  s_ubPerObject;
 
 			CGI::GeometryPwn        _geo;
 			Vector<PerInstanceData> _vInstanceBuffer;
@@ -64,6 +76,7 @@ namespace verus
 			void Done();
 
 			void BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb);
+			void BindPipeline(CGI::CommandBufferPtr cb, bool allowTess = true);
 			void BindGeo(CGI::CommandBufferPtr cb);
 			void BindGeo(CGI::CommandBufferPtr cb, UINT32 bindingsFilter);
 
@@ -73,12 +86,12 @@ namespace verus
 			void UpdateUniformBufferPerMaterialFS();
 			void UpdateUniformBufferPerMeshVS();
 			void UpdateUniformBufferSkeletonVS();
-			void UpdateUniformBufferPerObject(RcTransform3 tr);
-			void UpdateUniformBufferPerObject(Point3 pos);
+			void UpdateUniformBufferPerObject(RcTransform3 tr, RcVector4 color = Vector4(0.5f, 0.5f, 0.5f, 1));
+			void UpdateUniformBufferPerObject(Point3 pos, RcVector4 color = Vector4(0.5f, 0.5f, 0.5f, 1));
 
 			CGI::GeometryPtr GetGeometry() const { return _geo; }
 			virtual void CreateDeviceBuffers() override;
-			virtual void BufferDataVB(const void* p, int binding) override;
+			virtual void UpdateVertexBuffer(const void* p, int binding) override;
 
 			// Instancing:
 			void PushInstance(RcTransform3 matW, RcVector4 instData);

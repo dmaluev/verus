@@ -46,12 +46,8 @@ namespace verus
 			void Load(CSZ url);
 			static String Parse(
 				CSZ branchDesc,
-				RString entryVS,
-				RString entryHS,
-				RString entryDS,
-				RString entryGS,
-				RString entryFS,
-				RString entryCS,
+				RString entry,
+				String stageEntries[],
 				RString stages,
 				Vector<String>& vMacroName,
 				Vector<String>& vMacroValue,
@@ -61,8 +57,8 @@ namespace verus
 			virtual void CreateDescriptorSet(int setNumber, const void* pSrc, int size,
 				int capacity = 1, std::initializer_list<Sampler> il = {}, ShaderStageFlags stageFlags = ShaderStageFlags::vs_fs) = 0;
 			virtual void CreatePipelineLayout() = 0;
-			virtual int BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips = nullptr) = 0;
-			virtual void FreeDescriptorSet(int& complexSetHandle) = 0;
+			virtual CSHandle BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips = nullptr) = 0;
+			virtual void FreeDescriptorSet(CSHandle& complexSetHandle) = 0;
 
 			virtual void BeginBindDescriptors() = 0;
 			virtual void EndBindDescriptors() = 0;

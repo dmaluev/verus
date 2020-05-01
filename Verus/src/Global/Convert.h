@@ -43,9 +43,11 @@ namespace verus
 
 		// 4 bits per channel:
 		static UINT16 Uint8x4ToUint4x4(UINT32 in);
-		static UINT32 Uint4x4ToUint8x4(UINT16 in);
+		static UINT32 Uint4x4ToUint8x4(UINT16 in, bool scaleTo255 = false);
 
 		// Colors:
+		static float SRGBToLinear(float color);
+		static float LinearToSRGB(float color);
 		static UINT32 Color16To32(UINT16 in);
 		static   void ColorInt32ToFloat(UINT32 in, float* out, bool sRGB = true);
 		static UINT32 ColorFloatToInt32(const float* in, bool sRGB = true);

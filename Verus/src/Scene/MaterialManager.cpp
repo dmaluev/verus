@@ -14,7 +14,7 @@ Texture::~Texture()
 	Done();
 }
 
-void Texture::Init(CSZ url, bool streamParts, bool sync)
+void Texture::Init(CSZ url, bool streamParts, bool sync, CGI::PcSamplerDesc pSamplerDesc)
 {
 	if (_refCount)
 		return;
@@ -26,6 +26,7 @@ void Texture::Init(CSZ url, bool streamParts, bool sync)
 	CGI::TextureDesc texDesc;
 	texDesc._url = url;
 	texDesc._texturePart = _streamParts ? 512 : 0;
+	texDesc._pSamplerDesc = pSamplerDesc;
 	if (sync)
 		texDesc._flags = CGI::TextureDesc::Flags::sync;
 	_texTiny.Init(texDesc);
@@ -81,12 +82,12 @@ void Texture::Update()
 
 // TexturePtr:
 
-void TexturePtr::Init(CSZ url, bool streamParts, bool sync)
+void TexturePtr::Init(CSZ url, bool streamParts, bool sync, CGI::PcSamplerDesc pSamplerDesc)
 {
 	VERUS_QREF_MM;
 	VERUS_RT_ASSERT(!_p);
 	_p = mm.InsertTexture(url);
-	_p->Init(url, streamParts, sync);
+	_p->Init(url, streamParts, sync, pSamplerDesc);
 }
 
 void TexturePwn::Done()
@@ -368,9 +369,10 @@ void Material::FromString(CSZ txt)
 
 void Material::BindDescriptorSetTextures()
 {
-	VERUS_RT_ASSERT(-1 == _csh);
+	VERUS_RT_ASSERT(!_csh.IsSet());
 	VERUS_RT_ASSERT(IsLoaded());
-	_csh = Scene::Mesh::GetShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTex(), _texNormal->GetTex() });
+	VERUS_QREF_MM;
+	_csh = Scene::Mesh::GetShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTex(), _texNormal->GetTex(), mm.GetDetailTexture(), mm.GetStrassTexture() });
 }
 
 bool Material::UpdateMeshUniformBuffer(float motionBlur)
@@ -449,12 +451,23 @@ void MaterialManager::Init()
 
 void MaterialManager::InitCmd()
 {
+	CGI::SamplerDesc strassSamplerDesc;
+	strassSamplerDesc.SetFilter("a");
+	strassSamplerDesc.SetAddressMode("rr");
+	strassSamplerDesc._mipLodBias = -2;
+
 	_texDefaultAlbedo.Init("[Textures]:Default.dds", false, true);
 	_texDefaultNormal.Init("[Textures]:Default.NM.dds", false, true);
-	//_texDetail.Init("[Textures]:Detail.FX.dds");
-	//_texStrass.Init("[Textures]:Strass.dds");
+	_texDetail.Init("[Textures]:Detail.FX.dds", false, true);
+	_texStrass.Init("[Textures]:Strass.dds", false, true, &strassSamplerDesc);
 
-	_cshDefault = Scene::Mesh::GetShader()->BindDescriptorSetTextures(1, { _texDefaultAlbedo->GetTex(), _texDefaultNormal->GetTex() });
+	_cshDefault = Scene::Mesh::GetShader()->BindDescriptorSetTextures(1,
+		{
+			_texDefaultAlbedo->GetTex(),
+			_texDefaultNormal->GetTex(),
+			_texDetail->GetTex(),
+			_texStrass->GetTex()
+		});
 }
 
 void MaterialManager::Done()

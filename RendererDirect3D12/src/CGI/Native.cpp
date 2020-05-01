@@ -103,6 +103,8 @@ D3D_PRIMITIVE_TOPOLOGY CGI::ToNativePrimitiveTopology(PrimitiveTopology primitiv
 	case PrimitiveTopology::lineStrip:     return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
 	case PrimitiveTopology::triangleList:  return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	case PrimitiveTopology::triangleStrip: return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+	case PrimitiveTopology::patchList3:    return D3D_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST;
+	case PrimitiveTopology::patchList4:    return D3D_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST;
 	default: throw VERUS_RECOVERABLE << "ToNativePrimitiveTopology()";
 	}
 }
@@ -116,6 +118,8 @@ D3D12_PRIMITIVE_TOPOLOGY_TYPE CGI::ToNativePrimitiveTopologyType(PrimitiveTopolo
 	case PrimitiveTopology::lineStrip:     return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
 	case PrimitiveTopology::triangleList:  return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	case PrimitiveTopology::triangleStrip: return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	case PrimitiveTopology::patchList3:    return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
+	case PrimitiveTopology::patchList4:    return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
 	default: throw VERUS_RECOVERABLE << "ToNativePrimitiveTopologyType()";
 	}
 }
@@ -141,14 +145,16 @@ CSZ CGI::ToNativeSemanticName(IeUsage usage)
 	static const CSZ names[] =
 	{
 		"POSITION",     // IeUsage::position
-		"BLENDWEIGHT",  // IeUsage::blendWeight
+		"BLENDWEIGHTS", // IeUsage::blendWeights
 		"BLENDINDICES", // IeUsage::blendIndices
 		"NORMAL",       // IeUsage::normal
+		"TANGENT",      // IeUsage::tangent
+		"BINORMAL",     // IeUsage::binormal
+		"COLOR",        // IeUsage::color
 		"PSIZE",        // IeUsage::psize
 		"TEXCOORD",     // IeUsage::texCoord
-		"TEXCOORD",     // IeUsage::tangent
-		"TEXCOORD",     // IeUsage::binormal
-		"COLOR"         // IeUsage::color
+		"INSTDATA",     // IeUsage::instData
+		"ATTR"          // IeUsage::attr
 	};
 	return names[+usage];
 }

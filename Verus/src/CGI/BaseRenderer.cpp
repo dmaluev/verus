@@ -45,6 +45,30 @@ void BaseRenderer::UpdateScheduled()
 		}), _vScheduled.end());
 }
 
+RPHandle BaseRenderer::CreateSimpleRenderPass(Format format, ImageLayout layout)
+{
+	return CreateRenderPass(
+		{
+			RP::Attachment("Attach", format).LoadOpDontCare().Layout(layout),
+		},
+		{
+			RP::Subpass("Sp0").Color({RP::Ref("Attach", ImageLayout::colorAttachment)}),
+		},
+		{});
+}
+
+RPHandle BaseRenderer::CreateShadowRenderPass(Format format)
+{
+	return CreateRenderPass(
+		{
+			RP::Attachment("Depth", format).LoadOpClear().Layout(ImageLayout::depthStencilReadOnly),
+		},
+		{
+			RP::Subpass("Sp0").Color({}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachment)),
+		},
+		{});
+}
+
 void BaseRenderer::SetAlphaBlendHelper(
 	CSZ sz,
 	int& colorBlendOp,

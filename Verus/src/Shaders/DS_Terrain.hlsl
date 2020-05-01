@@ -3,15 +3,20 @@
 #include "Lib.hlsl"
 #include "LibColor.hlsl"
 #include "LibDeferredShading.hlsl"
+#include "LibSurface.hlsl"
+#include "LibTessellation.hlsl"
 #include "DS_Terrain.inc.hlsl"
 
-#define HEIGHT_SCALE 0.01
+#define DETAIL_TC_SCALE 8.0
 
-ConstantBuffer<UB_DrawDepth>     g_ubDrawDepth     : register(b0, space0);
-ConstantBuffer<UB_PerMaterialFS> g_ubPerMaterialFS : register(b0, space1);
+ConstantBuffer<UB_TerrainVS> g_ubTerrainVS : register(b0, space0);
+ConstantBuffer<UB_TerrainFS> g_ubTerrainFS : register(b0, space1);
 
-Texture2D      g_texHeight    : register(t1, space0);
-SamplerState   g_samHeight    : register(s1, space0);
+Texture2D      g_texHeightVS  : register(t1, space0);
+SamplerState   g_samHeightVS  : register(s1, space0);
+Texture2D      g_texNormalVS  : register(t2, space0);
+SamplerState   g_samNormalVS  : register(s2, space0);
+
 Texture2D      g_texNormal    : register(t1, space1);
 SamplerState   g_samNormal    : register(s1, space1);
 Texture2D      g_texBlend     : register(t2, space1);
@@ -20,60 +25,145 @@ Texture2DArray g_texLayers    : register(t3, space1);
 SamplerState   g_samLayers    : register(s3, space1);
 Texture2DArray g_texLayersNM  : register(t4, space1);
 SamplerState   g_samLayersNM  : register(s4, space1);
+Texture2D      g_texDetail    : register(t5, space1);
+SamplerState   g_samDetail    : register(s5, space1);
 
 struct VSI
 {
-	VK_LOCATION_POSITION int4 pos : POSITION;
-
-	VK_LOCATION(16)      int4 posPatch        : TEXCOORD8;
-	VK_LOCATION(17)      int4 layerForChannel : TEXCOORD9;
+	VK_LOCATION_POSITION int4 pos             : POSITION;
+	VK_LOCATION(16)      int4 posPatch        : INSTDATA0;
+	VK_LOCATION(17)      int4 layerForChannel : INSTDATA1;
 };
 
 struct VSO
 {
 	float4 pos             : SV_Position;
-	float4 layerForChannel : TEXCOORD0;
-#ifndef DEF_DEPTH
-	float3 tcBlend         : TEXCOORD1;
-	float4 tcLayer_tcMap   : TEXCOORD2;
+	float3 nrmWV           : TEXCOORD0;
+#if !defined(DEF_DEPTH)
+	float4 layerForChannel : TEXCOORD1;
+#if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
+	float3 tcBlend         : TEXCOORD2;
+	float4 tcLayer_tcMap   : TEXCOORD3;
 #endif
-	float2 depth           : TEXCOORD3;
+#endif
 };
+
+static const float g_bestPrecision = 50.0;
+static const float g_layerScale = 1.0 / 8.0;
 
 #ifdef _VS
 VSO mainVS(VSI si)
 {
 	VSO so;
 
-	const float3 posEye = g_ubDrawDepth._posEye_mapSideInv.xyz;
-	const float mapSideInv = g_ubDrawDepth._posEye_mapSideInv.w;
+	const float3 eyePos = g_ubTerrainVS._eyePos_mapSideInv.xyz;
+	const float mapSideInv = g_ubTerrainVS._eyePos_mapSideInv.w;
 
 	const float2 edgeCorrection = si.pos.yw;
 	si.pos.yw = 0.0;
-	float3 pos = si.pos.xyz + si.posPatch.xyz * float3(1, HEIGHT_SCALE, 1);
+	float3 pos = si.pos.xyz + si.posPatch.xyz;
+	const float2 tcMap = pos.xz * mapSideInv + 0.5; // Range [0, 1).
 	const float2 posBlend = pos.xz + edgeCorrection * 0.5;
 
-	const float bestPrecision = 50.0;
-	const float2 tcMap = pos.xz * mapSideInv + 0.5; // Range [0, 1).
-	const float distToEye = distance(pos, posEye);
-	const float geomipsLod = log2(clamp(distToEye * (2.0 / 100.0), 1.0, 18.0));
-	const float geomipsLodFrac = frac(geomipsLod);
-	const float geomipsLodBase = floor(geomipsLod);
-	const float geomipsLodNext = geomipsLodBase + 1.0;
-	const float2 halfTexelAB = (0.5 * mapSideInv) * exp2(float2(geomipsLodBase, geomipsLodNext));
-	const float yA = g_texHeight.SampleLevel(g_samHeight, tcMap + halfTexelAB.xx, geomipsLodBase).r + bestPrecision;
-	const float yB = g_texHeight.SampleLevel(g_samHeight, tcMap + halfTexelAB.yy, geomipsLodNext).r + bestPrecision;
-	pos.y = lerp(yA, yB, geomipsLodFrac);
+	// <HeightAndNormal>
+	float3 intactNrm;
+	{
+		const float approxHeight = g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + (0.5 * mapSideInv) * 16.0, 4.0).r + g_bestPrecision;
+		pos.y = approxHeight;
 
-	so.pos = mul(float4(pos, 1), g_ubDrawDepth._matVP);
+		const float distToEye = distance(pos, eyePos);
+		const float geomipsLod = log2(clamp(distToEye * (2.0 / 100.0), 1.0, 18.0));
+		const float geomipsLodFrac = frac(geomipsLod);
+		const float geomipsLodBase = floor(geomipsLod);
+		const float geomipsLodNext = geomipsLodBase + 1.0;
+		const float2 texelCenterAB = (0.5 * mapSideInv) * exp2(float2(geomipsLodBase, geomipsLodNext));
+		const float yA = g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + texelCenterAB.xx, geomipsLodBase).r + g_bestPrecision;
+		const float yB = g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + texelCenterAB.yy, geomipsLodNext).r + g_bestPrecision;
+		pos.y = lerp(yA, yB, geomipsLodFrac);
+
+		const float4 rawNormal = g_texNormalVS.SampleLevel(g_samNormalVS, tcMap + texelCenterAB.xx, geomipsLodBase);
+		intactNrm = float3(rawNormal.x, 0, rawNormal.y) * 2.0 - 1.0;
+		intactNrm.y = ComputeNormalZ(intactNrm.xz);
+	}
+	// </HeightAndNormal>
+
+	so.pos = MulTessPos(float4(pos, 1), g_ubTerrainVS._matV, g_ubTerrainVS._matVP);
+	so.nrmWV = mul(intactNrm, (float3x3)g_ubTerrainVS._matWV);
+#if !defined(DEF_DEPTH)
 	so.layerForChannel = si.layerForChannel;
-#ifndef DEF_DEPTH
+#if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
 	so.tcBlend.xy = posBlend * mapSideInv + 0.5;
-	so.tcBlend.z = pos.y + 0.75;
-	so.tcLayer_tcMap.xy = pos.xz * (1.0 / 8.0);
+	so.tcBlend.z = pos.y;
+	so.tcLayer_tcMap.xy = pos.xz * g_layerScale;
 	so.tcLayer_tcMap.zw = (pos.xz + 0.5) * mapSideInv + 0.5; // Texel's center.
 #endif
-	so.depth = so.pos.zw;
+#endif
+
+	return so;
+}
+#endif
+
+_HSO_STRUCT;
+
+#ifdef _HS
+PCFO PatchConstFunc(const OutputPatch<HSO, 3> outputPatch)
+{
+	PCFO so;
+	_HS_PCF_BODY(g_ubTerrainVS._matP);
+	return so;
+}
+
+[domain("tri")]
+//[maxtessfactor(7.0)]
+[outputcontrolpoints(3)]
+[outputtopology("triangle_cw")]
+[partitioning(_PARTITION_METHOD)]
+[patchconstantfunc("PatchConstFunc")]
+HSO mainHS(InputPatch<VSO, 3> inputPatch, uint id : SV_OutputControlPointID)
+{
+	HSO so;
+
+	_HS_PN_BODY(nrmWV, g_ubTerrainVS._matP, g_ubTerrainVS._viewportSize);
+
+	_HS_COPY(pos);
+	_HS_COPY(nrmWV);
+#if !defined(DEF_DEPTH)
+	_HS_COPY(layerForChannel);
+#if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
+	_HS_COPY(tcBlend);
+	_HS_COPY(tcLayer_tcMap);
+#endif
+#endif
+
+	return so;
+}
+#endif
+
+#ifdef _DS
+[domain("tri")]
+VSO mainDS(_IN_DS)
+{
+	VSO so;
+
+	_DS_INIT_FLAT_POS;
+	_DS_INIT_SMOOTH_POS;
+
+	so.pos = ApplyProjection(smoothPosWV, g_ubTerrainVS._matP);
+	_DS_COPY(nrmWV);
+#if !defined(DEF_DEPTH)
+	_DS_COPY(layerForChannel);
+#if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
+	_DS_COPY(tcBlend);
+	_DS_COPY(tcLayer_tcMap);
+#endif
+#endif
+
+#ifndef DEF_DEPTH
+	// Fade to non-tess mesh at 80 meters. LOD 1 starts at 100 meters.
+	const float tessStrength = saturate((1.0 - saturate(smoothPosWV.z / -80.0)) * 4.0);
+	const float3 posWV = lerp(flatPosWV, smoothPosWV, tessStrength);
+	so.pos = ApplyProjection(posWV, g_ubTerrainVS._matP);
+#endif
 
 	return so;
 }
@@ -84,14 +174,14 @@ DS_FSO mainFS(VSO si)
 {
 	DS_FSO so;
 
+#ifdef DEF_SOLID_COLOR
+	DS_SolidColor(so, si.layerForChannel.rgb);
+#else
 	const float3 rand = Rand(si.pos.xy);
 
+	const float4 layerForChannel = round(si.layerForChannel);
 	const float2 tcLayer = si.tcLayer_tcMap.xy;
 	const float2 tcMap = si.tcLayer_tcMap.zw;
-
-	const float gloss = 4.0;
-
-	const float4 layerForChannel = round(si.layerForChannel);
 
 	const float4 rawBlend = g_texBlend.Sample(g_samBlend, si.tcBlend.xy);
 	float4 weights = float4(rawBlend.rgb, 1.0 - dot(rawBlend.rgb, float3(1, 1, 1)));
@@ -108,9 +198,9 @@ DS_FSO mainFS(VSO si)
 		basisBin = cross(basisTan, basisNrm);
 	}
 	_TBN_SPACE(
-		mul(basisTan, (float3x3)g_ubDrawDepth._matWV),
-		mul(basisBin, (float3x3)g_ubDrawDepth._matWV),
-		mul(basisNrm, (float3x3)g_ubDrawDepth._matWV));
+		mul(basisTan, (float3x3)g_ubTerrainFS._matWV),
+		mul(basisBin, (float3x3)g_ubTerrainFS._matWV),
+		mul(basisNrm, (float3x3)g_ubTerrainFS._matWV));
 	// </Basis>
 
 	// <Albedo>
@@ -140,8 +230,8 @@ DS_FSO mainFS(VSO si)
 		accAlbedo += rawAlbedos[3] * weights.a;
 		albedo = accAlbedo;
 
-		static float vSpecStrength[_MAX_TERRAIN_LAYERS] = (float[_MAX_TERRAIN_LAYERS])g_ubPerMaterialFS._vSpecStrength;
-		static float vDetailStrength[_MAX_TERRAIN_LAYERS] = (float[_MAX_TERRAIN_LAYERS])g_ubPerMaterialFS._vDetailStrength;
+		static float vSpecStrength[_MAX_TERRAIN_LAYERS] = (float[_MAX_TERRAIN_LAYERS])g_ubTerrainFS._vSpecStrength;
+		static float vDetailStrength[_MAX_TERRAIN_LAYERS] = (float[_MAX_TERRAIN_LAYERS])g_ubTerrainFS._vDetailStrength;
 		const float4 specStrengthForChannel = float4(
 			vSpecStrength[layerForChannel.r],
 			vSpecStrength[layerForChannel.g],
@@ -157,26 +247,58 @@ DS_FSO mainFS(VSO si)
 	}
 	// </Albedo>
 
+	// <Water>
+	float waterGlossBoost = 0.0;
+	{
+		const float dryMask = saturate(si.tcBlend.z);
+		const float dryMask3 = dryMask * dryMask * dryMask;
+		const float wetMask = 1.0 - dryMask;
+		const float wetMask3 = wetMask * wetMask * wetMask;
+		albedo.rgb *= dryMask3 * 0.5 + 0.5;
+		specStrength = dryMask * saturate(specStrength + wetMask3 * wetMask3);
+		waterGlossBoost = min(32.0, dryMask * wetMask3 * 128.0);
+	}
+	// </Water>
+
+	const float gloss = lerp(3.3, 15.0, specStrength) + waterGlossBoost;
+
 	// <Normal>
 	float3 normalWV;
-	float4 normalAA;
+	float toksvigFactor;
 	{
 		float4 accNormal = 0.0;
 		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.r)) * weights.r;
 		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.g)) * weights.g;
 		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.b)) * weights.b;
 		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.a)) * weights.a;
-		normalAA = NormalMapAA(accNormal);
+		accNormal = lerp(accNormal, float4(0, 0.5, 0.5, 0.5), 0.5);
+		const float4 normalAA = NormalMapAA(accNormal);
 		normalWV = normalize(mul(normalAA.xyz, matFromTBN));
+		toksvigFactor = ComputeToksvigFactor(normalAA.a, gloss);
 	}
 	// </Normal>
 
-	DS_Test(so, 0.0, 0.5, 16.0);
-	DS_SetAlbedo(so, albedo.rgb);
-	DS_SetDepth(so, si.depth.x / si.depth.y);
-	DS_SetNormal(so, normalWV + NormalDither(rand));
-	DS_SetSpec(so, normalAA.w * specStrength);
-	DS_SetGloss(so, normalAA.w * gloss);
+	// <Detail>
+	{
+		const float3 rawDetail = g_texDetail.Sample(g_samDetail, tcLayer * DETAIL_TC_SCALE).rgb;
+		albedo.rgb = albedo.rgb * lerp(0.5, rawDetail, detailStrength) * 2.0;
+	}
+	// </Detail>
+
+	{
+		DS_Reset(so);
+
+		DS_SetAlbedo(so, albedo.rgb);
+		DS_SetSpec(so, specStrength);
+
+		DS_SetNormal(so, normalWV + NormalDither(rand));
+		DS_SetEmission(so, 0.0, 0.0);
+
+		DS_SetLamScaleBias(so, g_ubTerrainFS._lamScaleBias.xy, float4(0, 0, 1, 0));
+		DS_SetMetallicity(so, 0.05, 0.0);
+		DS_SetGloss(so, gloss * toksvigFactor);
+	}
+#endif
 
 	return so;
 }
@@ -184,3 +306,5 @@ DS_FSO mainFS(VSO si)
 
 //@main:#
 //@main:#Depth DEPTH (V)
+//@main:#SolidColor SOLID_COLOR
+//@main:#Tess TESS (VHDF)

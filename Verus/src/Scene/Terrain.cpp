@@ -3,9 +3,11 @@
 using namespace verus;
 using namespace verus::Scene;
 
-CGI::ShaderPwn            Terrain::s_shader;
-Terrain::UB_DrawDepth     Terrain::s_ubDrawDepth;
-Terrain::UB_PerMaterialFS Terrain::s_ubPerMaterialFS;
+CGI::ShaderPwns<Terrain::SHADER_COUNT> Terrain::s_shader;
+Terrain::UB_TerrainVS                  Terrain::s_ubTerrainVS;
+Terrain::UB_TerrainFS                  Terrain::s_ubTerrainFS;
+Terrain::UB_SimpleTerrainVS            Terrain::s_ubSimpleTerrainVS;
+Terrain::UB_SimpleTerrainFS            Terrain::s_ubSimpleTerrainFS;
 
 // TerrainPhysics:
 
@@ -76,19 +78,67 @@ void TerrainPhysics::EnableDebugDraw(bool b)
 
 // TerrainLOD:
 
-void TerrainLOD::Init(int sidePoly, int step)
+void TerrainLOD::Init(int sidePoly, int step, bool addEdgeTess)
 {
 	_side = sidePoly + 1;
 	_vertCount = _side * _side;
 	if (1 == step)
-		Math::BuildListGrid(sidePoly, sidePoly, _vIB);
+		Math::CreateListGrid(sidePoly, sidePoly, _vIB);
 	else
-		Math::BuildStripGrid(sidePoly, sidePoly, _vIB);
-	_indexCount = Utils::Cast32(_vIB.size());
+		Math::CreateStripGrid(sidePoly, sidePoly, _vIB);
 	_firstIndex = 0;
+
+	if (addEdgeTess)
+	{
+		const int extraVerts = sidePoly * 4;
+		_vIB.reserve(_vIB.capacity() + extraVerts * 4);
+		_vIB.push_back(0xFFFF);
+		auto ComputeIndex = [this](int i, int j)
+		{
+			return i * _side + j;
+		};
+
+		// Bottom, forwards:
+		VERUS_FOR(i, sidePoly)
+		{
+			_vIB.push_back(ComputeIndex(sidePoly, i));
+			_vIB.push_back(_vertCount + i);
+			_vIB.push_back(ComputeIndex(sidePoly, i + 1));
+			_vIB.push_back(0xFFFF);
+		}
+		// Right, backwards:
+		VERUS_FOR(i, sidePoly)
+		{
+			_vIB.push_back(ComputeIndex(sidePoly - i, sidePoly));
+			_vIB.push_back(_vertCount + sidePoly + i);
+			_vIB.push_back(ComputeIndex(sidePoly - i - 1, sidePoly));
+			_vIB.push_back(0xFFFF);
+		}
+		// Top, backwards:
+		VERUS_FOR(i, sidePoly)
+		{
+			_vIB.push_back(ComputeIndex(0, sidePoly - i));
+			_vIB.push_back(_vertCount + sidePoly * 2 + i);
+			_vIB.push_back(ComputeIndex(0, sidePoly - i - 1));
+			_vIB.push_back(0xFFFF);
+		}
+		// Left, forwards:
+		VERUS_FOR(i, sidePoly)
+		{
+			_vIB.push_back(ComputeIndex(i, 0));
+			_vIB.push_back(_vertCount + sidePoly * 3 + i);
+			_vIB.push_back(ComputeIndex(i + 1, 0));
+			if (_vIB.size() < _vIB.capacity())
+				_vIB.push_back(0xFFFF);
+		}
+
+		_vertCount += extraVerts;
+		VERUS_RT_ASSERT(Math::CheckIndexBuffer(_vIB, _vertCount - 1));
+	}
+	_indexCount = Utils::Cast32(_vIB.size());
 }
 
-void TerrainLOD::InitGeo(short* pV, UINT16* pI, int vertexOffset)
+void TerrainLOD::InitGeo(short* pV, UINT16* pI, int vertexOffset, bool addEdgeTess)
 {
 	const int edge = _side - 1;
 	const int step = 16 / edge;
@@ -120,6 +170,39 @@ void TerrainLOD::InitGeo(short* pV, UINT16* pI, int vertexOffset)
 	{
 		if (_vIB[i] != 0xFFFF)
 			_vIB[i] -= vertexOffset;
+	}
+
+	if (addEdgeTess)
+	{
+		const int halfStep = step / 2;
+		const int vertCount = _side * _side;
+		const int sidePoly = _side - 1;
+		const short minPos = 0;
+		const short maxPos = 16;
+		VERUS_FOR(i, sidePoly)
+		{
+			pV[((vertCount + i) << 2) + 0] = halfStep + i * step;
+			pV[((vertCount + i) << 2) + 2] = maxPos;
+			pV[((vertCount + i) << 2) + 3] = -1;
+		}
+		VERUS_FOR(i, sidePoly)
+		{
+			pV[((vertCount + sidePoly + i) << 2) + 0] = maxPos;
+			pV[((vertCount + sidePoly + i) << 2) + 2] = halfStep + (sidePoly - i - 1) * step;
+			pV[((vertCount + sidePoly + i) << 2) + 1] = -1;
+		}
+		VERUS_FOR(i, sidePoly)
+		{
+			pV[((vertCount + sidePoly * 2 + i) << 2) + 0] = halfStep + (sidePoly - i - 1) * step;
+			pV[((vertCount + sidePoly * 2 + i) << 2) + 2] = minPos;
+			pV[((vertCount + sidePoly * 2 + i) << 2) + 3] = 1;
+		}
+		VERUS_FOR(i, sidePoly)
+		{
+			pV[((vertCount + sidePoly * 3 + i) << 2) + 0] = minPos;
+			pV[((vertCount + sidePoly * 3 + i) << 2) + 2] = halfStep + i * step;
+			pV[((vertCount + sidePoly * 3 + i) << 2) + 1] = 1;
+		}
 	}
 }
 
@@ -297,17 +380,35 @@ void Terrain::InitStatic()
 {
 	VERUS_QREF_CONST_SETTINGS;
 
-	s_shader.Init("[Shaders]:DS_Terrain.hlsl");
-	s_shader->CreateDescriptorSet(0, &s_ubDrawDepth, sizeof(s_ubDrawDepth), settings.GetLimits()._terrain_ubDrawDepthCapacity,
+	s_shader[SHADER_MAIN].Init("[Shaders]:DS_Terrain.hlsl");
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(0, &s_ubTerrainVS, sizeof(s_ubTerrainVS), settings.GetLimits()._terrain_ubDrawDepthCapacity,
 		{
-			CGI::Sampler::linear2D
-		});
-	s_shader->CreateDescriptorSet(1, &s_ubPerMaterialFS, sizeof(s_ubPerMaterialFS), 1000,
+			CGI::Sampler::linearMipN, // Height
+			CGI::Sampler::linearMipN // Normal
+		}, CGI::ShaderStageFlags::vs_hs_ds);
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(1, &s_ubTerrainFS, sizeof(s_ubTerrainFS), 1000,
 		{
-			CGI::Sampler::aniso, CGI::Sampler::aniso,
-			CGI::Sampler::aniso, CGI::Sampler::aniso
+			CGI::Sampler::aniso, // Normal
+			CGI::Sampler::aniso, // Blend
+			CGI::Sampler::aniso, // Layers
+			CGI::Sampler::aniso, // LayersNM
+			CGI::Sampler::aniso // Detail
 		}, CGI::ShaderStageFlags::fs);
-	s_shader->CreatePipelineLayout();
+	s_shader[SHADER_MAIN]->CreatePipelineLayout();
+
+	s_shader[SHADER_SIMPLE].Init("[Shaders]:SimpleTerrain.hlsl");
+	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(0, &s_ubSimpleTerrainVS, sizeof(s_ubSimpleTerrainVS), settings.GetLimits()._terrain_ubDrawDepthCapacity,
+		{
+			CGI::Sampler::linearMipN, // Height
+			CGI::Sampler::linearMipN // Normal
+		}, CGI::ShaderStageFlags::vs);
+	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(1, &s_ubSimpleTerrainFS, sizeof(s_ubSimpleTerrainFS), 1000,
+		{
+			CGI::Sampler::linearMipN, // Normal
+			CGI::Sampler::linearMipN, // Blend
+			CGI::Sampler::linearMipN, // Layers
+		}, CGI::ShaderStageFlags::fs);
+	s_shader[SHADER_SIMPLE]->CreatePipelineLayout();
 }
 
 void Terrain::DoneStatic()
@@ -319,6 +420,7 @@ void Terrain::Init(RcDesc desc)
 {
 	VERUS_INIT();
 	VERUS_QREF_RENDERER;
+	VERUS_QREF_CONST_SETTINGS;
 
 	if (!Math::IsPowerOfTwo(desc._mapSide))
 		throw VERUS_RECOVERABLE << "Init(), mapSide must be power of two";
@@ -329,6 +431,8 @@ void Terrain::Init(RcDesc desc)
 	const int patchSide = _mapSide >> 4;
 	const int patchShift = _mapShift - 4;
 	const int patchCount = patchSide * patchSide;
+	const int maxInstances = patchCount * 8;
+
 	_vPatches.resize(patchCount);
 	_vPatchTBNs.resize(patchCount * 3);
 	VERUS_P_FOR(i, patchSide)
@@ -346,18 +450,35 @@ void Terrain::Init(RcDesc desc)
 	});
 	if (desc._debugHills)
 	{
-		const float scale = 1.f / desc._debugHills;
-		VERUS_P_FOR(i, _mapSide)
+		if (desc._debugHills < 0)
 		{
-			const float z = i * scale;
-			VERUS_FOR(j, _mapSide)
+			VERUS_P_FOR(i, _mapSide)
 			{
-				const float x = j * scale;
-				const float res = sin(x * VERUS_2PI) * sin(z * VERUS_2PI);
-				const int ij[] = { i, j };
-				SetHeightAt(ij, short(res * 1000.f));
-			}
-		});
+				VERUS_FOR(j, _mapSide)
+				{
+					const int ij[] = { i, j };
+					if (((i >> 4) + (j >> 4)) & 0x1)
+						SetHeightAt(ij, (i & 0xF) * 100);
+					else
+						SetHeightAt(ij, (j & 0xF) * 100);
+				}
+			});
+		}
+		else
+		{
+			const float scale = 1.f / desc._debugHills;
+			VERUS_P_FOR(i, _mapSide)
+			{
+				const float z = i * scale;
+				VERUS_FOR(j, _mapSide)
+				{
+					const float x = j * scale;
+					const float res = sin(x * VERUS_2PI) * sin(z * VERUS_2PI);
+					const int ij[] = { i, j };
+					SetHeightAt(ij, short(res * 1000.f));
+				}
+			});
+		}
 
 		VERUS_FOR(lod, 5)
 		{
@@ -368,11 +489,10 @@ void Terrain::Init(RcDesc desc)
 		}
 	}
 	_vSortedPatchIndices.resize(patchCount);
-	const int maxInstances = patchCount * 8;
 
 	// Init LODs:
 	VERUS_FOR(i, VERUS_COUNT_OF(_lods))
-		_lods[i].Init(16 >> i, 1 << i);
+		_lods[i].Init(16 >> i, 1 << i, i > 0);
 
 	Vector<short> vVB;
 	Vector<UINT16> vIB;
@@ -387,21 +507,22 @@ void Terrain::Init(RcDesc desc)
 	vbSize = 0, ibSize = 0;
 	VERUS_FOR(i, VERUS_COUNT_OF(_lods))
 	{
-		_lods[i].InitGeo(&vVB[vbSize * 4], &vIB[ibSize], vbSize);
+		_lods[i].InitGeo(&vVB[vbSize * 4], &vIB[ibSize], vbSize, i > 0);
 		_lods[i]._firstIndex = ibSize;
 		vbSize += _lods[i]._vertCount;
 		ibSize += _lods[i]._indexCount;
 	}
+	_vInstanceBuffer.resize(maxInstances);
 
 	CGI::GeometryDesc geoDesc;
-	const CGI::InputElementDesc ied[] =
+	const CGI::VertexInputAttrDesc viaDesc[] =
 	{
 		{ 0, 0,                                    CGI::IeType::shorts, 4, CGI::IeUsage::position, 0},
-		{-1, offsetof(PerInstanceData, _posPatch), CGI::IeType::shorts, 4, CGI::IeUsage::texCoord, 8},
-		{-1, offsetof(PerInstanceData, _layers),   CGI::IeType::shorts, 4, CGI::IeUsage::texCoord, 9},
-		CGI::InputElementDesc::End()
+		{-1, offsetof(PerInstanceData, _posPatch), CGI::IeType::shorts, 4, CGI::IeUsage::instData, 0},
+		{-1, offsetof(PerInstanceData, _layers),   CGI::IeType::shorts, 4, CGI::IeUsage::instData, 1},
+		CGI::VertexInputAttrDesc::End()
 	};
-	geoDesc._pInputElementDesc = ied;
+	geoDesc._pVertexInputAttrDesc = viaDesc;
 	const int strides[] = { sizeof(short) * 4, sizeof(PerInstanceData), 0 };
 	geoDesc._pStrides = strides;
 	_geo.Init(geoDesc);
@@ -411,14 +532,11 @@ void Terrain::Init(RcDesc desc)
 	_geo->UpdateVertexBuffer(vVB.data(), 0);
 	_geo->UpdateIndexBuffer(vIB.data());
 
-	_vInstanceBuffer.resize(maxInstances);
-
 	{
-		CGI::PipelineDesc pipeDesc(_geo, s_shader, "#", renderer.GetDS().GetRenderPassHandle());
+		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#", renderer.GetDS().GetRenderPassHandle());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
-		pipeDesc._colorAttachBlendEqs[3] = VERUS_COLOR_BLEND_OFF;
 		_pipe[PIPE_LIST].Init(pipeDesc);
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc._primitiveRestartEnable = true;
@@ -426,13 +544,35 @@ void Terrain::Init(RcDesc desc)
 	}
 	{
 		VERUS_QREF_ATMO;
-		CGI::PipelineDesc pipeDesc(_geo, s_shader, "#Depth", atmo.GetShadowMap().GetRenderPassHandle());
+		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#Depth", atmo.GetShadowMap().GetRenderPassHandle());
 		pipeDesc._colorAttachBlendEqs[0] = "";
-		pipeDesc.EnableDepthBias();
 		_pipe[PIPE_DEPTH_LIST].Init(pipeDesc);
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc._primitiveRestartEnable = true;
 		_pipe[PIPE_DEPTH_STRIP].Init(pipeDesc);
+	}
+	{
+		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#SolidColor", renderer.GetDS().GetRenderPassHandle());
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._rasterizationState._polygonMode = CGI::PolygonMode::line;
+		pipeDesc._rasterizationState._depthBiasEnable = true;
+		pipeDesc._rasterizationState._depthBiasConstantFactor = -50;
+		pipeDesc._depthCompareOp = CGI::CompareOp::lessOrEqual;
+		_pipe[PIPE_WIREFRAME_LIST].Init(pipeDesc);
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc._primitiveRestartEnable = true;
+		_pipe[PIPE_WIREFRAME_STRIP].Init(pipeDesc);
+	}
+	if (settings._gpuTessellation)
+	{
+		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#Tess", renderer.GetDS().GetRenderPassHandle());
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._topology = CGI::PrimitiveTopology::patchList3;
+		_pipe[PIPE_TESS].Init(pipeDesc);
 	}
 
 	CGI::TextureDesc texDesc;
@@ -447,12 +587,20 @@ void Terrain::Init(RcDesc desc)
 	texDesc._width = _mapSide;
 	texDesc._height = _mapSide;
 	texDesc._mipLevels = 0;
-	texDesc._flags = CGI::TextureDesc::Flags::generateMips;
+	texDesc._flags = CGI::TextureDesc::Flags::anyShaderResource | CGI::TextureDesc::Flags::generateMips;
 	_tex[TEX_NORMALS].Init(texDesc);
+	texDesc._flags = CGI::TextureDesc::Flags::generateMips;
 	_tex[TEX_BLEND].Init(texDesc);
 
-	s_shader->FreeDescriptorSet(_cshVS);
-	_cshVS = s_shader->BindDescriptorSetTextures(0, { _tex[TEX_HEIGHTMAP] });
+	texDesc.Reset();
+	texDesc._format = CGI::Format::unormR8;
+	texDesc._width = _mapSide;
+	texDesc._height = _mapSide;
+	texDesc._flags = CGI::TextureDesc::Flags::anyShaderResource;
+	_tex[TEX_MAIN_LAYER].Init(texDesc);
+
+	s_shader[SHADER_MAIN]->FreeDescriptorSet(_cshVS);
+	_cshVS = s_shader[SHADER_MAIN]->BindDescriptorSetTextures(0, { _tex[TEX_HEIGHTMAP], _tex[TEX_NORMALS] });
 
 	_vBlendBuffer.resize(_mapSide * _mapSide);
 	VERUS_P_FOR(i, _vBlendBuffer.size())
@@ -460,6 +608,7 @@ void Terrain::Init(RcDesc desc)
 		_vBlendBuffer[i] = VERUS_COLOR_RGBA(255, 0, 0, 255);
 	});
 	UpdateBlendTexture();
+	UpdateMainLayerTexture();
 
 	OnHeightModified();
 	AddNewRigidBody();
@@ -469,8 +618,8 @@ void Terrain::Init(RcDesc desc)
 
 void Terrain::Done()
 {
-	s_shader->FreeDescriptorSet(_cshVS);
-	s_shader->FreeDescriptorSet(_cshFS);
+	s_shader[SHADER_MAIN]->FreeDescriptorSet(_cshVS);
+	s_shader[SHADER_MAIN]->FreeDescriptorSet(_cshFS);
 
 	_tex.Done();
 	_pipe.Done();
@@ -479,17 +628,6 @@ void Terrain::Done()
 	_physics.Done();
 
 	VERUS_DONE(Terrain);
-}
-
-int Terrain::UserPtr_GetType()
-{
-	return 0;
-	//return +NodeType::terrain;
-}
-
-void Terrain::ResetInstanceCount()
-{
-	_instanceCount = 0;
 }
 
 void Terrain::Layout()
@@ -520,39 +658,48 @@ void Terrain::Layout()
 		sm.SetCamera(pPrevCamera);
 }
 
-void Terrain::Draw()
+void Terrain::Draw(RcDrawDesc dd)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
 	VERUS_QREF_ATMO;
+	VERUS_QREF_CONST_SETTINGS;
 
 	if (!_visiblePatchCount)
 		return;
 
+	auto cb = renderer.GetCommandBuffer();
+
 	const bool drawingDepth = Scene::SceneManager::IsDrawingDepth(Scene::DrawDepth::automatic);
 
-	s_ubDrawDepth._matW = mataff(1);
-	s_ubDrawDepth._matWV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
-	s_ubDrawDepth._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubDrawDepth._posEye_mapSideInv = float4(atmo.GetEyePosition().GLM(), 0);
-	s_ubDrawDepth._posEye_mapSideInv.w = 1.f / _mapSide;
+	const Transform3 matW = Transform3::identity();
+	s_ubTerrainVS._matW = matW.UniformBufferFormat();
+	s_ubTerrainVS._matWV = Transform3(sm.GetCamera()->GetMatrixV() * matW).UniformBufferFormat();
+	s_ubTerrainVS._matV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
+	s_ubTerrainVS._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubTerrainVS._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
+	s_ubTerrainVS._eyePos_mapSideInv = float4(atmo.GetEyePosition().GLM(), 0);
+	s_ubTerrainVS._eyePos_mapSideInv.w = 1.f / _mapSide;
+	s_ubTerrainVS._viewportSize = cb->GetViewportSize().GLM();
 
+	s_ubTerrainFS._matWV = s_ubTerrainVS._matWV;
 	VERUS_FOR(i, VERUS_COUNT_OF(_layerData))
 	{
-		s_ubPerMaterialFS._vSpecStrength[i >> 2][i & 0x3] = _layerData[i]._specStrength;
-		s_ubPerMaterialFS._vDetailStrength[i >> 2][i & 0x3] = _layerData[i]._detailStrength;
+		s_ubTerrainFS._vSpecStrength[i >> 2][i & 0x3] = _layerData[i]._specStrength;
+		s_ubTerrainFS._vDetailStrength[i >> 2][i & 0x3] = _layerData[i]._detailStrength;
 	}
+	s_ubTerrainFS._lamScaleBias.x = _lamScale;
+	s_ubTerrainFS._lamScaleBias.y = _lamBias;
 
-	renderer.GetCommandBuffer()->BindVertexBuffers(_geo);
-	renderer.GetCommandBuffer()->BindIndexBuffer(_geo);
+	cb->BindVertexBuffers(_geo);
+	cb->BindIndexBuffer(_geo);
 
-	s_shader->BeginBindDescriptors();
-
-	bool strip = false;
+	bool bindStrip = true;
 	const int half = _mapSide >> 1;
 	int firstInstance = 0;
 	int edge = _visiblePatchCount - 1;
 	int lod = _vPatches[_vSortedPatchIndices.front()]._quadtreeLOD;
+	s_shader[SHADER_MAIN]->BeginBindDescriptors();
 	VERUS_FOR(i, _visiblePatchCount)
 	{
 		RcTerrainPatch patch = _vPatches[_vSortedPatchIndices[i]];
@@ -563,35 +710,28 @@ void Terrain::Draw()
 
 			if (!lod)
 			{
-				if (drawingDepth)
-				{
-					renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_DEPTH_LIST]);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _cshVS);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _cshFS);
-				}
+				if (dd._wireframe)
+					cb->BindPipeline(_pipe[PIPE_WIREFRAME_LIST]);
+				else if (drawingDepth)
+					cb->BindPipeline(_pipe[PIPE_DEPTH_LIST]);
+				else if (dd._tess && settings._gpuTessellation)
+					cb->BindPipeline(_pipe[PIPE_TESS]);
 				else
-				{
-					renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_LIST]);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _cshVS);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _cshFS);
-				}
+					cb->BindPipeline(_pipe[PIPE_LIST]);
+				cb->BindDescriptors(s_shader[SHADER_MAIN], 0, _cshVS);
+				cb->BindDescriptors(s_shader[SHADER_MAIN], 1, _cshFS);
 			}
-			else if (!strip)
+			else if (bindStrip)
 			{
-				if (drawingDepth)
-				{
-					strip = true;
-					renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_DEPTH_STRIP]);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _cshVS);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _cshFS);
-				}
+				bindStrip = false;
+				if (dd._wireframe)
+					cb->BindPipeline(_pipe[PIPE_WIREFRAME_STRIP]);
+				else if (drawingDepth)
+					cb->BindPipeline(_pipe[PIPE_DEPTH_STRIP]);
 				else
-				{
-					strip = true;
-					renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_STRIP]);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 0, _cshVS);
-					renderer.GetCommandBuffer()->BindDescriptors(s_shader, 1, _cshFS);
-				}
+					cb->BindPipeline(_pipe[PIPE_STRIP]);
+				cb->BindDescriptors(s_shader[SHADER_MAIN], 0, _cshVS);
+				cb->BindDescriptors(s_shader[SHADER_MAIN], 1, _cshFS);
 			}
 
 			const int instanceCount = i - firstInstance; // Drawing patches [firstInstance, i).
@@ -603,22 +743,43 @@ void Terrain::Draw()
 				_vInstanceBuffer[at]._posPatch[1] = patchToDraw._patchHeight;
 				_vInstanceBuffer[at]._posPatch[2] = patchToDraw._ijCoord[0] - half;
 				_vInstanceBuffer[at]._posPatch[3] = 0;
-				VERUS_FOR(ch, 4)
-					_vInstanceBuffer[at]._layers[ch] = patchToDraw._layerForChannel[ch];
+				VERUS_ZERO_MEM(_vInstanceBuffer[at]._layers);
+				if (dd._wireframe)
+				{
+					switch (patchToDraw._usedChannelCount)
+					{
+					case 1: _vInstanceBuffer[at]._layers[0] = 0; _vInstanceBuffer[at]._layers[1] = 0; _vInstanceBuffer[at]._layers[2] = 1; break;
+					case 2: _vInstanceBuffer[at]._layers[0] = 0; _vInstanceBuffer[at]._layers[1] = 1; _vInstanceBuffer[at]._layers[2] = 0; break;
+					case 3: _vInstanceBuffer[at]._layers[0] = 1; _vInstanceBuffer[at]._layers[1] = 1; _vInstanceBuffer[at]._layers[2] = 0; break;
+					case 4: _vInstanceBuffer[at]._layers[0] = 1; _vInstanceBuffer[at]._layers[1] = 0; _vInstanceBuffer[at]._layers[2] = 0; break;
+					}
+				}
+				else
+				{
+					VERUS_FOR(ch, 4)
+						_vInstanceBuffer[at]._layers[ch] = patchToDraw._layerForChannel[ch];
+				}
 			}
 
-			renderer.GetCommandBuffer()->DrawIndexed(_lods[lod]._indexCount, instanceCount, _lods[lod]._firstIndex, 0, _instanceCount + firstInstance);
+			cb->DrawIndexed(_lods[lod]._indexCount, instanceCount, _lods[lod]._firstIndex, 0, _instanceCount + firstInstance);
 
 			lod = patch._quadtreeLOD;
 			firstInstance = i;
 		}
 	}
+	s_shader[SHADER_MAIN]->EndBindDescriptors();
 
 	_instanceCount += _visiblePatchCount;
-
 	_geo->UpdateVertexBuffer(_vInstanceBuffer.data(), 1);
+}
 
-	s_shader->EndBindDescriptors();
+void Terrain::DrawReflection()
+{
+}
+
+void Terrain::ResetInstanceCount()
+{
+	_instanceCount = 0;
 }
 
 void Terrain::SortVisiblePatches()
@@ -635,6 +796,12 @@ void Terrain::SortVisiblePatches()
 		});
 }
 
+int Terrain::UserPtr_GetType()
+{
+	return 0;
+	//return +NodeType::terrain;
+}
+
 void Terrain::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center)
 {
 	VERUS_QREF_ATMO;
@@ -646,6 +813,9 @@ void Terrain::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 ce
 
 	const float lodF = log2(Math::Clamp((dist - 12) * (2 / 100.f), 1.f, 18.f));
 	const int lod = Math::Clamp<int>(int(lodF), 0, 4);
+
+	if (4 == lod && center.getY() <= -20) // Cull underwater patches:
+		return;
 
 	// Locate this patch:
 	const int shiftPatch = _mapShift - 4;
@@ -850,7 +1020,9 @@ void Terrain::LoadLayerTextures()
 	if (_vLayerUrls.empty())
 		return;
 
+	VERUS_QREF_MM;
 	VERUS_QREF_RENDERER;
+
 	renderer->WaitIdle();
 
 	_tex[TEX_LAYERS].Done();
@@ -884,8 +1056,8 @@ void Terrain::LoadLayerTextures()
 	texDesc._urls = vLayerUrlsPtrNM.data();
 	_tex[TEX_LAYERS_NM].Init(texDesc);
 
-	s_shader->FreeDescriptorSet(_cshFS);
-	_cshFS = s_shader->BindDescriptorSetTextures(1, { _tex[TEX_NORMALS], _tex[TEX_BLEND], _tex[TEX_LAYERS], _tex[TEX_LAYERS_NM] });
+	s_shader[SHADER_MAIN]->FreeDescriptorSet(_cshFS);
+	_cshFS = s_shader[SHADER_MAIN]->BindDescriptorSetTextures(1, { _tex[TEX_NORMALS], _tex[TEX_BLEND], _tex[TEX_LAYERS], _tex[TEX_LAYERS_NM], mm.GetDetailTexture() });
 }
 
 int Terrain::GetMainLayerAt(const int ij[2]) const
@@ -1019,7 +1191,7 @@ void Terrain::UpdateMainLayerTexture()
 			_vMainLayerSubresData[offset + j] = GetMainLayerAt(ij) * 16 + 4;
 		}
 	});
-	//_tex[TEX_MAIN_LAYER]->UpdateSubresource(_vMainLayerSubresData.data());
+	_tex[TEX_MAIN_LAYER]->UpdateSubresource(_vMainLayerSubresData.data());
 }
 
 CGI::TexturePtr Terrain::GetMainLayerTexture() const
@@ -1039,6 +1211,7 @@ void Terrain::OnHeightModified()
 
 void Terrain::AddNewRigidBody()
 {
+	_physics.Done();
 	_physics.Init(this, _mapSide, _mapSide, _vHeightBuffer.data(), ConvertHeight(static_cast<short>(1)));
 }
 
@@ -1175,7 +1348,7 @@ void Terrain::Deserialize(IO::RStream stream)
 			}
 			else
 			{
-				_vPatches[i]._layerForChannel[j] = -1;
+				_vPatches[i]._layerForChannel[j] = 0;
 			}
 		}
 	}
@@ -1194,12 +1367,13 @@ void Terrain::Deserialize(IO::RStream stream)
 		{
 			UINT16 data;
 			stream >> data;
-			_vBlendBuffer[offset + j] = Convert::Uint4x4ToUint8x4(data);
+			_vBlendBuffer[offset + j] = Convert::Uint4x4ToUint8x4(data, true);
 			const int ij[] = { i, j };
 			UpdateMainLayerAt(ij);
 		}
 	}
 	UpdateBlendTexture();
+	UpdateMainLayerTexture();
 	// </Blend>
 
 	OnHeightModified();

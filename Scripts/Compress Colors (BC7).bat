@@ -1,0 +1,1 @@
+"C:\Home\Projects\Verus\verus\Bin\TextureTool.exe" %1

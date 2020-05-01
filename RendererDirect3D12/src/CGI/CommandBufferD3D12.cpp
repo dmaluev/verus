@@ -48,7 +48,7 @@ void CommandBufferD3D12::End()
 		throw VERUS_RUNTIME_ERROR << "Close(), hr=" << VERUS_HR(hr);
 }
 
-void CommandBufferD3D12::BeginRenderPass(int renderPassHandle, int framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
+void CommandBufferD3D12::BeginRenderPass(RPHandle renderPassHandle, FBHandle framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
 {
 	VERUS_QREF_RENDERER_D3D12;
 
@@ -99,7 +99,7 @@ void CommandBufferD3D12::EndRenderPass()
 		if (_vAttachmentStates[index] != attachment._finalState)
 		{
 			const auto& resources = _pFramebuffer->_vResources[index];
-			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[index], attachment._finalState);
+			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[index], attachment._finalState, 0);
 		}
 		index++;
 		if (VERUS_MAX_RT == barrierCount)
@@ -157,6 +157,13 @@ void CommandBufferD3D12::BindPipeline(PipelinePtr pipe)
 
 void CommandBufferD3D12::SetViewport(std::initializer_list<Vector4> il, float minDepth, float maxDepth)
 {
+	if (il.size() > 0)
+	{
+		const float w = il.begin()->Width();
+		const float h = il.begin()->Height();
+		_viewportSize = Vector4(w, h, 1 / w, 1 / h);
+	}
+
 	CD3DX12_VIEWPORT vpD3D12[VERUS_MAX_RT];
 	int count = 0;
 	for (const auto& rc : il)
@@ -182,7 +189,7 @@ void CommandBufferD3D12::SetBlendConstants(const float* p)
 	GetD3DGraphicsCommandList()->OMSetBlendFactor(p);
 }
 
-bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int setNumber, int complexSetHandle)
+bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int setNumber, CSHandle complexSetHandle)
 {
 	bool copyDescOnly = false;
 	if (setNumber < 0)
@@ -197,7 +204,7 @@ bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int setNumber, int co
 	if (shaderD3D12.TryRootConstants(setNumber, *this))
 		return true;
 
-	const D3D12_GPU_DESCRIPTOR_HANDLE hGPU = shaderD3D12.UpdateUniformBuffer(setNumber, complexSetHandle, copyDescOnly);
+	const D3D12_GPU_DESCRIPTOR_HANDLE hGPU = shaderD3D12.UpdateUniformBuffer(setNumber, complexSetHandle.Get(), copyDescOnly);
 	if (!hGPU.ptr)
 		return false;
 
@@ -208,9 +215,9 @@ bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int setNumber, int co
 	else
 		pCmdList->SetGraphicsRootDescriptorTable(rootParameterIndex, hGPU);
 
-	if (complexSetHandle >= 0 && !shaderD3D12.IsCompute())
+	if (complexSetHandle.IsSet() && !shaderD3D12.IsCompute())
 	{
-		const D3D12_GPU_DESCRIPTOR_HANDLE hGPU = shaderD3D12.UpdateSamplers(setNumber, complexSetHandle);
+		const D3D12_GPU_DESCRIPTOR_HANDLE hGPU = shaderD3D12.UpdateSamplers(setNumber, complexSetHandle.Get());
 		if (hGPU.ptr)
 		{
 			const UINT rootParameterIndex = shaderD3D12.GetDescriptorSetCount();
@@ -283,7 +290,7 @@ void CommandBufferD3D12::PrepareSubpass()
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
 			const auto& resources = fs._vResources[resIndex];
-			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state);
+			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state, 0);
 			_vAttachmentStates[ref._index] = ref._state;
 		}
 		resIndex++;
@@ -294,7 +301,7 @@ void CommandBufferD3D12::PrepareSubpass()
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
 			const auto& resources = fs._vResources[resIndex];
-			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state);
+			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state, 0);
 			_vAttachmentStates[ref._index] = ref._state;
 		}
 		resIndex++;
@@ -304,7 +311,7 @@ void CommandBufferD3D12::PrepareSubpass()
 		const auto& ref = subpass._depthStencil;
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
-			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(fs._vResources.back(), _vAttachmentStates[ref._index], ref._state);
+			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(fs._vResources.back(), _vAttachmentStates[ref._index], ref._state, 0);
 			_vAttachmentStates[ref._index] = ref._state;
 		}
 	}

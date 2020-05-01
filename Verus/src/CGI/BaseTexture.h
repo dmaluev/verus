@@ -32,11 +32,12 @@ namespace verus
 				none = 0,
 				colorAttachment = (1 << 0),
 				inputAttachment = (1 << 1),
-				depthSampled = (1 << 2),
-				anyShaderResource = (1 << 3), // Will use xsReadOnly as main layout.
-				generateMips = (1 << 4), // Allows GenerateMips calls.
-				forceArrayTexture = (1 << 5), // Create array texture even if arrayLayers=1.
-				sync = (1 << 6)
+				depthSampledR = (1 << 2),
+				depthSampledW = (1 << 3),
+				anyShaderResource = (1 << 4), // Will use xsReadOnly as main layout.
+				generateMips = (1 << 5), // Allows GenerateMips calls.
+				forceArrayTexture = (1 << 6), // Create array texture even if arrayLayers=1.
+				sync = (1 << 7)
 			};
 
 			Vector4       _clearValue = Vector4(0);
@@ -98,8 +99,10 @@ namespace verus
 			RcVector4 GetSize() const { return _size; }
 			bool IsSRGB() const;
 
+			void SetSamplerDesc(PcSamplerDesc pSamplerDesc) { _desc._pSamplerDesc = pSamplerDesc; }
+
 			void LoadDDS(CSZ url, int texturePart = 0);
-			void LoadDDS(RcBlob blob);
+			void LoadDDS(CSZ url, RcBlob blob);
 			void LoadDDSArray(CSZ* urls);
 
 			virtual void Async_Run(CSZ url, RcBlob blob) override;
@@ -109,6 +112,7 @@ namespace verus
 			virtual void GenerateMips(BaseCommandBuffer* pCB = nullptr) = 0;
 
 			static int FormatToBytesPerPixel(Format format);
+			static bool IsSRGBFormat(Format format);
 			static bool IsBC(Format format);
 			static bool Is4BitsBC(Format format);
 			static bool IsDepthFormat(Format format);

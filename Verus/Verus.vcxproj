@@ -117,6 +117,7 @@
     <ClInclude Include="src\CGI\DeferredShading.h" />
     <ClInclude Include="src\CGI\RendererParser.h" />
     <ClInclude Include="src\CGI\Scheduled.h" />
+    <ClInclude Include="src\CGI\TextureRAM.h" />
     <ClInclude Include="src\CGI\Types.h" />
     <ClInclude Include="src\CGI\Formats.h" />
     <ClInclude Include="src\CGI\Renderer.h" />
@@ -202,6 +203,7 @@
     <ClInclude Include="src\Scene\Camera.h" />
     <ClInclude Include="src\Scene\CameraOrbit.h" />
     <ClInclude Include="src\Scene\EditorTerrain.h" />
+    <ClInclude Include="src\Scene\Grass.h" />
     <ClInclude Include="src\Scene\Helpers.h" />
     <ClInclude Include="src\Scene\MaterialManager.h" />
     <ClInclude Include="src\Scene\Mesh.h" />
@@ -209,6 +211,7 @@
     <ClInclude Include="src\Scene\SceneManager.h" />
     <ClInclude Include="src\Scene\ShadowMap.h" />
     <ClInclude Include="src\Scene\Terrain.h" />
+    <ClInclude Include="src\Scene\Water.h" />
     <ClInclude Include="src\Security\CipherRC4.h" />
     <ClInclude Include="src\Security\Security.h" />
     <ClInclude Include="src\ThirdParty\imgui\imconfig.h" />
@@ -274,6 +277,7 @@
     <ClCompile Include="src\CGI\RendererParser.cpp" />
     <ClCompile Include="src\CGI\RenderPass.cpp" />
     <ClCompile Include="src\CGI\Scheduled.cpp" />
+    <ClCompile Include="src\CGI\TextureRAM.cpp" />
     <ClCompile Include="src\D\D.cpp" />
     <ClCompile Include="src\D\Log.cpp" />
     <ClCompile Include="src\Extra\Extra.cpp" />
@@ -333,6 +337,7 @@
     <ClCompile Include="src\Scene\Camera.cpp" />
     <ClCompile Include="src\Scene\CameraOrbit.cpp" />
     <ClCompile Include="src\Scene\EditorTerrain.cpp" />
+    <ClCompile Include="src\Scene\Grass.cpp" />
     <ClCompile Include="src\Scene\Helpers.cpp" />
     <ClCompile Include="src\Scene\MaterialManager.cpp" />
     <ClCompile Include="src\Scene\Mesh.cpp" />
@@ -340,6 +345,7 @@
     <ClCompile Include="src\Scene\SceneManager.cpp" />
     <ClCompile Include="src\Scene\ShadowMap.cpp" />
     <ClCompile Include="src\Scene\Terrain.cpp" />
+    <ClCompile Include="src\Scene\Water.cpp" />
     <ClCompile Include="src\ThirdParty\fast_atof.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
@@ -575,6 +581,56 @@
       <FileType>Document</FileType>
     </None>
     <None Include="src\Shaders\DebugDraw.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\LibSurface.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\LibTessellation.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\DS_Grass.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DS_Grass.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\Sky.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\Sky.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\Water.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\Water.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\WaterGen.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\WaterGen.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\SimpleTerrain.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\SimpleTerrain.inc.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

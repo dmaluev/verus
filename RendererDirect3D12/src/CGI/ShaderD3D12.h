@@ -19,11 +19,16 @@ namespace verus
 
 		class ShaderD3D12 : public BaseShader
 		{
+		public:
 			struct Compiled
 			{
 				ComPtr<ID3DBlob> _pBlobs[+Stage::count];
+				String           _entry;
 				int              _stageCount = 0;
 			};
+			VERUS_TYPEDEFS(Compiled);
+
+		private:
 			typedef Map<String, Compiled> TMapCompiled;
 
 			struct DescriptorSetDesc
@@ -48,7 +53,7 @@ namespace verus
 			struct ComplexSet
 			{
 				Vector<TexturePtr> _vTextures;
-				DescriptorHeap     _dhSrvUav;
+				DescriptorHeap     _dhViews;
 				DescriptorHeap     _dhSamplers;
 			};
 			VERUS_TYPEDEFS(ComplexSet);
@@ -57,6 +62,7 @@ namespace verus
 			Vector<DescriptorSetDesc>   _vDescriptorSetDesc;
 			Vector<ComplexSet>          _vComplexSets;
 			ComPtr<ID3D12RootSignature> _pRootSignature;
+			String                      _debugInfo;
 			UINT64                      _currentFrame = UINT64_MAX;
 			bool                        _compute = false;
 
@@ -69,8 +75,8 @@ namespace verus
 
 			virtual void CreateDescriptorSet(int setNumber, const void* pSrc, int size, int capacity, std::initializer_list<Sampler> il, ShaderStageFlags stageFlags) override;
 			virtual void CreatePipelineLayout() override;
-			virtual int BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips) override;
-			virtual void FreeDescriptorSet(int& complexSetHandle) override;
+			virtual CSHandle BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips) override;
+			virtual void FreeDescriptorSet(CSHandle& complexSetHandle) override;
 
 			virtual void BeginBindDescriptors() override;
 			virtual void EndBindDescriptors() override;
@@ -79,8 +85,7 @@ namespace verus
 			// D3D12
 			//
 
-			ID3DBlob* GetD3DBlob(CSZ branch, Stage stage) const { return _mapCompiled.at(branch)._pBlobs[+stage].Get(); }
-			int GetStageCount(CSZ branch) const { return _mapCompiled.at(branch)._stageCount; }
+			RcCompiled GetCompiled(CSZ branch) const { return _mapCompiled.at(branch); }
 
 			ID3D12RootSignature* GetD3DRootSignature() const { return _pRootSignature.Get(); }
 
@@ -92,6 +97,11 @@ namespace verus
 			bool IsCompute() const { return _compute; }
 
 			void OnError(CSZ s);
+
+			void UpdateDebugInfo(
+				const Vector<CD3DX12_ROOT_PARAMETER1>& vRootParams,
+				const Vector<D3D12_STATIC_SAMPLER_DESC>& vStaticSamplers,
+				D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags);
 		};
 		VERUS_TYPEDEFS(ShaderD3D12);
 	}

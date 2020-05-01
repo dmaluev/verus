@@ -39,100 +39,91 @@ std::queue<FileEntry> g_fileEntries;
 
 void TraverseDirectory(CWSZ parentDir, CWSZ foundDir, IO::RFile pakFile);
 
-int main(VERUS_MAIN_DEFAULT_ARGS)
+void Run()
 {
-	try
+	std::wcout << _T("PACK Builder 1.2.1") << std::endl;
+	std::wcout << _T("Copyright (c) 2006-2020 Dmitry Maluev") << std::endl;
+	std::wcout << _T("Arguments: [PAK/folder name] [input directory] [PAK output directory]") << std::endl;
+
+	int argCount;
+	LPWSTR* argArray = CommandLineToArgvW(GetCommandLine(), &argCount);
+	if (argCount < 2)
 	{
-		std::wcout << _T("PACK Builder 1.2.1") << std::endl;
-		std::wcout << _T("Copyright (c) 2006-2020 Dmitry Maluev") << std::endl;
-		std::wcout << _T("Arguments: [PAK/folder name] [input directory] [PAK output directory]") << std::endl;
-
-		int argCount;
-		LPWSTR* argArray = CommandLineToArgvW(GetCommandLine(), &argCount);
-		if (argCount < 2)
-		{
-			std::wcout << _T("Enter PAK/folder name: ");
-			std::wcin.getline(g_filename, MAX_PATH);
-		}
-		else
-		{
-			wcscpy_s(g_filename, MAX_PATH, argArray[1]);
-		}
-		if (argCount > 2)
-		{
-			wcscpy_s(g_inputDir, MAX_PATH, argArray[2]);
-		}
-		else
-		{
-			wcscpy_s(g_inputDir, MAX_PATH, argArray[0]);
-			PathRemoveFileSpec(g_inputDir);
-		}
-		if (argCount > 3)
-		{
-			wcscpy_s(g_outputDir, MAX_PATH, argArray[3]);
-		}
-		else
-		{
-			wcscpy_s(g_outputDir, MAX_PATH, argArray[0]);
-			PathRemoveFileSpec(g_outputDir);
-		}
-		LocalFree(argArray);
-
-		std::wcout << _T("  Input directory: ") << g_inputDir << std::endl;
-		std::wcout << _T("  Output directory: ") << g_outputDir << std::endl;
-
-		std::wstringstream ssPathName;
-		ssPathName << g_outputDir << _T("\\") << g_filename << _T(".pak");
-		IO::File pakFile;
-		if (!pakFile.Open(_C(Str::WideToUtf8(ssPathName.str())), "wb"))
-		{
-			std::wcerr << _T("ERROR: Unable to create file ") << g_filename << _T(".pak. Error code: 0x") << std::hex << GetLastError() << std::endl;
-			throw std::exception();
-		}
-		const UINT32 magic = MAKEFOURCC('2', 'P', 'A', 'K');
-		pakFile << magic;
-		INT64 temp = 0;
-		pakFile << temp;
-		pakFile << temp;
-
-		std::wcout << std::endl;
-		TraverseDirectory(_T("."), g_filename, pakFile);
-		std::wcout << std::endl;
-
-		const INT64 entriesOffset = pakFile.GetSize();
-		pakFile.Seek(4, SEEK_SET);
-		pakFile << entriesOffset;
-		pakFile.Seek(0, SEEK_END);
-		std::wcout << std::setw(56) << _T("[FILE NAME]") << _T(" ");
-		std::wcout << std::setw(12) << _T("[OFFSET]") << _T(" ");
-		std::wcout << std::setw(10) << _T("[SIZE]") << std::endl;
-		INT64 fileCount = 0;
-		while (!g_fileEntries.empty())
-		{
-			const FileEntry& fe = g_fileEntries.front();
-			std::wcout << std::setw(56) << fe._name << _T(" ");
-			std::wcout << std::setw(12) << fe._offset << _T(" ");
-			std::wcout << std::setw(10) << fe._size << std::endl;
-			pakFile << fe;
-			g_fileEntries.pop();
-			fileCount++;
-		}
-
-		std::wcout << std::endl;
-		std::wcout << _T("Total files: ") << fileCount << std::endl;
-		const INT64 entriesSize = fileCount * sizeof(FileEntry);
-		pakFile.Seek(12, SEEK_SET);
-		pakFile << entriesSize;
-		pakFile.Close();
-		if (argCount < 2)
-			system("pause");
+		std::wcout << _T("Enter PAK/folder name: ");
+		std::wcin.getline(g_filename, MAX_PATH);
 	}
-	catch (const std::exception&)
+	else
 	{
+		wcscpy_s(g_filename, MAX_PATH, argArray[1]);
+	}
+	if (argCount > 2)
+	{
+		wcscpy_s(g_inputDir, MAX_PATH, argArray[2]);
+	}
+	else
+	{
+		wcscpy_s(g_inputDir, MAX_PATH, argArray[0]);
+		PathRemoveFileSpec(g_inputDir);
+	}
+	if (argCount > 3)
+	{
+		wcscpy_s(g_outputDir, MAX_PATH, argArray[3]);
+	}
+	else
+	{
+		wcscpy_s(g_outputDir, MAX_PATH, argArray[0]);
+		PathRemoveFileSpec(g_outputDir);
+	}
+	LocalFree(argArray);
+
+	std::wcout << _T("  Input directory: ") << g_inputDir << std::endl;
+	std::wcout << _T("  Output directory: ") << g_outputDir << std::endl;
+
+	std::wstringstream ssPathName;
+	ssPathName << g_outputDir << _T("\\") << g_filename << _T(".pak");
+	IO::File pakFile;
+	if (!pakFile.Open(_C(Str::WideToUtf8(ssPathName.str())), "wb"))
+	{
+		std::wcerr << _T("ERROR: Unable to create file ") << g_filename << _T(".pak. Error code: 0x") << std::hex << GetLastError() << std::endl;
+		throw std::exception();
+	}
+	const UINT32 magic = MAKEFOURCC('2', 'P', 'A', 'K');
+	pakFile << magic;
+	INT64 temp = 0;
+	pakFile << temp;
+	pakFile << temp;
+
+	std::wcout << std::endl;
+	TraverseDirectory(_T("."), g_filename, pakFile);
+	std::wcout << std::endl;
+
+	const INT64 entriesOffset = pakFile.GetSize();
+	pakFile.Seek(4, SEEK_SET);
+	pakFile << entriesOffset;
+	pakFile.Seek(0, SEEK_END);
+	std::wcout << std::setw(56) << _T("[FILE NAME]") << _T(" ");
+	std::wcout << std::setw(12) << _T("[OFFSET]") << _T(" ");
+	std::wcout << std::setw(10) << _T("[SIZE]") << std::endl;
+	INT64 fileCount = 0;
+	while (!g_fileEntries.empty())
+	{
+		const FileEntry& fe = g_fileEntries.front();
+		std::wcout << std::setw(56) << fe._name << _T(" ");
+		std::wcout << std::setw(12) << fe._offset << _T(" ");
+		std::wcout << std::setw(10) << fe._size << std::endl;
+		pakFile << fe;
+		g_fileEntries.pop();
+		fileCount++;
+	}
+
+	std::wcout << std::endl;
+	std::wcout << _T("Total files: ") << fileCount << std::endl;
+	const INT64 entriesSize = fileCount * sizeof(FileEntry);
+	pakFile.Seek(12, SEEK_SET);
+	pakFile << entriesSize;
+	pakFile.Close();
+	if (argCount < 2)
 		system("pause");
-		return -1;
-	}
-	return 0;
 }
 
 INT64 WriteData(CWSZ name, RcString password, IO::RFile pakFile, const BYTE* p, INT64 size)
@@ -331,4 +322,18 @@ void TraverseDirectory(CWSZ parentDir, CWSZ foundDir, IO::RFile pakFile)
 		throw std::exception();
 	}
 	g_depth--;
+}
+
+int main(VERUS_MAIN_DEFAULT_ARGS)
+{
+	try
+	{
+		Run();
+	}
+	catch (const std::exception& e)
+	{
+		std::wcerr << _T("EXCEPTION: ") << e.what() << std::endl;
+		return EXIT_FAILURE;
+	}
+	return EXIT_SUCCESS;
 }

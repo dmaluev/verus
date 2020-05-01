@@ -50,7 +50,7 @@ namespace verus
 			void Unschedule(PScheduled p);
 			void UpdateScheduled();
 
-			virtual void ImGuiInit(int renderPassHandle) = 0;
+			virtual void ImGuiInit(RPHandle renderPassHandle) = 0;
 			virtual void ImGuiRenderDrawData() = 0;
 
 			virtual void ResizeSwapChain() = 0;
@@ -77,10 +77,12 @@ namespace verus
 			virtual void DeleteShader(PBaseShader p) = 0;
 			virtual void DeleteTexture(PBaseTexture p) = 0;
 
-			virtual int CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) = 0;
-			virtual int CreateFramebuffer(int renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex = -1) = 0;
-			virtual void DeleteRenderPass(int handle) = 0;
-			virtual void DeleteFramebuffer(int handle) = 0;
+			RPHandle CreateSimpleRenderPass(Format format, ImageLayout layout = ImageLayout::fsReadOnly);
+			RPHandle CreateShadowRenderPass(Format format);
+			virtual RPHandle CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) = 0;
+			virtual FBHandle CreateFramebuffer(RPHandle renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex = -1) = 0;
+			virtual void DeleteRenderPass(RPHandle handle) = 0;
+			virtual void DeleteFramebuffer(FBHandle handle) = 0;
 
 			static void SetAlphaBlendHelper(
 				CSZ sz,

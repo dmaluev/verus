@@ -40,8 +40,8 @@ namespace verus
 			int            _indexCount = 0;
 			int            _firstIndex = 0;
 
-			void Init(int sidePoly, int step);
-			void InitGeo(short* pV, UINT16* pI, int vertexOffset);
+			void Init(int sidePoly, int step, bool addEdgeTess);
+			void InitGeo(short* pV, UINT16* pI, int vertexOffset, bool addEdgeTess);
 		};
 		VERUS_TYPEDEFS(TerrainLOD);
 
@@ -80,6 +80,14 @@ namespace verus
 		{
 		public:
 #include "../Shaders/DS_Terrain.inc.hlsl"
+#include "../Shaders/SimpleTerrain.inc.hlsl"
+
+			enum SHADER
+			{
+				SHADER_MAIN,
+				SHADER_SIMPLE,
+				SHADER_COUNT
+			};
 
 			enum PIPE
 			{
@@ -87,7 +95,10 @@ namespace verus
 				PIPE_STRIP,
 				PIPE_DEPTH_LIST,
 				PIPE_DEPTH_STRIP,
-				PIPE_MAX
+				PIPE_WIREFRAME_LIST,
+				PIPE_WIREFRAME_STRIP,
+				PIPE_TESS,
+				PIPE_COUNT
 			};
 
 			enum TEX
@@ -98,7 +109,7 @@ namespace verus
 				TEX_LAYERS,
 				TEX_LAYERS_NM,
 				TEX_MAIN_LAYER,
-				TEX_MAX
+				TEX_COUNT
 			};
 
 			static const int s_maxLayers = 32;
@@ -116,38 +127,43 @@ namespace verus
 			};
 
 		protected:
-			static CGI::ShaderPwn   s_shader;
-			static UB_DrawDepth     s_ubDrawDepth;
-			static UB_PerMaterialFS s_ubPerMaterialFS;
+			static CGI::ShaderPwns<SHADER_COUNT> s_shader;
+			static UB_TerrainVS                  s_ubTerrainVS;
+			static UB_TerrainFS                  s_ubTerrainFS;
+			static UB_SimpleTerrainVS            s_ubSimpleTerrainVS;
+			static UB_SimpleTerrainFS            s_ubSimpleTerrainFS;
 
-			CGI::GeometryPwn            _geo;
-			CGI::PipelinePwns<PIPE_MAX> _pipe;
-			CGI::TexturePwns<TEX_MAX>   _tex;
-			Vector<TerrainPatch>        _vPatches;
-			Vector<TerrainPatch::TBN>   _vPatchTBNs;
-			Vector<UINT16>              _vSortedPatchIndices;
-			Vector<PerInstanceData>     _vInstanceBuffer;
-			Vector<String>              _vLayerUrls;
-			Vector<short>               _vHeightBuffer;
-			Vector<glm::uint16>         _vHeightmapSubresData;
-			Vector<UINT32>              _vNormalsSubresData;
-			Vector<UINT32>              _vBlendBuffer;
-			Vector<BYTE>                _vMainLayerSubresData;
-			float                       _quadtreeFatten = 0.5f;
-			int                         _mapSide = 0;
-			int                         _mapShift = 0;
-			int                         _visiblePatchCount = 0;
-			int                         _vertCount = 0;
-			int                         _indexCount = 0;
-			int                         _instanceCount = 0;
-			int                         _cshVS = -1;
-			int                         _cshFS = -1;
-			TerrainLOD                  _lods[5]; // Level of detail data for (16x16, 8x8, 4x4, 2x2, 1x1).
-			LayerData                   _layerData[s_maxLayers];
-			TerrainPhysics              _physics;
-			Math::QuadtreeIntegral      _quadtree;
+			CGI::GeometryPwn              _geo;
+			CGI::PipelinePwns<PIPE_COUNT> _pipe;
+			CGI::TexturePwns<TEX_COUNT>   _tex;
+			Vector<TerrainPatch>          _vPatches;
+			Vector<TerrainPatch::TBN>     _vPatchTBNs;
+			Vector<UINT16>                _vSortedPatchIndices;
+			Vector<PerInstanceData>       _vInstanceBuffer;
+			Vector<String>                _vLayerUrls;
+			Vector<short>                 _vHeightBuffer;
+			Vector<glm::uint16>           _vHeightmapSubresData;
+			Vector<UINT32>                _vNormalsSubresData;
+			Vector<UINT32>                _vBlendBuffer;
+			Vector<BYTE>                  _vMainLayerSubresData;
+			float                         _quadtreeFatten = 0.5f;
+			int                           _mapSide = 0;
+			int                           _mapShift = 0;
+			int                           _vertCount = 0;
+			int                           _indexCount = 0;
+			int                           _instanceCount = 0;
+			int                           _visiblePatchCount = 0;
+			CGI::CSHandle                 _cshVS;
+			CGI::CSHandle                 _cshFS;
+			TerrainLOD                    _lods[5]; // Level of detail data for (16x16, 8x8, 4x4, 2x2, 1x1).
+			LayerData                     _layerData[s_maxLayers];
+			TerrainPhysics                _physics;
+			Math::QuadtreeIntegral        _quadtree;
 
 		public:
+			float _lamScale = 1.9f;
+			float _lamBias = -0.9f;
+
 			struct Desc
 			{
 				int   _mapSide = 256;
@@ -159,6 +175,18 @@ namespace verus
 			};
 			VERUS_TYPEDEFS(Desc);
 
+			struct DrawDesc
+			{
+				bool _tess = false;
+				bool _wireframe = false;
+
+				void Reset()
+				{
+					*this = DrawDesc();
+				}
+			};
+			VERUS_TYPEDEFS(DrawDesc);
+
 			Terrain();
 			virtual ~Terrain();
 
@@ -168,13 +196,15 @@ namespace verus
 			void Init(RcDesc desc = Desc());
 			void Done();
 
-			virtual int UserPtr_GetType() override;
+			void Layout();
+			void Draw(RcDrawDesc dd = DrawDesc());
+			void DrawReflection();
 
 			void ResetInstanceCount();
-			void Layout();
-			void Draw();
 
 			void SortVisiblePatches();
+
+			virtual int UserPtr_GetType() override;
 
 			int GetMapSide() const { return _mapSide; }
 

@@ -70,12 +70,12 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 
 	while (*branches)
 	{
-		String entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages;
+		String entry, stageEntries[+Stage::count], stages;
 		Vector<String> vMacroName;
 		Vector<String> vMacroValue;
-		const String entry = Parse(*branches, entryVS, entryHS, entryDS, entryGS, entryFS, entryCS, stages, vMacroName, vMacroValue, "DEF_");
+		const String branch = Parse(*branches, entry, stageEntries, stages, vMacroName, vMacroValue, "DEF_");
 
-		if (IsInIgnoreList(_C(entry)))
+		if (IsInIgnoreList(_C(branch)))
 		{
 			branches++;
 			continue;
@@ -126,12 +126,13 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		// </System defines>
 
 		Compiled compiled;
+		compiled._entry = entry;
 
 		if (strchr(_C(stages), 'V'))
 		{
 			compiled._stageCount++;
 			vDefines[typeIndex] = "_VS";
-			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(entryVS), "vs", flags, &pCode, &size, &pErrorMsgs))
+			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(stageEntries[+Stage::vs]), "vs", flags, &pCode, &size, &pErrorMsgs))
 				CheckErrorMsgs(pErrorMsgs);
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::vs]);
 		}
@@ -140,7 +141,7 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		{
 			compiled._stageCount++;
 			vDefines[typeIndex] = "_HS";
-			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(entryHS), "hs", flags, &pCode, &size, &pErrorMsgs))
+			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(stageEntries[+Stage::hs]), "hs", flags, &pCode, &size, &pErrorMsgs))
 				CheckErrorMsgs(pErrorMsgs);
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::hs]);
 		}
@@ -149,7 +150,7 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		{
 			compiled._stageCount++;
 			vDefines[typeIndex] = "_DS";
-			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(entryDS), "ds", flags, &pCode, &size, &pErrorMsgs))
+			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(stageEntries[+Stage::ds]), "ds", flags, &pCode, &size, &pErrorMsgs))
 				CheckErrorMsgs(pErrorMsgs);
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::ds]);
 		}
@@ -158,7 +159,7 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		{
 			compiled._stageCount++;
 			vDefines[typeIndex] = "_GS";
-			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(entryGS), "gs", flags, &pCode, &size, &pErrorMsgs))
+			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(stageEntries[+Stage::gs]), "gs", flags, &pCode, &size, &pErrorMsgs))
 				CheckErrorMsgs(pErrorMsgs);
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::gs]);
 		}
@@ -167,7 +168,7 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		{
 			compiled._stageCount++;
 			vDefines[typeIndex] = "_FS";
-			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(entryFS), "fs", flags, &pCode, &size, &pErrorMsgs))
+			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(stageEntries[+Stage::fs]), "fs", flags, &pCode, &size, &pErrorMsgs))
 				CheckErrorMsgs(pErrorMsgs);
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::fs]);
 		}
@@ -176,13 +177,13 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		{
 			compiled._stageCount++;
 			vDefines[typeIndex] = "_CS";
-			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(entryCS), "cs", flags, &pCode, &size, &pErrorMsgs))
+			if (!RendererVulkan::VulkanCompile(source, sourceName, vDefines.data(), &inc, _C(stageEntries[+Stage::cs]), "cs", flags, &pCode, &size, &pErrorMsgs))
 				CheckErrorMsgs(pErrorMsgs);
 			CreateShaderModule(pCode, size, compiled._shaderModules[+Stage::cs]);
 			_compute = true;
 		}
 
-		_mapCompiled[entry] = compiled;
+		_mapCompiled[branch] = compiled;
 
 		branches++;
 	}
@@ -248,6 +249,24 @@ void ShaderVulkan::CreatePipelineLayout()
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
+	StringStream ss;
+
+	auto PrintStageFlags = [&ss](VkShaderStageFlags stageFlags)
+	{
+		if (stageFlags & VK_SHADER_STAGE_VERTEX_BIT)
+			ss << "[V]";
+		if (stageFlags & VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT)
+			ss << "[TC]";
+		if (stageFlags & VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)
+			ss << "[TE]";
+		if (stageFlags & VK_SHADER_STAGE_GEOMETRY_BIT)
+			ss << "[G]";
+		if (stageFlags & VK_SHADER_STAGE_FRAGMENT_BIT)
+			ss << "[F]";
+		if (stageFlags & VK_SHADER_STAGE_COMPUTE_BIT)
+			ss << "[C]";
+	};
+
 	VkPushConstantRange vkpcr = {};
 	VkPipelineLayoutCreateInfo vkplci = {};
 	vkplci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -307,6 +326,34 @@ void ShaderVulkan::CreatePipelineLayout()
 				vkdslci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 				vkdslci.bindingCount = Utils::Cast32(vBindings.size());
 				vkdslci.pBindings = vBindings.data();
+
+				ss << "Set=" << _vDescriptorSetLayouts.size();
+				ss << std::endl;
+				for (const auto& binding : vBindings)
+				{
+					ss << "    binding=" << binding.binding;
+					ss << ", type=";
+					switch (binding.descriptorType)
+					{
+					case VK_DESCRIPTOR_TYPE_SAMPLER: ss << "SAMPLER"; break;
+					case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: ss << "COMBINED_IMAGE_SAMPLER"; break;
+					case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE: ss << "SAMPLED_IMAGE"; break;
+					case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: ss << "STORAGE_IMAGE"; break;
+					case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER: ss << "UNIFORM_TEXEL_BUFFER"; break;
+					case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER: ss << "STORAGE_TEXEL_BUFFER"; break;
+					case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER: ss << "UNIFORM_BUFFER"; break;
+					case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER: ss << "STORAGE_BUFFER"; break;
+					case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: ss << "UNIFORM_BUFFER_DYNAMIC"; break;
+					case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC: ss << "STORAGE_BUFFER_DYNAMIC"; break;
+					case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT: ss << "INPUT_ATTACHMENT"; break;
+					}
+					ss << ", count=" << binding.descriptorCount;
+					ss << ", flags=";
+					PrintStageFlags(binding.stageFlags);
+					ss << ", immutableSampler=" << binding.pImmutableSamplers;
+					ss << std::endl;
+				}
+
 				VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
 				if (VK_SUCCESS != (res = vkCreateDescriptorSetLayout(pRendererVulkan->GetVkDevice(), &vkdslci, pRendererVulkan->GetAllocator(), &descriptorSetLayout)))
 					throw VERUS_RUNTIME_ERROR << "vkCreateDescriptorSetLayout(), res=" << res;
@@ -321,12 +368,22 @@ void ShaderVulkan::CreatePipelineLayout()
 				vkpcr.size = dsd._size;
 				vkplci.pushConstantRangeCount = 1;
 				vkplci.pPushConstantRanges = &vkpcr;
+
+				ss << "Set=PushConst";
+				ss << std::endl;
+				ss << "    flags=";
+				PrintStageFlags(vkpcr.stageFlags);
+				ss << ", offset=" << vkpcr.offset;
+				ss << ", size=" << vkpcr.size;
+				ss << std::endl;
 			}
 		}
 
 		vkplci.setLayoutCount = Utils::Cast32(_vDescriptorSetLayouts.size());
 		vkplci.pSetLayouts = _vDescriptorSetLayouts.data();
 	}
+
+	_debugInfo = ss.str();
 
 	if (VK_SUCCESS != (res = vkCreatePipelineLayout(pRendererVulkan->GetVkDevice(), &vkplci, pRendererVulkan->GetAllocator(), &_pipelineLayout)))
 		throw VERUS_RUNTIME_ERROR << "vkCreatePipelineLayout(), res=" << res;
@@ -340,7 +397,7 @@ void ShaderVulkan::CreatePipelineLayout()
 	}
 }
 
-int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips)
+CSHandle ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
@@ -448,21 +505,21 @@ int ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list
 
 	vkUpdateDescriptorSets(pRendererVulkan->GetVkDevice(), Utils::Cast32(vWriteDescriptorSet.size()), vWriteDescriptorSet.data(), 0, nullptr);
 
-	return complexSetHandle;
+	return CSHandle::Make(complexSetHandle);
 }
 
-void ShaderVulkan::FreeDescriptorSet(int& complexSetHandle)
+void ShaderVulkan::FreeDescriptorSet(CSHandle& complexSetHandle)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
-	if (complexSetHandle >= 0 && complexSetHandle < _vComplexDescriptorSets.size() && _vComplexDescriptorSets[complexSetHandle] != VK_NULL_HANDLE)
+	if (complexSetHandle.IsSet() && complexSetHandle.Get() < _vComplexDescriptorSets.size() && _vComplexDescriptorSets[complexSetHandle.Get()] != VK_NULL_HANDLE)
 	{
-		if (VK_SUCCESS != (res = vkFreeDescriptorSets(pRendererVulkan->GetVkDevice(), _descriptorPool, 1, &_vComplexDescriptorSets[complexSetHandle])))
+		if (VK_SUCCESS != (res = vkFreeDescriptorSets(pRendererVulkan->GetVkDevice(), _descriptorPool, 1, &_vComplexDescriptorSets[complexSetHandle.Get()])))
 			throw VERUS_RUNTIME_ERROR << "vkFreeDescriptorSets(), res=" << res;
-		_vComplexDescriptorSets[complexSetHandle] = VK_NULL_HANDLE;
+		_vComplexDescriptorSets[complexSetHandle.Get()] = VK_NULL_HANDLE;
 	}
-	complexSetHandle = -1;
+	complexSetHandle = CSHandle();
 }
 
 void ShaderVulkan::BeginBindDescriptors()
@@ -582,9 +639,9 @@ VkDescriptorSet ShaderVulkan::GetVkDescriptorSet(int setNumber)
 	return _vDescriptorSetDesc[setNumber]._descriptorSet;
 }
 
-VkDescriptorSet ShaderVulkan::GetComplexVkDescriptorSet(int descSetID)
+VkDescriptorSet ShaderVulkan::GetComplexVkDescriptorSet(CSHandle descSetID)
 {
-	return _vComplexDescriptorSets[descSetID];
+	return _vComplexDescriptorSets[descSetID.Get()];
 }
 
 bool ShaderVulkan::TryPushConstants(int setNumber, RBaseCommandBuffer cb)
@@ -621,7 +678,7 @@ int ShaderVulkan::UpdateUniformBuffer(int setNumber)
 void ShaderVulkan::OnError(CSZ s)
 {
 	VERUS_QREF_RENDERER;
-	if (strstr(s, ": error "))
+	if (strstr(s, " ERROR: "))
 		renderer.OnShaderError(s);
 	else
 		renderer.OnShaderWarning(s);

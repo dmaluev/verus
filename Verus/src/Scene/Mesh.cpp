@@ -3,8 +3,8 @@
 using namespace verus;
 using namespace verus::Scene;
 
-CGI::ShaderPwn                    Mesh::s_shader;
-CGI::PipelinePwns<Mesh::PIPE_MAX> Mesh::s_pipe;
+CGI::ShaderPwn                      Mesh::s_shader;
+CGI::PipelinePwns<Mesh::PIPE_COUNT> Mesh::s_pipe;
 
 Mesh::UB_PerFrame      Mesh::s_ubPerFrame;
 Mesh::UB_PerMaterialFS Mesh::s_ubPerMaterialFS;
@@ -28,11 +28,13 @@ void Mesh::InitStatic()
 	VERUS_QREF_CONST_SETTINGS;
 
 	s_shader.Init("[Shaders]:DS_Mesh.hlsl");
-	s_shader->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame), settings.GetLimits()._mesh_ubPerFrameCapacity);
+	s_shader->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame), settings.GetLimits()._mesh_ubPerFrameCapacity, {}, CGI::ShaderStageFlags::vs_hs_ds_fs);
 	s_shader->CreateDescriptorSet(1, &s_ubPerMaterialFS, sizeof(s_ubPerMaterialFS), settings.GetLimits()._mesh_ubPerMaterialFSCapacity,
 		{
 			CGI::Sampler::aniso,
-			CGI::Sampler::aniso
+			CGI::Sampler::aniso,
+			CGI::Sampler::aniso,
+			CGI::Sampler::custom
 		}, CGI::ShaderStageFlags::fs);
 	s_shader->CreateDescriptorSet(2, &s_ubPerMeshVS, sizeof(s_ubPerMeshVS), settings.GetLimits()._mesh_ubPerMeshVSCapacity, {}, CGI::ShaderStageFlags::vs);
 	s_shader->CreateDescriptorSet(3, &s_ubSkeletonVS, sizeof(s_ubSkeletonVS), settings.GetLimits()._mesh_ubSkinningVSCapacity, {}, CGI::ShaderStageFlags::vs);
@@ -69,34 +71,120 @@ void Mesh::Done()
 void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 {
 	VERUS_QREF_RENDERER;
+	VERUS_QREF_CONST_SETTINGS;
+	VERUS_QREF_ATMO;
+
+	if (!settings._gpuTessellation) // Fallback:
+	{
+		switch (pipe)
+		{
+		case PIPE_TESS:         pipe = PIPE_MAIN; break;
+		case PIPE_TESS_ROBOTIC: pipe = PIPE_ROBOTIC; break;
+		case PIPE_TESS_SKINNED: pipe = PIPE_SKINNED; break;
+		};
+	}
+
 	if (!s_pipe[pipe])
 	{
 		static CSZ branches[] =
 		{
 			"#",
+			"#Robotic",
+			"#Skinned",
+
+			"#Instanced",
+
+			"#Depth",
 			"#DepthRobotic",
 			"#DepthSkinned",
-			"#Instanced",
-			"#Robotic",
-			"#Skinned"
+
+			"#Tess",
+			"#TessRobotic",
+			"#TessSkinned",
+
+			"#SolidColor",
+			"#SolidColorRobotic",
+			"#SolidColorSkinned",
 		};
+
 		CGI::PipelineDesc pipeDesc(_geo, s_shader, branches[pipe], renderer.GetDS().GetRenderPassHandle());
-		switch (pipe)
+
+		auto SetBlendEqsForDS = [&pipeDesc]()
 		{
-		case PIPE_DEPTH_ROBOTIC:
-		case PIPE_DEPTH_SKINNED:
-			pipeDesc._colorAttachBlendEqs[0] = "";
-			pipeDesc.EnableDepthBias();
-		default:
 			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
 			pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
 			pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
-			pipeDesc._colorAttachBlendEqs[3] = VERUS_COLOR_BLEND_OFF;
+		};
+
+		switch (pipe)
+		{
+		case PIPE_MAIN:
+		case PIPE_ROBOTIC:
+		case PIPE_SKINNED:
+		{
+			SetBlendEqsForDS();
+		}
+		break;
+		case PIPE_DEPTH:
+		case PIPE_DEPTH_ROBOTIC:
+		case PIPE_DEPTH_SKINNED:
+		{
+			pipeDesc._colorAttachBlendEqs[0] = "";
+			pipeDesc._renderPassHandle = atmo.GetShadowMap().GetRenderPassHandle();
+		}
+		break;
+		case PIPE_TESS:
+		case PIPE_TESS_ROBOTIC:
+		case PIPE_TESS_SKINNED:
+		{
+			SetBlendEqsForDS();
+			if (settings._gpuTessellation)
+				pipeDesc._topology = CGI::PrimitiveTopology::patchList3;
+		}
+		break;
+		case PIPE_WIREFRAME:
+		case PIPE_WIREFRAME_ROBOTIC:
+		case PIPE_WIREFRAME_SKINNED:
+		{
+			SetBlendEqsForDS();
+			pipeDesc._rasterizationState._polygonMode = CGI::PolygonMode::line;
+			pipeDesc._rasterizationState._depthBiasEnable = true;
+			pipeDesc._rasterizationState._depthBiasConstantFactor = -1000;
+			pipeDesc._depthCompareOp = CGI::CompareOp::lessOrEqual;
+		}
+		break;
+		default:
+		{
+			SetBlendEqsForDS();
+		}
 		}
 		pipeDesc._vertexInputBindingsFilter = _bindingsMask;
 		s_pipe[pipe].Init(pipeDesc);
 	}
 	cb->BindPipeline(s_pipe[pipe]);
+}
+
+void Mesh::BindPipeline(CGI::CommandBufferPtr cb, bool allowTess)
+{
+	VERUS_QREF_ATMO;
+	if (_skeleton.IsInitialized())
+	{
+		if (atmo.GetShadowMap().IsRendering())
+			BindPipeline(Scene::Mesh::PIPE_DEPTH_SKINNED, cb);
+		else if (allowTess)
+			BindPipeline(Scene::Mesh::PIPE_TESS_SKINNED, cb);
+		else
+			BindPipeline(Scene::Mesh::PIPE_SKINNED, cb);
+	}
+	else
+	{
+		if (atmo.GetShadowMap().IsRendering())
+			BindPipeline(Scene::Mesh::PIPE_DEPTH, cb);
+		else if (allowTess)
+			BindPipeline(Scene::Mesh::PIPE_TESS, cb);
+		else
+			BindPipeline(Scene::Mesh::PIPE_MAIN, cb);
+	}
 }
 
 void Mesh::BindGeo(CGI::CommandBufferPtr cb)
@@ -112,10 +200,12 @@ void Mesh::BindGeo(CGI::CommandBufferPtr cb, UINT32 bindingsFilter)
 
 void Mesh::UpdateUniformBufferPerFrame()
 {
+	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
 	s_ubPerFrame._matV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
-	s_ubPerFrame._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
 	s_ubPerFrame._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubPerFrame._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
+	s_ubPerFrame._viewportSize = renderer.GetCommandBuffer()->GetViewportSize().GLM();
 }
 
 void Mesh::UpdateUniformBufferPerMaterialFS()
@@ -144,17 +234,17 @@ void Mesh::UpdateUniformBufferSkeletonVS()
 	_skeleton.UpdateUniformBufferArray(s_ubSkeletonVS._vMatBones);
 }
 
-void Mesh::UpdateUniformBufferPerObject(RcTransform3 tr)
+void Mesh::UpdateUniformBufferPerObject(RcTransform3 tr, RcVector4 color)
 {
 	s_ubPerObject._matW = tr.UniformBufferFormat();
-	s_ubPerObject._userColor = Vector4(1, 0, 0, 1).GLM();
+	s_ubPerObject._userColor = color.GLM();
 }
 
-void Mesh::UpdateUniformBufferPerObject(Point3 pos)
+void Mesh::UpdateUniformBufferPerObject(Point3 pos, RcVector4 color)
 {
 	const Transform3 matT = Transform3::translation(Vector3(pos));
 	s_ubPerObject._matW = matT.UniformBufferFormat();
-	s_ubPerObject._userColor = Vector4(1, 0, 0, 1).GLM();
+	s_ubPerObject._userColor = color.GLM();
 }
 
 void Mesh::CreateDeviceBuffers()
@@ -162,25 +252,25 @@ void Mesh::CreateDeviceBuffers()
 	_bindingsMask = 0;
 
 	CGI::GeometryDesc geoDesc;
-	const CGI::InputElementDesc ied[] =
+	const CGI::VertexInputAttrDesc viaDesc[] =
 	{
 		{0, offsetof(VertexInputBinding0, _pos), CGI::IeType::shorts, 4, CGI::IeUsage::position, 0},
 		{0, offsetof(VertexInputBinding0, _tc0), CGI::IeType::shorts, 2, CGI::IeUsage::texCoord, 0},
-		{0, offsetof(VertexInputBinding0, _nrm), CGI::IeType::ubytes, 4, CGI::IeUsage::normal,   0},
-		{1, offsetof(VertexInputBinding1, _bw),  CGI::IeType::shorts, 4, CGI::IeUsage::texCoord, 4},
-		{1, offsetof(VertexInputBinding1, _bi),  CGI::IeType::shorts, 4, CGI::IeUsage::texCoord, 5},
-		{2, offsetof(VertexInputBinding2, _tan), CGI::IeType::shorts, 4, CGI::IeUsage::tangent,  6},
-		{2, offsetof(VertexInputBinding2, _bin), CGI::IeType::shorts, 4, CGI::IeUsage::binormal, 7},
+		{0, offsetof(VertexInputBinding0, _nrm), CGI::IeType::ubytes, 4, CGI::IeUsage::normal, 0},
+		{1, offsetof(VertexInputBinding1, _bw),  CGI::IeType::shorts, 4, CGI::IeUsage::blendWeights, 0},
+		{1, offsetof(VertexInputBinding1, _bi),  CGI::IeType::shorts, 4, CGI::IeUsage::blendIndices, 0},
+		{2, offsetof(VertexInputBinding2, _tan), CGI::IeType::shorts, 4, CGI::IeUsage::tangent, 0},
+		{2, offsetof(VertexInputBinding2, _bin), CGI::IeType::shorts, 4, CGI::IeUsage::binormal, 0},
 		{3, offsetof(VertexInputBinding3, _tc1), CGI::IeType::shorts, 2, CGI::IeUsage::texCoord, 1},
-		{3, offsetof(VertexInputBinding3, _clr), CGI::IeType::ubytes, 4, CGI::IeUsage::color,    0},
+		{3, offsetof(VertexInputBinding3, _clr), CGI::IeType::ubytes, 4, CGI::IeUsage::color, 0},
 
-		{-4, offsetof(PerInstanceData, _matPart0), CGI::IeType::floats, 4, CGI::IeUsage::texCoord, 8},
-		{-4, offsetof(PerInstanceData, _matPart1), CGI::IeType::floats, 4, CGI::IeUsage::texCoord, 9},
-		{-4, offsetof(PerInstanceData, _matPart2), CGI::IeType::floats, 4, CGI::IeUsage::texCoord, 10},
-		{-4, offsetof(PerInstanceData, _instData), CGI::IeType::floats, 4, CGI::IeUsage::texCoord, 11},
-		CGI::InputElementDesc::End()
+		{-4, offsetof(PerInstanceData, _matPart0), CGI::IeType::floats, 4, CGI::IeUsage::instData, 0},
+		{-4, offsetof(PerInstanceData, _matPart1), CGI::IeType::floats, 4, CGI::IeUsage::instData, 1},
+		{-4, offsetof(PerInstanceData, _matPart2), CGI::IeType::floats, 4, CGI::IeUsage::instData, 2},
+		{-4, offsetof(PerInstanceData, _instData), CGI::IeType::floats, 4, CGI::IeUsage::instData, 3},
+		CGI::VertexInputAttrDesc::End()
 	};
-	geoDesc._pInputElementDesc = ied;
+	geoDesc._pVertexInputAttrDesc = viaDesc;
 	const int strides[] = { sizeof(VertexInputBinding0), sizeof(VertexInputBinding1), sizeof(VertexInputBinding2), sizeof(VertexInputBinding3), sizeof(PerInstanceData), 0 };
 	geoDesc._pStrides = strides;
 	geoDesc._32BitIndices = _vIndices.empty();
@@ -236,7 +326,7 @@ void Mesh::CreateDeviceBuffers()
 	}
 }
 
-void Mesh::BufferDataVB(const void* p, int binding)
+void Mesh::UpdateVertexBuffer(const void* p, int binding)
 {
 	_geo->UpdateVertexBuffer(p, binding);
 }

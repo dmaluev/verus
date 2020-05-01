@@ -3,7 +3,7 @@
 using namespace verus;
 using namespace verus::CGI;
 
-int BaseGeometry::GetInputElementDescCount(PcInputElementDesc p)
+int BaseGeometry::GetVertexInputAttrDescCount(PcVertexInputAttrDesc p)
 {
 	int i = 0;
 	while (p[i]._offset >= 0)
@@ -11,7 +11,7 @@ int BaseGeometry::GetInputElementDescCount(PcInputElementDesc p)
 	return i;
 }
 
-int BaseGeometry::GetBindingCount(PcInputElementDesc p)
+int BaseGeometry::GetBindingCount(PcVertexInputAttrDesc p)
 {
 	int count = 0;
 	int i = 0;
