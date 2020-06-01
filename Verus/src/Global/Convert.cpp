@@ -98,6 +98,18 @@ float Convert::LinearToSRGB(float color)
 	return color < 0.0031308f ? 12.92f * color : 1.055f * pow(color, 1 / 2.4f) - 0.055f;
 }
 
+void Convert::SRGBToLinear(float color[])
+{
+	VERUS_FOR(i, 3)
+		color[i] = SRGBToLinear(color[i]);
+}
+
+void Convert::LinearToSRGB(float color[])
+{
+	VERUS_FOR(i, 3)
+		color[i] = LinearToSRGB(color[i]);
+}
+
 UINT32 Convert::Color16To32(UINT16 in)
 {
 	const int b = ((in >> 0) & 0x1F) << 3;

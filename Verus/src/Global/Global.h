@@ -17,6 +17,7 @@
 #include "Linear.h"
 #include "Convert.h"
 #include "Timer.h"
+#include "Cooldown.h"
 #include "EngineInit.h"
 #include "GlobalVarsClipboard.h"
 

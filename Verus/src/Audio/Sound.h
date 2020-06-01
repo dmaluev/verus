@@ -97,10 +97,10 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(SoundPwn);
 
-		template<int NUM>
+		template<int COUNT>
 		class SoundPwns
 		{
-			SoundPwn _sounds[NUM];
+			SoundPwn _sounds[COUNT];
 			int      _prev = 0;
 
 		public:
@@ -116,7 +116,7 @@ namespace verus
 			void Init(Sound::RcDesc desc)
 			{
 				char buffer[200];
-				VERUS_FOR(i, NUM)
+				VERUS_FOR(i, COUNT)
 				{
 					sprintf_s(buffer, desc._url, i);
 					Sound::Desc descs = desc;
@@ -127,7 +127,7 @@ namespace verus
 
 			void Done()
 			{
-				VERUS_FOR(i, NUM)
+				VERUS_FOR(i, COUNT)
 					_sounds[i].Done();
 			}
 
@@ -135,9 +135,9 @@ namespace verus
 			{
 				if (i < 0)
 					i = Utils::I().GetRandom().Next() & 0xFF; // Only positive.
-				i %= NUM;
+				i %= COUNT;
 				if (i == _prev)
-					i = (i + 1) % NUM;
+					i = (i + 1) % COUNT;
 				_prev = i;
 				return _sounds[i];
 			}

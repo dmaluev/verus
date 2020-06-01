@@ -18,9 +18,9 @@ void CharacterController::Init(RcPoint3 pos, RcDesc desc)
 
 	VERUS_QREF_BULLET;
 
-	if (desc._radius >= 1e-4f)
+	if (desc._radius >= VERUS_FLOAT_THRESHOLD)
 		_radius = desc._radius;
-	if (desc._height >= 1e-4f)
+	if (desc._height >= VERUS_FLOAT_THRESHOLD)
 		_height = desc._height;
 	float stepHeight = _radius;
 	if (desc._stepHeight >= 0)

@@ -76,6 +76,12 @@ matrix ToFloat4x4(mataff m)
 		float4(m[3], 1));
 }
 
+// Asymmetric abs():
+float2 AsymAbs(float2 x, float negScale = -1.0, float posScale = 1.0)
+{
+	return x * lerp(posScale, negScale, step(x, 0.0));
+}
+
 float3 Rand(float2 uv)
 {
 	return frac(sin(dot(uv, float2(12.9898, 78.233)) * float3(1, 2, 3)) * 43758.5453);
@@ -102,3 +108,24 @@ static const float2 _POINT_SPRITE_TEX_COORDS[4] =
 	float2(1, 0),
 	float2(1, 1)
 };
+
+float UnpackTerrainHeight(float height)
+{
+	return height * 0.01;
+}
+
+float ToLandMask(float height)
+{
+	return saturate(height * 0.2 + 1.0); // [-5 to 0] -> [0 to 1]
+}
+
+float ToWaterDiffuseMask(float height)
+{
+	const float mask = saturate(height * 0.02 + 1.0); // [-50 to 0] -> [0 to 1]
+	return mask * mask * mask;
+}
+
+float3 ReflectionDimming(float3 hdr, float scale)
+{
+	return lerp(hdr * scale, hdr, saturate(hdr * (1.0 / 65536.0)));
+}

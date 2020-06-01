@@ -1,5 +1,7 @@
 #pragma once
 
+// Last updated on 13-Jun-2020
+
 // Base64 (https://sourceforge.net/projects/libb64/):
 #ifdef _WIN32
 extern "C"
@@ -25,9 +27,10 @@ extern "C"
 #include "glm/glm/gtc/quaternion.hpp"
 #include "glm/glm/gtc/type_ptr.hpp"
 #include "glm/glm/gtx/color_space.hpp"
+#include "glm/glm/gtx/easing.hpp"
 #include "glm/glm/gtx/euler_angles.hpp"
-#include "glm/glm/gtx/normal.hpp"
 #include "glm/glm/gtx/norm.hpp"
+#include "glm/glm/gtx/normal.hpp"
 #include "glm/glm/gtx/vector_angle.hpp"
 
 // Dear ImGui (https://github.com/ocornut/imgui):

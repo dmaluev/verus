@@ -76,7 +76,7 @@ void ShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar)
 	_camera.SetUpDirection(up);
 	_camera.MoveAtTo(at);
 	_camera.MoveEyeTo(eye);
-	_camera.SetFOV(0);
+	_camera.SetFovY(0);
 	_camera.SetZNear(zNear);
 	_camera.SetZFar(zFar);
 	_camera.SetWidth(size);
@@ -245,7 +245,7 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 	float zNearFrustum, zFarFrustum;
 	const float closerToLight = 1500;
 	const Matrix4 matToLightSpace = Matrix4::lookAt(Point3(0), Point3(-dirToSun), up);
-	const float maxRange = (settings._sceneShadowQuality >= App::Settings::ShadowQuality::ultra) ? 850 : 350;
+	const float maxRange = (settings._sceneShadowQuality >= App::Settings::ShadowQuality::ultra) ? 850.f : 350.f;
 	const float range = Math::Min<float>(maxRange, cam.GetZFar() - cam.GetZNear()); // Clip terrain, etc.
 	_camera = cam;
 
@@ -269,14 +269,14 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 
 		sideW = static_cast<int>(frustumBounds.getZ() - frustumBounds.getX() + 2.5f);
 		sideH = static_cast<int>(frustumBounds.getW() - frustumBounds.getY() + 2.5f);
-		sizeW = sideW;
-		sizeH = sideH;
+		sizeW = static_cast<float>(sideW);
+		sizeH = static_cast<float>(sideH);
 
 		// Setup CSM light space camera for full range (used for terrain layout, etc.):
 		_cameraCSM.SetUpDirection(up);
 		_cameraCSM.MoveAtTo(at);
 		_cameraCSM.MoveEyeTo(eye);
-		_cameraCSM.SetFOV(0);
+		_cameraCSM.SetFovY(0);
 		_cameraCSM.SetZNear(zNear);
 		_cameraCSM.SetZFar(zFar);
 		_cameraCSM.SetWidth(sizeW);
@@ -325,13 +325,13 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 	{
 		side = (sideW < sideH) ? sideH : sideW;
 		side = Math::NextPowerOfTwo(side);
-		sizeW = side;
-		sizeH = side;
+		sizeW = static_cast<float>(side);
+		sizeH = static_cast<float>(side);
 	}
 	else
 	{
-		sizeW = sideW;
-		sizeH = sideH;
+		sizeW = static_cast<float>(sideW);
+		sizeH = static_cast<float>(sideH);
 	}
 
 	if (_snapToTexels)
@@ -353,7 +353,7 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 	_camera.SetUpDirection(up);
 	_camera.MoveAtTo(at);
 	_camera.MoveEyeTo(eye);
-	_camera.SetFOV(0);
+	_camera.SetFovY(0);
 	_camera.SetZNear(zNear);
 	_camera.SetZFar(zFar);
 	_camera.SetWidth(sizeW);

@@ -117,7 +117,7 @@ void Material::Pick::SetColor(float r, float g, float b)
 	z = b;
 }
 
-void Material::Pick::SetAmount(float x)
+void Material::Pick::SetAlpha(float x)
 {
 	w = x;
 }
@@ -162,7 +162,7 @@ void Material::PickRound::SetRadius(float r)
 	z = r;
 }
 
-void Material::PickRound::SetAmount(float x)
+void Material::PickRound::SetAlpha(float x)
 {
 	w = x;
 }
@@ -241,6 +241,7 @@ bool Material::Done()
 	_refCount--;
 	if (_refCount <= 0)
 	{
+		Mesh::GetShader()->FreeDescriptorSet(_csh);
 		_texAlbedo.Done();
 		_texNormal.Done();
 		VERUS_DONE(Material);
@@ -290,8 +291,8 @@ void Material::LoadTextures(bool streamParts)
 	_texNormal.Done();
 	_texAlbedo.Init(_dict.Find("texAlbedo"), streamParts);
 	_texNormal.Init(_dict.Find("texNormal"), streamParts);
-	_texAlbedoEnable.w = 1;
-	_texNormalEnable.w = 1;
+	_texEnableAlbedo.w = 1;
+	_texEnableNormal.w = 1;
 }
 
 String Material::ToString()
@@ -305,29 +306,25 @@ String Material::ToString()
 
 	_dict.Insert("alphaSwitch",     /**/_C(Str::ToString(_alphaSwitch)));
 	_dict.Insert("anisoSpecDir",    /**/_C(Str::ToString(_anisoSpecDir)));
-	_dict.Insert("bushEffect",      /**/_C(Str::ToString(_bushEffect)));
 	_dict.Insert("detail",          /**/_C(Str::ToString(_detail)));
-	_dict.Insert("emitPick",        /**/_C(_emitPick.ToString()));
-	_dict.Insert("emitXPick",       /**/_C(_emitXPick.ToString()));
+	_dict.Insert("emission",        /**/_C(Str::ToString(_emission)));
+	_dict.Insert("emissionPick",    /**/_C(_emissionPick.ToString()));
 	_dict.Insert("eyePick",         /**/_C(Str::ToString(_eyePick.ToPixels())));
 	_dict.Insert("gloss",           /**/_C(Str::ToString(_gloss)));
-	_dict.Insert("glossX",          /**/_C(Str::ToString(_glossX)));
-	_dict.Insert("glossXPick",      /**/_C(_glossXPick.ToString()));
+	_dict.Insert("glossPick",       /**/_C(_glossPick.ToString()));
+	_dict.Insert("glossScaleBias",  /**/_C(Str::ToString(_glossScaleBias)));
 	_dict.Insert("hairDesat",       /**/_C(Str::ToString(_hairDesat)));
 	_dict.Insert("hairPick",        /**/_C(_hairPick.ToString()));
-	_dict.Insert("lamBias",         /**/_C(Str::ToString(_lamBias)));
-	_dict.Insert("lamScale",        /**/_C(Str::ToString(_lamScale)));
+	_dict.Insert("lamScaleBias",    /**/_C(Str::ToString(_lamScaleBias)));
 	_dict.Insert("lightPass",       /**/_C(Str::ToString(_lightPass)));
 	_dict.Insert("metalPick",       /**/_C(_metalPick.ToString()));
-	_dict.Insert("parallaxDepth",   /**/_C(Str::ToString(_parallaxDepth)));
 	_dict.Insert("skinPick",        /**/_C(_skinPick.ToString()));
-	_dict.Insert("specBias",        /**/_C(Str::ToString(_specBias)));
-	_dict.Insert("specScale",       /**/_C(Str::ToString(_specScale)));
+	_dict.Insert("specScaleBias",   /**/_C(Str::ToString(_specScaleBias)));
 	_dict.Insert("tc0ScaleBias",    /**/_C(Str::ToString(_tc0ScaleBias)));
 	_dict.Insert("texAlbedo",       /**/pTexAlbedo ? _C(pTexAlbedo->GetName()) : empty);
-	_dict.Insert("texAlbedoEnable", /**/_C(Str::ToColorString(_texAlbedoEnable)));
+	_dict.Insert("texEnableAlbedo", /**/_C(Str::ToColorString(_texEnableAlbedo)));
 	_dict.Insert("texNormal",       /**/pTexNormal ? _C(pTexNormal->GetName()) : empty);
-	_dict.Insert("texNormalEnable", /**/_C(Str::ToColorString(_texNormalEnable, false)));
+	_dict.Insert("texEnableNormal", /**/_C(Str::ToColorString(_texEnableNormal, false)));
 	_dict.Insert("userColor",       /**/_C(Str::ToColorString(_userColor)));
 	_dict.Insert("userPick",        /**/_C(_userPick.ToString()));
 
@@ -340,27 +337,23 @@ void Material::FromString(CSZ txt)
 
 	_alphaSwitch = Str::FromStringVec2(_dict.Find("alphaSwitch", "1 1"));
 	_anisoSpecDir = Str::FromStringVec2(_dict.Find("anisoSpecDir", "0 1"));
-	_bushEffect = Str::FromStringVec4(_dict.Find("bushEffect", "0 0 0 0"));
 	_detail = _dict.FindFloat("detail", 0);
-	_emitPick.FromString(_dict.Find("emitPick", "00000000"));
-	_emitXPick.FromString(_dict.Find("emitXPick", "00000000"));
+	_emission = _dict.FindFloat("emission", 0);
+	_emissionPick.FromString(_dict.Find("emissionPick", "00000000"));
 	_eyePick = Str::FromStringVec4(_dict.Find("eyePick", "0 0 0 0"));
 	_gloss = _dict.FindFloat("gloss", 10);
-	_glossX = _dict.FindFloat("glossX", 10);
-	_glossXPick.FromString(_dict.Find("glossXPick", "00000000"));
+	_glossPick.FromString(_dict.Find("glossPick", "00000000"));
+	_glossScaleBias = Str::FromStringVec2(_dict.Find("glossScaleBias", "1 0"));
 	_hairDesat = _dict.FindFloat("hairDesat", 0);
 	_hairPick.FromString(_dict.Find("hairPick", "00000000"));
-	_lamBias = _dict.FindFloat("lamBias", 0);
-	_lamScale = _dict.FindFloat("lamScale", 1);
+	_lamScaleBias = Str::FromStringVec2(_dict.Find("lamScaleBias", "1 0"));
 	_lightPass = _dict.FindFloat("lightPass", 1);
 	_metalPick.FromString(_dict.Find("metalPick", "00000000"));
-	_parallaxDepth = _dict.FindFloat("parallaxDepth", 0);
 	_skinPick.FromString(_dict.Find("skinPick", "00000000"));
-	_specBias = _dict.FindFloat("specBias", 0);
-	_specScale = _dict.FindFloat("specScale", 1);
+	_specScaleBias = Str::FromStringVec2(_dict.Find("specScaleBias", "1 0"));
 	_tc0ScaleBias = Str::FromStringVec4(_dict.Find("tc0ScaleBias", "1 1 0 0"));
-	_texAlbedoEnable = Str::FromColorString(_dict.Find("texAlbedoEnable", "80808000"));
-	_texNormalEnable = Str::FromColorString(_dict.Find("texNormalEnable", "8080FF00"), false);
+	_texEnableAlbedo = Str::FromColorString(_dict.Find("texEnableAlbedo", "80808000"));
+	_texEnableNormal = Str::FromColorString(_dict.Find("texEnableNormal", "8080FF00"), false);
 	_userColor = Str::FromColorString(_dict.Find("userColor", "00000000"));
 	_userPick.FromString(_dict.Find("userPick", "0 0 0 0"));
 
@@ -372,7 +365,7 @@ void Material::BindDescriptorSetTextures()
 	VERUS_RT_ASSERT(!_csh.IsSet());
 	VERUS_RT_ASSERT(IsLoaded());
 	VERUS_QREF_MM;
-	_csh = Scene::Mesh::GetShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTex(), _texNormal->GetTex(), mm.GetDetailTexture(), mm.GetStrassTexture() });
+	_csh = Mesh::GetShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTex(), _texNormal->GetTex(), mm.GetDetailTexture(), mm.GetStrassTexture() });
 }
 
 bool Material::UpdateMeshUniformBuffer(float motionBlur)
@@ -381,29 +374,33 @@ bool Material::UpdateMeshUniformBuffer(float motionBlur)
 	Mesh::UB_PerMaterialFS ubPrev;
 	memcpy(&ubPrev, &ub, sizeof(Mesh::UB_PerMaterialFS));
 
-	ub._texEnableAlbedo = _texAlbedoEnable;
-	ub._texEnableNormal = _texNormalEnable;
-	ub._skinPick = _skinPick;
-	ub._hairPick = _hairPick;
-	ub._emitPick = _emitPick;
-	ub._emitXPick = _emitXPick;
-	ub._metalPick = _metalPick;
-	ub._glossXPick = _glossXPick;
+	ub._alphaSwitch_anisoSpecDir = float4(_alphaSwitch, _anisoSpecDir);
+	ub._detail_emission_gloss_hairDesat.x = _detail;
+	ub._detail_emission_gloss_hairDesat.y = _emission;
+	ub._detail_emission_gloss_hairDesat.z = _gloss;
+	ub._detail_emission_gloss_hairDesat.w = _hairDesat;
+	ub._detailScale_strassScale = float4(1, 1, 1, 1);
+	ub._emissionPick = _emissionPick;
 	ub._eyePick = _eyePick;
-	ub._hairParams = glm::vec4(_anisoSpecDir, 0, _hairDesat);
-	ub._lsb_gloss_lp = glm::vec4(_lamScale, _lamBias, _gloss, _lightPass);
-	ub._ssb_as = glm::vec4(_specScale, _specBias, _alphaSwitch.x, _alphaSwitch.y);
+	ub._glossPick = _glossPick;
+	ub._glossScaleBias_specScaleBias = float4(_glossScaleBias, _specScaleBias);
+	ub._hairPick = _hairPick;
+	ub._lamScaleBias_lightPass_motionBlur = float4(_lamScaleBias, _lightPass, motionBlur);
+	ub._metalPick = _metalPick;
+	ub._skinPick = _skinPick;
+	ub._tc0ScaleBias = _tc0ScaleBias;
+	ub._texEnableAlbedo = _texEnableAlbedo;
+	ub._texEnableNormal = _texEnableNormal;
+	ub._userColor = _userColor;
 	ub._userPick = _userPick;
-	ub._ds_scale = glm::vec4(_detail, 1, 1, 1);
 	if (_texAlbedo)
 	{
-		ub._ds_scale = glm::vec4(_detail, 1,
+		ub._detailScale_strassScale = float4(
 			_texAlbedo->GetTex()->GetSize().getX() / 256 * 4,
-			_texAlbedo->GetTex()->GetSize().getY() / 256 * 4);
+			_texAlbedo->GetTex()->GetSize().getY() / 256 * 4,
+			_texAlbedo->GetTex()->GetSize().getX() / 256 * 8,
+			_texAlbedo->GetTex()->GetSize().getY() / 256 * 8);
 	}
-	ub._motionBlur_glossX.x = motionBlur;
-	ub._motionBlur_glossX.y = _glossX;
-	ub._bushEffect = _bushEffect;
 
 	return 0 != memcmp(&ubPrev, &ub, sizeof(Mesh::UB_PerMaterialFS));
 }
@@ -461,7 +458,7 @@ void MaterialManager::InitCmd()
 	_texDetail.Init("[Textures]:Detail.FX.dds", false, true);
 	_texStrass.Init("[Textures]:Strass.dds", false, true, &strassSamplerDesc);
 
-	_cshDefault = Scene::Mesh::GetShader()->BindDescriptorSetTextures(1,
+	_cshDefault = Mesh::GetShader()->BindDescriptorSetTextures(1,
 		{
 			_texDefaultAlbedo->GetTex(),
 			_texDefaultNormal->GetTex(),
@@ -472,6 +469,7 @@ void MaterialManager::InitCmd()
 
 void MaterialManager::Done()
 {
+	Mesh::GetShader()->FreeDescriptorSet(_cshDefault);
 	_texStrass.Done();
 	_texDetail.Done();
 	_texDefaultNormal.Done();

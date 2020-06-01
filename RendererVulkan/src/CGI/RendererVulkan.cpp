@@ -189,8 +189,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL RendererVulkan::DebugUtilsMessengerCallback(
 		severity = D::Log::Severity::warning;
 	if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
 		severity = D::Log::Severity::error;
-	if (!strstr(pCallbackData->pMessage, "ptr to input arr[1] of struct of"))
-		D::Log::I().Write(pCallbackData->pMessage, std::this_thread::get_id(), __FILE__, __LINE__, severity);
+	D::Log::I().Write(pCallbackData->pMessage, std::this_thread::get_id(), __FILE__, __LINE__, severity);
 	return VK_FALSE;
 }
 
@@ -425,6 +424,7 @@ void RendererVulkan::CreateDevice()
 	physicalDeviceFeatures.multiViewport = VK_TRUE;
 	physicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
 	physicalDeviceFeatures.shaderImageGatherExtended = VK_TRUE;
+	physicalDeviceFeatures.shaderClipDistance = VK_TRUE;
 	VkDeviceCreateInfo vkdci = {};
 	vkdci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	vkdci.pNext = &lineRasterizationFeatures;
@@ -626,6 +626,12 @@ void RendererVulkan::CreateSamplers()
 	vksci.anisotropyEnable = (settings._gpuAnisotropyLevel > 0) ? VK_TRUE : VK_FALSE;
 	vksci.maxAnisotropy = static_cast<float>(settings._gpuAnisotropyLevel);
 	_vSamplers[+Sampler::aniso] = Create(vksci);
+
+	vksci = init;
+	vksci.addressModeU = vksci.addressModeV = vksci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	vksci.anisotropyEnable = (settings._gpuAnisotropyLevel > 0) ? VK_TRUE : VK_FALSE;
+	vksci.maxAnisotropy = static_cast<float>(settings._gpuAnisotropyLevel);
+	_vSamplers[+Sampler::anisoClamp] = Create(vksci);
 
 	// <Repeat>
 	vksci = init;
@@ -1316,4 +1322,30 @@ void RendererVulkan::CopyBufferToImage(
 	region.imageExtent = { width, height, 1 };
 
 	vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+}
+
+void RendererVulkan::CopyImageToBuffer(
+	VkImage image, uint32_t mipLevel, uint32_t arrayLayer,
+	uint32_t width, uint32_t height,
+	VkBuffer buffer,
+	PBaseCommandBuffer pCB)
+{
+	VERUS_QREF_RENDERER;
+
+	if (!pCB)
+		pCB = &(*renderer.GetCommandBuffer());
+	auto commandBuffer = static_cast<PCommandBufferVulkan>(pCB)->GetVkCommandBuffer();
+
+	VkBufferImageCopy region = {};
+	region.bufferOffset = 0;
+	region.bufferRowLength = 0;
+	region.bufferImageHeight = 0;
+	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	region.imageSubresource.mipLevel = mipLevel;
+	region.imageSubresource.baseArrayLayer = arrayLayer;
+	region.imageSubresource.layerCount = 1;
+	region.imageOffset = { 0, 0, 0 };
+	region.imageExtent = { width, height, 1 };
+
+	vkCmdCopyImageToBuffer(commandBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, buffer, 1, &region);
 }

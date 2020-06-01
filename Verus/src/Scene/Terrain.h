@@ -98,6 +98,10 @@ namespace verus
 				PIPE_WIREFRAME_LIST,
 				PIPE_WIREFRAME_STRIP,
 				PIPE_TESS,
+				PIPE_REFLECTION_LIST,
+				PIPE_REFLECTION_STRIP,
+				PIPE_UNDERWATER_LIST,
+				PIPE_UNDERWATER_STRIP,
 				PIPE_COUNT
 			};
 
@@ -155,6 +159,8 @@ namespace verus
 			int                           _visiblePatchCount = 0;
 			CGI::CSHandle                 _cshVS;
 			CGI::CSHandle                 _cshFS;
+			CGI::CSHandle                 _cshSimpleVS;
+			CGI::CSHandle                 _cshSimpleFS;
 			TerrainLOD                    _lods[5]; // Level of detail data for (16x16, 8x8, 4x4, 2x2, 1x1).
 			LayerData                     _layerData[s_maxLayers];
 			TerrainPhysics                _physics;
@@ -194,6 +200,7 @@ namespace verus
 			static void DoneStatic();
 
 			void Init(RcDesc desc = Desc());
+			void InitByWater();
 			void Done();
 
 			void Layout();

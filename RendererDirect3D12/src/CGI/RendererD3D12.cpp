@@ -324,6 +324,12 @@ void RendererD3D12::CreateSamplers()
 	desc.MaxAnisotropy = settings._gpuAnisotropyLevel;
 	_vSamplers[+Sampler::aniso] = desc;
 
+	desc = init;
+	desc.Filter = D3D12_FILTER_ANISOTROPIC;
+	desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	desc.MaxAnisotropy = settings._gpuAnisotropyLevel;
+	_vSamplers[+Sampler::anisoClamp] = desc;
+
 	// <Wrap>
 	desc = init;
 	_vSamplers[+Sampler::linearMipL] = desc;
@@ -386,7 +392,7 @@ void RendererD3D12::ImGuiInit(RPHandle renderPassHandle)
 		IO::FileSystem::LoadResource(_C(settings._imguiFont), vData);
 		void* pFontData = IM_ALLOC(vData.size());
 		memcpy(pFontData, vData.data(), vData.size());
-		io.Fonts->AddFontFromMemoryTTF(pFontData, Utils::Cast32(vData.size()), settings.GetFontSize(), nullptr, io.Fonts->GetGlyphRangesCyrillic());
+		io.Fonts->AddFontFromMemoryTTF(pFontData, Utils::Cast32(vData.size()), static_cast<float>(settings.GetFontSize()), nullptr, io.Fonts->GetGlyphRangesCyrillic());
 	}
 
 	ImGui::StyleColorsDark();

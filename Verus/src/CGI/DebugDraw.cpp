@@ -43,7 +43,7 @@ void DebugDraw::Init()
 	_offset = 0;
 
 	{
-		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPassHandle_SwapChainDepth());
+		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPassHandle_AutoWithDepth());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		pipeDesc._topology = PrimitiveTopology::pointList;
 		_pipe[PIPE_POINTS].Init(pipeDesc);
@@ -51,7 +51,7 @@ void DebugDraw::Init()
 		_pipe[PIPE_POINTS_NO_Z].Init(pipeDesc);
 	}
 	{
-		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPassHandle_SwapChainDepth());
+		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPassHandle_AutoWithDepth());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		pipeDesc._topology = PrimitiveTopology::lineList;
 		_pipe[PIPE_LINES].Init(pipeDesc);
@@ -59,7 +59,7 @@ void DebugDraw::Init()
 		_pipe[PIPE_LINES_NO_Z].Init(pipeDesc);
 	}
 	{
-		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPassHandle_SwapChainDepth());
+		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPassHandle_AutoWithDepth());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		pipeDesc._rasterizationState._polygonMode = PolygonMode::line;
 		pipeDesc._topology = PrimitiveTopology::triangleList;
@@ -87,6 +87,13 @@ void DebugDraw::Begin(Type type, PcTransform3 pMat, bool zEnable)
 		_offset = 0;
 	}
 
+	Matrix4 matWVP;
+	if (sm.GetCamera())
+		matWVP = sm.GetCamera()->GetMatrixVP();
+	else
+		matWVP = Matrix4::identity();
+	s_ubDebugDraw._matWVP = pMat ? Matrix4(matWVP * *pMat).UniformBufferFormat() : matWVP.UniformBufferFormat();
+
 	PIPE pipe = PIPE_POINTS;
 	switch (type)
 	{
@@ -97,19 +104,12 @@ void DebugDraw::Begin(Type type, PcTransform3 pMat, bool zEnable)
 	if (!zEnable)
 		pipe = static_cast<PIPE>(pipe + 1);
 
-	renderer.GetCommandBuffer()->BindPipeline(_pipe[pipe]);
-	renderer.GetCommandBuffer()->BindVertexBuffers(_geo);
+	auto cb = renderer.GetCommandBuffer();
 
-	Matrix4 matWVP;
-	if (sm.GetCamera())
-		matWVP = sm.GetCamera()->GetMatrixVP();
-	else
-		matWVP = Matrix4::identity();
-
-	s_ubDebugDraw._matWVP = pMat ? Matrix4(matWVP * *pMat).UniformBufferFormat() : matWVP.UniformBufferFormat();
-
+	cb->BindVertexBuffers(_geo);
+	cb->BindPipeline(_pipe[pipe]);
 	_shader->BeginBindDescriptors();
-	renderer.GetCommandBuffer()->BindDescriptors(_shader, 0);
+	cb->BindDescriptors(_shader, 0);
 	_shader->EndBindDescriptors();
 }
 

@@ -71,15 +71,6 @@ float4 ColorToSRGB(float4 x)
 	return float4(rgb, x.a);
 }
 
-float4 HDRColorToLinear(float4 x)
-{
-	return float4(x.rgb * x.rgb * 12.0, x.a);
-}
-float4 HDRColorToSRGB(float4 x)
-{
-	return float4(sqrt(saturate(x.rgb * (1.0 / 12.0))), x.a);
-}
-
 // See: https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
 float3 ToneMappingACES(float3 x)
 {
@@ -93,6 +84,9 @@ float3 ToneMappingACES(float3 x)
 
 float3 VerusToneMapping(float3 hdr, float filmicLook = 1.0)
 {
+	const float maxValue = max(max(hdr.r, hdr.g), hdr.b);
+	const float desatMask = saturate(maxValue * 0.1);
+	hdr = lerp(hdr, maxValue, desatMask * desatMask);
 	const float3 ldr = lerp(1.0 - exp(-hdr), ToneMappingACES(hdr), filmicLook);
 	return saturate(ldr);
 }

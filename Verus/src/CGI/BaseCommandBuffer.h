@@ -61,8 +61,8 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(CommandBufferPwn);
 
-		template<int NUM>
-		class CommandBufferPwns : public Pwns<CommandBufferPwn, NUM>
+		template<int COUNT>
+		class CommandBufferPwns : public Pwns<CommandBufferPwn, COUNT>
 		{
 		};
 	}

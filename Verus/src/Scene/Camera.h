@@ -25,6 +25,7 @@ namespace verus
 			VERUS_PD(Point3  _atPos = Point3(0, 0, -1));
 			VERUS_PD(Vector3 _upDir = Vector3(0, 1, 0));
 			VERUS_PD(Vector3 _frontDir = Vector3(0, 0, -1));
+			float            _fovScale = 1;
 			float            _fovY = VERUS_PI / 4; // Zero FOV means ortho.
 			float            _aspectRatio = 1;
 			float            _zNear = 0.1f; // 10 cm.
@@ -38,6 +39,8 @@ namespace verus
 			virtual void Update();
 			void UpdateView();
 			void UpdateVP();
+
+			void EnableReflectionMode();
 
 			Vector4 GetZNearFarEx() const;
 
@@ -64,12 +67,13 @@ namespace verus
 			RcMatrix4 GetMatrixVP() const { return _matVP; }
 
 			// Perspective:
-			float GetFOV() const { return _fovY; }
+			float GetFovScale() const { return _fovScale; } // For converting offsets in meters to offsets in texture coords.
+			float GetFovY() const { return _fovY; }
 			float GetAspectRatio() const { return _aspectRatio; }
 			float GetZNear() const { return _zNear; }
 			float GetZFar() const { return _zFar; }
-			void SetFOVH(float x);
-			void SetFOV(float x) { _update |= Update::p; _fovY = x; }
+			void SetFovX(float x);
+			void SetFovY(float x) { _update |= Update::p; _fovY = x; }
 			void SetAspectRatio(float x) { _update |= Update::p; _aspectRatio = x; }
 			void SetZNear(float x) { _update |= Update::p; _zNear = x; }
 			void SetZFar(float x) { _update |= Update::p; _zFar = x; }

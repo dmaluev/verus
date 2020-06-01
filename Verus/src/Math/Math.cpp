@@ -28,6 +28,19 @@ int Math::HighestBit(int x)
 	return bit;
 }
 
+int Math::LowestBit(int x)
+{
+	if (!x)
+		return -1;
+	int bit = 0;
+	while (!(x & 1))
+	{
+		x >>= 1;
+		++bit;
+	}
+	return bit;
+}
+
 bool Math::IsNaN(float x)
 {
 	// 'isnan' : is not a member of 'std' :(
@@ -59,21 +72,6 @@ float Math::SmoothStep(float a, float b, float t)
 {
 	const float x = Clamp((t - a) / (b - a), 0.f, 1.f);
 	return x * x * (3 - (x + x));
-}
-
-float Math::LinearToSin(float t)
-{
-	return sin(t * VERUS_PI);
-}
-
-float Math::LinearToCos(float t)
-{
-	return cos(t * VERUS_PI) * -0.5f + 0.5f; // [1 to -1] -> [0 to 1].
-}
-
-float Math::EaseInOutSine(float x)
-{
-	return -(cos(VERUS_PI * x) - 1) * 0.5f;
 }
 
 Vector3 Math::TriangleNormal(RcPoint3 a, RcPoint3 b, RcPoint3 c)
@@ -259,6 +257,14 @@ Transform3 Math::ToUVMatrix(float zOffset, RcVector4 texSize, PcVector4 pTileSiz
 			texSize.getY() * pTileSize->getW(), 1), m);
 
 	return m;
+}
+
+float Math::Reduce(float val, float reduction)
+{
+	if (abs(val) < abs(reduction))
+		return 0;
+	else
+		return val - glm::sign(val) * reduction;
 }
 
 void Math::Test()

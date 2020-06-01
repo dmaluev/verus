@@ -52,17 +52,40 @@ void Renderer::Init(PRendererDelegate pDelegate)
 
 	_commandBuffer.Init();
 
+	// Draw directly to swap chain buffer:
+	const RP::Attachment::LoadOp loadOp = settings._screenOffscreenDraw ? RP::Attachment::LoadOp::dontCare : RP::Attachment::LoadOp::clear;
 	_rphSwapChain = _pBaseRenderer->CreateRenderPass(
 		{
-			RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().Layout(ImageLayout::undefined, ImageLayout::presentSrc)
+			RP::Attachment("Color", Format::srgbB8G8R8A8).SetLoadOp(loadOp).Layout(ImageLayout::undefined, ImageLayout::presentSrc)
 		},
 		{
 			RP::Subpass("Sp0").Color({RP::Ref("Color", ImageLayout::colorAttachment)})
 		},
 		{});
-	_rphSwapChainDepth = _pBaseRenderer->CreateRenderPass(
+	_rphSwapChainWithDepth = _pBaseRenderer->CreateRenderPass(
 		{
-			RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().Layout(ImageLayout::undefined, ImageLayout::presentSrc),
+			RP::Attachment("Color", Format::srgbB8G8R8A8).SetLoadOp(loadOp).Layout(ImageLayout::undefined, ImageLayout::presentSrc),
+			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilAttachment),
+		},
+		{
+			RP::Subpass("Sp0").Color(
+			{
+				RP::Ref("Color", ImageLayout::colorAttachment)
+			}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachment)),
+		},
+		{});
+	// Draw to offscreen buffer, then later to swap chain buffer:
+	_rphOffscreen = _pBaseRenderer->CreateRenderPass(
+		{
+			RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().Layout(ImageLayout::fsReadOnly, ImageLayout::fsReadOnly)
+		},
+		{
+			RP::Subpass("Sp0").Color({RP::Ref("Color", ImageLayout::colorAttachment)})
+		},
+		{});
+	_rphOffscreenWithDepth = _pBaseRenderer->CreateRenderPass(
+		{
+			RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().Layout(ImageLayout::fsReadOnly, ImageLayout::fsReadOnly),
 			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilAttachment),
 		},
 		{
@@ -84,8 +107,8 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	geoDesc._pStrides = strides;
 	_geoQuad.Init(geoDesc);
 
-	_shader[S_GENERATE_MIPS].Init("[Shaders]:GenerateMips.hlsl");
-	_shader[S_GENERATE_MIPS]->CreateDescriptorSet(0, &_ubGenerateMips, sizeof(_ubGenerateMips), 100,
+	_shader[SHADER_GENERATE_MIPS].Init("[Shaders]:GenerateMips.hlsl");
+	_shader[SHADER_GENERATE_MIPS]->CreateDescriptorSet(0, &_ubGenerateMips, sizeof(_ubGenerateMips), 100,
 		{
 			Sampler::linearClampMipN,
 			Sampler::storage,
@@ -94,22 +117,37 @@ void Renderer::Init(PRendererDelegate pDelegate)
 			Sampler::storage
 		},
 		ShaderStageFlags::cs);
-	_shader[S_GENERATE_MIPS]->CreatePipelineLayout();
+	_shader[SHADER_GENERATE_MIPS]->CreatePipelineLayout();
 
-	_shader[S_QUAD].Init("[Shaders]:Quad.hlsl");
-	_shader[S_QUAD]->CreateDescriptorSet(0, &_ubQuadVS, sizeof(_ubQuadVS), 100, {}, ShaderStageFlags::vs);
-	_shader[S_QUAD]->CreateDescriptorSet(1, &_ubQuadFS, sizeof(_ubQuadFS), 100, { Sampler::linearClampMipN }, ShaderStageFlags::fs);
-	_shader[S_QUAD]->CreatePipelineLayout();
+	_shader[SHADER_QUAD].Init("[Shaders]:Quad.hlsl");
+	_shader[SHADER_QUAD]->CreateDescriptorSet(0, &_ubQuadVS, sizeof(_ubQuadVS), 100, {}, ShaderStageFlags::vs);
+	_shader[SHADER_QUAD]->CreateDescriptorSet(1, &_ubQuadFS, sizeof(_ubQuadFS), 100, { Sampler::linearClampMipN }, ShaderStageFlags::fs);
+	_shader[SHADER_QUAD]->CreatePipelineLayout();
 
-	PipelineDesc pipeDesc(_shader[S_GENERATE_MIPS], "#");
-	_pipeGenerateMips.Init(pipeDesc);
+	{
+		PipelineDesc pipeDesc(_shader[SHADER_GENERATE_MIPS], "#");
+		_pipe[PIPE_GENERATE_MIPS].Init(pipeDesc);
+	}
+	{
+		PipelineDesc pipeDesc(_shader[SHADER_GENERATE_MIPS], "#Exposure");
+		_pipe[PIPE_GENERATE_MIPS_EXPOSURE].Init(pipeDesc);
+	}
+	if (App::Settings::I()._screenOffscreenDraw)
+	{
+		PipelineDesc pipeDesc(_geoQuad, _shader[SHADER_QUAD], "#", _rphSwapChainWithDepth);
+		pipeDesc._topology = PrimitiveTopology::triangleStrip;
+		pipeDesc._depthTestEnable = false;
+		_pipe[PIPE_OFFSCREEN_COLOR].Init(pipeDesc);
+	}
 
 	OnSwapChainResized(true, false);
 
-	_pBaseRenderer->ImGuiInit(_rphSwapChainDepth);
+	_pBaseRenderer->ImGuiInit(_rphSwapChainWithDepth);
 	ImGuiUpdateStyle();
 
 	_ds.Init();
+
+	SetExposureValue(15);
 }
 
 void Renderer::InitCmd()
@@ -131,8 +169,8 @@ void Renderer::Done()
 	{
 		_pBaseRenderer->WaitIdle();
 		_ds.Done();
-		_texDepthStencil.Done();
-		_pipeGenerateMips.Done();
+		_tex.Done();
+		_pipe.Done();
 		_shader.Done();
 		_geoQuad.Done();
 		_commandBuffer.Done();
@@ -148,6 +186,37 @@ void Renderer::Done()
 	VERUS_SMART_DELETE(_pRendererDelegate);
 
 	VERUS_DONE(Renderer);
+}
+
+void Renderer::Update()
+{
+	VERUS_QREF_TIMER;
+
+	UINT32 color = VERUS_COLOR_RGBA(127, 127, 127, 255);
+	if (_autoExposure && _tex[TEX_OFFSCREEN_COLOR]->ReadbackSubresource(&color))
+	{
+		float floatColor[4];
+		Convert::ColorInt32ToFloat(color, floatColor);
+
+		const glm::vec3 glmColor(floatColor[2], floatColor[1], floatColor[0]);
+		const glm::vec3 gray = glm::saturation(0.f, glmColor);
+
+		const float alpha = Math::Max(0.001f, floatColor[3]);
+		const float actual = gray.r;
+		const float expScale = Math::Clamp(_exposure[1] * (1 / 15.f), 0.f, 1.f);
+		const float target = -0.4f + 0.8f * expScale * expScale; // Dark scene exposure compensation.
+		const float important = (actual - 0.5f * (1 - alpha)) / alpha;
+		const float delta = abs(target - important);
+		const float speed = delta * sqrt(delta) * 50;
+
+		if (important < target * 0.95f)
+			_exposure[1] -= speed * dt;
+		else if (important > target * (1 / 0.95f))
+			_exposure[1] += speed * dt;
+
+		_exposure[1] = Math::Clamp(_exposure[1], 0.f, 15.f);
+		SetExposureValue(_exposure[1]);
+	}
 }
 
 void Renderer::Draw()
@@ -176,36 +245,63 @@ void Renderer::OnWindowResized(int w, int h)
 
 	OnSwapChainResized(true, true);
 	_ds.OnSwapChainResized(true, true);
+	Scene::Water::I().OnSwapChainResized();
 }
 
 void Renderer::OnSwapChainResized(bool init, bool done)
 {
 	if (done)
 	{
-		VERUS_FOR(i, _fbhSwapChainDepth.size())
-			_pBaseRenderer->DeleteFramebuffer(_fbhSwapChainDepth[i]);
+		_shader[SHADER_QUAD]->FreeDescriptorSet(_cshOffscreenColor);
+
+		_pBaseRenderer->DeleteFramebuffer(_fbhOffscreenWithDepth);
+		_pBaseRenderer->DeleteFramebuffer(_fbhOffscreen);
+
+		VERUS_FOR(i, _fbhSwapChainWithDepth.size())
+			_pBaseRenderer->DeleteFramebuffer(_fbhSwapChainWithDepth[i]);
 		VERUS_FOR(i, _fbhSwapChain.size())
 			_pBaseRenderer->DeleteFramebuffer(_fbhSwapChain[i]);
 
-		_texDepthStencil.Done();
+		_tex.Done();
 	}
 
 	if (init)
 	{
+		VERUS_QREF_CONST_SETTINGS;
+
 		TextureDesc texDesc;
+		if (settings._screenOffscreenDraw)
+		{
+			texDesc._format = Format::srgbB8G8R8A8;
+			texDesc._width = _swapChainWidth;
+			texDesc._height = _swapChainHeight;
+			texDesc._mipLevels = 0;
+			texDesc._flags = TextureDesc::Flags::colorAttachment | TextureDesc::Flags::generateMips | TextureDesc::Flags::exposureMips;
+			texDesc._readbackMip = -1;
+			_tex[TEX_OFFSCREEN_COLOR].Init(texDesc);
+		}
+		texDesc.Reset();
 		texDesc._clearValue = Vector4(1);
 		texDesc._format = Format::unormD24uintS8;
 		texDesc._width = _swapChainWidth;
 		texDesc._height = _swapChainHeight;
 		texDesc._flags = TextureDesc::Flags::inputAttachment | TextureDesc::Flags::depthSampledW;
-		_texDepthStencil.Init(texDesc);
+		_tex[TEX_DEPTH_STENCIL].Init(texDesc);
 
 		_fbhSwapChain.resize(_pBaseRenderer->GetSwapChainBufferCount());
 		VERUS_FOR(i, _fbhSwapChain.size())
 			_fbhSwapChain[i] = _pBaseRenderer->CreateFramebuffer(_rphSwapChain, {}, _swapChainWidth, _swapChainHeight, i);
-		_fbhSwapChainDepth.resize(_pBaseRenderer->GetSwapChainBufferCount());
-		VERUS_FOR(i, _fbhSwapChainDepth.size())
-			_fbhSwapChainDepth[i] = _pBaseRenderer->CreateFramebuffer(_rphSwapChainDepth, { _texDepthStencil }, _swapChainWidth, _swapChainHeight, i);
+		_fbhSwapChainWithDepth.resize(_pBaseRenderer->GetSwapChainBufferCount());
+		VERUS_FOR(i, _fbhSwapChainWithDepth.size())
+			_fbhSwapChainWithDepth[i] = _pBaseRenderer->CreateFramebuffer(_rphSwapChainWithDepth, { _tex[TEX_DEPTH_STENCIL] }, _swapChainWidth, _swapChainHeight, i);
+
+		if (settings._screenOffscreenDraw)
+		{
+			_fbhOffscreen = _pBaseRenderer->CreateFramebuffer(_rphSwapChain, { _tex[TEX_OFFSCREEN_COLOR] }, _swapChainWidth, _swapChainHeight);
+			_fbhOffscreenWithDepth = _pBaseRenderer->CreateFramebuffer(_rphSwapChainWithDepth, { _tex[TEX_OFFSCREEN_COLOR], _tex[TEX_DEPTH_STENCIL] }, _swapChainWidth, _swapChainHeight);
+
+			_cshOffscreenColor = _shader[SHADER_QUAD]->BindDescriptorSetTextures(1, { _tex[TEX_OFFSCREEN_COLOR] });
+		}
 	}
 }
 
@@ -215,6 +311,56 @@ void Renderer::DrawQuad(PBaseCommandBuffer pCB)
 		pCB = &(*_commandBuffer);
 	pCB->BindVertexBuffers(_geoQuad);
 	pCB->Draw(4, 1);
+}
+
+void Renderer::DrawOffscreenColor(PBaseCommandBuffer pCB, bool endRenderPass)
+{
+	if (!App::Settings::I()._screenOffscreenDraw)
+		return;
+
+	if (!pCB)
+		pCB = &(*_commandBuffer);
+
+	_tex[TEX_OFFSCREEN_COLOR]->GenerateMips();
+
+	_ubQuadVS._matW = Math::QuadMatrix().UniformBufferFormat();
+	_ubQuadVS._matV = Math::ToUVMatrix().UniformBufferFormat();
+
+	pCB->BeginRenderPass(_rphSwapChainWithDepth, _fbhSwapChainWithDepth[_pBaseRenderer->GetSwapChainBufferIndex()], { Vector4(0), Vector4(1) });
+
+	pCB->BindVertexBuffers(_geoQuad);
+	pCB->BindPipeline(_pipe[PIPE_OFFSCREEN_COLOR]);
+	_shader[SHADER_QUAD]->BeginBindDescriptors();
+	pCB->BindDescriptors(_shader[SHADER_QUAD], 0);
+	pCB->BindDescriptors(_shader[SHADER_QUAD], 1, _cshOffscreenColor);
+	_shader[SHADER_QUAD]->EndBindDescriptors();
+	pCB->Draw(4, 1);
+
+	if (endRenderPass)
+		pCB->EndRenderPass();
+}
+
+void Renderer::DrawOffscreenColorSwitchRenderPass(PBaseCommandBuffer pCB)
+{
+	if (!App::Settings::I()._screenOffscreenDraw)
+		return;
+
+	if (!pCB)
+		pCB = &(*_commandBuffer);
+
+	pCB->EndRenderPass();
+
+	DrawOffscreenColor(pCB, false);
+}
+
+TexturePtr Renderer::GetTexOffscreenColor() const
+{
+	return _tex[TEX_OFFSCREEN_COLOR];
+}
+
+TexturePtr Renderer::GetTexDepthStencil() const
+{
+	return _tex[TEX_DEPTH_STENCIL];
 }
 
 void Renderer::OnShaderError(CSZ s)
@@ -327,4 +473,105 @@ void Renderer::ImGuiUpdateStyle()
 
 	if (settings._screenAllowHighDPI)
 		style.ScaleAllSizes(settings._highDpiScale);
+}
+
+RPHandle Renderer::GetRenderPassHandle_SwapChain() const
+{
+	return _rphSwapChain;
+}
+
+RPHandle Renderer::GetRenderPassHandle_SwapChainWithDepth() const
+{
+	return _rphSwapChainWithDepth;
+}
+
+RPHandle Renderer::GetRenderPassHandle_Offscreen() const
+{
+	return _rphOffscreen;
+}
+
+RPHandle Renderer::GetRenderPassHandle_OffscreenWithDepth() const
+{
+	return _rphOffscreenWithDepth;
+}
+
+RPHandle Renderer::GetRenderPassHandle_Auto() const
+{
+	return App::Settings::I()._screenOffscreenDraw ? _rphOffscreen : _rphSwapChain;
+}
+
+RPHandle Renderer::GetRenderPassHandle_AutoWithDepth() const
+{
+	return App::Settings::I()._screenOffscreenDraw ? _rphOffscreenWithDepth : _rphSwapChainWithDepth;
+}
+
+FBHandle Renderer::GetFramebufferHandle_SwapChain(int index) const
+{
+	return _fbhSwapChain[index];
+}
+
+FBHandle Renderer::GetFramebufferHandle_SwapChainWithDepth(int index) const
+{
+	return _fbhSwapChainWithDepth[index];
+}
+
+FBHandle Renderer::GetFramebufferHandle_Offscreen(int index) const
+{
+	return _fbhOffscreen;
+}
+
+FBHandle Renderer::GetFramebufferHandle_OffscreenWithDepth(int index) const
+{
+	return _fbhOffscreenWithDepth;
+}
+
+FBHandle Renderer::GetFramebufferHandle_Auto(int index) const
+{
+	return App::Settings::I()._screenOffscreenDraw ? _fbhOffscreen : _fbhSwapChain[index];
+}
+
+FBHandle Renderer::GetFramebufferHandle_AutoWithDepth(int index) const
+{
+	return App::Settings::I()._screenOffscreenDraw ? _fbhOffscreenWithDepth : _fbhSwapChainWithDepth[index];
+}
+
+ShaderPtr Renderer::GetShaderGenerateMips() const
+{
+	return _shader[SHADER_GENERATE_MIPS];
+}
+
+PipelinePtr Renderer::GetPipelineGenerateMips(bool exposure) const
+{
+	return _pipe[exposure ? PIPE_GENERATE_MIPS_EXPOSURE : PIPE_GENERATE_MIPS];
+}
+
+Renderer::UB_GenerateMips& Renderer::GetUbGenerateMips()
+{
+	return _ubGenerateMips;
+}
+
+GeometryPtr Renderer::GetGeoQuad() const
+{
+	return _geoQuad;
+}
+
+ShaderPtr Renderer::GetShaderQuad() const
+{
+	return _shader[SHADER_QUAD];
+}
+
+Renderer::UB_QuadVS& Renderer::GetUbQuadVS()
+{
+	return _ubQuadVS;
+}
+
+Renderer::UB_QuadFS& Renderer::GetUbQuadFS()
+{
+	return _ubQuadFS;
+}
+
+void Renderer::SetExposureValue(float ev)
+{
+	_exposure[1] = ev;
+	_exposure[0] = 1.f / exp2(_exposure[1] - 1);
 }

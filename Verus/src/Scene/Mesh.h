@@ -66,6 +66,14 @@ namespace verus
 			};
 			VERUS_TYPEDEFS(Desc);
 
+			struct DrawDesc
+			{
+				Transform3    _matW = Transform3::identity();
+				CGI::CSHandle _cshMaterial;
+				bool          _allowTess = true;
+			};
+			VERUS_TYPEDEFS(DrawDesc);
+
 			Mesh();
 			virtual ~Mesh();
 
@@ -74,6 +82,8 @@ namespace verus
 
 			void Init(RcDesc desc = Desc());
 			void Done();
+
+			void Draw(RcDrawDesc dd, CGI::CommandBufferPtr cb);
 
 			void BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb);
 			void BindPipeline(CGI::CommandBufferPtr cb, bool allowTess = true);

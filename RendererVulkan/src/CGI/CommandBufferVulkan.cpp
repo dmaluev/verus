@@ -257,6 +257,14 @@ void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout
 			dstStageMask = (ImageLayout::xsReadOnly == newLayout) ? dstStageMaskXS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		}
+		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+		{
+			// Reading to readback buffer.
+			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			vkimb[index].srcAccessMask = 0;
+			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		}
 		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
 		{
 			// Regular texture's first and only update (before transfer).
@@ -281,6 +289,14 @@ void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout
 			dstStageMask = (ImageLayout::xsReadOnly == newLayout) ? dstStageMaskXS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		}
+		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+		{
+			// Reading to readback buffer.
+			srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			vkimb[index].srcAccessMask = 0;
+			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		}
 		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
 		{
 			// To update regular texture during mipmap generation.
@@ -295,6 +311,14 @@ void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout
 			srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
 			vkimb[index].srcAccessMask = 0;
 			dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		}
+		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+		{
+			// To restore image after transfer to readback buffer.
+			srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			vkimb[index].srcAccessMask = 0;
+			dstStageMask = (ImageLayout::xsReadOnly == newLayout) ? dstStageMaskXS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		}
 		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)

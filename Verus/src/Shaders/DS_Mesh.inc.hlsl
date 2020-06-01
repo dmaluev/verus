@@ -10,22 +10,22 @@ VERUS_UBUFFER UB_PerFrame
 
 VERUS_UBUFFER UB_PerMaterialFS
 {
+	float4 _alphaSwitch_anisoSpecDir;
+	float4 _detail_emission_gloss_hairDesat;
+	float4 _detailScale_strassScale;
+	float4 _emissionPick;
+	float4 _eyePick;
+	float4 _glossPick;
+	float4 _glossScaleBias_specScaleBias;
+	float4 _hairPick;
+	float4 _lamScaleBias_lightPass_motionBlur;
+	float4 _metalPick;
+	float4 _skinPick;
+	float4 _tc0ScaleBias;
 	float4 _texEnableAlbedo;
 	float4 _texEnableNormal;
-	float4 _skinPick;
-	float4 _hairPick;
-	float4 _emitPick;
-	float4 _emitXPick;
-	float4 _metalPick;
-	float4 _glossXPick;
-	float4 _eyePick;
-	float4 _hairParams;
-	float4 _lsb_gloss_lp;
-	float4 _ssb_as;
+	float4 _userColor;
 	float4 _userPick;
-	float4 _ds_scale;
-	float4 _motionBlur_glossX;
-	float4 _bushEffect;
 };
 
 VERUS_UBUFFER UB_PerMeshVS

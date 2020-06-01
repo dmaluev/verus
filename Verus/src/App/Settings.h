@@ -66,7 +66,7 @@ namespace verus
 			int           _gpuAntialiasingLevel = 0;
 			bool          _gpuTessellation = true;
 			int	          _gpuTextureLodLevel = 0;
-			bool          _gpuTrilinearFilter = false;
+			bool          _gpuTrilinearFilter = true;
 			float         _inputMouseSensitivity = 1;
 			bool          _physicsSupportDebugDraw = false;
 			bool          _postProcessBloom = false;
@@ -78,6 +78,7 @@ namespace verus
 			WaterQuality  _sceneWaterQuality = WaterQuality::solidColor;
 			bool          _screenAllowHighDPI = false;
 			float         _screenFOV = 70;
+			bool          _screenOffscreenDraw = true;
 			int           _screenSizeHeight = 720;
 			int           _screenSizeWidth = 1280;
 			bool          _screenVSync = true;

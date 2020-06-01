@@ -15,6 +15,7 @@ namespace verus
 			ResourceEx         _resource;
 			ResourceEx         _uaResource;
 			Vector<ResourceEx> _vStagingBuffers;
+			Vector<ResourceEx> _vReadbackBuffers;
 			Vector<CSHandle>   _vCshGenerateMips;
 			DescriptorHeap     _dhSRV;
 			DescriptorHeap     _dhUAV;
@@ -30,6 +31,7 @@ namespace verus
 			virtual void Done() override;
 
 			virtual void UpdateSubresource(const void* p, int mipLevel, int arrayLayer, PBaseCommandBuffer pCB) override;
+			virtual bool ReadbackSubresource(void* p, PBaseCommandBuffer pCB) override;
 
 			virtual void GenerateMips(PBaseCommandBuffer pCB) override;
 

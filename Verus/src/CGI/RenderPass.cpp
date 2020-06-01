@@ -13,6 +13,12 @@ Attachment::Attachment(CSZ name, Format format, int sampleCount) :
 {
 }
 
+RAttachment Attachment::SetLoadOp(LoadOp op)
+{
+	_loadOp = op;
+	return *this;
+}
+
 RAttachment Attachment::LoadOpClear()
 {
 	_loadOp = LoadOp::clear;
@@ -21,6 +27,12 @@ RAttachment Attachment::LoadOpClear()
 
 RAttachment Attachment::LoadOpDontCare() {
 	_loadOp = LoadOp::dontCare;
+	return *this;
+}
+
+RAttachment Attachment::SetStoreOp(StoreOp op)
+{
+	_storeOp = op;
 	return *this;
 }
 

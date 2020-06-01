@@ -93,7 +93,8 @@
     <ClInclude Include="src\AI\Turret.h" />
     <ClInclude Include="src\Anim\Anim.h" />
     <ClInclude Include="src\Anim\Animation.h" />
-    <ClInclude Include="src\Anim\Damping.h" />
+    <ClInclude Include="src\Anim\Elastic.h" />
+    <ClInclude Include="src\Anim\Orbit.h" />
     <ClInclude Include="src\Anim\Warp.h" />
     <ClInclude Include="src\Anim\Motion.h" />
     <ClInclude Include="src\Anim\Skeleton.h" />
@@ -131,6 +132,7 @@
     <ClInclude Include="src\Extra\Extra.h" />
     <ClInclude Include="src\Extra\FileParser.h" />
     <ClInclude Include="src\Game\BaseGame.h" />
+    <ClInclude Include="src\Game\BaseCharacter.h" />
     <ClInclude Include="src\Game\Spirit.h" />
     <ClInclude Include="src\Game\Game.h" />
     <ClInclude Include="src\Game\State.h" />
@@ -141,6 +143,7 @@
     <ClInclude Include="src\Global\Basic.h" />
     <ClInclude Include="src\Global\Blob.h" />
     <ClInclude Include="src\Global\Convert.h" />
+    <ClInclude Include="src\Global\Cooldown.h" />
     <ClInclude Include="src\Global\EngineInit.h" />
     <ClInclude Include="src\Global\GlobalVarsClipboard.h" />
     <ClInclude Include="src\Global\Linear.h" />
@@ -252,6 +255,7 @@
     <ClCompile Include="src\AI\Turret.cpp" />
     <ClCompile Include="src\Anim\Anim.cpp" />
     <ClCompile Include="src\Anim\Animation.cpp" />
+    <ClCompile Include="src\Anim\Orbit.cpp" />
     <ClCompile Include="src\Anim\Warp.cpp" />
     <ClCompile Include="src\Anim\Motion.cpp" />
     <ClCompile Include="src\Anim\Skeleton.cpp" />
@@ -283,11 +287,13 @@
     <ClCompile Include="src\Extra\Extra.cpp" />
     <ClCompile Include="src\Extra\FileParser.cpp" />
     <ClCompile Include="src\Game\BaseGame.cpp" />
+    <ClCompile Include="src\Game\BaseCharacter.cpp" />
     <ClCompile Include="src\Game\Spirit.cpp" />
     <ClCompile Include="src\Game\State.cpp" />
     <ClCompile Include="src\Game\StateMachine.cpp" />
     <ClCompile Include="src\Global\AllocatorAware.cpp" />
     <ClCompile Include="src\Global\Convert.cpp" />
+    <ClCompile Include="src\Global\Cooldown.cpp" />
     <ClCompile Include="src\Global\EngineInit.cpp" />
     <ClCompile Include="src\Global\Global.cpp" />
     <ClCompile Include="src\Global\GlobalVarsClipboard.cpp" />

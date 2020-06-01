@@ -4,7 +4,6 @@
 #include "LibColor.hlsl"
 #include "LibDeferredShading.hlsl"
 #include "LibSurface.hlsl"
-#include "LibVertex.hlsl"
 #include "DS_Grass.inc.hlsl"
 
 ConstantBuffer<UB_GrassVS> g_ubGrassVS : register(b0, space0);
@@ -72,14 +71,13 @@ VSO mainVS(VSI si)
 		pos = float3(center.x, 0.45 * pointSpriteScale.y, center.y);
 #endif
 
-		const float bestPrecision = 50.0;
 		const float distToEye = distance(pos + float3(0, si.patchPos.y * 0.01, 0), g_ubGrassVS._posEye.xyz);
 		const float geomipsLod = log2(clamp(distToEye * (2.0 / 100.0), 1.0, 18.0));
 		const float texelCenter = 0.5 * mapSideInv;
 		const float mipTexelCenter = texelCenter * exp2(geomipsLod);
 		const float2 tcMap = pos.xz * mapSideInv + 0.5;
 		const float2 tcUniform = center * mapSideInv + 0.5;
-		groundHeight = g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + mipTexelCenter, geomipsLod).r + bestPrecision;
+		groundHeight = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + mipTexelCenter, geomipsLod).r);
 		pos.y += groundHeight;
 
 		const float4 rawNormal = g_texNormalVS.SampleLevel(g_samNormalVS, tcUniform + texelCenter, 0.0);

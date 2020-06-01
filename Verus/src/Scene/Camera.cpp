@@ -13,9 +13,14 @@ void Camera::UpdateInternal()
 	if (_update & Update::p)
 	{
 		if (0 == _fovY)
+		{
 			_matP = Matrix4::MakeOrtho(_w, _h, _zNear, _zFar);
+		}
 		else
+		{
 			_matP = Matrix4::MakePerspective(_fovY, _aspectRatio, _zNear, _zFar);
+			_fovScale = 0.5f / tan(_fovY * 0.5f);
+		}
 	}
 }
 
@@ -48,6 +53,22 @@ void Camera::UpdateVP()
 	_frustum.FromMatrix(_matVP);
 }
 
+void Camera::EnableReflectionMode()
+{
+	const Transform3 matV = _matV;
+
+	_eyePos.setY(-_eyePos.getY());
+	_atPos.setY(-_atPos.getY());
+
+	UpdateView();
+	UpdateVP();
+
+	const Transform3 tr = Transform3::scale(Vector3(1, -1, 1));
+	_matV = matV * tr;
+	_matVi = VMath::orthoInverse(_matV);
+	_matVP = _matP * _matV;
+}
+
 Vector4 Camera::GetZNearFarEx() const
 {
 	return Vector4(_zNear, _zFar, _zFar / (_zFar - _zNear), _zFar * _zNear / (_zNear - _zFar));
@@ -63,9 +84,9 @@ void Camera::SetFrustumFar(float zFar)
 	_frustum.SetFarPlane(_eyePos, _frontDir, zFar);
 }
 
-void Camera::SetFOVH(float x)
+void Camera::SetFovX(float x)
 {
-	SetFOV(2 * atan(tan(x * 0.5f) / _aspectRatio));
+	SetFovY(2 * atan(tan(x * 0.5f) / _aspectRatio));
 }
 
 void Camera::GetClippingSpacePlane(RVector4 plane) const

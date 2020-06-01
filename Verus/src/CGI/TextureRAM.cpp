@@ -42,6 +42,13 @@ void TextureRAM::UpdateSubresource(const void* p, int mipLevel, int arrayLayer, 
 	memcpy(_vBuffer.data(), p, _vBuffer.size());
 }
 
+bool TextureRAM::ReadbackSubresource(void* p, PBaseCommandBuffer pCB)
+{
+	VERUS_RT_ASSERT(IsLoaded());
+	memcpy(p, _vBuffer.data(), _vBuffer.size());
+	return true;
+}
+
 void TextureRAM::GenerateMips(PBaseCommandBuffer pCB)
 {
 	VERUS_RT_ASSERT(__FUNCTION__);

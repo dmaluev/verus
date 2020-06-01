@@ -10,9 +10,10 @@
 #include <sstream>
 
 #include <glslang/Public/ShaderLang.h>
-#include <StandAlone/ResourceLimits.h>
-#include <SPIRV/GlslangToSpv.h>
+#include <glslang/SPIRV/GlslangToSpv.h>
 #pragma comment(lib, "shaderc_combined.lib")
+
+TBuiltInResource InitResources();
 
 #ifdef _WIN32
 #	define VERUS_DLL_EXPORT __declspec(dllexport)

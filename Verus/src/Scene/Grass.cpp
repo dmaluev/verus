@@ -95,9 +95,9 @@ void Grass::Init(RTerrain terrain)
 	const int strides[] = { sizeof(Vertex), sizeof(PerInstanceData), 0 };
 	geoDesc._pStrides = strides;
 	_geo.Init(geoDesc);
-	_geo->CreateVertexBuffer(_vPatchMeshVB.size(), 0);
+	_geo->CreateVertexBuffer(Utils::Cast32(_vPatchMeshVB.size()), 0);
 	_geo->CreateVertexBuffer(maxInstances, 1);
-	_geo->CreateIndexBuffer(_vPatchMeshIB.size());
+	_geo->CreateIndexBuffer(Utils::Cast32(_vPatchMeshIB.size()));
 	_geo->UpdateVertexBuffer(_vPatchMeshVB.data(), 0);
 	_geo->UpdateIndexBuffer(_vPatchMeshIB.data());
 
@@ -258,7 +258,7 @@ void Grass::Draw()
 			meshInstCount++;
 		}
 	}
-	cb->DrawIndexed(_vPatchMeshIB.size(), meshInstCount, 0, 0, _instanceCount);
+	cb->DrawIndexed(Utils::Cast32(_vPatchMeshIB.size()), meshInstCount, 0, 0, _instanceCount);
 	_instanceCount += meshInstCount;
 
 	s_shader->EndBindDescriptors();
@@ -283,7 +283,7 @@ void Grass::QuadtreeIntegral_ProcessVisibleNode(const short* ij, RcPoint3 center
 	Patch patch;
 	patch.i = ij[0];
 	patch.j = ij[1];
-	patch.h = center.getY() * 100;
+	patch.h = Terrain::ConvertHeight(center.getY());
 	patch.type = 0;
 	if (distSq <= 64 * 64.f)
 		patch.type |= 0x1;
@@ -393,7 +393,7 @@ void Grass::CreateBuffers()
 			vertex._pos[0] = static_cast<short>(bush._vertPos[i].getX() * 1000);
 			vertex._pos[1] = static_cast<short>(bush._vertPos[i].getY() * 1000);
 			vertex._pos[2] = static_cast<short>(bush._vertPos[i].getZ() * 1000);
-			vertex._pos[3] = bush._phaseShift * 99;
+			vertex._pos[3] = static_cast<short>(bush._phaseShift * 99);
 			vertex._tc[0] = _bushTexCoords[0][i][0];
 			vertex._tc[1] = _bushTexCoords[0][i][1];
 			vertex._tc[2] = static_cast<short>(bush._x * 1000);
@@ -453,8 +453,7 @@ void Grass::OnTextureLoaded(int layer)
 
 int Grass::BeginMagnet(RcPoint3 pos, float radius)
 {
-	const int count = _vMagnets.size();
-	VERUS_FOR(i, count)
+	VERUS_FOR(i, _vMagnets.size())
 	{
 		if (!_vMagnets[i]._active)
 		{

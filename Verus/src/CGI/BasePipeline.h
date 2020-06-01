@@ -78,8 +78,8 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(PipelinePwn);
 
-		template<int NUM>
-		class PipelinePwns : public Pwns<PipelinePwn, NUM>
+		template<int COUNT>
+		class PipelinePwns : public Pwns<PipelinePwn, COUNT>
 		{
 		};
 	}

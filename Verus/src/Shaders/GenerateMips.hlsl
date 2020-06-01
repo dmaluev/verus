@@ -62,19 +62,20 @@ float4 PackColor(float4 x)
 void mainCS(CSI si)
 {
 	float4 srcColor1 = 0.0;
+	float2 tc = 0.0;
 
 	switch (g_ub._srcDimensionCase)
 	{
 	case DIM_CASE_WE_HE:
 	{
-		const float2 tc = g_ub._texelSize * (si.dispatchThreadID.xy + 0.5);
+		tc = g_ub._texelSize * (si.dispatchThreadID.xy + 0.5);
 
 		srcColor1 = g_texSrcMip.SampleLevel(g_samSrcMip, tc, g_ub._srcMipLevel);
 	}
 	break;
 	case DIM_CASE_WO_HE:
 	{
-		const float2 tc = g_ub._texelSize * (si.dispatchThreadID.xy + float2(0.25, 0.5));
+		tc = g_ub._texelSize * (si.dispatchThreadID.xy + float2(0.25, 0.5));
 		const float2 offset = g_ub._texelSize * float2(0.5, 0.0);
 
 		srcColor1 = lerp(
@@ -85,7 +86,7 @@ void mainCS(CSI si)
 	break;
 	case DIM_CASE_WE_HO:
 	{
-		const float2 tc = g_ub._texelSize * (si.dispatchThreadID.xy + float2(0.5, 0.25));
+		tc = g_ub._texelSize * (si.dispatchThreadID.xy + float2(0.5, 0.25));
 		const float2 offset = g_ub._texelSize * float2(0.0, 0.5);
 
 		srcColor1 = lerp(
@@ -96,7 +97,7 @@ void mainCS(CSI si)
 	break;
 	case DIM_CASE_WO_HO:
 	{
-		const float2 tc = g_ub._texelSize * (si.dispatchThreadID.xy + float2(0.25, 0.25));
+		tc = g_ub._texelSize * (si.dispatchThreadID.xy + float2(0.25, 0.25));
 		const float2 offset = g_ub._texelSize * 0.5;
 
 		srcColor1 = lerp(
@@ -111,6 +112,20 @@ void mainCS(CSI si)
 	}
 	break;
 	}
+
+#ifdef DEF_EXPOSURE
+	if (0 == g_ub._srcMipLevel)
+	{
+		const float2 delta = 0.5 - tc;
+		const float2 centerWeighted = saturate((dot(delta, delta) - float2(0.1, 0.01)) * float2(4.0, 200.0));
+		const float gray = Grayscale(srcColor1.rgb);
+		const float2 mask = saturate((float2(-1, 1) * gray + float2(0.1, -0.99)) * float2(10, 100));
+		const float filter = max(mask.x, mask.y) * centerWeighted.y;
+		const float alpha = max(centerWeighted.x, filter);
+		srcColor1.rgb = lerp(srcColor1.rgb, 0.5, alpha);
+		srcColor1.a = 1.0 - alpha;
+	}
+#endif
 
 	g_uavOutMip1[si.dispatchThreadID.xy] = PackColor(srcColor1);
 
@@ -166,3 +181,4 @@ void mainCS(CSI si)
 #endif
 
 //@main:# (C)
+//@main:#Exposure EXPOSURE (C)

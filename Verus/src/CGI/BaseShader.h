@@ -86,8 +86,8 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(ShaderPwn);
 
-		template<int NUM>
-		class ShaderPwns : public Pwns<ShaderPwn, NUM>
+		template<int COUNT>
+		class ShaderPwns : public Pwns<ShaderPwn, COUNT>
 		{
 		};
 	}

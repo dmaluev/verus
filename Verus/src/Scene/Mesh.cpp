@@ -68,6 +68,25 @@ void Mesh::Done()
 	VERUS_DONE(Mesh);
 }
 
+void Mesh::Draw(RcDrawDesc dd, CGI::CommandBufferPtr cb)
+{
+	BindGeo(cb);
+	BindPipeline(cb, dd._allowTess);
+
+	UpdateUniformBufferPerFrame();
+	cb->BindDescriptors(Scene::Mesh::GetShader(), 0);
+	UpdateUniformBufferPerMaterialFS();
+	cb->BindDescriptors(Scene::Mesh::GetShader(), 1, dd._cshMaterial);
+	UpdateUniformBufferPerMeshVS();
+	cb->BindDescriptors(Scene::Mesh::GetShader(), 2);
+	UpdateUniformBufferSkeletonVS();
+	cb->BindDescriptors(Scene::Mesh::GetShader(), 3);
+	UpdateUniformBufferPerObject(dd._matW);
+	cb->BindDescriptors(Scene::Mesh::GetShader(), 4);
+
+	cb->DrawIndexed(GetIndexCount());
+}
+
 void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 {
 	VERUS_QREF_RENDERER;

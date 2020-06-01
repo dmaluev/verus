@@ -1,10 +1,11 @@
 #pragma once
 
-#include "Damping.h"
+#include "Elastic.h"
 #include "Motion.h"
 #include "Skeleton.h"
 #include "Animation.h"
 #include "Warp.h"
+#include "Orbit.h"
 
 namespace verus
 {

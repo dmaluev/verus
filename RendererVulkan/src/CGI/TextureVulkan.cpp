@@ -16,9 +16,11 @@ void TextureVulkan::Init(RcTextureDesc desc)
 {
 	VERUS_INIT();
 	VERUS_RT_ASSERT(desc._width > 0 && desc._height > 0);
+	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
+	_initAtFrame = renderer.GetFrameCount();
 	_size = Vector4(
 		float(desc._width),
 		float(desc._height),
@@ -51,6 +53,8 @@ void TextureVulkan::Init(RcTextureDesc desc)
 		vkici.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 	if (_desc._flags & TextureDesc::Flags::generateMips)
 		vkici.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	if (_desc._readbackMip != SHRT_MAX)
+		vkici.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	if (depthFormat)
 	{
 		vkici.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
@@ -79,7 +83,7 @@ void TextureVulkan::Init(RcTextureDesc desc)
 
 		_vCshGenerateMips.reserve((_desc._mipLevels + 3) / 4);
 		_vStorageImageViews.resize(vkiciStorage.mipLevels);
-		VERUS_FOR(mip, vkiciStorage.mipLevels)
+		VERUS_U_FOR(mip, vkiciStorage.mipLevels)
 		{
 			VkImageViewCreateInfo vkivci = {};
 			vkivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -93,6 +97,21 @@ void TextureVulkan::Init(RcTextureDesc desc)
 			vkivci.subresourceRange.layerCount = 1;
 			if (VK_SUCCESS != (res = vkCreateImageView(pRendererVulkan->GetVkDevice(), &vkivci, pRendererVulkan->GetAllocator(), &_vStorageImageViews[mip])))
 				throw VERUS_RUNTIME_ERROR << "vkCreateImageView(), res=" << res;
+		}
+	}
+
+	if (_desc._readbackMip != SHRT_MAX)
+	{
+		if (_desc._readbackMip < 0)
+			_desc._readbackMip = _desc._mipLevels + _desc._readbackMip;
+		const int w = Math::Max(1, _desc._width >> _desc._readbackMip);
+		const int h = Math::Max(1, _desc._height >> _desc._readbackMip);
+		VkDeviceSize bufferSize = _bytesPerPixel * w * h;
+		_vReadbackBuffers.resize(BaseRenderer::s_ringBufferSize);
+		for (auto& x : _vReadbackBuffers)
+		{
+			pRendererVulkan->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_TO_CPU,
+				x._buffer, x._vmaAllocation);
 		}
 	}
 
@@ -146,6 +165,9 @@ void TextureVulkan::Done()
 
 	ForceScheduled();
 
+	for (auto& x : _vReadbackBuffers)
+		VERUS_VULKAN_DESTROY(x._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), x._buffer, x._vmaAllocation));
+	_vReadbackBuffers.clear();
 	VERUS_VULKAN_DESTROY(_sampler, vkDestroySampler(pRendererVulkan->GetVkDevice(), _sampler, pRendererVulkan->GetAllocator()));
 	VERUS_VULKAN_DESTROY(_imageViewLevelZero, vkDestroyImageView(pRendererVulkan->GetVkDevice(), _imageViewLevelZero, pRendererVulkan->GetAllocator()));
 	VERUS_VULKAN_DESTROY(_imageView, vkDestroyImageView(pRendererVulkan->GetVkDevice(), _imageView, pRendererVulkan->GetAllocator()));
@@ -201,6 +223,39 @@ void TextureVulkan::UpdateSubresource(const void* p, int mipLevel, int arrayLaye
 	Schedule();
 }
 
+bool TextureVulkan::ReadbackSubresource(void* p, PBaseCommandBuffer pCB)
+{
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_RENDERER_VULKAN;
+	VkResult res = VK_SUCCESS;
+
+	const int w = Math::Max(1, _desc._width >> _desc._readbackMip);
+	const int h = Math::Max(1, _desc._height >> _desc._readbackMip);
+	const VkDeviceSize bufferSize = _bytesPerPixel * w * h;
+
+	auto& rb = _vReadbackBuffers[renderer->GetRingBufferIndex()];
+
+	// Schedule copying to readback buffer:
+	if (!pCB)
+		pCB = &(*renderer.GetCommandBuffer());
+	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), GetSubresourceMainLayout(_desc._readbackMip, 0), ImageLayout::transferSrc, _desc._readbackMip, 0);
+	pRendererVulkan->CopyImageToBuffer(
+		_image, _desc._readbackMip, 0,
+		w, h,
+		rb._buffer,
+		pCB);
+	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::transferSrc, _mainLayout, _desc._readbackMip, 0);
+
+	// Read current data from readback buffer:
+	void* pData = nullptr;
+	if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), rb._vmaAllocation, &pData)))
+		throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
+	memcpy(p, pData, bufferSize);
+	vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), rb._vmaAllocation);
+
+	return _initAtFrame + BaseRenderer::s_ringBufferSize < renderer.GetFrameCount();
+}
+
 void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 {
 	VERUS_RT_ASSERT(_desc._flags & TextureDesc::Flags::generateMips);
@@ -229,7 +284,7 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 	VERUS_FOR(mip, _desc._mipLevels)
 		MarkSubresourceDefined(mip, 0);
 
-	pCB->BindPipeline(renderer.GetPipelineGenerateMips());
+	pCB->BindPipeline(renderer.GetPipelineGenerateMips(!!(_desc._flags & TextureDesc::Flags::exposureMips)));
 
 	auto shader = renderer.GetShaderGenerateMips();
 	shader->BeginBindDescriptors();
@@ -244,7 +299,7 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 		const int dstWidth = Math::Max(1, srcWidth >> 1);
 		const int dstHeight = Math::Max(1, srcHeight >> 1);
 
-		int dispatchMipCount = 4;
+		int dispatchMipCount = Math::LowestBit((dstWidth == 1 ? dstHeight : dstWidth) | (dstHeight == 1 ? dstWidth : dstHeight));
 		dispatchMipCount = Math::Min(4, dispatchMipCount + 1);
 		dispatchMipCount = ((srcMip + dispatchMipCount) >= _desc._mipLevels) ? _desc._mipLevels - srcMip - 1 : dispatchMipCount; // Edge case.
 

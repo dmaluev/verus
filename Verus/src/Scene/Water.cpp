@@ -47,14 +47,19 @@ void Water::Init(RTerrain terrain)
 	_shader[SHADER_MAIN]->CreateDescriptorSet(0, &s_ubWaterVS, sizeof(s_ubWaterVS), 100,
 		{
 			CGI::Sampler::linearClampMipL,
-			CGI::Sampler::linearMipL
+			CGI::Sampler::linearMipL,
+			CGI::Sampler::linearMipN
 		}, CGI::ShaderStageFlags::vs);
 	_shader[SHADER_MAIN]->CreateDescriptorSet(1, &s_ubWaterFS, sizeof(s_ubWaterFS), 100,
 		{
-			CGI::Sampler::linearClampMipL,
-			CGI::Sampler::linearMipL,
-			CGI::Sampler::custom,
-			CGI::Sampler::aniso
+			CGI::Sampler::linearClampMipL, // TerrainHeightmap
+			CGI::Sampler::linearMipL, // GenHeightmap
+			CGI::Sampler::custom, // GenNormals
+			CGI::Sampler::aniso, // Foam
+			CGI::Sampler::linearClampMipL, // Reflection
+			CGI::Sampler::linearClampMipN, // Refraction
+			CGI::Sampler::shadow,
+			CGI::Sampler::nearestMipN
 		}, CGI::ShaderStageFlags::fs);
 	_shader[SHADER_MAIN]->CreatePipelineLayout();
 
@@ -66,7 +71,7 @@ void Water::Init(RTerrain terrain)
 
 	Vector<UINT16> vIndices;
 	Math::CreateStripGrid(_gridWidth - 1, _gridHeight - 1, vIndices);
-	_indexCount = vIndices.size();
+	_indexCount = Utils::Cast32(vIndices.size());
 
 	CGI::GeometryDesc geoDesc;
 	const CGI::VertexInputAttrDesc viaDesc[] =
@@ -79,15 +84,16 @@ void Water::Init(RTerrain terrain)
 	geoDesc._pStrides = strides;
 	_geo.Init(geoDesc);
 	_geo->CreateVertexBuffer(_gridWidth * _gridHeight, 0);
-	_geo->CreateIndexBuffer(vIndices.size());
+	_geo->CreateIndexBuffer(Utils::Cast32(vIndices.size()));
 	_geo->UpdateIndexBuffer(vIndices.data());
 
 	CreateWaterPlane();
 
 	{
-		CGI::PipelineDesc pipeDesc(_geo, _shader[SHADER_MAIN], "#0", renderer.GetDS().GetRenderPassHandle_Compose(), renderer.GetDS().GetSubpass_Compose());
+		CGI::PipelineDesc pipeDesc(_geo, _shader[SHADER_MAIN], "#0", renderer.GetDS().GetRenderPassHandle_ExtraCompose());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		//pipeDesc._rasterizationState._polygonMode = CGI::PolygonMode::line;
+		pipeDesc._rasterizationState._cullMode = CGI::CullMode::none;
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		_pipe[PIPE_MAIN].Init(pipeDesc);
 	}
@@ -106,13 +112,15 @@ void Water::Init(RTerrain terrain)
 
 	CGI::TextureDesc texDesc;
 	texDesc._url = "[Textures]:Water/Foam.dds";
+	texDesc._flags = CGI::TextureDesc::Flags::anyShaderResource;
 	_tex[TEX_FOAM].Init(texDesc);
 
+	texDesc.Reset();
 	texDesc._url = "[Textures]:Water/Heightmap.FX.dds";
 	_tex[TEX_SOURCE_HEIGHTMAP].Init(texDesc);
 
 	CGI::SamplerDesc normalsSamplerDesc;
-	normalsSamplerDesc.SetFilter("a");
+	normalsSamplerDesc.SetFilter("ll");
 	normalsSamplerDesc.SetAddressMode("rr");
 	normalsSamplerDesc._mipLodBias = 0.5f;
 	normalsSamplerDesc._minLod = 1;
@@ -131,17 +139,19 @@ void Water::Init(RTerrain terrain)
 	_fbhGenHeightmap = renderer->CreateFramebuffer(_rphGenHeightmap, { _tex[TEX_GEN_HEIGHTMAP] }, _genSide, _genSide);
 	_fbhGenNormals = renderer->CreateFramebuffer(_rphGenNormals, { _tex[TEX_GEN_NORMALS] }, _genSide, _genSide);
 
-	_cshWaterVS = _shader[SHADER_MAIN]->BindDescriptorSetTextures(0, { _pTerrain->GetHeightmapTexture(), _tex[TEX_GEN_HEIGHTMAP] });
-
+	_shader[SHADER_GEN]->FreeDescriptorSet(_cshGenNormals);
 	_cshGenNormals = _shader[SHADER_GEN]->BindDescriptorSetTextures(2, { _tex[TEX_GEN_HEIGHTMAP] });
 
 	texDesc.Reset();
 	texDesc._format = CGI::Format::floatR11G11B10;
-	texDesc._width = settings._screenSizeWidth;
-	texDesc._height = settings._screenSizeHeight;
-	texDesc._flags = CGI::TextureDesc::Flags::colorAttachment;
+	texDesc._width = 1024;
+	texDesc._height = 512;
+	texDesc._mipLevels = 0;
+	texDesc._flags = CGI::TextureDesc::Flags::colorAttachment | CGI::TextureDesc::Flags::generateMips;
 	_tex[TEX_REFLECTION].Init(texDesc);
+	texDesc._clearValue = Vector4(1);
 	texDesc._format = CGI::Format::unormD24uintS8;
+	texDesc._mipLevels = 1;
 	texDesc._flags = CGI::TextureDesc::Flags::none;
 	_tex[TEX_REFLECTION_DEPTH].Init(texDesc);
 
@@ -153,32 +163,24 @@ void Water::Init(RTerrain terrain)
 		texDesc._width,
 		texDesc._height);
 
-	// Texture for rendering reflection onto:
-	/*
-	if (settings._sceneWaterQuality >= App::Settings::WaterQuality::simpleReflection)
-	{
-		texDesc.Reset();
-		texDesc._format = CGI::Format::unormR8G8B8A8;
-		texDesc._width = 512;
-		texDesc._height = 512;
-		texDesc._mipLevels = 0;
-		texDesc._flags = CGI::TextureDesc::Flags::generateMips;
-		_tex[TEX_REFLECT].Init(texDesc);
-
-		if (settings._sceneWaterQuality >= App::Settings::WaterQuality::trueWavesRefraction)
-			_tex[TEX_REFRACT].Init(texDesc);
-
-		texDesc._format = CGI::Format::unormD16;
-		_tex[TEX_REFLECT_DEPTH].Init(texDesc);
-	}
-	*/
-
 	VERUS_FOR(i, s_maxHarmonics)
 		_amplitudes[i] = PhillipsSpectrum(0.5f + i / 2.f);
+
+	_pTerrain->InitByWater();
 }
 
 void Water::Done()
 {
+	if (_shader[SHADER_GEN])
+	{
+		_shader[SHADER_GEN]->FreeDescriptorSet(_cshGenNormals);
+		_shader[SHADER_GEN]->FreeDescriptorSet(_cshGenHeightmap);
+	}
+	if (_shader[SHADER_MAIN])
+	{
+		_shader[SHADER_MAIN]->FreeDescriptorSet(_cshWaterFS);
+		_shader[SHADER_MAIN]->FreeDescriptorSet(_cshWaterVS);
+	}
 	VERUS_DONE(Water);
 }
 
@@ -187,35 +189,26 @@ void Water::Update()
 	VERUS_UPDATE_ONCE_CHECK;
 
 	VERUS_QREF_TIMER;
-	_phase = fmod(_phase + dt * (1 / 29.f), 1.f);
-	_phaseWave = fmod(_phaseWave + dt * (1 / 61.f), 1.f);
+	_phase = fmod(_phase + dt * (1 / 23.f), 1.f);
+	_wavePhase = fmod(_wavePhase + dt * (1 / 29.f), 1.f);
 }
 
 void Water::Draw()
 {
 	VERUS_UPDATE_ONCE_CHECK_DRAW;
 
-	if (!_cshWaterFS.IsSet())
-	{
-		if (_tex[TEX_FOAM]->IsLoaded())
-		{
-			_cshWaterFS = _shader[SHADER_MAIN]->BindDescriptorSetTextures(1,
-				{
-					_pTerrain->GetHeightmapTexture(),
-					_tex[TEX_GEN_HEIGHTMAP],
-					_tex[TEX_GEN_NORMALS],
-					_tex[TEX_FOAM]
-				});
-		}
-		else
-			return;
-	}
-
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_TIMER;
 	VERUS_QREF_ATMO;
+
+	if (!_cshWaterFS.IsSet())
+	{
+		OnSwapChainResized();
+		if (!_cshWaterFS.IsSet())
+			return;
+	}
 
 	auto cb = renderer.GetCommandBuffer();
 
@@ -235,19 +228,41 @@ void Water::Draw()
 	const Matrix3 matR = Matrix3::rotationY(angle);
 	matW = Transform3(matR, Vector3(eyePosAtGroundLevel - flatDir * 5 * abs(cam.GetFrontDirection().getY())));
 
+	const Transform3 matShift = Transform3::translation(Vector3(0, -0.01f, 0)); // Sky-waterline bleeding fix.
 	const Matrix4 matWVP = cam.GetMatrixVP() * matW;
+	const Matrix4 matScreen = Matrix4(Math::ToUVMatrix()) * matShift * cam.GetMatrixVP();
 
 	s_ubWaterVS._matW = matW.UniformBufferFormat();
 	s_ubWaterVS._matVP = cam.GetMatrixVP().UniformBufferFormat();
-	s_ubWaterVS._eyePos = float4(cam.GetEyePosition().GLM(), 0);
-	s_ubWaterVS._waterScale_distToMipScale_mapSideInv_landDistToMipScale.x = 1 / _patchSide;
-	s_ubWaterVS._waterScale_distToMipScale_mapSideInv_landDistToMipScale.y = Math::ComputeDistToMipScale(_genSide << 6, renderer.GetSwapChainHeight(), _patchSide, cam.GetFOV());
-	s_ubWaterVS._waterScale_distToMipScale_mapSideInv_landDistToMipScale.z = 1.f / _pTerrain->GetMapSide();
-	s_ubWaterVS._waterScale_distToMipScale_mapSideInv_landDistToMipScale.w = Math::ComputeDistToMipScale(_pTerrain->GetMapSide(), renderer.GetSwapChainHeight(), _pTerrain->GetMapSide(), cam.GetFOV());
+	s_ubWaterVS._matScreen = matScreen.UniformBufferFormat();
+	s_ubWaterVS._eyePos_mapSideInv = float4(cam.GetEyePosition().GLM(), 1.f / _pTerrain->GetMapSide());
+	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.x = 1 / _patchSide;
+	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.y =
+		Math::ComputeDistToMipScale(static_cast<float>(_genSide << 6), static_cast<float>(renderer.GetSwapChainHeight()), _patchSide, cam.GetFovY());
+	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.z =
+		Math::ComputeDistToMipScale(static_cast<float>(_pTerrain->GetMapSide()), static_cast<float>(renderer.GetSwapChainHeight()), static_cast<float>(_pTerrain->GetMapSide()), cam.GetFovY());
+	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.w = _wavePhase;
 
-	s_ubWaterFS._phase.x = _phase;
+	s_ubWaterFS._matV = cam.GetMatrixV().UniformBufferFormat();
+	s_ubWaterFS._phase_wavePhase_camScale.x = _phase;
+	s_ubWaterFS._phase_wavePhase_camScale.y = _wavePhase;
+	s_ubWaterFS._phase_wavePhase_camScale.z = cam.GetFovScale() / cam.GetAspectRatio();
+	s_ubWaterFS._phase_wavePhase_camScale.w = -cam.GetFovScale();
+	s_ubWaterFS._diffuseColorShallow = float4(_diffuseColorShallow.GLM(), 0);
+	s_ubWaterFS._diffuseColorDeep = float4(_diffuseColorDeep.GLM(), 0);
+	s_ubWaterFS._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0);
+	if (IsUnderwater())
+		s_ubWaterFS._fogColor = Vector4(VMath::mulPerElem(_diffuseColorShallow, atmo.GetAmbientColor()) * 0.1f, _fogDensity).GLM();
+	else
+		s_ubWaterFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubWaterFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
 	s_ubWaterFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
+	s_ubWaterFS._matSunShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
+	s_ubWaterFS._matSunShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
+	s_ubWaterFS._matSunShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
+	s_ubWaterFS._matSunShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
+	memcpy(&s_ubWaterFS._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubWaterFS._shadowConfig));
+	s_ubWaterFS._splitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
 
 	cb->BindVertexBuffers(_geo);
 	cb->BindIndexBuffer(_geo);
@@ -258,115 +273,44 @@ void Water::Draw()
 	cb->BindDescriptors(_shader[SHADER_MAIN], 1, _cshWaterFS);
 	cb->DrawIndexed(_indexCount);
 	_shader[SHADER_MAIN]->EndBindDescriptors();
+}
 
-	//ms_cbPerObject.matWVP = matWVP.ConstBufferFormat();
-	//ms_cbPerObject.matW = matW.ConstBufferFormat();
-	//ms_cbPerObject.matV = cam.GetMatrixV().ConstBufferFormat();
+void Water::OnSwapChainResized()
+{
+	if (!_tex[TEX_FOAM]->IsLoaded())
+		return;
 
-	if (false)
-	{
-		//_sb[SB_DEPTH]->Apply(sbad);
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_ATMO;
 
-		if (settings._sceneWaterQuality >= App::Settings::WaterQuality::trueWavesReflection)
+	_shader[SHADER_MAIN]->FreeDescriptorSet(_cshWaterFS);
+	_shader[SHADER_MAIN]->FreeDescriptorSet(_cshWaterVS);
+	_cshWaterVS = _shader[SHADER_MAIN]->BindDescriptorSetTextures(0, { _pTerrain->GetHeightmapTexture(), _tex[TEX_GEN_HEIGHTMAP], _tex[TEX_FOAM] });
+	_cshWaterFS = _shader[SHADER_MAIN]->BindDescriptorSetTextures(1,
 		{
-			//renderer->SetTextures({ _tex[TEX_HEIGHTMAP] }, 0 + VERUS_ST_VS_OFFSET);
-			//renderer->SetTextures({ _texLand }, 5 + VERUS_ST_VS_OFFSET);
-		}
-
-		//_s->Bind("TDepth");
-		//_s->UpdateBuffer(0);
-
-		//_geo->BeginDraw(0x1);
-		//renderer->DrawIndexedPrimitive(CGI::PT_TRIANGLESTRIP, 0, _indexCount);
-		//_geo->EndDraw(0x1);
-	}
-	else
-	{
-		VERUS_QREF_ATMO;
-
-		if (settings._sceneWaterQuality >= App::Settings::WaterQuality::trueWavesRefraction) // True refraction:
-		{
-			//renderer->StretchRect(m_tex[TEX_REFRACT], renderer.GetOffscreenColorTexture());
-			//_tex[TEX_REFRACT]->GenerateMipmaps();
-		}
-
-		//renderer->SetRenderTargets({ renderer.GetOffscreenColorTexture(), renderer.GetDS().GetGBuffer(1) }, renderer.GetOffscreenDepthTexture());
-
-		//_sb[SB_MASTER]->Apply(sbad);
-
-		if (settings._sceneWaterQuality >= App::Settings::WaterQuality::trueWavesReflection)
-		{
-			//renderer->SetTextures({ _tex[TEX_HEIGHTMAP] }, 0 + VERUS_ST_VS_OFFSET);
-			//renderer->SetTextures({ _texLand }, 5 + VERUS_ST_VS_OFFSET);
-		}
-
-		Matrix4 matTexSpace = Matrix4::identity();
-
-		if (settings._sceneWaterQuality >= App::Settings::WaterQuality::solidColor)
-		{
-			//renderer->SetTextures({ _tex[TEX_HEIGHTMAP_BASE] });
-			//renderer->SetTextures({ _tex[TEX_FOAM] }, 2);
-			//renderer->SetTextures({ _texLand }, 5);
-			//renderer->SetTextures({ atmo.GetSunShadowTexture() }, 6);
-		}
-		if (settings._sceneWaterQuality >= App::Settings::WaterQuality::simpleReflection)
-		{
-			//renderer->SetTextures({ _tex[TEX_REFLECT] }, 3);
-			const Transform3 matShift = Transform3::translation(Vector3(0, -0.01f, 0)); // Sky-waterline bleeding fix.
-			//matTexSpace = Matrix4(Math::ToUVMatrix(0, Math::TOUV_RENDER_TARGET_VFLIP | Math::TOUV_MAP_TEXELS_TO_PIXELS, _tex[TEX_REFLECT]->GetSize()) * matShift) * matWVP;
-		}
-		if (settings._sceneWaterQuality >= App::Settings::WaterQuality::trueWavesReflection)
-		{
-			//renderer->SetTextures({ _tex[TEX_HEIGHTMAP], _tex[TEX_NORMALMAP] });
-		}
-		if (settings._sceneWaterQuality >= App::Settings::WaterQuality::trueWavesRefraction)
-		{
-			//renderer->SetTextures({ _tex[TEX_REFRACT] }, 4);
-		}
-
-		//ms_cbPerFrame.matReflect = matTexSpace.ConstBufferFormat();
-		//ms_cbPerFrame.shadowTexSize = atmo.GetSunShadowTexture() ? atmo.GetSunShadowTexture()->GetSize() : CVector4(0);
-		//ms_cbPerFrame.matSunShadow = atmo.GetSunShadowMatrix(0).ConstBufferFormat();
-		//ms_cbPerFrame.matSunShadowCSM1 = atmo.GetSunShadowMatrix(1).ConstBufferFormat();
-		//ms_cbPerFrame.matSunShadowCSM2 = atmo.GetSunShadowMatrix(2).ConstBufferFormat();
-		//ms_cbPerFrame.matSunShadowCSM3 = atmo.GetSunShadowMatrix(3).ConstBufferFormat();
-		//ms_cbPerFrame.csmParams = atmo.GetParamsCSM();
-		//ms_cbPerFrame.phases_mapSideInv.x = _phase;
-		//ms_cbPerFrame.phases_mapSideInv.y = _phaseWave;
-		//ms_cbPerFrame.phases_mapSideInv.z = 1.f / _mapSide;
-		//ms_cbPerFrame.eyePos = cam.GetPositionEye();
-		//ms_cbPerFrame.colorAmbient = atmo.GetAmbientColor();
-		//ms_cbPerFrame.dirToSun = atmo.GetDirToSun();
-		//ms_cbPerFrame.colorSun = atmo.GetSunColor();
-		//ms_cbPerFrame.colorSunSpec = atmo.GetSunColor();
-		//ms_cbPerFrame.fogColor = atmo.GetFogColor();
-
-		//char tech[8];
-		//sprintf_s(tech, "T_%d", settings._sceneWaterQuality);
-		//_s->Bind(tech);
-		//_s->UpdateBuffer(0);
-		//_s->UpdateBuffer(1);
-
-		//_geo->BeginDraw(0x1);
-		//renderer->DrawIndexedPrimitive(CGI::PT_TRIANGLESTRIP, 0, _indexCount);
-		//_geo->EndDraw(0x1);
-	}
-
-	///renderer->SetTextures({ nullptr }, 0 + VERUS_ST_VS_OFFSET);
-
-	//renderer.DrawQuad(m_tex[HTEX_HEIGHTMAP]);
+			_pTerrain->GetHeightmapTexture(),
+			_tex[TEX_GEN_HEIGHTMAP],
+			_tex[TEX_GEN_NORMALS],
+			_tex[TEX_FOAM],
+			_tex[TEX_REFLECTION],
+			renderer.GetDS().GetComposedTextureB(),
+			atmo.GetShadowMap().GetTexture(),
+			atmo.GetShadowMap().GetTexture(),
+		});
 }
 
 void Water::BeginReflection(CGI::PBaseCommandBuffer pCB)
 {
-	VERUS_QREF_SM;
 	VERUS_QREF_RENDERER;
+	VERUS_QREF_SM;
 
 	if (!pCB)
 		pCB = &(*renderer.GetCommandBuffer());
 
-	_reflectionMode = sm.GetCamera()->GetEyePosition().getY() >= 0;
-	_renderToTexture = true;
+	_camera = *sm.GetCamera();
+	if (!IsUnderwater(_camera.GetEyePosition()))
+		_camera.EnableReflectionMode();
+	_pSceneCamera = sm.SetCamera(&_camera);
 
 	pCB->BeginRenderPass(_rphReflection, _fbhReflection,
 		{
@@ -378,14 +322,16 @@ void Water::BeginReflection(CGI::PBaseCommandBuffer pCB)
 void Water::EndReflection(CGI::PBaseCommandBuffer pCB)
 {
 	VERUS_QREF_RENDERER;
+	VERUS_QREF_SM;
 
 	if (!pCB)
 		pCB = &(*renderer.GetCommandBuffer());
 
 	pCB->EndRenderPass();
 
-	_reflectionMode = false;
-	_renderToTexture = false;
+	sm.SetCamera(_pSceneCamera);
+
+	_tex[TEX_REFLECTION]->GenerateMips();
 }
 
 void Water::GenerateTextures()
@@ -393,7 +339,10 @@ void Water::GenerateTextures()
 	if (!_cshGenHeightmap.IsSet())
 	{
 		if (_tex[TEX_SOURCE_HEIGHTMAP]->IsLoaded())
+		{
+			_shader[SHADER_GEN]->FreeDescriptorSet(_cshGenHeightmap);
 			_cshGenHeightmap = _shader[SHADER_GEN]->BindDescriptorSetTextures(1, { _tex[TEX_SOURCE_HEIGHTMAP] });
+		}
 		else
 			return;
 	}
@@ -426,7 +375,7 @@ void Water::GenerateHeightmapTexture()
 
 	cb->EndRenderPass();
 
-	_tex[TEX_GEN_HEIGHTMAP]->GenerateMips();
+	_tex[TEX_GEN_HEIGHTMAP]->GenerateMips(&(*cb));
 }
 
 void Water::GenerateNormalsTexture()
@@ -453,7 +402,7 @@ void Water::GenerateNormalsTexture()
 
 	cb->EndRenderPass();
 
-	_tex[TEX_GEN_NORMALS]->GenerateMips();
+	_tex[TEX_GEN_NORMALS]->GenerateMips(&(*cb));
 }
 
 CGI::TexturePtr Water::GetCausticsTexture() const
@@ -479,15 +428,16 @@ void Water::CreateWaterPlane()
 	Vector<glm::vec4> vVB;
 	vVB.resize(_gridWidth * _gridHeight);
 
-	const float maxAngle = atan(maxRadius / 10); // Assume best height is 10 meters.
+	const float fudgeFactor = 100;
+	const float maxAngle = atan(maxRadius / fudgeFactor);
 	VERUS_FOR(i, _gridHeight)
 	{
-		const float radius = tan(zPolar * maxAngle) * 10;
+		const float radius = tan(zPolar * maxAngle) * fudgeFactor;
 		VERUS_FOR(j, _gridWidth)
 		{
 			float xSqueeze = xPolar;
 			VERUS_FOR(k, 6)
-				xSqueeze = Math::EaseInOutSine(xSqueeze);
+				xSqueeze = glm::sineEaseInOut(xSqueeze);
 			xSqueeze = Math::Lerp(xSqueeze, xPolar, 0.2f);
 
 			const float xCartesian = radius * sin(xSqueeze * VERUS_2PI);
@@ -510,4 +460,16 @@ float Water::PhillipsSpectrum(float k)
 	const float kl = k;
 	const float k2 = k * k;
 	return exp(-1 / (kl * kl)) / (k2 * k2);
+}
+
+bool Water::IsUnderwater() const
+{
+	return _pSceneCamera ?
+		IsUnderwater(_pSceneCamera->GetEyePosition()) :
+		IsUnderwater(SceneManager::I().GetCamera()->GetEyePosition());
+}
+
+bool Water::IsUnderwater(RcPoint3 eyePos) const
+{
+	return eyePos.getY() < 0;
 }

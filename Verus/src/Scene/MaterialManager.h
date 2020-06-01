@@ -66,21 +66,13 @@ namespace verus
 				colorFilter
 			};
 
-			struct Stats
-			{
-				int _shaderChangeCount = 0;
-				int _textureChangeCount = 0;
-				int _stateChangeCount = 0;
-			};
-			VERUS_TYPEDEFS(Stats);
-
 			class Pick : public glm::vec4
 			{
 			public:
 				Pick();
 				Pick(const glm::vec4& v);
 				void SetColor(float r, float g, float b);
-				void SetAmount(float x);
+				void SetAlpha(float x);
 				void FromString(CSZ sz);
 				String ToString();
 			};
@@ -92,7 +84,7 @@ namespace verus
 				PickRound(const glm::vec4& v);
 				void SetUV(float u, float v);
 				void SetRadius(float r);
-				void SetAmount(float x);
+				void SetAlpha(float x);
 				glm::vec4 ToPixels() const;
 				void FromPixels(const glm::vec4& pix);
 			};
@@ -101,29 +93,25 @@ namespace verus
 			IO::Dictionary _dict;
 			glm::vec2      _alphaSwitch = glm::vec2(1, 1);
 			glm::vec2      _anisoSpecDir = glm::vec2(0, 1);
-			glm::vec4      _bushEffect = glm::vec4(0);
 			float          _detail = 0;
-			Pick           _emitPick;
-			Pick           _emitXPick;
+			float          _emission = 0;
+			Pick           _emissionPick;
 			PickRound      _eyePick;
 			float          _gloss = 10;
-			float          _glossX = 10;
-			Pick           _glossXPick;
+			Pick           _glossPick;
+			glm::vec2      _glossScaleBias = glm::vec2(1, 0);
 			float          _hairDesat = 0;
 			Pick           _hairPick;
-			float          _lamBias = 0;
-			float          _lamScale = 1;
+			glm::vec2      _lamScaleBias = glm::vec2(1, 0);
 			float          _lightPass = 1;
 			Pick           _metalPick;
-			float          _parallaxDepth = 0;
 			Pick           _skinPick;
-			float          _specBias = 0;
-			float          _specScale = 1;
+			glm::vec2      _specScaleBias = glm::vec2(1, 0);
 			glm::vec4      _tc0ScaleBias = glm::vec4(1, 1, 0, 0);
 			TexturePwn     _texAlbedo;
-			glm::vec4      _texAlbedoEnable = glm::vec4(0.5f, 0.5f, 0.5f, 1);
+			glm::vec4      _texEnableAlbedo = glm::vec4(0.5f, 0.5f, 0.5f, 1);
 			TexturePwn     _texNormal;
-			glm::vec4      _texNormalEnable = glm::vec4(0.5f, 0.5f, 1.0f, 1);
+			glm::vec4      _texEnableNormal = glm::vec4(0.5f, 0.5f, 1.0f, 1);
 			glm::vec4      _userColor = glm::vec4(0, 0, 0, 0);
 			Pick           _userPick;
 			Blending       _blending = Blending::opaque;

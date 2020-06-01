@@ -37,7 +37,8 @@ namespace verus
 				anyShaderResource = (1 << 4), // Will use xsReadOnly as main layout.
 				generateMips = (1 << 5), // Allows GenerateMips calls.
 				forceArrayTexture = (1 << 6), // Create array texture even if arrayLayers=1.
-				sync = (1 << 7)
+				sync = (1 << 7),
+				exposureMips = (1 << 8)
 			};
 
 			Vector4       _clearValue = Vector4(0);
@@ -53,6 +54,7 @@ namespace verus
 			short         _sampleCount = 1;
 			Flags         _flags = Flags::none;
 			short         _texturePart = 0;
+			short         _readbackMip = SHRT_MAX;
 
 			TextureDesc(CSZ url = nullptr) : _url(url) {}
 
@@ -72,6 +74,7 @@ namespace verus
 			Vector4     _size = Vector4(0);
 			String      _name;
 			TextureDesc _desc;
+			UINT64      _initAtFrame = 0;
 			ImageLayout _mainLayout = ImageLayout::fsReadOnly;
 			int         _part = 0;
 			int         _bytesPerPixel = 0;
@@ -99,7 +102,8 @@ namespace verus
 			RcVector4 GetSize() const { return _size; }
 			bool IsSRGB() const;
 
-			void SetSamplerDesc(PcSamplerDesc pSamplerDesc) { _desc._pSamplerDesc = pSamplerDesc; }
+			void SetLoadingFlags(TextureDesc::Flags flags) { _desc._flags = flags; }
+			void SetLoadingSamplerDesc(PcSamplerDesc pSamplerDesc) { _desc._pSamplerDesc = pSamplerDesc; }
 
 			void LoadDDS(CSZ url, int texturePart = 0);
 			void LoadDDS(CSZ url, RcBlob blob);
@@ -108,6 +112,7 @@ namespace verus
 			virtual void Async_Run(CSZ url, RcBlob blob) override;
 
 			virtual void UpdateSubresource(const void* p, int mipLevel = 0, int arrayLayer = 0, BaseCommandBuffer* pCB = nullptr) = 0;
+			virtual bool ReadbackSubresource(void* p, BaseCommandBuffer* pCB = nullptr) = 0;
 
 			virtual void GenerateMips(BaseCommandBuffer* pCB = nullptr) = 0;
 
@@ -139,8 +144,8 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(TexturePwn);
 
-		template<int NUM>
-		class TexturePwns : public Pwns<TexturePwn, NUM>
+		template<int COUNT>
+		class TexturePwns : public Pwns<TexturePwn, COUNT>
 		{
 		};
 	}

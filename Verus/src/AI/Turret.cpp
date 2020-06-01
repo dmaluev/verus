@@ -11,10 +11,22 @@ void Turret::Update()
 	if (delta <= -VERUS_PI) delta += VERUS_2PI;
 	if (delta >= +VERUS_PI) delta -= VERUS_2PI;
 	if (delta < 0)
-		_actualYaw -= Math::Max(_yawSpeed * dt, -delta);
+		_actualYaw -= Math::Min(_yawSpeed * dt, -delta);
 	else
 		_actualYaw += Math::Min(_yawSpeed * dt, delta);
 	_actualYaw = Math::WrapAngle(_actualYaw);
+}
+
+bool Turret::IsTargetPitchReached(float threshold) const
+{
+	const float delta = _targetPitch - _actualPitch;
+	return abs(Math::WrapAngle(delta)) < threshold;
+}
+
+bool Turret::IsTargetYawReached(float threshold) const
+{
+	const float delta = _targetYaw - _actualYaw;
+	return abs(Math::WrapAngle(delta)) < threshold;
 }
 
 void Turret::LookAt(RcVector3 rayFromTurret, bool instantly)

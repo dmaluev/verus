@@ -6,28 +6,32 @@ namespace verus
 	{
 		class CameraOrbit : public MainCamera, public Input::DragControllerDelegate
 		{
-			float _pitch = 0;
-			float _yaw = 0;
-			float _radius = 10;
+			Anim::Elastic<float, true> _pitch;
+			Anim::Elastic<float, true> _yaw;
+			Anim::Elastic<float>       _radius;
+			bool                       _elastic = false;
 
 		public:
+			CameraOrbit();
+			virtual ~CameraOrbit();
+
 			virtual void Update() override;
+			void UpdateElastic();
 
 			virtual void DragController_GetParams(float& x, float& y) override;
 			virtual void DragController_SetParams(float x, float y) override;
 			virtual void DragController_GetRatio(float& x, float& y) override;
 
 			float GetRadius() const { return _radius; }
-			void SetRadius(float r) { _radius = r; }
+			void SetRadius(float r) { _radius = r; _radius.ForceTarget(); }
 			void MulRadiusBy(float a);
 
 			float GetPitch() const { return _pitch; }
 			float GetYaw() const { return _yaw; }
-			void  SetPitch(float a) { _pitch = a; }
-			void  SetYaw(float a) { _yaw = a; }
+			void  SetPitch(float a) { _pitch = Math::WrapAngle(a); _pitch.ForceTarget(); }
+			void  SetYaw(float a) { _yaw = Math::WrapAngle(a); _yaw.ForceTarget(); }
 
-			virtual void SaveState(int slot) override;
-			virtual void LoadState(int slot) override;
+			void EnableElastic(bool b = true) { _elastic = b; }
 		};
 		VERUS_TYPEDEFS(CameraOrbit);
 	}

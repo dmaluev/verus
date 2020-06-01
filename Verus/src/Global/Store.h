@@ -154,10 +154,10 @@ namespace verus
 		}
 	};
 
-	template<typename T, int NUM>
+	template<typename T, int COUNT>
 	class Pwns
 	{
-		T _t[NUM];
+		T _t[COUNT];
 
 	public:
 		Pwns()
@@ -171,18 +171,18 @@ namespace verus
 
 		void Done()
 		{
-			VERUS_FOR(i, NUM)
+			VERUS_FOR(i, COUNT)
 				_t[i].Done();
 		}
 
 		const T& operator[](int i) const
 		{
-			VERUS_RT_ASSERT(i >= 0 && i < NUM);
+			VERUS_RT_ASSERT(i >= 0 && i < COUNT);
 			return _t[i];
 		}
 		T& operator[](int i)
 		{
-			VERUS_RT_ASSERT(i >= 0 && i < NUM);
+			VERUS_RT_ASSERT(i >= 0 && i < COUNT);
 			return _t[i];
 		}
 	};

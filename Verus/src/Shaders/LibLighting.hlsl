@@ -13,7 +13,7 @@ float FresnelSchlick(float minRef, float maxAdd, float power)
 
 float EnergyNorm(float gloss)
 {
-	return (gloss + 2.0) * (1.0 / 8.0);
+	return min(100.0, (gloss + 2.0) * (1.0 / 8.0));
 }
 
 float4 VerusLit(float3 dirToLight, float3 normal, float3 dirToEye, float gloss,

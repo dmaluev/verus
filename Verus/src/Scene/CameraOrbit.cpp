@@ -3,11 +3,31 @@
 using namespace verus;
 using namespace verus::Scene;
 
+CameraOrbit::CameraOrbit() :
+	_pitch(0, 18),
+	_yaw(0, 18),
+	_radius(10, 8)
+{
+}
+
+CameraOrbit::~CameraOrbit()
+{
+}
+
 void CameraOrbit::Update()
 {
 	const Vector3 toEye = Matrix3::rotationZYX(Vector3(_pitch, _yaw, 0)) * Vector3(0, 0, _radius);
 	MoveEyeTo(_atPos + toEye);
 	MainCamera::Update();
+}
+
+void CameraOrbit::UpdateElastic()
+{
+	if (!_elastic)
+		return;
+	_pitch.Update();
+	_yaw.Update();
+	_radius.Update();
 }
 
 void CameraOrbit::DragController_GetParams(float& x, float& y)
@@ -18,8 +38,13 @@ void CameraOrbit::DragController_GetParams(float& x, float& y)
 
 void CameraOrbit::DragController_SetParams(float x, float y)
 {
-	_yaw = fmod(x, VERUS_2PI);
+	_yaw = Math::WrapAngle(x);
 	_pitch = Math::Clamp(y, -VERUS_PI * 0.49f, VERUS_PI * 0.49f);
+	if (!_elastic)
+	{
+		_pitch.ForceTarget();
+		_yaw.ForceTarget();
+	}
 	Update();
 }
 
@@ -31,40 +56,8 @@ void CameraOrbit::DragController_GetRatio(float& x, float& y)
 
 void CameraOrbit::MulRadiusBy(float a)
 {
-	_radius *= a;
+	_radius = _radius.GetTarget() * a;
+	if (!_elastic)
+		_radius.ForceTarget();
 	Update();
-}
-
-void CameraOrbit::SaveState(int slot)
-{
-	StringStream ss;
-	ss << _C(Utils::I().GetWritablePath()) << "/CameraState.xml";
-	IO::Xml xml;
-	xml.SetFilename(_C(ss.str()));
-	xml.Load();
-	char txt[16];
-	sprintf_s(txt, "slot%d", slot);
-	char params[40];
-	sprintf_s(params, "|%f %f %f", _pitch, _yaw, _radius);
-	xml.Set(txt, _C(_atPos.ToString() + params));
-}
-
-void CameraOrbit::LoadState(int slot)
-{
-	StringStream ss;
-	ss << _C(Utils::I().GetWritablePath()) << "/CameraState.xml";
-	IO::Xml xml;
-	xml.SetFilename(_C(ss.str()));
-	xml.Load();
-	char txt[16];
-	sprintf_s(txt, "slot%d", slot);
-	CSZ v = xml.GetS(txt);
-	if (v)
-	{
-		CSZ p = strchr(v, '|');
-		_atPos.FromString(v);
-		sscanf(p + 1, "%f %f %f", &_pitch, &_yaw, &_radius);
-		_update |= Update::v;
-		Update();
-	}
 }

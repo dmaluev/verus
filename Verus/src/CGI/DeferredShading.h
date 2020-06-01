@@ -42,7 +42,8 @@ namespace verus
 				TEX_GBUFFER_2, // LamScale, LamBias, Metallicity, Gloss.
 				TEX_LIGHT_ACC_DIFF,
 				TEX_LIGHT_ACC_SPEC,
-				TEX_COMPOSED,
+				TEX_COMPOSED_A,
+				TEX_COMPOSED_B,
 				TEX_COUNT
 			};
 
@@ -61,24 +62,19 @@ namespace verus
 			UINT64                   _frame = 0;
 			RPHandle                 _rph;
 			RPHandle                 _rphCompose;
+			RPHandle                 _rphExtraCompose;
 			FBHandle                 _fbh;
 			FBHandle                 _fbhCompose;
+			FBHandle                 _fbhExtraCompose;
 			CSHandle                 _cshLight;
 			CSHandle                 _cshCompose;
 			CSHandle                 _cshToneMapping;
-			CSHandle                 _cshQuad[6];
+			CSHandle                 _cshQuad[5];
 			bool                     _activeGeometryPass = false;
 			bool                     _activeLightingPass = false;
 			bool                     _async_initPipe = false;
 
 		public:
-			struct ToneMappingConfig
-			{
-				float _exposure = 0.005f;
-				float _filmicLook = 0.5f;
-				float _albedoScale = 0.5f;
-			} _toneMappingConfig;
-
 			DeferredShading();
 			~DeferredShading();
 
@@ -97,16 +93,15 @@ namespace verus
 			bool IsActiveLightingPass() const { return _activeLightingPass; }
 
 			RPHandle GetRenderPassHandle() const { return _rph; }
-			RPHandle GetRenderPassHandle_Compose() const { return _rphCompose; }
-			int GetSubpass_Compose() const { return 1; }
+			RPHandle GetRenderPassHandle_ExtraCompose() const { return _rphExtraCompose; }
 
 			void BeginGeometryPass(bool onlySetRT = false, bool spriteBaking = false);
 			void EndGeometryPass(bool resetRT = false);
 			bool BeginLightingPass();
 			void EndLightingPass();
-			void BeginCompose(RcVector4 bgColor = Vector4(0));
+			void BeginCompose();
 			void EndCompose();
-			void ToneMapping();
+			void ToneMapping(RcVector4 bgColor = Vector4(0));
 			void AntiAliasing();
 
 			static bool IsLightUrl(CSZ url);
@@ -118,6 +113,9 @@ namespace verus
 			void Load();
 
 			TexturePtr GetGBuffer(int index);
+
+			TexturePtr GetComposedTextureA();
+			TexturePtr GetComposedTextureB();
 		};
 		VERUS_TYPEDEFS(DeferredShading);
 	}

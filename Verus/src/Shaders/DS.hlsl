@@ -231,8 +231,7 @@ DS_ACC_FSO mainFS(VSO si)
 			float4 config = g_ubShadowFS._shadowConfig;
 			const float lamBiasMask = saturate(lamScaleBiasWithHair.y * config.y);
 			config.y = 1.0 - lamBiasMask; // Keep penumbra blurry.
-			const float scale = -posWV.z - 5.0;
-			const float3 posForShadow = posWV + normalWV * 0.012 * max(1.0, scale * 0.2) + dirToLightWV * max(0.0, scale * 0.002);
+			const float3 posForShadow = AdjustPosForShadow(posWV, normalWV, dirToLightWV, -posWV.z);
 			const float4 tcShadow = ShadowCoords(float4(posForShadow, 1), g_ubShadowFS._matSunShadow, -posForShadow.z);
 			shadowMask = ShadowMapCSM(
 				g_texShadowCmp,

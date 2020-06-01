@@ -2,7 +2,6 @@
 
 #include "Lib.hlsl"
 #include "LibColor.hlsl"
-#include "LibDeferredShading.hlsl"
 #include "LibSurface.hlsl"
 #include "LibVertex.hlsl"
 #include "Sky.inc.hlsl"
@@ -28,6 +27,12 @@ struct VSI
 	VK_LOCATION(8)       int4 tc0   : TEXCOORD0;
 };
 
+struct VSI_SKY_BODY
+{
+	VK_LOCATION_POSITION float4 pos : POSITION;
+	VK_LOCATION(8)       int4 tc0   : TEXCOORD0;
+};
+
 struct VSO
 {
 	float4 pos      : SV_Position;
@@ -40,6 +45,13 @@ struct VSO
 #endif
 };
 
+struct VSO_SKY_BODY
+{
+	float4 pos   : SV_Position;
+	float2 tc0   : TEXCOORD0;
+	float height : TEXCOORD1;
+};
+
 struct FSO
 {
 	float4 color : SV_Target0;
@@ -50,18 +62,27 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
-	const float time = g_ubPerFrame._time_cloudiness_expo.x;
-
 	const float3 intactPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMeshVS._posDeqScale.xyz, g_ubPerMeshVS._posDeqBias.xyz);
 
 	so.pos = mul(float4(intactPos, 1), g_ubPerObject._matWVP).xyww; // Peg the depth. (c) ATI
-	so.color0 = pow(saturate(dot(normalize(intactPos), g_ubPerFrame._dirToSun.xyz)), 3.0);
-	so.tc0 = float2(time, 0.5 - intactPos.y);
+	so.color0 = pow(saturate(dot(normalize(intactPos * float3(1, 0.25, 1)), g_ubPerFrame._dirToSun.xyz)), 4.0);
+	so.tc0 = float2(g_ubPerFrame._time_cloudiness.x, 0.5 - intactPos.y);
 	so.tcStars = intactPos.xz * 16.0; // Stars.
 #ifdef DEF_CLOUDS
 	so.tcPhaseA = intactPos.xz * (4.0 - 4.0 * intactPos.y) + g_ubPerFrame._phaseAB.xy;
 	so.tcPhaseB = intactPos.xz * (2.0 - 2.0 * intactPos.y) + g_ubPerFrame._phaseAB.zw;
 #endif
+
+	return so;
+}
+
+VSO_SKY_BODY mainSkyBodyVS(VSI_SKY_BODY si)
+{
+	VSO_SKY_BODY so;
+
+	so.pos = mul(si.pos, g_ubPerObject._matWVP).xyww;
+	so.tc0 = si.tc0.xy;
+	so.height = mul(si.pos.xyz, (float3x3)g_ubPerObject._matW).y;
 
 	return so;
 }
@@ -74,10 +95,12 @@ FSO mainFS(VSO si)
 
 	const float3 rand = Rand(si.pos.xy);
 
-	const float time = g_ubPerFrame._time_cloudiness_expo.x;
-	const float cloudiness = g_ubPerFrame._time_cloudiness_expo.y;
+	const float time = g_ubPerFrame._time_cloudiness.x;
+	const float cloudiness = g_ubPerFrame._time_cloudiness.y;
 
 	const float dayRatio = (1.0 - abs(0.5 - time) * 1.9);
+	const float sunAlpha = g_ubPerFrame._sunColor.a;
+	const float sunBoost = si.color0.r * sunAlpha;
 
 #ifdef DEF_CLOUDS
 	const float3 rawSky = g_texSky.Sample(g_samSky, float2(time, 0.3)).rgb;
@@ -99,30 +122,57 @@ FSO mainFS(VSO si)
 
 	const float clearSky = 1.0 - cloudiness;
 	const float clearSkySoft = 0.1 + 0.9 * clearSky;
-	const float alpha = saturate((avgColor - clearSky) * 4.0);
+	const float alpha = saturate((avgColor - clearSky) * 3.5);
 
-	const float sunBoost = si.color0.r * dayRatio;
-	const float directGlow = saturate(dot(normal, g_ubPerFrame._dirToSun.xyz));
-	const float edgeGlow = saturate((0.75 - alpha) * 1.5);
+	const float directGlow = saturate(dot(normal, g_ubPerFrame._dirToSun.xyz)) * sunAlpha;
+	const float edgeGlow = saturate((0.85 - alpha) * 1.2);
 	const float ambientGlow = edgeGlow * 0.5 + noonHalf * 0.25 + sunBoost * dayRatio;
 	const float glow = saturate(lerp(directGlow * 0.25, edgeGlow, noonHalf) + ambientGlow);
 	const float diff = saturate((avgColor + directGlow + sunBoost * 0.25) * dayRatio * clearSkySoft);
 
 	const float3 finalColor = saturate(diff * cloudColor + glow * rimColor * clearSkySoft);
 
-	const float hdrScale = dayRatio * dayRatio * 1000.0;
+	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * (8.0 - 2.0 * cloudiness);
 	so.color.rgb = finalColor * hdrScale;
 	so.color.a = alpha;
+
+	// <Fog>
+	{
+		const float cloudScale = cloudiness * cloudiness;
+		const float fogBias = 0.01 + 0.49 * cloudScale;
+		const float fogContrast = 1.0 + 2.0 * cloudScale;
+		const float fog = saturate((si.tc0.y - 0.5 + fogBias) * (fogContrast / fogBias));
+		so.color.rgb = lerp(so.color.rgb, g_ubPerFrame._fogColor.rgb, lerp(1.0, fog, alpha));
+		so.color.a = max(so.color.a, fog);
+	}
+	// </Fog>
 #else
 	const float4 rawSky = g_texSky.Sample(g_samSky, si.tc0);
-	const float3 skyColor = rawSky.rgb + rand * lerp(0.001, 0.01, rawSky.rgb);
+	const float3 skyColor = rawSky.rgb + rand * lerp(0.001, 0.01, rawSky.rgb); // Dithering.
 	const float4 rawStars = g_texStars.Sample(g_samStars, si.tcStars);
 
-	const float night = abs(0.5 - time) * 2.0;
-	const float3 colorWithStars = skyColor + si.color0 * 0.1 + rawStars.rgb * night * night;
+	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * (10.0 + 5.0 * sunBoost);
+	so.color = float4(skyColor.rgb * hdrScale + rawStars.rgb * 5.0, 1);
+#endif
 
-	const float hdrScale = dayRatio * dayRatio * 1000.0;
-	so.color = float4(colorWithStars.rgb * hdrScale, 1);
+	return so;
+}
+
+FSO mainSkyBodyFS(VSO_SKY_BODY si)
+{
+	FSO so;
+
+	so.color = g_texClouds.Sample(g_samClouds, si.tc0);
+	const float mask = abs(si.height);
+#ifdef DEF_SUN
+	so.color.rgb *= lerp(float3(1.0, 0.2, 0.001), 1.0, mask);
+	so.color.rgb *= (60.0 * 1000.0) + (100.0 * 1000.0) * mask;
+#endif
+#ifdef DEF_MOON
+	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * 12.0;
+	so.color.rgb *= lerp(float3(1.0, 0.9, 0.8), 1.0, mask);
+	so.color.rgb *= max(100.0, hdrScale);
+	so.color.a *= mask;
 #endif
 
 	return so;
@@ -131,3 +181,5 @@ FSO mainFS(VSO si)
 
 //@main:#Sky SKY
 //@main:#Clouds CLOUDS
+//@mainSkyBody:#Sun SUN
+//@mainSkyBody:#Moon MOON

@@ -650,7 +650,7 @@ void ShaderD3D12::UpdateDebugInfo(
 		{
 		case D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE:
 		{
-			VERUS_FOR(i, rootParam.DescriptorTable.NumDescriptorRanges)
+			VERUS_U_FOR(i, rootParam.DescriptorTable.NumDescriptorRanges)
 			{
 				auto& descRange = rootParam.DescriptorTable.pDescriptorRanges[i];
 				ss << "    Type=";

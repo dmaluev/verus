@@ -44,6 +44,27 @@ void Atmosphere::Init()
 
 	renderer.GetDS().InitByAtmosphere(_shadowMap.GetTexture());
 
+	CreateCelestialBodyMesh();
+
+	{
+		CGI::PipelineDesc pipeDesc(_geo, _shader, "#Sun", renderer.GetDS().GetRenderPassHandle_ExtraCompose());
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
+		pipeDesc._rasterizationState._cullMode = CGI::CullMode::none;
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc._depthWriteEnable = false;
+		pipeDesc._depthCompareOp = CGI::CompareOp::lessOrEqual;
+		_pipe[PIPE_SUN].Init(pipeDesc);
+	}
+	{
+		CGI::PipelineDesc pipeDesc(_geo, _shader, "#Moon", renderer.GetDS().GetRenderPassHandle_ExtraCompose());
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
+		pipeDesc._rasterizationState._cullMode = CGI::CullMode::none;
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc._depthWriteEnable = false;
+		pipeDesc._depthCompareOp = CGI::CompareOp::lessOrEqual;
+		_pipe[PIPE_MOON].Init(pipeDesc);
+	}
+
 	_texSky.LoadDDS("[Textures]:Sky/Sky.dds");
 
 	_tex[TEX_SKY].Init("[Textures]:Sky/Sky.dds");
@@ -58,14 +79,20 @@ void Atmosphere::Init()
 	_clouds._phaseB.setX(utils.GetRandom().NextFloat());
 	_clouds._phaseB.setY(utils.GetRandom().NextFloat());
 
-	_sun._matTilt = Matrix3::rotationX(-VERUS_PI / 10);
-	_sun._dirToMidnight = _sun._matTilt * Vector3(0, -1, 0);
-	_sun._dirTo = VMath::mulPerElem(_sun._dirToMidnight, Vector3(1, -1, 1));
+	_fog._density[0] = _fog._density[1] = 0.0006f;
+
+	_sun._matTilt = Matrix3::rotationX(_sun._latitude);
+	UpdateSun(_time);
 }
 
 void Atmosphere::Done()
 {
-	_shader->FreeDescriptorSet(_cshSkyFS);
+	if (_shader)
+	{
+		_shader->FreeDescriptorSet(_cshMoonFS);
+		_shader->FreeDescriptorSet(_cshSunFS);
+		_shader->FreeDescriptorSet(_cshSkyFS);
+	}
 	VERUS_DONE(Atmosphere);
 }
 
@@ -73,25 +100,25 @@ void Atmosphere::UpdateSun(float time)
 {
 	// Update time and sun's color before calling this method.
 
-	_sun._dirTo = Matrix3::rotationZ(time * VERUS_2PI) * _sun._dirToMidnight;
-
+	_sun._dirTo = _sun._matTilt * Matrix3::rotationZ(time * VERUS_2PI) * Vector3(0, -1, 0);
 	_night = false;
 	if (_sun._dirTo.getY() < 0) // Moon light:
 	{
 		_night = true;
-		_sun._dirTo = Matrix3::rotationZ(time * VERUS_2PI + VERUS_PI) * _sun._dirToMidnight;
-		_sun._color = VMath::mulPerElem(_sun._color, Vector3(0.19f, 0.21f, 0.45f));
+		_sun._dirTo = _sun._matTilt * Matrix3::rotationZ(time * VERUS_2PI) * Vector3(0, 1, 0);
+		_sun._color = glm::saturation(0.1f, _sun._color.GLM()) * 0.5f;
 	}
 
 	// Reduce light's intensity when near horizon:
-	const float intensity = Math::Clamp<float>(abs(_sun._dirTo.getY()) * 4, 0, 1);
-	_sun._color *= intensity;
+	_sun._alpha = Math::Clamp<float>(abs(_sun._dirTo.getY()) * 5, 0, 1);
+	_sun._color *= _sun._alpha;
 }
 
 void Atmosphere::Update()
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_TIMER;
+	VERUS_QREF_WATER;
 
 	if (!_async_loaded)
 	{
@@ -106,23 +133,33 @@ void Atmosphere::Update()
 			_async_loaded = true;
 
 			{
-				CGI::PipelineDesc pipeDesc(_skyDome.GetGeometry(), _shader, "#Sky", renderer.GetDS().GetRenderPassHandle_Compose(), renderer.GetDS().GetSubpass_Compose());
+				CGI::PipelineDesc pipeDesc(_skyDome.GetGeometry(), _shader, "#Sky", renderer.GetDS().GetRenderPassHandle_ExtraCompose());
 				pipeDesc._vertexInputBindingsFilter = (1 << 0);
 				pipeDesc._depthWriteEnable = false;
 				pipeDesc._depthCompareOp = CGI::CompareOp::lessOrEqual;
 				_pipe[PIPE_SKY].Init(pipeDesc);
+				pipeDesc._renderPassHandle = water.GetRenderPassHandle();
+				pipeDesc._rasterizationState._cullMode = CGI::CullMode::front;
+				_pipe[PIPE_SKY_REFLECTION].Init(pipeDesc);
 			}
 			{
-				CGI::PipelineDesc pipeDesc(_skyDome.GetGeometry(), _shader, "#Clouds", renderer.GetDS().GetRenderPassHandle_Compose(), renderer.GetDS().GetSubpass_Compose());
+				CGI::PipelineDesc pipeDesc(_skyDome.GetGeometry(), _shader, "#Clouds", renderer.GetDS().GetRenderPassHandle_ExtraCompose());
 				pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 				pipeDesc._vertexInputBindingsFilter = (1 << 0);
 				pipeDesc._depthWriteEnable = false;
 				pipeDesc._depthCompareOp = CGI::CompareOp::lessOrEqual;
 				_pipe[PIPE_CLOUDS].Init(pipeDesc);
+				pipeDesc._renderPassHandle = water.GetRenderPassHandle();
+				pipeDesc._rasterizationState._cullMode = CGI::CullMode::front;
+				_pipe[PIPE_CLOUDS_REFLECTION].Init(pipeDesc);
 			}
 
 			_shader->FreeDescriptorSet(_cshSkyFS);
 			_cshSkyFS = _shader->BindDescriptorSetTextures(1, { _tex[TEX_SKY], _tex[TEX_STARS], _tex[TEX_CLOUDS], _tex[TEX_CLOUDS_NM] });
+			_shader->FreeDescriptorSet(_cshSunFS);
+			_cshSunFS = _shader->BindDescriptorSetTextures(1, { _tex[TEX_SKY], _tex[TEX_STARS], _tex[TEX_SUN], _tex[TEX_CLOUDS_NM] });
+			_shader->FreeDescriptorSet(_cshMoonFS);
+			_cshMoonFS = _shader->BindDescriptorSetTextures(1, { _tex[TEX_SKY], _tex[TEX_STARS], _tex[TEX_MOON], _tex[TEX_CLOUDS_NM] });
 		}
 	}
 	if (!_async_loaded)
@@ -132,28 +169,46 @@ void Atmosphere::Update()
 
 	_clouds._cloudiness.Update();
 
+	const float cloudinessSq = sqrt(_clouds._cloudiness);
+	const float cloudScaleAmb = 1 - 0.6f * _clouds._cloudiness * cloudinessSq;
+	const float cloudScaleFog = 1 - 0.9f * _clouds._cloudiness * cloudinessSq;
+	const float cloudScaleSun = 1 - 0.999f * _clouds._cloudiness * cloudinessSq;
 	float color[3];
-	GetColor(64, color, 1.5f);  _fog._color = Vector3::MakeFromPointer(color) * _hdrScale;
-	GetColor(208, color, 0.3f); _ambientColor = Vector3::MakeFromPointer(color) * _hdrScale;
-	GetColor(240, color, 1);    _sun._color = Vector3::MakeFromPointer(color) * _hdrScale;
+	GetColor(208, color, 1); _ambientColor = Vector3::MakeFromPointer(color) * (GetMagnitude(68000, 45000, 10) * cloudScaleAmb);
+	GetColor(110, color, 1); _fog._color = Vector3::MakeFromPointer(color) * (GetMagnitude(75000, 8000, 1) * cloudScaleFog);
+	GetColor(240, color, 1); _sun._color = Vector3::MakeFromPointer(color) * (GetMagnitude(85000, 30000, 1) * cloudScaleSun);
 
 	glm::vec3 ambientColor = _ambientColor.GLM();
 	glm::vec3 fogColor = _fog._color.GLM();
-	_ambientColor = glm::saturation(0.75f, ambientColor);
-	const float clearSky = Math::Min(1.f, 1.5f - _clouds._cloudiness);
-	_fog._color = glm::saturation(clearSky * 0.75f, fogColor);
-	_fog._colorInit = _fog._color;
+	_ambientColor = glm::saturation(0.7f - 0.3f * _clouds._cloudiness, ambientColor);
+	_fog._color = glm::saturation(0.8f - 0.2f * _clouds._cloudiness, fogColor);
+	_fog._density[0] = _fog._density[1] * (1 + 9 * _clouds._cloudiness * _clouds._cloudiness);
+
+#ifdef _DEBUG
+	if (abs(_time - 0.5f) < 0.01f && glm::epsilonEqual(static_cast<float>(_clouds._cloudiness), 0.25f, 0.05f))
+	{
+		const glm::vec3 grayAmbient = glm::saturation(0.f, _ambientColor.GLM());
+		const glm::vec3 grayFog = glm::saturation(0.f, _fog._color.GLM());
+		const glm::vec3 graySun = glm::saturation(0.f, _sun._color.GLM());
+		VERUS_RT_ASSERT(glm::epsilonEqual(grayAmbient.x, 6400.f, 640.f));
+		VERUS_RT_ASSERT(glm::epsilonEqual(graySun.x, 32000.f, 3200.f));
+	}
+#endif
 
 	UpdateSun(_time);
 }
 
-void Atmosphere::DrawSky()
+void Atmosphere::DrawSky(bool reflection)
 {
 	if (!_async_loaded)
 		return;
 
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
+	VERUS_QREF_WATER;
+
+	if (water.IsUnderwater())
+		reflection = false;
 
 	auto cb = renderer.GetCommandBuffer();
 
@@ -161,24 +216,25 @@ void Atmosphere::DrawSky()
 	Matrix3 matS = Matrix3::scale(Vector3(4, 1, 4)); // Stretch sky dome.
 	const Matrix4 matSkyDome = cam.GetMatrixVP() * Transform3(matS, Vector3(cam.GetEyePosition()));
 
-	s_ubPerFrame._time_cloudiness_expo.x = _time;
-	s_ubPerFrame._time_cloudiness_expo.y = _clouds._cloudiness;
-	s_ubPerFrame._time_cloudiness_expo.z = 0;
+	s_ubPerFrame._time_cloudiness.x = _time;
+	s_ubPerFrame._time_cloudiness.y = _clouds._cloudiness;
+	s_ubPerFrame._ambientColor = float4(_ambientColor.GLM(), 0);
+	s_ubPerFrame._fogColor = float4(_fog._color.GLM(), 0);
 	s_ubPerFrame._dirToSun = float4(_sun._dirTo.GLM(), 0);
+	s_ubPerFrame._sunColor = float4(_sun._color.GLM(), _sun._alpha);
 	s_ubPerFrame._phaseAB = float4(
 		_clouds._phaseA.getX(),
 		_clouds._phaseA.getY(),
 		_clouds._phaseB.getX(),
 		_clouds._phaseB.getY());
-	s_ubPerFrame._fogColor = float4(_fog._color.GLM(), 0);
+
 	_skyDome.CopyPosDeqScale(&s_ubPerMeshVS._posDeqScale.x);
 	_skyDome.CopyPosDeqBias(&s_ubPerMeshVS._posDeqBias.x);
-	s_ubPerObject._matWVP = matSkyDome.UniformBufferFormat();
-
-	_skyDome.BindGeo(cb);
 
 	// <Sky>
-	cb->BindPipeline(_pipe[PIPE_SKY]);
+	s_ubPerObject._matWVP = matSkyDome.UniformBufferFormat();
+	_skyDome.BindGeo(cb);
+	cb->BindPipeline(_pipe[reflection ? PIPE_SKY_REFLECTION : PIPE_SKY]);
 
 	_shader->BeginBindDescriptors();
 	cb->BindDescriptors(_shader, 0);
@@ -190,8 +246,55 @@ void Atmosphere::DrawSky()
 	cb->DrawIndexed(_skyDome.GetIndexCount());
 	// </Sky>
 
+	const float celestialBodyScale = 0.02f + 0.02f * (1 - abs(_sun._dirTo.getY()));
+	matS = Matrix3::scale(Vector3(celestialBodyScale, 1, celestialBodyScale));
+
+	// <Sun>
+	{
+		const Matrix3 matR = Matrix3::rotationZ(_time * VERUS_2PI);
+		const Transform3 matW = Transform3(_sun._matTilt * matR * matS, Vector3(cam.GetEyePosition()));
+		s_ubPerObject._matW = matW.UniformBufferFormat();
+		s_ubPerObject._matWVP = Matrix4(cam.GetMatrixVP() * matW).UniformBufferFormat();
+
+		cb->BindVertexBuffers(_geo);
+		cb->BindPipeline(_pipe[PIPE_SUN]);
+
+		_shader->BeginBindDescriptors();
+		cb->BindDescriptors(_shader, 0);
+		cb->BindDescriptors(_shader, 1, _cshSunFS);
+		cb->BindDescriptors(_shader, 2);
+		cb->BindDescriptors(_shader, 3);
+		_shader->EndBindDescriptors();
+
+		cb->Draw(4, 1);
+	}
+	// </Sun>
+
+	// <Moon>
+	{
+		const Matrix3 matR = Matrix3::rotationZ(_time * VERUS_2PI + VERUS_PI);
+		const Transform3 matW = Transform3(_sun._matTilt * matR * matS, Vector3(cam.GetEyePosition()));
+		s_ubPerObject._matW = matW.UniformBufferFormat();
+		s_ubPerObject._matWVP = Matrix4(cam.GetMatrixVP() * matW).UniformBufferFormat();
+
+		cb->BindVertexBuffers(_geo);
+		cb->BindPipeline(_pipe[PIPE_MOON]);
+
+		_shader->BeginBindDescriptors();
+		cb->BindDescriptors(_shader, 0);
+		cb->BindDescriptors(_shader, 1, _cshMoonFS);
+		cb->BindDescriptors(_shader, 2);
+		cb->BindDescriptors(_shader, 3);
+		_shader->EndBindDescriptors();
+
+		cb->Draw(4, 1);
+	}
+	// </Moon>
+
 	// <Clouds>
-	cb->BindPipeline(_pipe[PIPE_CLOUDS]);
+	s_ubPerObject._matWVP = matSkyDome.UniformBufferFormat();
+	_skyDome.BindGeo(cb);
+	cb->BindPipeline(_pipe[reflection ? PIPE_CLOUDS_REFLECTION : PIPE_CLOUDS]);
 
 	_shader->BeginBindDescriptors();
 	cb->BindDescriptors(_shader, 0);
@@ -230,6 +333,15 @@ void Atmosphere::GetColor(int level, float* pOut, float scale)
 		pOut[i] = Math::Clamp<float>(Math::Lerp(rgbA[i], rgbB[i], fractPart) * 0.5f * scale, 0, 1);
 }
 
+float Atmosphere::GetMagnitude(float noon, float dusk, float midnight) const
+{
+	const float time4 = _time * 4;
+	const int interval = Math::Clamp(static_cast<int>(time4), 0, 3);
+	const float fractPart = time4 - interval;
+	const float controlPoints[] = { midnight, dusk, noon, dusk, midnight };
+	return Math::Lerp(controlPoints[interval], controlPoints[interval + 1], glm::sineEaseInOut(fractPart));
+}
+
 RcVector3 Atmosphere::GetDirToSun() const
 {
 	return _sun._dirTo;
@@ -238,6 +350,11 @@ RcVector3 Atmosphere::GetDirToSun() const
 RcVector3 Atmosphere::GetSunColor() const
 {
 	return _sun._color;
+}
+
+float Atmosphere::GetSunAlpha() const
+{
+	return _sun._alpha;
 }
 
 void Atmosphere::BeginShadow(int split)
@@ -265,4 +382,28 @@ RcPoint3 Atmosphere::GetEyePosition(PVector3 pDirFront)
 			*pDirFront = sm.GetCamera()->GetFrontDirection();
 		return sm.GetCamera()->GetEyePosition();
 	}
+}
+
+void Atmosphere::CreateCelestialBodyMesh()
+{
+	CGI::GeometryDesc geoDesc;
+	const CGI::VertexInputAttrDesc viaDesc[] =
+	{
+		{0, offsetof(Vertex, _pos), CGI::IeType::floats, 3, CGI::IeUsage::position, 0},
+		{0, offsetof(Vertex, _tc), CGI::IeType::shorts, 2, CGI::IeUsage::texCoord, 0},
+		CGI::VertexInputAttrDesc::End()
+	};
+	geoDesc._pVertexInputAttrDesc = viaDesc;
+	const int strides[] = { sizeof(Vertex), 0 };
+	geoDesc._pStrides = strides;
+	_geo.Init(geoDesc);
+	const Vertex skyBody[] =
+	{
+		{-1, -1, -1, 1, 0},
+		{-1, -1, +1, 0, 0},
+		{+1, -1, -1, 1, 1},
+		{+1, -1, +1, 0, 1},
+	};
+	_geo->CreateVertexBuffer(4, 0);
+	_geo->UpdateVertexBuffer(skyBody, 0);
 }

@@ -34,8 +34,10 @@ namespace verus
 
 				Attachment(CSZ name, Format format, int sampleCount = 1);
 
+				Attachment& SetLoadOp(LoadOp op);
 				Attachment& LoadOpClear();
 				Attachment& LoadOpDontCare();
+				Attachment& SetStoreOp(StoreOp op);
 				Attachment& StoreOpDontCare();
 				Attachment& Layout(ImageLayout whenBegins, ImageLayout whenEnds);
 				Attachment& Layout(ImageLayout both);

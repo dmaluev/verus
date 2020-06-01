@@ -20,7 +20,7 @@ namespace verus
 			void Run(bool relativeMouseMode = true);
 			void Exit();
 
-			virtual void BaseGame_UpdateSettings() {};
+			virtual void BaseGame_UpdateSettings() {}
 			virtual void BaseGame_LoadContent() = 0;
 			virtual void BaseGame_UnloadContent() = 0;
 			virtual void BaseGame_HandleInput() = 0;
@@ -55,9 +55,9 @@ namespace verus
 			RSpirit GetCameraSpirit();
 
 			// Configuration:
-			void EnableDefaultCameraMovement(bool b);
-			void EnableEscapeKeyExitGame(bool b);
-			void EnableRawInputEvents(bool b);
+			void EnableDefaultCameraMovement(bool b = true);
+			void EnableEscapeKeyExitGame(bool b = true);
+			void EnableRawInputEvents(bool b = true);
 			void ShowFPS(bool b);
 
 			void BulletDebugDraw();

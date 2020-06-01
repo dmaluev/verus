@@ -24,12 +24,12 @@ Window::~Window()
 	Done();
 }
 
-void Window::Init(RcDesc descConst)
+void Window::Init(RcDesc constDesc)
 {
 	VERUS_INIT();
 	VERUS_QREF_SETTINGS;
 
-	Desc desc = descConst;
+	Desc desc = constDesc;
 	if (desc._useSettings)
 		desc.ApplySettings();
 

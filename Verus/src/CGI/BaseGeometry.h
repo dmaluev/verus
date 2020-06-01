@@ -57,8 +57,8 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(GeometryPwn);
 
-		template<int NUM>
-		class GeometryPwns : public Pwns<GeometryPwn, NUM>
+		template<int COUNT>
+		class GeometryPwns : public Pwns<GeometryPwn, COUNT>
 		{
 		};
 	}

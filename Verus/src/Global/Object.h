@@ -31,6 +31,7 @@ namespace verus
 
 	protected:
 		Object();
+		Object(const Object& that);
 		virtual ~Object();
 
 		void Init();

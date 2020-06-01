@@ -123,6 +123,7 @@ namespace verus
 			input,
 			shadow,
 			aniso, // Most common sampler for 3D.
+			anisoClamp,
 			linearMipL,
 			nearestMipL,
 			linearMipN,

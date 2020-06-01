@@ -38,6 +38,7 @@ void Settings::Load()
 	_sceneWaterQuality = static_cast<WaterQuality>(GetI("sceneWaterQuality", +_sceneWaterQuality));
 	_screenAllowHighDPI = GetB("screenAllowHighDPI", _screenAllowHighDPI);
 	_screenFOV = GetF("screenFOV", _screenFOV);
+	_screenOffscreenDraw = GetF("screenOffscreenDraw", _screenOffscreenDraw);
 	_screenSizeHeight = GetI("screenSizeHeight", _screenSizeHeight);
 	_screenSizeWidth = GetI("screenSizeWidth", _screenSizeWidth);
 	_screenVSync = GetB("screenVSync", _screenVSync);
@@ -81,6 +82,7 @@ void Settings::Save()
 	Set("sceneWaterQuality", +_sceneWaterQuality);
 	Set("screenAllowHighDPI", _screenAllowHighDPI);
 	Set("screenFOV", _screenFOV);
+	Set("screenOffscreenDraw", _screenOffscreenDraw);
 	Set("screenSizeHeight", _screenSizeHeight);
 	Set("screenSizeWidth", _screenSizeWidth);
 	Set("screenVSync", _screenVSync);
@@ -150,49 +152,29 @@ void Settings::ParseCommandLineArgs(int argc, char* argv[])
 void Settings::SetQuality(Quality q)
 {
 	_quality = q;
-	_gpuAnisotropyLevel = 0;
-	_gpuAntialiasingLevel = 0;
-	_gpuTextureLodLevel = 0;
-	_gpuTrilinearFilter = false;
-	_postProcessBloom = false;
-	_postProcessCinema = false;
-	_postProcessMotionBlur = false;
-	_postProcessSSAO = false;
-	_sceneGrassDensity = 1000;
-	_sceneShadowQuality = ShadowQuality::multisampled;
-	_sceneWaterQuality = WaterQuality::distortedReflection;
-	_screenVSync = true;
-	_screenWindowed = true;
 
 	switch (q)
 	{
 	case Quality::low:
+		_gpuAnisotropyLevel = 0;
+		_gpuTrilinearFilter = false;
 		_sceneGrassDensity = 500;
 		_sceneShadowQuality = ShadowQuality::linear;
 		_sceneWaterQuality = WaterQuality::solidColor;
-		_screenSizeHeight = 600;
-		_screenSizeWidth = 800;
 		break;
 	case Quality::medium:
-		_gpuAnisotropyLevel = 4;
-		_screenSizeHeight = 768;
-		_screenSizeWidth = 1024;
 		break;
 	case Quality::high:
 		_gpuAnisotropyLevel = 8;
-		_gpuTrilinearFilter = true;
 		_postProcessBloom = true;
 		_postProcessCinema = true;
 		_postProcessSSAO = true;
 		_sceneGrassDensity = 1500;
 		_sceneShadowQuality = ShadowQuality::cascaded;
 		_sceneWaterQuality = WaterQuality::trueWavesReflection;
-		_screenSizeHeight = 720;
-		_screenSizeWidth = 1280;
 		break;
 	case Quality::ultra:
 		_gpuAnisotropyLevel = 16;
-		_gpuTrilinearFilter = true;
 		_postProcessBloom = true;
 		_postProcessCinema = true;
 		_postProcessMotionBlur = true;
@@ -204,17 +186,6 @@ void Settings::SetQuality(Quality q)
 		_screenSizeWidth = 1980;
 		break;
 	}
-
-#ifdef _WIN32
-#	ifndef _DEBUG
-	//_screenSizeHeight = GetSystemMetrics(SM_CYSCREEN);
-	//_screenSizeWidth = GetSystemMetrics(SM_CXSCREEN);
-	//_screenWindowed = false;
-#	endif
-#else // Linux?
-	_gapi = 0;
-	_gpuForcedProfile = "arb1";
-#endif
 }
 
 void Settings::MatchScreen()

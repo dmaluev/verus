@@ -153,8 +153,8 @@ extern "C"
 		shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_1);
 		shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
 
-		const TBuiltInResource builtInResources = glslang::DefaultTBuiltInResource;
-		const EShMessages messages = static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules | EShMsgReadHlsl);
+		const TBuiltInResource builtInResources = InitResources();
+		const EShMessages messages = static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules | EShMsgReadHlsl | EShMsgHlslLegalization);
 		MyIncluder includer;
 
 		if (!shader.parse(&builtInResources, defaultVersion, false, messages, includer))
@@ -188,7 +188,7 @@ extern "C"
 		if (flags & 0x1)
 		{
 			options.generateDebugInfo = true;
-			options.disableOptimizer = true;
+			options.disableOptimizer = false; // CRASH!
 			options.optimizeSize = false;
 		}
 		else
@@ -198,6 +198,14 @@ extern "C"
 			options.optimizeSize = true;
 		}
 		glslang::GlslangToSpv(*program.getIntermediate(stage), g_vSpirv, &logger, &options);
+
+		const std::string loggerMsgs = logger.getAllMessages();
+		if (!loggerMsgs.empty())
+		{
+			g_ret = loggerMsgs;
+			*ppErrorMsgs = g_ret.c_str();
+			return false;
+		}
 
 		const unsigned int magicNumber = 0x07230203;
 		if (g_vSpirv[0] != magicNumber)

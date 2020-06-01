@@ -72,6 +72,7 @@ void BaseTexture::LoadDDS(CSZ url, RcBlob blob)
 		desc._width = header._width >> lod;
 		desc._height = header._height >> lod;
 		desc._mipLevels = header._mipMapCount - lod;
+		desc._flags = _desc._flags;
 		desc._pSamplerDesc = _desc._pSamplerDesc;
 
 		Init(desc);
@@ -100,6 +101,7 @@ void BaseTexture::LoadDDS(CSZ url, RcBlob blob)
 			desc._width = header._width;
 			desc._height = header._height;
 			desc._mipLevels = header._mipMapCount;
+			desc._flags = _desc._flags;
 			desc._pSamplerDesc = _desc._pSamplerDesc;
 
 			Init(desc);
@@ -122,6 +124,7 @@ void BaseTexture::LoadDDS(CSZ url, RcBlob blob)
 			desc._width = header._width;
 			desc._height = header._height;
 			desc._mipLevels = header._mipMapCount;
+			desc._flags = _desc._flags;
 			desc._pSamplerDesc = _desc._pSamplerDesc;
 
 			Init(desc);
@@ -156,6 +159,7 @@ void BaseTexture::LoadDDS(CSZ url, RcBlob blob)
 			desc._width = header._width;
 			desc._height = header._height;
 			desc._mipLevels = header._mipMapCount;
+			desc._flags = _desc._flags;
 			desc._pSamplerDesc = _desc._pSamplerDesc;
 
 			Init(desc);
@@ -189,7 +193,6 @@ void BaseTexture::LoadDDSArray(CSZ* urls)
 {
 	TextureDesc desc;
 	desc._arrayLayers = 0;
-	desc._flags = TextureDesc::Flags::forceArrayTexture;
 	CSZ* urlsCount = urls;
 	while (*urlsCount)
 	{
@@ -258,6 +261,7 @@ void BaseTexture::LoadDDSArray(CSZ* urls)
 			desc._width = w;
 			desc._height = h;
 			desc._mipLevels = header._mipMapCount - lod;
+			desc._flags = _desc._flags | TextureDesc::Flags::forceArrayTexture;
 			desc._pSamplerDesc = _desc._pSamplerDesc;
 
 			if (init)
@@ -358,7 +362,8 @@ void TexturePtr::Init(RcTextureDesc desc)
 	VERUS_QREF_RENDERER;
 	VERUS_RT_ASSERT(!_p);
 	_p = renderer->InsertTexture();
-	_p->SetSamplerDesc(desc._pSamplerDesc);
+	_p->SetLoadingFlags(desc._flags);
+	_p->SetLoadingSamplerDesc(desc._pSamplerDesc);
 	if (desc._flags & TextureDesc::Flags::sync)
 	{
 		Vector<BYTE> vData;

@@ -39,6 +39,12 @@ struct FSO
 	float4 color : SV_Target0;
 };
 
+struct FSO2
+{
+	float4 target0 : SV_Target0;
+	float4 target1 : SV_Target1;
+};
+
 #ifdef _VS
 VSO mainVS(VSI si)
 {
@@ -54,64 +60,110 @@ VSO mainVS(VSI si)
 #endif
 
 #ifdef _FS
-FSO mainFS(VSO si)
-{
-	FSO so;
-
 #ifdef DEF_COMPOSE
-	const float3 colorAmbient = g_ubComposeFS._colorAmbient.rgb;
+FSO2 mainFS(VSO si)
+{
+	FSO2 so;
+
+	const float3 ambientColor = g_ubComposeFS._ambientColor_exposure.rgb;
 
 	const float2 ndcPos = si.clipSpacePos.xy;
 
 	const float4 rawGBuffer0 = g_texGBuffer0.Sample(g_samGBuffer0, si.tc0);
 	const float4 rawGBuffer1 = g_texGBuffer1.Sample(g_samGBuffer1, si.tc0);
-	const float4 rawGBuffer2 = g_texGBuffer2.Sample(g_samGBuffer2, si.tc0);
 	const float1 rawDepth = g_texDepth.Sample(g_samDepth, si.tc0).r;
-	const float3 normalWV = DS_GetNormal(rawGBuffer1);
-	const float2 emission = DS_GetEmission(rawGBuffer1);
 
 	const float4 rawAccDiff = g_texAccDiff.Sample(g_samAccDiff, si.tc0);
 	const float4 rawAccSpec = g_texAccSpec.Sample(g_samAccSpec, si.tc0);
 	const float4 accDiff = rawAccDiff;
 	const float4 accSpec = rawAccSpec;
 
+	// White color means 50% albedo, black is not really black:
+	const float3 albedo = max(rawGBuffer0.rgb * 0.5, 0.0001);
+	const float3 normalWV = DS_GetNormal(rawGBuffer1);
+	const float2 emission = DS_GetEmission(rawGBuffer1);
+	const float3 posW = DS_GetPosition(rawDepth, g_ubComposeFS._matInvVP, ndcPos);
+	const float depth = ToLinearDepth(rawDepth, g_ubComposeFS._zNearFarEx);
+
 	const float ssaoDiff = 1.0;
 	const float ssaoSpec = 1.0;
 	const float ssaoAmb = 1.0;
 
-	const float3 albedo = max(rawGBuffer0.rgb * g_ubComposeFS._toneMappingConfig.z, 0.0001);
-
-	const float depth = ToLinearDepth(rawDepth, g_ubComposeFS._zNearFarEx);
-	const float3 posW = DS_GetPosition(rawDepth, g_ubComposeFS._matInvVP, ndcPos);
-	const float fog = ComputeFog(depth, g_ubComposeFS._fogColor.a, posW.y);
-
 	const float3 normalW = mul(normalWV, (float3x3)g_ubComposeFS._matInvV);
-	const float grayAmbient = Grayscale(colorAmbient);
-	const float3 colorGround = lerp(colorAmbient, float3(1, 0.88, 0.47) * grayAmbient, saturate(grayAmbient * 14.0));
-	const float3 colorAmbientFinal = lerp(colorGround, colorAmbient, saturate(normalW.y * 2.0 + 0.5));
+	const float grayAmbient = Grayscale(ambientColor);
+	const float3 finalAmbientColor = lerp(grayAmbient * 0.5, ambientColor, normalW.y * 0.5 + 0.5);
 
 	const float3 color =
-		albedo * (accDiff.rgb * ssaoDiff + colorAmbientFinal * ssaoAmb) +
+		albedo * (accDiff.rgb * ssaoDiff + finalAmbientColor * ssaoAmb) +
 		accSpec.rgb * ssaoSpec +
 		albedo * emission.x;
 
-	const float3 colorWithFog = lerp(color, g_ubComposeFS._fogColor.rgb, fog);
+	// <Fog>
+	float3 colorWithFog;
+	{
+		const float fog = ComputeFog(depth, g_ubComposeFS._fogColor.a, posW.y);
+		colorWithFog = lerp(color, g_ubComposeFS._fogColor.rgb, fog);
+	}
+	// </Fog>
 
-	so.color.rgb = colorWithFog;
-	so.color.rgb = lerp(so.color.rgb, g_ubComposeFS._colorBackground.rgb, floor(rawDepth) * g_ubComposeFS._colorBackground.a);
-	so.color.a = 1.0;
-#endif
+	// <Underwater>
+	float3 underwaterColor;
+	{
+		const float diffuseMask = ToWaterDiffuseMask(posW.y);
+		const float refractMask = saturate((diffuseMask - 0.5) * 2.0);
+		const float3 waterDiffColorShallowAmbient = g_ubComposeFS._waterDiffColorShallow.rgb * ambientColor;
+		const float3 waterDiffColorDeepAmbient = g_ubComposeFS._waterDiffColorDeep.rgb * ambientColor;
+		const float deepAmbientColor = 0.5 + 0.5 * refractMask;
+		const float3 planktonColor = lerp(
+			waterDiffColorDeepAmbient * deepAmbientColor,
+			waterDiffColorShallowAmbient,
+			diffuseMask);
+		const float3 color = lerp(albedo * planktonColor * 10.0, colorWithFog, refractMask);
+		const float fog = ComputeFog(depth, g_ubComposeFS._waterDiffColorShallow.a);
+		underwaterColor = lerp(color, planktonColor * 0.1, fog * saturate(1.0 - refractMask + g_ubComposeFS._waterDiffColorDeep.a));
+	}
+	// </Underwater>
 
-#ifdef DEF_TONE_MAPPING
-	const float4 rawComposed = g_texGBuffer0.Sample(g_samGBuffer0, si.tc0);
+	so.target0.rgb = underwaterColor;
+	so.target0.a = 1.0;
 
-	so.color.rgb = VerusToneMapping(rawComposed.rgb * g_ubComposeFS._toneMappingConfig.x, g_ubComposeFS._toneMappingConfig.y);
-	so.color.a = 1.0;
-
-#endif
+	so.target1 = so.target0;
 
 	return so;
 }
+#endif
+#ifdef DEF_TONE_MAPPING
+FSO mainFS(VSO si)
+{
+	FSO so;
+
+	const float4 rawGBuffer0 = g_texGBuffer0.Sample(g_samGBuffer0, si.tc0);
+	const float4 rawGBuffer1 = g_texGBuffer1.Sample(g_samGBuffer1, si.tc0);
+	const float4 rawComposed = g_texDepth.Sample(g_samDepth, si.tc0);
+
+	const float3 exposedComposed = rawComposed.rgb * g_ubComposeFS._ambientColor_exposure.a;
+	so.color.rgb = VerusToneMapping(exposedComposed, 0.5);
+	so.color.a = 1.0;
+
+	// SolidColor (using special value 1.0 for emission):
+	so.color.rgb = lerp(so.color.rgb, rawGBuffer0.rgb, floor(rawGBuffer1.b));
+
+	// <BackgroundColor>
+	const float2 normalWasSet = ceil(rawGBuffer1.rg);
+	const float bg = 1.0 - saturate(normalWasSet.r + normalWasSet.g);
+	so.color.rgb = lerp(so.color.rgb, g_ubComposeFS._backgroundColor.rgb, bg * g_ubComposeFS._backgroundColor.a);
+	// </BackgroundColor>
+
+	if (false)
+	{
+		const float gray = Grayscale(rawComposed.rgb);
+		so.color.r = saturate((gray - 25.0) * 0.001);
+		so.color.gb *= 0.5;
+	}
+
+	return so;
+}
+#endif
 #endif
 
 //@main:#Compose COMPOSE

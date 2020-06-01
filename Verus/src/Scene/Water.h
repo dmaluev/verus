@@ -54,13 +54,13 @@ namespace verus
 			static UB_GenHeightmapFS s_ubGenHeightmapFS;
 			static UB_GenNormalsFS   s_ubGenNormalsFS;
 
+			Vector3                       _diffuseColorShallow = Vector3(0.02f, 0.42f, 0.52f);
+			Vector3                       _diffuseColorDeep = Vector3(0.01f, 0.01f, 0.06f);
 			PTerrain                      _pTerrain = nullptr;
-			Vector<Vertex>                _vSwapBuffer;
 			CGI::GeometryPwn              _geo;
 			CGI::ShaderPwns<SHADER_COUNT> _shader;
 			CGI::PipelinePwns<PIPE_COUNT> _pipe;
 			CGI::TexturePwns<TEX_COUNT>   _tex;
-			CGI::TexturePtr               _texLand;
 			CGI::CSHandle                 _cshWaterVS;
 			CGI::CSHandle                 _cshWaterFS;
 			CGI::RPHandle                 _rphGenHeightmap;
@@ -71,18 +71,17 @@ namespace verus
 			CGI::CSHandle                 _cshGenNormals;
 			CGI::RPHandle                 _rphReflection;
 			CGI::FBHandle                 _fbhReflection;
+			Camera                        _camera;
+			PCamera                       _pSceneCamera = nullptr;
 			const int                     _genSide = 1024;
-			const int                     _sideReflect = 256;
 			int                           _gridWidth = 128;
 			int                           _gridHeight = 512;
 			int                           _indexCount = 0;
 			const float                   _patchSide = 64;
+			const float                   _fogDensity = 0.02f;
 			float                         _phase = 0;
-			float                         _phaseWave = 0;
+			float                         _wavePhase = 0;
 			float                         _amplitudes[s_maxHarmonics];
-			bool                          _reflectionMode = false;
-			bool                          _renderToTexture = false;
-			bool                          _geoReady = false;
 
 		public:
 			Water();
@@ -94,6 +93,9 @@ namespace verus
 			void Update();
 			void Draw();
 
+			void OnSwapChainResized();
+
+			CGI::RPHandle GetRenderPassHandle() const { return _rphReflection; }
 			void BeginReflection(CGI::PBaseCommandBuffer pCB = nullptr);
 			void EndReflection(CGI::PBaseCommandBuffer pCB = nullptr);
 
@@ -104,15 +106,18 @@ namespace verus
 			// Caustics are highlights on ocean floor.
 			CGI::TexturePtr GetCausticsTexture() const;
 
-			// Render reflection when above or normal view when below water level.
-			bool IsReflectionMode() const { return _reflectionMode; }
-
-			// Is rendering done to water's renderer target?
-			bool IsRenderToTexture() const { return _renderToTexture; }
+			PCamera GetSceneCamera() { return _pSceneCamera; }
 
 			VERUS_P(void CreateWaterPlane());
 
 			static float PhillipsSpectrum(float k);
+
+			bool IsUnderwater() const;
+			bool IsUnderwater(RcPoint3 eyePos) const;
+
+			RcVector3 GetDiffuseColorShallow() const { return _diffuseColorShallow; }
+			RcVector3 GetDiffuseColorDeep() const { return _diffuseColorDeep; }
+			float GetFogDensity() const { return _fogDensity; }
 		};
 		VERUS_TYPEDEFS(Water);
 	}

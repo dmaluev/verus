@@ -161,23 +161,8 @@ void QuadtreeIntegral::TraverseVisible(int currentNode)
 
 	_testCount++;
 
-	{
-		Bounds bounds = _vNodes[currentNode].GetBounds();
-		Sphere sphere = _vNodes[currentNode].GetSphere();
-
-#if 0
-		if (Scene::CWater::I().IsReflectionMode())
-		{
-			Point3 c = sphere.GetCenter();
-			c.setY(-c.getY());
-			sphere.SetCenter(c);
-			bounds.MirrorY();
-		}
-#endif
-
-		if (Relation::outside == Scene::SceneManager::I().GetCamera()->GetFrustum().ContainsAabb(bounds))
-			return;
-	}
+	if (Relation::outside == Scene::SceneManager::I().GetCamera()->GetFrustum().ContainsAabb(_vNodes[currentNode].GetBounds()))
+		return;
 
 	// Yes, it is visible:
 	if (Node::HasChildren(currentNode, _nodeCount)) // Node has children -> update them:

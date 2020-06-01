@@ -176,6 +176,11 @@ namespace verus
 				VkImage image, uint32_t mipLevel, uint32_t arrayLayer,
 				uint32_t width, uint32_t height,
 				PBaseCommandBuffer pCB = nullptr);
+			void CopyImageToBuffer(
+				VkImage image, uint32_t mipLevel, uint32_t arrayLayer,
+				uint32_t width, uint32_t height,
+				VkBuffer buffer,
+				PBaseCommandBuffer pCB = nullptr);
 		};
 		VERUS_TYPEDEFS(RendererVulkan);
 	}

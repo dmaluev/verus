@@ -2,11 +2,12 @@
 
 VERUS_UBUFFER UB_PerFrame
 {
-	float4 _color;
-	float4 _time_cloudiness_expo;
-	float4 _dirToSun;
-	float4 _phaseAB;
+	float4 _time_cloudiness;
+	float4 _ambientColor;
 	float4 _fogColor;
+	float4 _dirToSun;
+	float4 _sunColor;
+	float4 _phaseAB;
 };
 
 VERUS_UBUFFER UB_PerMaterialFS
@@ -24,5 +25,4 @@ VERUS_UBUFFER UB_PerObject
 {
 	mataff _matW;
 	matrix _matWVP;
-	float4 _add;
 };

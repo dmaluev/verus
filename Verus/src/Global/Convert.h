@@ -48,6 +48,8 @@ namespace verus
 		// Colors:
 		static float SRGBToLinear(float color);
 		static float LinearToSRGB(float color);
+		static void SRGBToLinear(float color[]);
+		static void LinearToSRGB(float color[]);
 		static UINT32 Color16To32(UINT16 in);
 		static   void ColorInt32ToFloat(UINT32 in, float* out, bool sRGB = true);
 		static UINT32 ColorFloatToInt32(const float* in, bool sRGB = true);

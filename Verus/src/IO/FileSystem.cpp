@@ -560,7 +560,7 @@ void Image::Init(CSZ url)
 	FileSystem::LoadResourceFromFile(url, _vData);
 	ilGenImages(1, &_name);
 	ilBindImage(_name);
-	ilLoadL(IL_TYPE_UNKNOWN, _vData.data(), _vData.size());
+	ilLoadL(IL_TYPE_UNKNOWN, _vData.data(), Utils::Cast32(_vData.size()));
 	_width = ilGetInteger(IL_IMAGE_WIDTH);
 	_height = ilGetInteger(IL_IMAGE_HEIGHT);
 	_bytesPerPixel = ilGetInteger(IL_IMAGE_BYTES_PER_PIXEL);

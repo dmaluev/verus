@@ -68,7 +68,6 @@ BaseGame::~BaseGame()
 	Free_D();
 	Utils::FreeEx(&_alloc);
 	SDL_Quit();
-	//CGL::CRender::DoneWin32();
 }
 
 void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
@@ -93,7 +92,7 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
 	{
 		HRESULT hr = 0;
 		if (FAILED(hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)))
-			throw VERUS_RUNTIME_ERROR << "Reset(), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "SetProcessDpiAwareness(), hr=" << VERUS_HR(hr);
 		settings.UpdateHighDpiScale();
 	}
 
@@ -143,9 +142,6 @@ void BaseGame::Run(bool relativeMouseMode)
 
 	do // The Game Loop.
 	{
-		if (_p->_escapeKeyExitGame && km.IsKeyDownEvent(SDL_SCANCODE_ESCAPE))
-			Exit();
-
 		while (SDL_PollEvent(&event))
 		{
 			ImGui_ImplSDL2_ProcessEvent(&event);
@@ -227,11 +223,11 @@ void BaseGame::Run(bool relativeMouseMode)
 			}
 		}
 
+		if (_p->_escapeKeyExitGame && km.IsKeyDownEvent(SDL_SCANCODE_ESCAPE))
+			Exit();
+
 		if (_p->_minimized)
 			continue;
-
-		if (quit)
-			break;
 
 		//
 		// UPDATE
@@ -264,12 +260,12 @@ void BaseGame::Run(bool relativeMouseMode)
 			_p->_cameraSpirit.HandleInput();
 			_p->_cameraSpirit.Update();
 			_p->_camera.MoveEyeTo(_p->_cameraSpirit.GetPosition());
-			_p->_camera.MoveAtTo(_p->_cameraSpirit.GetPosition() + _p->_cameraSpirit.GetDirectionFront());
-			//if (Scene::CWater::IsValidSingleton())
+			_p->_camera.MoveAtTo(_p->_cameraSpirit.GetPosition() + _p->_cameraSpirit.GetFrontDirection());
+			if (Scene::Water::IsValidSingleton())
 			{
-				//	VERUS_QREF_WATER;
-				//	if (water.IsInitialized())
-				//		_p->_camera.ExcludeWaterLine();
+				VERUS_QREF_WATER;
+				if (water.IsInitialized())
+					_p->_camera.ExcludeWaterLine();
 			}
 			_p->_camera.Update();
 			sm.SetCamera(&_p->_camera);

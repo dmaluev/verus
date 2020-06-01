@@ -17,41 +17,41 @@ Spirit::~Spirit()
 {
 }
 
-void Spirit::ComputeDerivedVars()
+void Spirit::ComputeDerivedVars(float smoothSpeed)
 {
 	_dv._matPitch = Matrix3::rotationX(_pitch);
 	_dv._matYaw = Matrix3::rotationY(_yaw);
+	_dv._matLeanYaw = _dv._matYaw * Matrix3::rotationZ(-_yaw.GetDelta() * smoothSpeed * _turnLeanStrength);
 	_dv._matRot = _dv._matYaw * _dv._matPitch;
-	_dv._dirFront = _dv._matRot * Vector3(0, 0, 1);
-	_dv._dirFront2D = _dv._matYaw * Vector3(0, 0, 1);
-	_dv._dirSide = VMath::normalizeApprox(VMath::cross(_dv._dirFront, Vector3(0, 1, 0)));
-	_dv._dirSide2D = VMath::normalizeApprox(VMath::cross(_dv._dirFront2D, Vector3(0, 1, 0)));
+	_dv._frontDir = _dv._matRot * Vector3(0, 0, 1);
+	_dv._frontDir2D = _dv._matYaw * Vector3(0, 0, 1);
+	_dv._sideDir = VMath::normalizeApprox(VMath::cross(_dv._frontDir, Vector3(0, 1, 0)));
+	_dv._sideDir2D = VMath::normalizeApprox(VMath::cross(_dv._frontDir2D, Vector3(0, 1, 0)));
 }
 
 void Spirit::MoveFront(float x)
 {
-	_move += _dv._dirFront * x;
+	_move += _dv._frontDir * x;
 }
 
 void Spirit::MoveSide(float x)
 {
-	_move += _dv._dirSide * x;
+	_move += _dv._sideDir * x;
 }
 
 void Spirit::MoveFront2D(float x)
 {
-	_move += _dv._dirFront2D * x;
+	_move += _dv._frontDir2D * x;
 }
 
 void Spirit::MoveSide2D(float x)
 {
-	_move += _dv._dirSide2D * x;
+	_move += _dv._sideDir2D * x;
 }
 
 void Spirit::TurnPitch(float rad)
 {
-	_pitch = _pitch.GetTarget() + rad;
-	_pitch = Math::Clamp<float>(_pitch.GetTarget(), -_maxPitch, _maxPitch);
+	_pitch = Math::Clamp<float>(_pitch.GetTarget() + rad, -_maxPitch, _maxPitch);
 }
 
 void Spirit::TurnYaw(float rad)
@@ -61,7 +61,7 @@ void Spirit::TurnYaw(float rad)
 
 void Spirit::SetPitch(float rad)
 {
-	_pitch = rad;
+	_pitch = Math::Clamp<float>(rad, -_maxPitch, _maxPitch);
 }
 
 void Spirit::SetYaw(float rad)
@@ -73,9 +73,28 @@ void Spirit::HandleInput()
 {
 	VERUS_QREF_TIMER;
 
-	// Update velocity:
 	if (_accel)
 	{
+		// Normalize move vector:
+		_moveLen = VMath::length(_move);
+		if (_moveLen >= VERUS_FLOAT_THRESHOLD)
+			_move /= _moveLen;
+
+		_velocity += _move * (dt * _accel);
+
+		const float speed = VMath::length(_velocity);
+
+		if (speed > _maxSpeed) // Too fast?
+		{
+			_velocity /= speed;
+			_velocity *= _maxSpeed;
+		}
+		else if (speed < VERUS_FLOAT_THRESHOLD) // Too slow slowpoke.jpg?
+		{
+			_velocity = Vector3(0);
+		}
+
+		_move = _velocity;
 	}
 	else // No accel:
 	{
@@ -92,34 +111,33 @@ void Spirit::Update()
 	_pitch.Update();
 	_yaw.Update();
 
-	ComputeDerivedVars();
-
-	// Update position:
-	_positionPrev = _position;
-	_smoothPositionPrev = _smoothPosition;
-	{
-		_position += _velocity * dt;
-	}
+	// <Position>
+	_prevPosition = _position;
+	_smoothPrevPosition = _smoothPosition;
+	_position += _velocity * dt;
 	_smoothPosition = _position;
 	_smoothPosition.Update();
+	// </Position>
 
-	_speed = VMath::dist(_smoothPosition, _smoothPositionPrev) * timer.GetDeltaTimeInv();
+	_speed = VMath::dist(_smoothPosition, _smoothPrevPosition) * timer.GetDeltaTimeInv();
+	_smoothSpeed = _speed;
+	_smoothSpeed.Update();
 
-	// Friction:
+	// <Friction>
 	if (_decel && _moveLen < VERUS_FLOAT_THRESHOLD)
 	{
+		float speed = VMath::length(_velocity);
+		if (speed >= VERUS_FLOAT_THRESHOLD)
 		{
-			float speed = VMath::length(_velocity);
-			if (speed >= VERUS_FLOAT_THRESHOLD)
-			{
-				const Vector3 dir = _velocity / speed;
-				//speed = Math::Reduce(speed, _decel*dt);
-				_velocity = dir * speed;
-			}
+			const Vector3 dir = _velocity / speed;
+			speed = Math::Reduce(speed, _decel * dt);
+			_velocity = dir * speed;
 		}
 	}
+	// </Friction>
 
 	_move = Vector3(0);
+	ComputeDerivedVars();
 }
 
 void Spirit::SetAcceleration(float accel, float decel)
@@ -133,34 +151,34 @@ Point3 Spirit::GetPosition(bool smooth)
 	return smooth ? static_cast<Point3>(_smoothPosition) : _position;
 }
 
-void Spirit::MoveTo(RcPoint3 pos, float onTerrain)
+void Spirit::MoveTo(RcPoint3 pos)
 {
 	_position = pos;
-	_positionPrev = _position;
+	_prevPosition = _position;
 	_smoothPosition.ForceTarget(_position);
-	_smoothPositionPrev = _position;
+	_smoothPrevPosition = _position;
 }
 
 void Spirit::SetRemotePosition(RcPoint3 pos)
 {
-	_positionRemote = pos;
+	_remotePosition = pos;
 }
 
 bool Spirit::FitRemotePosition()
 {
 	VERUS_QREF_TIMER;
 	const Point3 pos = _position;
-	const float d = Math::Max(9.f, VMath::distSqr(_positionRemote, pos) * 4);
+	const float d = Math::Max(9.f, VMath::distSqr(_remotePosition, pos) * 4);
 	const float ratio = 1 / exp(dt * d);
 	const bool warp = d >= 4 * 4;
-	_position = warp ? _positionRemote : VMath::lerp(ratio, _positionRemote, pos);
+	_position = warp ? _remotePosition : VMath::lerp(ratio, _remotePosition, pos);
 	if (warp)
 	{
-		_positionPrev = _position;
+		_prevPosition = _position;
 		_smoothPosition.ForceTarget(_position);
-		_smoothPositionPrev = _position;
+		_smoothPrevPosition = _position;
 	}
-	_positionRemote += _velocity * dt; // Predict.
+	_remotePosition += _velocity * dt; // Predict.
 	return warp;
 }
 
@@ -220,4 +238,15 @@ Transform3 Spirit::GetMatrix() const
 Transform3 Spirit::GetUprightMatrix() const
 {
 	return Transform3(_dv._matYaw, Vector3(_smoothPosition));
+}
+
+Transform3 Spirit::GetUprightWithLeanMatrix() const
+{
+	return Transform3(_dv._matLeanYaw, Vector3(_smoothPosition));
+}
+
+float Spirit::GetMotionBlur() const
+{
+	VERUS_QREF_SM;
+	return sm.GetMainCamera()->ComputeMotionBlur(_smoothPosition, _smoothPrevPosition);
 }

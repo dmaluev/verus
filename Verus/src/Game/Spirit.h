@@ -6,41 +6,45 @@ namespace verus
 	{
 		class Spirit : public AllocatorAware
 		{
+		protected:
 			static const float s_defaultMaxPitch;
 
 			struct DerivedVars
 			{
 				Matrix3 _matPitch;
 				Matrix3 _matYaw;
+				Matrix3 _matLeanYaw;
 				Matrix3 _matRot;
-				Vector3 _dirFront = Vector3(0);
-				Vector3 _dirFront2D = Vector3(0);
-				Vector3 _dirSide = Vector3(0);
-				Vector3 _dirSide2D = Vector3(0);
+				Vector3 _frontDir = Vector3(0);
+				Vector3 _frontDir2D = Vector3(0);
+				Vector3 _sideDir = Vector3(0);
+				Vector3 _sideDir2D = Vector3(0);
 			};
 
 			DerivedVars                _dv;
 			Point3                     _position = Point3(0);
-			Point3                     _positionPrev = Point3(0);
-			Point3                     _positionRemote = Point3(0);
+			Point3                     _prevPosition = Point3(0);
+			Point3                     _remotePosition = Point3(0);
 			Vector3                    _velocity = Vector3(0);
 			Vector3                    _move = Vector3(0);
-			Point3                     _smoothPositionPrev = Point3(0);
-			Anim::Damping<Point3>      _smoothPosition;
-			Anim::Damping<float, true> _pitch;
-			Anim::Damping<float, true> _yaw;
+			Point3                     _smoothPrevPosition = Point3(0);
+			Anim::Elastic<Point3>      _smoothPosition;
+			Anim::Elastic<float, true> _pitch;
+			Anim::Elastic<float, true> _yaw;
+			Anim::Elastic<float>       _smoothSpeed;
+			float                      _speed = 0;
+			float                      _maxSpeed = 10;
 			float                      _moveLen = 0;
 			float                      _maxPitch = s_defaultMaxPitch;
 			float                      _accel = 0;
 			float                      _decel = 0;
-			float                      _speed = 0;
-			float                      _maxSpeed = 10;
+			float                      _turnLeanStrength = 0;
 
 		public:
 			Spirit();
 			virtual ~Spirit();
 
-			VERUS_P(void ComputeDerivedVars());
+			void ComputeDerivedVars(float smoothSpeed = 0);
 
 			// Move:
 			void MoveFront(float x);
@@ -60,19 +64,21 @@ namespace verus
 			virtual void Update();
 
 			void SetAcceleration(float accel = 5, float decel = 5);
+			float GetSpeed() const { return _speed; }
+			float GetSmoothSpeed() const { return _smoothSpeed; }
 			float GetMaxSpeed() const { return _maxSpeed; }
 			void SetMaxSpeed(float v = 10) { _maxSpeed = v; }
 
-			Point3 GetPosition(bool smooth = true);
-			void   MoveTo(RcPoint3 pos, float onTerrain = -1);
-			void   SetRemotePosition(RcPoint3 pos);
-			bool   FitRemotePosition();
+			Point3       GetPosition(bool smooth = true);
+			virtual void MoveTo(RcPoint3 pos);
+			void         SetRemotePosition(RcPoint3 pos);
+			bool         FitRemotePosition();
 
 			RcVector3 GetVelocity() const { return _velocity; }
 			void      SetVelocity(RcVector3 v) { _velocity = v; }
 
-			RcVector3 GetDirectionFront() const { return _dv._dirFront; }
-			RcVector3 GetDirectionSide() const { return _dv._dirSide; }
+			RcVector3 GetFrontDirection() const { return _dv._frontDir; }
+			RcVector3 GetSideDirection() const { return _dv._sideDir; }
 
 			//! Rotates smoothly across multiple frames.
 			void Rotate(RcVector3 front, float speed);
@@ -84,6 +90,11 @@ namespace verus
 			RcMatrix3 GetRotationMatrix() const;
 			Transform3 GetMatrix() const;
 			Transform3 GetUprightMatrix() const;
+			Transform3 GetUprightWithLeanMatrix() const;
+
+			float GetMotionBlur() const;
+
+			void SetTurnLeanStrength(float x) { _turnLeanStrength = x; }
 		};
 		VERUS_TYPEDEFS(Spirit);
 	}

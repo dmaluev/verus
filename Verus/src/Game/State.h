@@ -11,6 +11,7 @@ namespace verus
 			StateMachine* _pStateMachine = nullptr;
 
 		public:
+			StateMachine* GetStateMachine() const { return _pStateMachine; }
 			StateMachine* SetStateMachine(StateMachine* p) { return Utils::Swap(_pStateMachine, p); }
 
 			virtual bool IsValidNextState(State* p);

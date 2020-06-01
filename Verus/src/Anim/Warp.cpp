@@ -49,7 +49,9 @@ void Warp::Update(RSkeleton skeleton)
 					zone._off *= zone._maxOffset;
 				}
 
-				const Vector3 force = -zone._off * (zone._spring * 100) - zone._vel * zone._damping;
+				// Damped harmonic oscillator:
+				const float k = zone._spring * 100; // Stiffness.
+				const Vector3 force = -zone._off * k - zone._vel * zone._damping; // Hooke's law.
 				zone._vel += force * dt;
 				zone._off += zone._vel * dt;
 

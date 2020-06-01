@@ -18,11 +18,26 @@ namespace verus
 #include "../Shaders/GenerateMips.inc.hlsl"
 #include "../Shaders/Quad.inc.hlsl"
 
-			enum S
+			enum SHADER
 			{
-				S_GENERATE_MIPS,
-				S_QUAD,
-				S_MAX
+				SHADER_GENERATE_MIPS,
+				SHADER_QUAD,
+				SHADER_COUNT
+			};
+
+			enum PIPE
+			{
+				PIPE_GENERATE_MIPS,
+				PIPE_GENERATE_MIPS_EXPOSURE,
+				PIPE_OFFSCREEN_COLOR,
+				PIPE_COUNT
+			};
+
+			enum TEX
+			{
+				TEX_OFFSCREEN_COLOR,
+				TEX_DEPTH_STENCIL,
+				TEX_COUNT
 			};
 
 			struct Vertex
@@ -30,27 +45,34 @@ namespace verus
 				glm::vec2 _pos;
 			};
 
-			App::PWindow      _pMainWindow = nullptr;
-			PBaseRenderer     _pBaseRenderer = nullptr;
-			PRendererDelegate _pRendererDelegate = nullptr;
-			CommandBufferPwn  _commandBuffer;
-			GeometryPwn       _geoQuad;
-			ShaderPwns<S_MAX> _shader;
-			PipelinePwn       _pipeGenerateMips;
-			TexturePwn        _texDepthStencil;
-			DeferredShading   _ds;
-			UINT64            _frameCount = 0;
-			Gapi              _gapi = Gapi::unknown;
-			int               _swapChainWidth = 0;
-			int               _swapChainHeight = 0;
-			float             _fps = 30;
-			RPHandle          _rphSwapChain;
-			RPHandle          _rphSwapChainDepth;
-			Vector<FBHandle>  _fbhSwapChain;
-			Vector<FBHandle>  _fbhSwapChainDepth;
-			UB_GenerateMips   _ubGenerateMips;
-			UB_QuadVS         _ubQuadVS;
-			UB_QuadFS         _ubQuadFS;
+			App::PWindow             _pMainWindow = nullptr;
+			PBaseRenderer            _pBaseRenderer = nullptr;
+			PRendererDelegate        _pRendererDelegate = nullptr;
+			CommandBufferPwn         _commandBuffer;
+			GeometryPwn              _geoQuad;
+			ShaderPwns<SHADER_COUNT> _shader;
+			PipelinePwns<PIPE_COUNT> _pipe;
+			TexturePwns<TEX_COUNT>   _tex;
+			DeferredShading          _ds;
+			UINT64                   _frameCount = 0;
+			Gapi                     _gapi = Gapi::unknown;
+			int                      _swapChainWidth = 0;
+			int                      _swapChainHeight = 0;
+			float                    _fps = 30;
+			float                    _exposure[2] = {}; // Linear and EV.
+			RPHandle                 _rphSwapChain;
+			RPHandle                 _rphSwapChainWithDepth;
+			Vector<FBHandle>         _fbhSwapChain;
+			Vector<FBHandle>         _fbhSwapChainWithDepth;
+			RPHandle                 _rphOffscreen;
+			RPHandle                 _rphOffscreenWithDepth;
+			FBHandle                 _fbhOffscreen;
+			FBHandle                 _fbhOffscreenWithDepth;
+			CSHandle                 _cshOffscreenColor;
+			UB_GenerateMips          _ubGenerateMips;
+			UB_QuadVS                _ubQuadVS;
+			UB_QuadFS                _ubQuadFS;
+			bool                     _autoExposure = true;
 
 		public:
 			Renderer();
@@ -65,6 +87,7 @@ namespace verus
 			void Done();
 
 			// Frame cycle:
+			void Update();
 			void Draw();
 			void Present();
 
@@ -75,10 +98,13 @@ namespace verus
 
 			// Simple (fullscreen) quad:
 			void DrawQuad(PBaseCommandBuffer pCB = nullptr);
+			void DrawOffscreenColor(PBaseCommandBuffer pCB = nullptr, bool endRenderPass = true);
+			void DrawOffscreenColorSwitchRenderPass(PBaseCommandBuffer pCB = nullptr);
 
 			RDeferredShading GetDS() { return _ds; }
 			CommandBufferPtr GetCommandBuffer() const { return _commandBuffer; }
-			TexturePtr GetTexDepthStencil() const { return _texDepthStencil; }
+			TexturePtr GetTexOffscreenColor() const;
+			TexturePtr GetTexDepthStencil() const;
 
 			void OnShaderError(CSZ s);
 			void OnShaderWarning(CSZ s);
@@ -97,21 +123,36 @@ namespace verus
 			UINT64 GetFrameCount() const { return _frameCount; }
 
 			// RenderPass & Framebuffer:
-			RPHandle GetRenderPassHandle_SwapChain() const { return _rphSwapChain; }
-			RPHandle GetRenderPassHandle_SwapChainDepth() const { return _rphSwapChainDepth; }
-			FBHandle GetFramebufferHandle_SwapChain(int index) const { return _fbhSwapChain[index]; }
-			FBHandle GetFramebufferHandle_SwapChainDepth(int index) const { return _fbhSwapChainDepth[index]; }
+			RPHandle GetRenderPassHandle_SwapChain() const;
+			RPHandle GetRenderPassHandle_SwapChainWithDepth() const;
+			RPHandle GetRenderPassHandle_Offscreen() const;
+			RPHandle GetRenderPassHandle_OffscreenWithDepth() const;
+			RPHandle GetRenderPassHandle_Auto() const;
+			RPHandle GetRenderPassHandle_AutoWithDepth() const;
+			FBHandle GetFramebufferHandle_SwapChain(int index) const;
+			FBHandle GetFramebufferHandle_SwapChainWithDepth(int index) const;
+			FBHandle GetFramebufferHandle_Offscreen(int index) const;
+			FBHandle GetFramebufferHandle_OffscreenWithDepth(int index) const;
+			FBHandle GetFramebufferHandle_Auto(int index) const;
+			FBHandle GetFramebufferHandle_AutoWithDepth(int index) const;
 
 			// Generate mips:
-			PipelinePtr GetPipelineGenerateMips() { return _pipeGenerateMips; }
-			ShaderPtr GetShaderGenerateMips() { return _shader[S_GENERATE_MIPS]; }
-			UB_GenerateMips& GetUbGenerateMips() { return _ubGenerateMips; }
+			ShaderPtr GetShaderGenerateMips() const;
+			PipelinePtr GetPipelineGenerateMips(bool exposure = false) const;
+			UB_GenerateMips& GetUbGenerateMips();
 
 			// Quad:
-			GeometryPtr GetGeoQuad() const { return _geoQuad; }
-			ShaderPtr GetShaderQuad() { return _shader[S_QUAD]; }
-			UB_QuadVS& GetUbQuadVS() { return _ubQuadVS; }
-			UB_QuadFS& GetUbQuadFS() { return _ubQuadFS; }
+			GeometryPtr GetGeoQuad() const;
+			ShaderPtr GetShaderQuad() const;
+			UB_QuadVS& GetUbQuadVS();
+			UB_QuadFS& GetUbQuadFS();
+
+			// Exposure:
+			bool IsAutoExposureEnabled() const { return _autoExposure; }
+			void EnableAutoExposure(bool b = true) { _autoExposure = b; }
+			float GetExposure() const { return _exposure[0]; }
+			float GetExposureValue() const { return _exposure[1]; }
+			void SetExposureValue(float ev);
 		};
 		VERUS_TYPEDEFS(Renderer);
 	}

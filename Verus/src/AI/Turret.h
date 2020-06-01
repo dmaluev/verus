@@ -21,6 +21,9 @@ namespace verus
 			float GetActualPitch() const { return _actualPitch; }
 			float GetActualYaw() const { return _actualYaw; }
 
+			bool IsTargetPitchReached(float threshold) const;
+			bool IsTargetYawReached(float threshold) const;
+
 			// Speed:
 			float GetPitchSpeed()	const { return _pitchSpeed; }
 			float GetYawSpeed()		const { return _yawSpeed; }

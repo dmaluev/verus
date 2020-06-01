@@ -3,7 +3,7 @@
 #define _PARTITION_METHOD "fractional_even"
 
 // Hull shader's output, also domain shader's input.
-// Includes vertex position in world-view space and 2 control points in same space.
+// Includes vertex position in world-view space and 2 bezier control points in same space.
 // If all points are not visible, then clipped will be 1:
 #define _HSO_STRUCT struct HSO { \
 	float3 posWV[3]              : POSITIONS; \
@@ -16,7 +16,7 @@ struct PCFO
 {
 	float tessFactors[3]   : SV_TessFactor;
 	float insideTessFactor : SV_InsideTessFactor;
-	float3 viewB111        : VIEWB111;
+	float3 b111            : B111; // Bezier control point in the middle of a patch.
 };
 
 #define _HS_COPY(a) so.vso.a = inputPatch[id].a
@@ -31,8 +31,8 @@ struct PCFO
 	const uint thisID = id; \
 	const uint nextID = (thisID < 2) ? thisID + 1 : 0; \
 	so.posWV[0] = inputPatch[thisID].pos.xyz; \
-	so.posWV[1] = ComputeControlPoint(inputPatch[thisID].pos.xyz, inputPatch[nextID].pos.xyz, inputPatch[thisID].nrmWV.xyz); \
-	so.posWV[2] = ComputeControlPoint(inputPatch[nextID].pos.xyz, inputPatch[thisID].pos.xyz, inputPatch[nextID].nrmWV.xyz); \
+	so.posWV[1] = ComputeBezierPoint(inputPatch[thisID].pos.xyz, inputPatch[nextID].pos.xyz, inputPatch[thisID].nrmWV.xyz); \
+	so.posWV[2] = ComputeBezierPoint(inputPatch[nextID].pos.xyz, inputPatch[thisID].pos.xyz, inputPatch[nextID].nrmWV.xyz); \
 	so.clipped = ComputeClipping(matP, so.posWV[0], so.posWV[1], so.posWV[2]); \
 	so.oppositeEdgeTessFactor = ComputeEdgeTessFactor(matP, inputPatch[thisID].pos.xyz, inputPatch[nextID].pos.xyz, viewportSize.xy); \
 	const float3 normal = (inputPatch[thisID].nrmWV.xyz + inputPatch[nextID].nrmWV.xyz) * 0.5; \
@@ -49,18 +49,18 @@ struct PCFO
 	const float ratio = kB / sum; \
 	float3 myCP, exCP; \
 	so.posWV[0] = inputPatch[thisID].pos.xyz; \
-	myCP = ComputeControlPoint(inputPatch[thisID].pos.xyz, inputPatch[nextID].pos.xyz, inputPatch[thisID].nrmWV.xyz); \
-	exCP = ComputeControlPoint(inputPatch[thisEX].pos.xyz, inputPatch[nextEX].pos.xyz, inputPatch[thisEX].nrmWV.xyz); \
+	myCP = ComputeBezierPoint(inputPatch[thisID].pos.xyz, inputPatch[nextID].pos.xyz, inputPatch[thisID].nrmWV.xyz); \
+	exCP = ComputeBezierPoint(inputPatch[thisEX].pos.xyz, inputPatch[nextEX].pos.xyz, inputPatch[thisEX].nrmWV.xyz); \
 	so.posWV[1] = lerp(myCP, exCP, ratio); \
-	myCP = ComputeControlPoint(inputPatch[nextID].pos.xyz, inputPatch[thisID].pos.xyz, inputPatch[nextID].nrmWV.xyz); \
-	exCP = ComputeControlPoint(inputPatch[nextEX].pos.xyz, inputPatch[thisEX].pos.xyz, inputPatch[nextEX].nrmWV.xyz); \
+	myCP = ComputeBezierPoint(inputPatch[nextID].pos.xyz, inputPatch[thisID].pos.xyz, inputPatch[nextID].nrmWV.xyz); \
+	exCP = ComputeBezierPoint(inputPatch[nextEX].pos.xyz, inputPatch[thisEX].pos.xyz, inputPatch[nextEX].nrmWV.xyz); \
 	so.posWV[2] = lerp(myCP, exCP, ratio); \
 	so.clipped = ComputeClipping(matP, so.posWV[0], so.posWV[1], so.posWV[2]); \
 	so.oppositeEdgeTessFactor = ComputeEdgeTessFactor(matP, inputPatch[thisID].pos.xyz, inputPatch[nextID].pos.xyz, viewportSize.xy); \
 	const float3 normal = (inputPatch[thisID].nrmWV.xyz + inputPatch[thisEX].nrmWV.xyz + inputPatch[nextID].nrmWV.xyz + inputPatch[nextEX].nrmWV.xyz) * 0.25; \
 	so.oppositeEdgeTessFactor = (normal.z < -0.75) ? 0.0 : max(1.0, so.oppositeEdgeTessFactor * (1.0 - abs(normal.z * 0.75)));
 
-// Patch Constant Function, here central control point is calculated:
+// Patch Constant Function, here central bezier control point is calculated:
 #define _HS_PCF_BODY(matP) \
 	so.tessFactors[0] = outputPatch[1].oppositeEdgeTessFactor; \
 	so.tessFactors[1] = outputPatch[2].oppositeEdgeTessFactor; \
@@ -77,8 +77,8 @@ struct PCFO
 	const float3 b201 = outputPatch[2].posWV[2]; \
 	const float3 e = (b210 + b120 + b021 + b012 + b102 + b201) * (1.0 / 6.0); \
 	const float3 v = (b003 + b030 + b300) * (1.0 / 3.0); \
-	so.viewB111 = e + (e - v) * 0.5; \
-	const float b111Clipped = IsClipped(ApplyProjection(so.viewB111, matP)); \
+	so.b111 = e + (e - v) * 0.5; \
+	const float b111Clipped = IsClipped(ApplyProjection(so.b111, matP)); \
 	if (outputPatch[0].clipped && outputPatch[1].clipped && outputPatch[2].clipped && b111Clipped) { so.tessFactors[0] = 0.0; }
 
 #define _DS_INIT_FLAT_POS \
@@ -101,11 +101,13 @@ struct PCFO
 	outputPatch[1].posWV[2] * uvwSq3.z * uvw.y + \
 	outputPatch[2].posWV[1] * uvwSq3.z * uvw.x + \
 	outputPatch[2].posWV[2] * uvwSq3.x * uvw.z + \
-	si.viewB111 * uvw.x * uvw.y * uvw.z * 6.0
+	si.b111 * uvw.x * uvw.y * uvw.z * 6.0
 
-float3 ComputeControlPoint(float3 posA, float3 posB, float3 nrmA)
+float3 ComputeBezierPoint(float3 posA, float3 posB, float3 nrmA)
 {
-	return (2.0 * posA + posB - dot(posB - posA, nrmA) * nrmA) * (1.0 / 3.0);
+	// Project a 1/3 midpoint on the plane, which is defined by the nearest vertex and it's normal.
+	const float extrudeLen = dot(posB - posA, nrmA);
+	return (2.0 * posA + posB - extrudeLen * nrmA) * (1.0 / 3.0);
 }
 
 // Optimized version of the projection transform:

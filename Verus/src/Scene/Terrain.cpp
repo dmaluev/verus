@@ -407,6 +407,7 @@ void Terrain::InitStatic()
 			CGI::Sampler::linearMipN, // Normal
 			CGI::Sampler::linearMipN, // Blend
 			CGI::Sampler::linearMipN, // Layers
+			CGI::Sampler::shadow
 		}, CGI::ShaderStageFlags::fs);
 	s_shader[SHADER_SIMPLE]->CreatePipelineLayout();
 }
@@ -482,7 +483,7 @@ void Terrain::Init(RcDesc desc)
 
 		VERUS_FOR(lod, 5)
 		{
-			VERUS_P_FOR(i, _vPatches.size())
+			VERUS_P_FOR(i, Utils::Cast32(_vPatches.size()))
 			{
 				_vPatches[i].UpdateNormals(this, lod);
 			});
@@ -602,8 +603,11 @@ void Terrain::Init(RcDesc desc)
 	s_shader[SHADER_MAIN]->FreeDescriptorSet(_cshVS);
 	_cshVS = s_shader[SHADER_MAIN]->BindDescriptorSetTextures(0, { _tex[TEX_HEIGHTMAP], _tex[TEX_NORMALS] });
 
+	s_shader[SHADER_SIMPLE]->FreeDescriptorSet(_cshSimpleVS);
+	_cshSimpleVS = s_shader[SHADER_SIMPLE]->BindDescriptorSetTextures(0, { _tex[TEX_HEIGHTMAP], _tex[TEX_NORMALS] });
+
 	_vBlendBuffer.resize(_mapSide * _mapSide);
-	VERUS_P_FOR(i, _vBlendBuffer.size())
+	VERUS_P_FOR(i, Utils::Cast32(_vBlendBuffer.size()))
 	{
 		_vBlendBuffer[i] = VERUS_COLOR_RGBA(255, 0, 0, 255);
 	});
@@ -616,8 +620,33 @@ void Terrain::Init(RcDesc desc)
 	_vLayerUrls.reserve(s_maxLayers);
 }
 
+void Terrain::InitByWater()
+{
+	VERUS_QREF_WATER;
+
+	{
+		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], "#", water.GetRenderPassHandle());
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._rasterizationState._cullMode = CGI::CullMode::front;
+		_pipe[PIPE_REFLECTION_LIST].Init(pipeDesc);
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc._primitiveRestartEnable = true;
+		_pipe[PIPE_REFLECTION_STRIP].Init(pipeDesc);
+	}
+	{
+		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], "#", water.GetRenderPassHandle());
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+		_pipe[PIPE_UNDERWATER_LIST].Init(pipeDesc);
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc._primitiveRestartEnable = true;
+		_pipe[PIPE_UNDERWATER_STRIP].Init(pipeDesc);
+	}
+}
+
 void Terrain::Done()
 {
+	s_shader[SHADER_SIMPLE]->FreeDescriptorSet(_cshSimpleVS);
+	s_shader[SHADER_SIMPLE]->FreeDescriptorSet(_cshSimpleFS);
 	s_shader[SHADER_MAIN]->FreeDescriptorSet(_cshVS);
 	s_shader[SHADER_MAIN]->FreeDescriptorSet(_cshFS);
 
@@ -640,7 +669,6 @@ void Terrain::Layout()
 	std::for_each(_vPatches.begin(), _vPatches.end(), [](RTerrainPatch patch) {patch._quadtreeLOD = -1; });
 
 	PCamera pPrevCamera = nullptr;
-	Camera cam;
 	// For CSM we need to create geometry beyond the view frustum (1st slice):
 	if (settings._sceneShadowQuality >= App::Settings::ShadowQuality::cascaded && atmo.GetShadowMap().IsRendering())
 	{
@@ -775,6 +803,100 @@ void Terrain::Draw(RcDrawDesc dd)
 
 void Terrain::DrawReflection()
 {
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_SM;
+	VERUS_QREF_ATMO;
+	VERUS_QREF_CONST_SETTINGS;
+	VERUS_QREF_WATER;
+
+	if (!_visiblePatchCount)
+		return;
+
+	auto cb = renderer.GetCommandBuffer();
+
+	const Transform3 matW = Transform3::identity();
+	s_ubSimpleTerrainVS._matW = matW.UniformBufferFormat();
+	s_ubSimpleTerrainVS._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubSimpleTerrainVS._eyePos = float4(atmo.GetEyePosition().GLM(), 0);
+	s_ubSimpleTerrainVS._mapSideInv_clipDistanceOffset.x = 1.f / _mapSide;
+	s_ubSimpleTerrainVS._mapSideInv_clipDistanceOffset.y = static_cast<float>(water.IsUnderwater() ? USHRT_MAX : 0);
+
+	VERUS_FOR(i, VERUS_COUNT_OF(_layerData))
+		s_ubSimpleTerrainFS._vSpecStrength[i >> 2][i & 0x3] = _layerData[i]._specStrength;
+	s_ubSimpleTerrainFS._lamScaleBias.x = _lamScale;
+	s_ubSimpleTerrainFS._lamScaleBias.y = _lamBias;
+	s_ubSimpleTerrainFS._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0);
+	s_ubSimpleTerrainFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
+	s_ubSimpleTerrainFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
+	s_ubSimpleTerrainFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
+	s_ubSimpleTerrainFS._matSunShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matSunShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matSunShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matSunShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
+	memcpy(&s_ubSimpleTerrainFS._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubSimpleTerrainFS._shadowConfig));
+	s_ubSimpleTerrainFS._splitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
+
+	cb->BindVertexBuffers(_geo);
+	cb->BindIndexBuffer(_geo);
+
+	bool bindStrip = true;
+	const int half = _mapSide >> 1;
+	int firstInstance = 0;
+	int edge = _visiblePatchCount - 1;
+	int lod = _vPatches[_vSortedPatchIndices.front()]._quadtreeLOD;
+	s_shader[SHADER_SIMPLE]->BeginBindDescriptors();
+	VERUS_FOR(i, _visiblePatchCount)
+	{
+		RcTerrainPatch patch = _vPatches[_vSortedPatchIndices[i]];
+		if (patch._quadtreeLOD != lod || i == edge)
+		{
+			if (i == edge)
+				i++; // Drawing patches [firstInstance, i).
+
+			if (!lod)
+			{
+				if (water.IsUnderwater())
+					cb->BindPipeline(_pipe[PIPE_UNDERWATER_LIST]);
+				else
+					cb->BindPipeline(_pipe[PIPE_REFLECTION_LIST]);
+				cb->BindDescriptors(s_shader[SHADER_SIMPLE], 0, _cshSimpleVS);
+				cb->BindDescriptors(s_shader[SHADER_SIMPLE], 1, _cshSimpleFS);
+			}
+			else if (bindStrip)
+			{
+				bindStrip = false;
+				if (water.IsUnderwater())
+					cb->BindPipeline(_pipe[PIPE_UNDERWATER_STRIP]);
+				else
+					cb->BindPipeline(_pipe[PIPE_REFLECTION_STRIP]);
+				cb->BindDescriptors(s_shader[SHADER_SIMPLE], 0, _cshSimpleVS);
+				cb->BindDescriptors(s_shader[SHADER_SIMPLE], 1, _cshSimpleFS);
+			}
+
+			const int instanceCount = i - firstInstance; // Drawing patches [firstInstance, i).
+			for (int inst = firstInstance; inst < i; ++inst)
+			{
+				const int at = _instanceCount + inst;
+				RcTerrainPatch patchToDraw = _vPatches[_vSortedPatchIndices[inst]];
+				_vInstanceBuffer[at]._posPatch[0] = patchToDraw._ijCoord[1] - half;
+				_vInstanceBuffer[at]._posPatch[1] = patchToDraw._patchHeight;
+				_vInstanceBuffer[at]._posPatch[2] = patchToDraw._ijCoord[0] - half;
+				_vInstanceBuffer[at]._posPatch[3] = 0;
+				VERUS_ZERO_MEM(_vInstanceBuffer[at]._layers);
+				VERUS_FOR(ch, 4)
+					_vInstanceBuffer[at]._layers[ch] = patchToDraw._layerForChannel[ch];
+			}
+
+			cb->DrawIndexed(_lods[lod]._indexCount, instanceCount, _lods[lod]._firstIndex, 0, _instanceCount + firstInstance);
+
+			lod = patch._quadtreeLOD;
+			firstInstance = i;
+		}
+	}
+	s_shader[SHADER_SIMPLE]->EndBindDescriptors();
+
+	_instanceCount += _visiblePatchCount;
+	_geo->UpdateVertexBuffer(_vInstanceBuffer.data(), 1);
 }
 
 void Terrain::ResetInstanceCount()
@@ -1022,6 +1144,7 @@ void Terrain::LoadLayerTextures()
 
 	VERUS_QREF_MM;
 	VERUS_QREF_RENDERER;
+	VERUS_QREF_ATMO;
 
 	renderer->WaitIdle();
 
@@ -1058,6 +1181,8 @@ void Terrain::LoadLayerTextures()
 
 	s_shader[SHADER_MAIN]->FreeDescriptorSet(_cshFS);
 	_cshFS = s_shader[SHADER_MAIN]->BindDescriptorSetTextures(1, { _tex[TEX_NORMALS], _tex[TEX_BLEND], _tex[TEX_LAYERS], _tex[TEX_LAYERS_NM], mm.GetDetailTexture() });
+	s_shader[SHADER_SIMPLE]->FreeDescriptorSet(_cshSimpleFS);
+	_cshSimpleFS = s_shader[SHADER_SIMPLE]->BindDescriptorSetTextures(1, { _tex[TEX_NORMALS], _tex[TEX_BLEND], _tex[TEX_LAYERS], atmo.GetShadowMap().GetTexture() });
 }
 
 int Terrain::GetMainLayerAt(const int ij[2]) const
@@ -1124,8 +1249,9 @@ void Terrain::UpdateHeightmapTexture()
 			VERUS_FOR(j, side)
 			{
 				const int ij[] = { i * step, j * step };
-				const float bestPrecision = 50;
-				_vHeightmapSubresData[offset + j] = glm::packHalf1x16(GetHeightAt(ij, 0) - bestPrecision);
+				short h;
+				GetHeightAt(ij, 0, &h);
+				_vHeightmapSubresData[offset + j] = glm::packHalf1x16(h);
 			}
 		});
 		_tex[TEX_HEIGHTMAP]->UpdateSubresource(_vHeightmapSubresData.data(), lod);
@@ -1151,10 +1277,10 @@ void Terrain::UpdateNormalsTexture()
 			memcpy(tan, GetNormalAt(ij, 0, TerrainTBN::tangent), 3);
 			BYTE rgba[4] =
 			{
-				nrm[0] + 127,
-				nrm[2] + 127,
-				tan[1] + 127,
-				tan[2] + 127
+				static_cast<BYTE>(nrm[0] + 127),
+				static_cast<BYTE>(nrm[2] + 127),
+				static_cast<BYTE>(tan[1] + 127),
+				static_cast<BYTE>(tan[2] + 127)
 			};
 			memcpy(&_vNormalsSubresData[(i << _mapShift) + j], rgba, sizeof(UINT32));
 		}
@@ -1236,7 +1362,7 @@ void Terrain::Serialize(IO::RSeekableStream stream)
 	}
 
 	// Texture names:
-	BYTE layerCount = _vLayerUrls.size();
+	BYTE layerCount = Utils::Cast32(_vLayerUrls.size());
 	stream << layerCount;
 	VERUS_FOR(i, layerCount)
 	{

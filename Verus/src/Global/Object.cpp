@@ -7,6 +7,11 @@ Object::Object()
 	_flags = 0;
 }
 
+Object::Object(const Object& that) :
+	_flags(that._flags.load())
+{
+}
+
 Object::~Object()
 {
 	VERUS_RT_ASSERT(!IsInitialized());

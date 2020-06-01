@@ -60,22 +60,30 @@ void DeferredShading::Init()
 		});
 	_rphCompose = renderer->CreateRenderPass(
 		{
-			RP::Attachment("Composed", Format::floatR11G11B10).LoadOpDontCare().Layout(ImageLayout::fsReadOnly),
+			RP::Attachment("ComposedA", Format::floatR11G11B10).LoadOpDontCare().Layout(ImageLayout::fsReadOnly),
+			RP::Attachment("ComposedB", Format::floatR11G11B10).LoadOpDontCare().Layout(ImageLayout::fsReadOnly),
 			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilAttachment),
 		},
 		{
 			RP::Subpass("Sp0").Color(
 				{
-					RP::Ref("Composed", ImageLayout::colorAttachment)
-				}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilReadOnly)),
-			RP::Subpass("Sp1").Color(
-				{
-					RP::Ref("Composed", ImageLayout::colorAttachment)
-				}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachment)),
+					RP::Ref("ComposedA", ImageLayout::colorAttachment),
+					RP::Ref("ComposedB", ImageLayout::colorAttachment),
+				}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilReadOnly))
+		},
+		{});
+	_rphExtraCompose = renderer->CreateRenderPass(
+		{
+			RP::Attachment("ComposedA", Format::floatR11G11B10).LoadOpDontCare().Layout(ImageLayout::fsReadOnly),
+			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilAttachment),
 		},
 		{
-			RP::Dependency("Sp0", "Sp1").Mode(1)
-		});
+			RP::Subpass("Sp0").Color(
+				{
+					RP::Ref("ComposedA", ImageLayout::colorAttachment)
+				}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachment))
+		},
+		{});
 
 	_shader[SHADER_LIGHT].Init("[Shaders]:DS.hlsl");
 	_shader[SHADER_LIGHT]->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame));
@@ -108,18 +116,20 @@ void DeferredShading::Init()
 
 	{
 		PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader[SHADER_COMPOSE], "#Compose", _rphCompose);
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._topology = PrimitiveTopology::triangleStrip;
 		pipeDesc._depthTestEnable = false;
 		_pipe[PIPE_COMPOSE].Init(pipeDesc);
 	}
 	{
-		PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader[SHADER_COMPOSE], "#ToneMapping", renderer.GetRenderPassHandle_SwapChainDepth());
+		PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader[SHADER_COMPOSE], "#ToneMapping", renderer.GetRenderPassHandle_AutoWithDepth());
 		pipeDesc._topology = PrimitiveTopology::triangleStrip;
 		pipeDesc._depthTestEnable = false;
 		_pipe[PIPE_TONE_MAPPING].Init(pipeDesc);
 	}
 	{
-		PipelineDesc pipeDesc(renderer.GetGeoQuad(), renderer.GetShaderQuad(), "#", renderer.GetRenderPassHandle_SwapChainDepth());
+		PipelineDesc pipeDesc(renderer.GetGeoQuad(), renderer.GetShaderQuad(), "#", renderer.GetRenderPassHandle_AutoWithDepth());
 		pipeDesc._topology = PrimitiveTopology::triangleStrip;
 		pipeDesc._depthTestEnable = false;
 		_pipe[PIPE_QUAD].Init(pipeDesc);
@@ -135,7 +145,7 @@ void DeferredShading::InitGBuffers(int w, int h)
 	TextureDesc texDesc;
 
 	// GB0:
-	texDesc._clearValue = Vector4(0, 0, 0, 1);
+	texDesc._clearValue = Vector4(0);
 	texDesc._format = Format::srgbR8G8B8A8;
 	texDesc._width = w;
 	texDesc._height = h;
@@ -143,7 +153,7 @@ void DeferredShading::InitGBuffers(int w, int h)
 	_tex[TEX_GBUFFER_0].Init(texDesc);
 
 	// GB1:
-	texDesc._clearValue = Vector4(0.5f, 0.5f, 0.25f, 0.5f);
+	texDesc._clearValue = Vector4(0);
 	texDesc._format = Format::unormR10G10B10A2;
 	texDesc._width = w;
 	texDesc._height = h;
@@ -151,7 +161,7 @@ void DeferredShading::InitGBuffers(int w, int h)
 	_tex[TEX_GBUFFER_1].Init(texDesc);
 
 	// GB2:
-	texDesc._clearValue = Vector4(1, 1, 1, 1);
+	texDesc._clearValue = Vector4(0);
 	texDesc._format = Format::unormR8G8B8A8;
 	texDesc._width = w;
 	texDesc._height = h;
@@ -164,6 +174,8 @@ void DeferredShading::InitByAtmosphere(TexturePtr texShadow)
 	VERUS_QREF_RENDERER;
 
 	_texShadowAtmo = texShadow;
+
+	_shader[SHADER_LIGHT]->FreeDescriptorSet(_cshLight);
 	_cshLight = _shader[SHADER_LIGHT]->BindDescriptorSetTextures(1,
 		{
 			_tex[TEX_GBUFFER_0],
@@ -195,7 +207,8 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 		renderer->DeleteFramebuffer(_fbhCompose);
 		renderer->DeleteFramebuffer(_fbh);
 
-		_tex[TEX_COMPOSED].Done();
+		_tex[TEX_COMPOSED_B].Done();
+		_tex[TEX_COMPOSED_A].Done();
 		_tex[TEX_LIGHT_ACC_SPEC].Done();
 		_tex[TEX_LIGHT_ACC_DIFF].Done();
 		_tex[TEX_GBUFFER_2].Done();
@@ -217,7 +230,8 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 		texDesc._flags = TextureDesc::Flags::colorAttachment;
 		_tex[TEX_LIGHT_ACC_DIFF].Init(texDesc);
 		_tex[TEX_LIGHT_ACC_SPEC].Init(texDesc);
-		_tex[TEX_COMPOSED].Init(texDesc);
+		_tex[TEX_COMPOSED_A].Init(texDesc);
+		_tex[TEX_COMPOSED_B].Init(texDesc);
 
 		_fbh = renderer->CreateFramebuffer(_rph,
 			{
@@ -232,7 +246,15 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 			renderer.GetSwapChainHeight());
 		_fbhCompose = renderer->CreateFramebuffer(_rphCompose,
 			{
-				_tex[TEX_COMPOSED],
+				_tex[TEX_COMPOSED_A],
+				_tex[TEX_COMPOSED_B],
+				renderer.GetTexDepthStencil()
+			},
+			renderer.GetSwapChainWidth(),
+			renderer.GetSwapChainHeight());
+		_fbhExtraCompose = renderer->CreateFramebuffer(_rphExtraCompose,
+			{
+				_tex[TEX_COMPOSED_A],
 				renderer.GetTexDepthStencil()
 			},
 			renderer.GetSwapChainWidth(),
@@ -249,10 +271,10 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 			});
 		_cshToneMapping = _shader[SHADER_COMPOSE]->BindDescriptorSetTextures(1,
 			{
-				_tex[TEX_COMPOSED],
+				_tex[TEX_GBUFFER_0],
 				_tex[TEX_GBUFFER_1],
 				_tex[TEX_GBUFFER_2],
-				_tex[TEX_GBUFFER_0],
+				_tex[TEX_COMPOSED_A],
 				_tex[TEX_LIGHT_ACC_DIFF],
 				_tex[TEX_LIGHT_ACC_SPEC]
 			});
@@ -282,52 +304,50 @@ void DeferredShading::Draw(int gbuffer)
 	const float w = static_cast<float>(renderer.GetSwapChainWidth() / 2);
 	const float h = static_cast<float>(renderer.GetSwapChainHeight() / 2);
 
-	renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_QUAD]);
-
-	renderer.GetShaderQuad()->BeginBindDescriptors();
 	renderer.GetUbQuadVS()._matW = Math::QuadMatrix().UniformBufferFormat();
 	renderer.GetUbQuadVS()._matV = Math::ToUVMatrix().UniformBufferFormat();
-	renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 0);
 
+	auto cb = renderer.GetCommandBuffer();
+	auto shader = renderer.GetShaderQuad();
+
+	cb->BindPipeline(_pipe[PIPE_QUAD]);
+
+	shader->BeginBindDescriptors();
+	cb->BindDescriptors(shader, 0);
 	if (-1 == gbuffer)
 	{
-		renderer.GetCommandBuffer()->SetViewport({ Vector4(0, 0, w, h) });
-		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _cshQuad[0]);
-		renderer.DrawQuad();
+		cb->SetViewport({ Vector4(0, 0, w, h) });
+		cb->BindDescriptors(shader, 1, _cshQuad[0]);
+		renderer.DrawQuad(&(*cb));
 
-		renderer.GetCommandBuffer()->SetViewport({ Vector4(w, 0, w, h) });
-		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _cshQuad[1]);
-		renderer.DrawQuad();
+		cb->SetViewport({ Vector4(w, 0, w, h) });
+		cb->BindDescriptors(shader, 1, _cshQuad[1]);
+		renderer.DrawQuad(&(*cb));
 
-		renderer.GetCommandBuffer()->SetViewport({ Vector4(0, h, w, h) });
-		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _cshQuad[2]);
-		renderer.DrawQuad();
+		cb->SetViewport({ Vector4(0, h, w, h) });
+		cb->BindDescriptors(shader, 1, _cshQuad[2]);
+		renderer.DrawQuad(&(*cb));
 
-		renderer.GetCommandBuffer()->SetViewport({ Vector4(w, h, w, h) });
-		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _cshQuad[3]);
-		renderer.DrawQuad();
-
-		renderer.GetCommandBuffer()->SetViewport({ Vector4(0, 0, w * 2, h * 2) });
+		cb->SetViewport({ Vector4(0, 0, static_cast<float>(renderer.GetSwapChainWidth()), static_cast<float>(renderer.GetSwapChainHeight())) });
 	}
 	else if (-2 == gbuffer)
 	{
-		renderer.GetCommandBuffer()->SetViewport({ Vector4(0, 0, w, h) });
-		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _cshQuad[4]);
-		renderer.DrawQuad();
+		cb->SetViewport({ Vector4(0, 0, w, h) });
+		cb->BindDescriptors(shader, 1, _cshQuad[3]);
+		renderer.DrawQuad(&(*cb));
 
-		renderer.GetCommandBuffer()->SetViewport({ Vector4(w, 0, w, h) });
-		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _cshQuad[5]);
-		renderer.DrawQuad();
+		cb->SetViewport({ Vector4(w, 0, w, h) });
+		cb->BindDescriptors(shader, 1, _cshQuad[4]);
+		renderer.DrawQuad(&(*cb));
 
-		renderer.GetCommandBuffer()->SetViewport({ Vector4(0, 0, w * 2, h * 2) });
+		cb->SetViewport({ Vector4(0, 0, static_cast<float>(renderer.GetSwapChainWidth()), static_cast<float>(renderer.GetSwapChainHeight())) });
 	}
 	else
 	{
-		renderer.GetCommandBuffer()->BindDescriptors(renderer.GetShaderQuad(), 1, _cshQuad[gbuffer]);
-		renderer.DrawQuad();
+		cb->BindDescriptors(shader, 1, _cshQuad[gbuffer]);
+		renderer.DrawQuad(&(*cb));
 	}
-
-	renderer.GetShaderQuad()->EndBindDescriptors();
+	shader->EndBindDescriptors();
 }
 
 void DeferredShading::BeginGeometryPass(bool onlySetRT, bool spriteBaking)
@@ -428,39 +448,50 @@ void DeferredShading::EndLightingPass()
 	renderer.GetCommandBuffer()->EndRenderPass();
 }
 
-void DeferredShading::BeginCompose(RcVector4 bgColor)
+void DeferredShading::BeginCompose()
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
 	VERUS_QREF_ATMO;
-
-	renderer.GetCommandBuffer()->BeginRenderPass(_rphCompose, _fbhCompose,
-		{
-			_tex[TEX_COMPOSED]->GetClearValue(),
-			renderer.GetTexDepthStencil()->GetClearValue()
-		});
-
-	renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_COMPOSE]);
+	VERUS_QREF_WATER;
 
 	const Matrix4 matInvVP = VMath::inverse(sm.GetCamera()->GetMatrixVP());
 
-	_shader[SHADER_COMPOSE]->BeginBindDescriptors();
 	s_ubComposeVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubComposeVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 	s_ubComposeFS._matInvV = sm.GetCamera()->GetMatrixVi().UniformBufferFormat();
 	s_ubComposeFS._matInvVP = matInvVP.UniformBufferFormat();
-	s_ubComposeFS._colorAmbient = float4(atmo.GetAmbientColor().GLM(), 0);
-	s_ubComposeFS._colorBackground = bgColor.GLM();
+	s_ubComposeFS._ambientColor_exposure = float4(atmo.GetAmbientColor().GLM(), renderer.GetExposure());
 	s_ubComposeFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubComposeFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
-	memcpy(&s_ubComposeFS._toneMappingConfig.x, &_toneMappingConfig, sizeof(_toneMappingConfig));
-	renderer.GetCommandBuffer()->BindDescriptors(_shader[SHADER_COMPOSE], 0);
-	renderer.GetCommandBuffer()->BindDescriptors(_shader[SHADER_COMPOSE], 1, _cshCompose);
+	s_ubComposeFS._waterDiffColorShallow = float4(water.GetDiffuseColorShallow().GLM(), water.GetFogDensity());
+	s_ubComposeFS._waterDiffColorDeep = float4(water.GetDiffuseColorDeep().GLM(), water.IsUnderwater() ? 1.f : 0.f);
+
+	auto cb = renderer.GetCommandBuffer();
+
+	cb->BeginRenderPass(_rphCompose, _fbhCompose,
+		{
+			_tex[TEX_COMPOSED_A]->GetClearValue(),
+			_tex[TEX_COMPOSED_B]->GetClearValue(),
+			renderer.GetTexDepthStencil()->GetClearValue()
+		});
+
+	cb->BindPipeline(_pipe[PIPE_COMPOSE]);
+
+	_shader[SHADER_COMPOSE]->BeginBindDescriptors();
+	cb->BindDescriptors(_shader[SHADER_COMPOSE], 0);
+	cb->BindDescriptors(_shader[SHADER_COMPOSE], 1, _cshCompose);
 	_shader[SHADER_COMPOSE]->EndBindDescriptors();
 
-	renderer.DrawQuad();
+	renderer.DrawQuad(&(*cb));
 
-	renderer.GetCommandBuffer()->NextSubpass();
+	cb->EndRenderPass();
+
+	cb->BeginRenderPass(_rphExtraCompose, _fbhExtraCompose,
+		{
+			_tex[TEX_COMPOSED_A]->GetClearValue(),
+			renderer.GetTexDepthStencil()->GetClearValue()
+		});
 }
 
 void DeferredShading::EndCompose()
@@ -470,27 +501,30 @@ void DeferredShading::EndCompose()
 	renderer.GetCommandBuffer()->EndRenderPass();
 }
 
-void DeferredShading::ToneMapping()
+void DeferredShading::ToneMapping(RcVector4 bgColor)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
 	VERUS_QREF_ATMO;
 
-	renderer.GetCommandBuffer()->BindPipeline(_pipe[PIPE_TONE_MAPPING]);
-
-	_shader[SHADER_COMPOSE]->BeginBindDescriptors();
 	s_ubComposeVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubComposeVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 	s_ubComposeFS._matInvV = sm.GetCamera()->GetMatrixVi().UniformBufferFormat();
-	s_ubComposeFS._colorAmbient = float4(atmo.GetAmbientColor().GLM(), 0);
+	s_ubComposeFS._ambientColor_exposure = float4(atmo.GetAmbientColor().GLM(), renderer.GetExposure());
+	s_ubComposeFS._backgroundColor = bgColor.GLM();
 	s_ubComposeFS._fogColor = Vector4(0.5f, 0.5f, 0.5f, 0.002f).GLM();
 	s_ubComposeFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
-	memcpy(&s_ubComposeFS._toneMappingConfig.x, &_toneMappingConfig, sizeof(_toneMappingConfig));
-	renderer.GetCommandBuffer()->BindDescriptors(_shader[SHADER_COMPOSE], 0);
-	renderer.GetCommandBuffer()->BindDescriptors(_shader[SHADER_COMPOSE], 1, _cshToneMapping);
+
+	auto cb = renderer.GetCommandBuffer();
+
+	cb->BindPipeline(_pipe[PIPE_TONE_MAPPING]);
+
+	_shader[SHADER_COMPOSE]->BeginBindDescriptors();
+	cb->BindDescriptors(_shader[SHADER_COMPOSE], 0);
+	cb->BindDescriptors(_shader[SHADER_COMPOSE], 1, _cshToneMapping);
 	_shader[SHADER_COMPOSE]->EndBindDescriptors();
 
-	renderer.DrawQuad();
+	renderer.DrawQuad(&(*cb));
 }
 
 void DeferredShading::AntiAliasing()
@@ -585,4 +619,14 @@ void DeferredShading::Load()
 TexturePtr DeferredShading::GetGBuffer(int index)
 {
 	return _tex[index];
+}
+
+TexturePtr DeferredShading::GetComposedTextureA()
+{
+	return _tex[TEX_COMPOSED_A];
+}
+
+TexturePtr DeferredShading::GetComposedTextureB()
+{
+	return _tex[TEX_COMPOSED_B];
 }

@@ -48,7 +48,6 @@ struct VSO
 #endif
 };
 
-static const float g_bestPrecision = 50.0;
 static const float g_layerScale = 1.0 / 8.0;
 
 #ifdef _VS
@@ -68,7 +67,7 @@ VSO mainVS(VSI si)
 	// <HeightAndNormal>
 	float3 intactNrm;
 	{
-		const float approxHeight = g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + (0.5 * mapSideInv) * 16.0, 4.0).r + g_bestPrecision;
+		const float approxHeight = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + (0.5 * mapSideInv) * 16.0, 4.0).r);
 		pos.y = approxHeight;
 
 		const float distToEye = distance(pos, eyePos);
@@ -77,8 +76,8 @@ VSO mainVS(VSI si)
 		const float geomipsLodBase = floor(geomipsLod);
 		const float geomipsLodNext = geomipsLodBase + 1.0;
 		const float2 texelCenterAB = (0.5 * mapSideInv) * exp2(float2(geomipsLodBase, geomipsLodNext));
-		const float yA = g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + texelCenterAB.xx, geomipsLodBase).r + g_bestPrecision;
-		const float yB = g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + texelCenterAB.yy, geomipsLodNext).r + g_bestPrecision;
+		const float yA = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + texelCenterAB.xx, geomipsLodBase).r);
+		const float yB = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + texelCenterAB.yy, geomipsLodNext).r);
 		pos.y = lerp(yA, yB, geomipsLodFrac);
 
 		const float4 rawNormal = g_texNormalVS.SampleLevel(g_samNormalVS, tcMap + texelCenterAB.xx, geomipsLodBase);
@@ -114,7 +113,7 @@ PCFO PatchConstFunc(const OutputPatch<HSO, 3> outputPatch)
 }
 
 [domain("tri")]
-//[maxtessfactor(7.0)]
+[maxtessfactor(7.0)]
 [outputcontrolpoints(3)]
 [outputtopology("triangle_cw")]
 [partitioning(_PARTITION_METHOD)]
@@ -248,15 +247,15 @@ DS_FSO mainFS(VSO si)
 	// </Albedo>
 
 	// <Water>
-	float waterGlossBoost = 0.0;
+	float waterGlossBoost;
 	{
 		const float dryMask = saturate(si.tcBlend.z);
 		const float dryMask3 = dryMask * dryMask * dryMask;
 		const float wetMask = 1.0 - dryMask;
 		const float wetMask3 = wetMask * wetMask * wetMask;
 		albedo.rgb *= dryMask3 * 0.5 + 0.5;
-		specStrength = dryMask * saturate(specStrength + wetMask3 * wetMask3);
-		waterGlossBoost = min(32.0, dryMask * wetMask3 * 128.0);
+		specStrength = dryMask * saturate(specStrength + wetMask3 * wetMask3 * 0.1);
+		waterGlossBoost = min(32.0, dryMask * wetMask3 * 100.0);
 	}
 	// </Water>
 

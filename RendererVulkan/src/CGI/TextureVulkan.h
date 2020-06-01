@@ -22,6 +22,7 @@ namespace verus
 			Vector<UINT32>      _vDefinedSubresources;
 			Vector<VkImageView> _vStorageImageViews;
 			Vector<VkBufferEx>  _vStagingBuffers;
+			Vector<VkBufferEx>  _vReadbackBuffers;
 			Vector<CSHandle>    _vCshGenerateMips;
 			bool                _definedStorage = false;
 
@@ -33,6 +34,7 @@ namespace verus
 			virtual void Done() override;
 
 			virtual void UpdateSubresource(const void* p, int mipLevel, int arrayLayer, PBaseCommandBuffer pCB) override;
+			virtual bool ReadbackSubresource(void* p, PBaseCommandBuffer pCB) override;
 
 			virtual void GenerateMips(PBaseCommandBuffer pCB) override;
 

@@ -1,8 +1,6 @@
 // Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
 
 #include "Lib.hlsl"
-#include "LibDepth.hlsl"
-#include "LibLighting.hlsl"
 #include "LibSurface.hlsl"
 #include "WaterGen.inc.hlsl"
 
@@ -77,7 +75,7 @@ FSO mainGenHeightmapFS(VSO si)
 		accHeight += height;
 	}
 	const float splash = max(0.0, accHeight);
-	so.color = accHeight * 4.0 + splash * splash * splash * 10.0;
+	so.color = accHeight * 2.0 + splash * splash * splash * 16.0;
 
 	return so;
 }

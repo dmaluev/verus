@@ -16,9 +16,11 @@ void TextureD3D12::Init(RcTextureDesc desc)
 {
 	VERUS_INIT();
 	VERUS_RT_ASSERT(desc._width > 0 && desc._height > 0);
+	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
 
+	_initAtFrame = renderer.GetFrameCount();
 	_size = Vector4(
 		float(desc._width),
 		float(desc._height),
@@ -108,6 +110,29 @@ void TextureD3D12::Init(RcTextureDesc desc)
 		}
 	}
 
+	if (_desc._readbackMip != SHRT_MAX)
+	{
+		if (_desc._readbackMip < 0)
+			_desc._readbackMip = _desc._mipLevels + _desc._readbackMip;
+		const int w = Math::Max(1, _desc._width >> _desc._readbackMip);
+		const int h = Math::Max(1, _desc._height >> _desc._readbackMip);
+		const UINT64 bufferSize = _bytesPerPixel * w * h;
+		_vReadbackBuffers.resize(BaseRenderer::s_ringBufferSize);
+		for (auto& x : _vReadbackBuffers)
+		{
+			D3D12MA::ALLOCATION_DESC allocDesc = {};
+			allocDesc.HeapType = D3D12_HEAP_TYPE_READBACK;
+			if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+				&allocDesc,
+				&CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
+				D3D12_RESOURCE_STATE_COPY_DEST,
+				nullptr,
+				&x._pMaAllocation,
+				IID_PPV_ARGS(&x._pResource))))
+				throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_READBACK), hr=" << VERUS_HR(hr);
+		}
+	}
+
 	if (renderTarget)
 	{
 		_dhRTV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);
@@ -150,6 +175,13 @@ void TextureD3D12::Done()
 {
 	ForceScheduled();
 
+	for (auto& x : _vReadbackBuffers)
+	{
+		VERUS_SMART_RELEASE(x._pMaAllocation);
+		VERUS_COM_RELEASE_CHECK(x._pResource.Get());
+		x._pResource.Reset();
+	}
+	_vReadbackBuffers.clear();
 	_dhSampler.Reset();
 	_dhDSV.Reset();
 	_dhRTV.Reset();
@@ -212,7 +244,8 @@ void TextureD3D12::UpdateSubresource(const void* p, int mipLevel, int arrayLayer
 		sd.SlicePitch = _bytesPerPixel * w * h;
 	}
 	const UINT subresource = D3D12CalcSubresource(mipLevel, arrayLayer, 0, _desc._mipLevels, _desc._arrayLayers);
-	UpdateSubresources<1>(pCmdList,
+	UpdateSubresources<1>(
+		pCmdList,
 		_resource._pResource.Get(),
 		sb._pResource.Get(),
 		0,
@@ -222,6 +255,47 @@ void TextureD3D12::UpdateSubresource(const void* p, int mipLevel, int arrayLayer
 	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::transferDst, _mainLayout, mipLevel, arrayLayer);
 
 	Schedule();
+}
+
+bool TextureD3D12::ReadbackSubresource(void* p, PBaseCommandBuffer pCB)
+{
+	VERUS_QREF_RENDERER;
+	HRESULT hr = 0;
+
+	const int w = Math::Max(1, _desc._width >> _desc._readbackMip);
+	const int h = Math::Max(1, _desc._height >> _desc._readbackMip);
+	const UINT rowPitch = Math::AlignUp(_bytesPerPixel * w, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+
+	auto& rb = _vReadbackBuffers[renderer->GetRingBufferIndex()];
+
+	// Schedule copying to readback buffer:
+	if (!pCB)
+		pCB = &(*renderer.GetCommandBuffer());
+	auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
+	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), _mainLayout, ImageLayout::transferSrc, _desc._readbackMip, 0);
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+	footprint.Footprint.Format = ToNativeFormat(_desc._format, false);
+	footprint.Footprint.Width = w;
+	footprint.Footprint.Height = h;
+	footprint.Footprint.Depth = 1;
+	footprint.Footprint.RowPitch = rowPitch;
+	const UINT subresource = D3D12CalcSubresource(_desc._readbackMip, 0, 0, _desc._mipLevels, _desc._arrayLayers);
+	pCmdList->CopyTextureRegion(
+		&CD3DX12_TEXTURE_COPY_LOCATION(rb._pResource.Get(), footprint),
+		0, 0, 0,
+		&CD3DX12_TEXTURE_COPY_LOCATION(_resource._pResource.Get(), subresource),
+		nullptr);
+	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::transferSrc, _mainLayout, _desc._readbackMip, 0);
+
+	// Read current data from readback buffer:
+	CD3DX12_RANGE readRange(0, 0);
+	void* pData = nullptr;
+	if (FAILED(hr = rb._pResource->Map(0, &readRange, &pData)))
+		throw VERUS_RUNTIME_ERROR << "Map(), hr=" << VERUS_HR(hr);
+	memcpy(p, pData, _bytesPerPixel * w);
+	rb._pResource->Unmap(0, nullptr);
+
+	return _initAtFrame + BaseRenderer::s_ringBufferSize < renderer.GetFrameCount();
 }
 
 void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
@@ -238,7 +312,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 	if (_mainLayout != ImageLayout::xsReadOnly)
 		pCB->PipelineImageMemoryBarrier(tex, _mainLayout, ImageLayout::xsReadOnly, Range<int>(0, _desc._mipLevels - 1));
 
-	pCB->BindPipeline(renderer.GetPipelineGenerateMips());
+	pCB->BindPipeline(renderer.GetPipelineGenerateMips(!!(_desc._flags & TextureDesc::Flags::exposureMips)));
 
 	auto shader = renderer.GetShaderGenerateMips();
 	shader->BeginBindDescriptors();
@@ -253,7 +327,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 		const int dstWidth = Math::Max(1, srcWidth >> 1);
 		const int dstHeight = Math::Max(1, srcHeight >> 1);
 
-		int dispatchMipCount = 4;
+		int dispatchMipCount = Math::LowestBit((dstWidth == 1 ? dstHeight : dstWidth) | (dstHeight == 1 ? dstWidth : dstHeight));
 		dispatchMipCount = Math::Min(4, dispatchMipCount + 1);
 		dispatchMipCount = ((srcMip + dispatchMipCount) >= _desc._mipLevels) ? _desc._mipLevels - srcMip - 1 : dispatchMipCount; // Edge case.
 

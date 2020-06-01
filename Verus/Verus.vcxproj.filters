@@ -396,9 +396,6 @@
     <ClInclude Include="src\CGI\Types.h">
       <Filter>src\CGI</Filter>
     </ClInclude>
-    <ClInclude Include="src\Anim\Damping.h">
-      <Filter>src\Anim</Filter>
-    </ClInclude>
     <ClInclude Include="src\Game\Spirit.h">
       <Filter>src\Game</Filter>
     </ClInclude>
@@ -560,6 +557,18 @@
     </ClInclude>
     <ClInclude Include="src\Scene\Water.h">
       <Filter>src\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Cooldown.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Anim\Orbit.h">
+      <Filter>src\Anim</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\BaseCharacter.h">
+      <Filter>src\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Anim\Elastic.h">
+      <Filter>src\Anim</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -934,6 +943,15 @@
     </ClCompile>
     <ClCompile Include="src\Scene\Water.cpp">
       <Filter>src\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Global\Cooldown.cpp">
+      <Filter>src\Global</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Anim\Orbit.cpp">
+      <Filter>src\Anim</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\BaseCharacter.cpp">
+      <Filter>src\Game</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

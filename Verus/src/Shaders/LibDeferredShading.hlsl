@@ -73,13 +73,19 @@ void DS_SetNormal(inout DS_FSO so, float3 normal)
 float2 DS_GetEmission(float4 gbuffer)
 {
 	const float2 em_skin = saturate((gbuffer.b - 0.25) * float2(1.0 / 0.75, -1.0 / 0.25));
-	return float2(HDRColorToLinear(em_skin.x).r, em_skin.y);
+	const float em = exp2(em_skin.x * 15.0) - 1.0;
+	return float2(em, em_skin.y);
 }
 
 void DS_SetEmission(inout DS_FSO so, float emission, float skin)
 {
-	const float em = HDRColorToSRGB(emission).r;
+	const float em = saturate(log2(1.0 + emission) * (1.0 / 15.0));
 	so.target1.b = (3.0 * em - skin) * 0.25 + 0.25;
+}
+
+void DS_SetMotionBlur(inout DS_FSO so, float mb)
+{
+	so.target1.a = mb;
 }
 
 float2 DS_GetLamScaleBias(float4 gbuffer)
