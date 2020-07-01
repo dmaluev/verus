@@ -12,20 +12,22 @@ namespace verus
 			enum PIPE
 			{
 				PIPE_MAIN,
+				PIPE_INSTANCED,
 				PIPE_ROBOTIC,
 				PIPE_SKINNED,
 
-				PIPE_INSTANCED,
-
 				PIPE_DEPTH,
+				PIPE_DEPTH_INSTANCED,
 				PIPE_DEPTH_ROBOTIC,
 				PIPE_DEPTH_SKINNED,
 
 				PIPE_TESS,
+				PIPE_TESS_INSTANCED,
 				PIPE_TESS_ROBOTIC,
 				PIPE_TESS_SKINNED,
 
 				PIPE_WIREFRAME,
+				PIPE_WIREFRAME_INSTANCED,
 				PIPE_WIREFRAME_ROBOTIC,
 				PIPE_WIREFRAME_SKINNED,
 
@@ -53,6 +55,7 @@ namespace verus
 			Vector<PerInstanceData> _vInstanceBuffer;
 			int                     _instanceCapacity = 0;
 			int                     _instanceCount = 0;
+			int                     _firstInstance = 0;
 			UINT32                  _bindingsMask = 0;
 
 		public:
@@ -87,6 +90,7 @@ namespace verus
 
 			void BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb);
 			void BindPipeline(CGI::CommandBufferPtr cb, bool allowTess = true);
+			void BindPipelineInstanced(CGI::CommandBufferPtr cb, bool allowTess = true);
 			void BindGeo(CGI::CommandBufferPtr cb);
 			void BindGeo(CGI::CommandBufferPtr cb, UINT32 bindingsFilter);
 
@@ -106,11 +110,13 @@ namespace verus
 			// Instancing:
 			void PushInstance(RcTransform3 matW, RcVector4 instData);
 			bool IsInstanceBufferFull();
-			bool IsInstanceBufferEmpty();
+			bool IsInstanceBufferEmpty(bool fromFirstInstance = false);
 			void ResetInstanceCount();
+			void MarkFirstInstance() { _firstInstance = _instanceCount; }
 			void UpdateInstanceBuffer();
-			int GetInstanceCount() const { return _instanceCount; }
+			int GetInstanceCount(bool fromFirstInstance = false) const { return fromFirstInstance ? _instanceCount - _firstInstance : _instanceCount; }
 			int GetInstanceCapacity() const { return _instanceCapacity; }
+			int GetFirstInstance() const { return _firstInstance; }
 		};
 		VERUS_TYPEDEFS(Mesh);
 	}

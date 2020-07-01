@@ -5,7 +5,6 @@ using namespace verus::App;
 
 Settings::Settings()
 {
-	VERUS_ZERO_MEM(_commandLine);
 #ifdef _WIN32
 	if (0x419 == GetUserDefaultUILanguage())
 		_uiLang = "RU";
@@ -15,81 +14,6 @@ Settings::Settings()
 
 Settings::~Settings()
 {
-}
-
-void Settings::Load()
-{
-	Json::Load();
-
-	_quality = static_cast<Quality>(GetI("quality", +_quality));
-	_gapi = GetI("gapi", _gapi);
-	_gpuAnisotropyLevel = GetI("gpuAnisotropyLevel", _gpuAnisotropyLevel);
-	_gpuAntialiasingLevel = GetI("gpuAntialiasingLevel", _gpuAntialiasingLevel);
-	_gpuTessellation = GetB("gpuTessellation", _gpuTessellation);
-	_gpuTextureLodLevel = GetI("gpuTextureLodLevel", _gpuTextureLodLevel);
-	_gpuTrilinearFilter = GetB("gpuTrilinearFilter", _gpuTrilinearFilter);
-	_inputMouseSensitivity = GetF("inputMouseSensitivity", _inputMouseSensitivity);
-	_postProcessBloom = GetB("postProcessBloom", _postProcessBloom);
-	_postProcessCinema = GetB("postProcessCinema", _postProcessCinema);
-	_postProcessMotionBlur = GetB("postProcessMotionBlur", _postProcessMotionBlur);
-	_postProcessSSAO = GetB("postProcessSSAO", _postProcessSSAO);
-	_sceneGrassDensity = GetI("sceneGrassDensity", _sceneGrassDensity);
-	_sceneShadowQuality = static_cast<ShadowQuality>(GetI("sceneShadowQuality", +_sceneShadowQuality));
-	_sceneWaterQuality = static_cast<WaterQuality>(GetI("sceneWaterQuality", +_sceneWaterQuality));
-	_screenAllowHighDPI = GetB("screenAllowHighDPI", _screenAllowHighDPI);
-	_screenFOV = GetF("screenFOV", _screenFOV);
-	_screenOffscreenDraw = GetF("screenOffscreenDraw", _screenOffscreenDraw);
-	_screenSizeHeight = GetI("screenSizeHeight", _screenSizeHeight);
-	_screenSizeWidth = GetI("screenSizeWidth", _screenSizeWidth);
-	_screenVSync = GetB("screenVSync", _screenVSync);
-	_screenWindowed = GetB("screenWindowed", _screenWindowed);
-	_uiLang = GetS("uiLang", _C(_uiLang));
-}
-
-void Settings::Validate()
-{
-	_quality = Math::Clamp(_quality, Quality::low, Quality::ultra);
-	_gpuAnisotropyLevel = Math::Clamp(_gpuAnisotropyLevel, 0, 16);
-	_gpuAntialiasingLevel = Math::Clamp(_gpuAntialiasingLevel, 0, 16);
-	_gpuTextureLodLevel = Math::Clamp(_gpuTextureLodLevel, 0, 4);
-	_sceneGrassDensity = Math::Clamp(_sceneGrassDensity, 15, 1500);
-	_sceneShadowQuality = Math::Clamp(_sceneShadowQuality, ShadowQuality::none, ShadowQuality::ultra);
-	_sceneWaterQuality = Math::Clamp(_sceneWaterQuality, WaterQuality::solidColor, WaterQuality::trueWavesRefraction);
-	_screenFOV = Math::Clamp<float>(_screenFOV, 60, 90);
-	_screenSizeHeight = Math::Clamp(_screenSizeHeight, 270, 0x2000);
-	_screenSizeWidth = Math::Clamp(_screenSizeWidth, 480, 0x2000);
-
-	if (_uiLang != "RU" && _uiLang != "EN")
-		_uiLang = "EN";
-}
-
-void Settings::Save()
-{
-	Set("quality", +_quality);
-	Set("gapi", _gapi);
-	Set("gpuAnisotropyLevel", _gpuAnisotropyLevel);
-	Set("gpuAntialiasingLevel", _gpuAntialiasingLevel);
-	Set("gpuTessellation", _gpuTessellation);
-	Set("gpuTextureLodLevel", _gpuTextureLodLevel);
-	Set("gpuTrilinearFilter", _gpuTrilinearFilter);
-	Set("inputMouseSensitivity", _inputMouseSensitivity);
-	Set("postProcessBloom", _postProcessBloom);
-	Set("postProcessCinema", _postProcessCinema);
-	Set("postProcessMotionBlur", _postProcessMotionBlur);
-	Set("postProcessSSAO", _postProcessSSAO);
-	Set("sceneGrassDensity", _sceneGrassDensity);
-	Set("sceneShadowQuality", +_sceneShadowQuality);
-	Set("sceneWaterQuality", +_sceneWaterQuality);
-	Set("screenAllowHighDPI", _screenAllowHighDPI);
-	Set("screenFOV", _screenFOV);
-	Set("screenOffscreenDraw", _screenOffscreenDraw);
-	Set("screenSizeHeight", _screenSizeHeight);
-	Set("screenSizeWidth", _screenSizeWidth);
-	Set("screenVSync", _screenVSync);
-	Set("screenWindowed", _screenWindowed);
-	Set("uiLang", _C(_uiLang));
-
-	Json::Save();
 }
 
 void Settings::ParseCommandLineArgs(int argc, wchar_t* argv[])
@@ -114,11 +38,12 @@ void Settings::ParseCommandLineArgs(int argc, char* argv[])
 
 	VERUS_FOR(i, argc)
 	{
-		_commandLine._normalMapOnlyLS = _commandLine._normalMapOnlyLS || IsArg(i, "--normal-map-only-ls");
-		_commandLine._physicsDebug = _commandLine._physicsDebug || IsArg(i, "--physics-debug");
-		_commandLine._physicsDebugFull = _commandLine._physicsDebugFull || IsArg(i, "--physics-debug-full");
-		_commandLine._profiler = _commandLine._profiler || IsArg(i, "--profiler");
-		_commandLine._testTexToPix = _commandLine._testTexToPix || IsArg(i, "--test-tex-to-pix");
+		if (IsArg(i, "--gapi") && i + 1 < argc)
+			_commandLine._gapi = atoi(argv[i + 1]);
+		if (IsArg(i, "--fullscreen"))
+			_commandLine._fullscreen = true;
+		if (IsArg(i, "--windowed"))
+			_commandLine._windowed = true;
 	}
 
 	SetFilename("Settings.json");
@@ -186,6 +111,98 @@ void Settings::SetQuality(Quality q)
 		_screenSizeWidth = 1980;
 		break;
 	}
+}
+
+void Settings::Load()
+{
+	Json::Load();
+
+	_quality = static_cast<Quality>(GetI("quality", +_quality));
+	_gapi = GetI("gapi", _gapi);
+	_gpuAnisotropyLevel = GetI("gpuAnisotropyLevel", _gpuAnisotropyLevel);
+	_gpuAntialiasingLevel = GetI("gpuAntialiasingLevel", _gpuAntialiasingLevel);
+	_gpuTessellation = GetB("gpuTessellation", _gpuTessellation);
+	_gpuTextureLodLevel = GetI("gpuTextureLodLevel", _gpuTextureLodLevel);
+	_gpuTrilinearFilter = GetB("gpuTrilinearFilter", _gpuTrilinearFilter);
+	_inputMouseSensitivity = GetF("inputMouseSensitivity", _inputMouseSensitivity);
+	_postProcessBloom = GetB("postProcessBloom", _postProcessBloom);
+	_postProcessCinema = GetB("postProcessCinema", _postProcessCinema);
+	_postProcessMotionBlur = GetB("postProcessMotionBlur", _postProcessMotionBlur);
+	_postProcessSSAO = GetB("postProcessSSAO", _postProcessSSAO);
+	_sceneGrassDensity = GetI("sceneGrassDensity", _sceneGrassDensity);
+	_sceneShadowQuality = static_cast<ShadowQuality>(GetI("sceneShadowQuality", +_sceneShadowQuality));
+	_sceneWaterQuality = static_cast<WaterQuality>(GetI("sceneWaterQuality", +_sceneWaterQuality));
+	_screenAllowHighDPI = GetB("screenAllowHighDPI", _screenAllowHighDPI);
+	_screenFOV = GetF("screenFOV", _screenFOV);
+	_screenOffscreenDraw = GetF("screenOffscreenDraw", _screenOffscreenDraw);
+	_screenSizeHeight = GetI("screenSizeHeight", _screenSizeHeight);
+	_screenSizeWidth = GetI("screenSizeWidth", _screenSizeWidth);
+	_screenVSync = GetB("screenVSync", _screenVSync);
+	_screenWindowed = GetB("screenWindowed", _screenWindowed);
+	_uiLang = GetS("uiLang", _C(_uiLang));
+}
+
+void Settings::Validate()
+{
+	switch (_commandLine._gapi)
+	{
+	case 0: _gapi = 0; break;
+	case 12: _gapi = 12; break;
+	}
+	if (_commandLine._fullscreen)
+	{
+		_screenWindowed = false;
+		MatchScreen();
+	}
+	if (_commandLine._windowed)
+	{
+		_screenWindowed = true;
+		_screenSizeHeight = 720;
+		_screenSizeWidth = 1280;
+	}
+
+	_quality = Math::Clamp(_quality, Quality::low, Quality::ultra);
+	_gpuAnisotropyLevel = Math::Clamp(_gpuAnisotropyLevel, 0, 16);
+	_gpuAntialiasingLevel = Math::Clamp(_gpuAntialiasingLevel, 0, 16);
+	_gpuTextureLodLevel = Math::Clamp(_gpuTextureLodLevel, 0, 4);
+	_sceneGrassDensity = Math::Clamp(_sceneGrassDensity, 15, 1500);
+	_sceneShadowQuality = Math::Clamp(_sceneShadowQuality, ShadowQuality::none, ShadowQuality::ultra);
+	_sceneWaterQuality = Math::Clamp(_sceneWaterQuality, WaterQuality::solidColor, WaterQuality::trueWavesRefraction);
+	_screenFOV = Math::Clamp<float>(_screenFOV, 60, 90);
+	_screenSizeHeight = Math::Clamp(_screenSizeHeight, 270, 0x2000);
+	_screenSizeWidth = Math::Clamp(_screenSizeWidth, 480, 0x2000);
+
+	if (_uiLang != "RU" && _uiLang != "EN")
+		_uiLang = "EN";
+}
+
+void Settings::Save()
+{
+	Set("quality", +_quality);
+	Set("gapi", _gapi);
+	Set("gpuAnisotropyLevel", _gpuAnisotropyLevel);
+	Set("gpuAntialiasingLevel", _gpuAntialiasingLevel);
+	Set("gpuTessellation", _gpuTessellation);
+	Set("gpuTextureLodLevel", _gpuTextureLodLevel);
+	Set("gpuTrilinearFilter", _gpuTrilinearFilter);
+	Set("inputMouseSensitivity", _inputMouseSensitivity);
+	Set("postProcessBloom", _postProcessBloom);
+	Set("postProcessCinema", _postProcessCinema);
+	Set("postProcessMotionBlur", _postProcessMotionBlur);
+	Set("postProcessSSAO", _postProcessSSAO);
+	Set("sceneGrassDensity", _sceneGrassDensity);
+	Set("sceneShadowQuality", +_sceneShadowQuality);
+	Set("sceneWaterQuality", +_sceneWaterQuality);
+	Set("screenAllowHighDPI", _screenAllowHighDPI);
+	Set("screenFOV", _screenFOV);
+	Set("screenOffscreenDraw", _screenOffscreenDraw);
+	Set("screenSizeHeight", _screenSizeHeight);
+	Set("screenSizeWidth", _screenSizeWidth);
+	Set("screenVSync", _screenVSync);
+	Set("screenWindowed", _screenWindowed);
+	Set("uiLang", _C(_uiLang));
+
+	Json::Save();
 }
 
 void Settings::MatchScreen()

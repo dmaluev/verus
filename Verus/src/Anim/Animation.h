@@ -20,7 +20,7 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(MotionData);
 
-		typedef StoreUnique<String, MotionData> TStoreMotions;
+		typedef StoreUniqueWithNoRefCount<String, MotionData> TStoreMotions;
 		//! The collection of motion objects (Motion) that can be reused by multiple animation objects (Animation).
 		class Collection : private TStoreMotions, public IO::AsyncCallback
 		{

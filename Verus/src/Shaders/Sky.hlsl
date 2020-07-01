@@ -167,6 +167,7 @@ FSO mainSkyBodyFS(VSO_SKY_BODY si)
 #ifdef DEF_SUN
 	so.color.rgb *= lerp(float3(1.0, 0.2, 0.001), 1.0, mask);
 	so.color.rgb *= (60.0 * 1000.0) + (100.0 * 1000.0) * mask;
+	so.color.rgb = min(so.color.rgb, 32000.0);
 #endif
 #ifdef DEF_MOON
 	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * 12.0;

@@ -86,9 +86,9 @@ void Grass::Init(RTerrain terrain)
 	CGI::GeometryDesc geoDesc;
 	const CGI::VertexInputAttrDesc viaDesc[] =
 	{
-		{ 0, offsetof(Vertex, _pos),               CGI::IeType::shorts, 4, CGI::IeUsage::position, 0},
-		{ 0, offsetof(Vertex, _tc),                CGI::IeType::shorts, 4, CGI::IeUsage::texCoord, 0},
-		{-1, offsetof(PerInstanceData, _patchPos), CGI::IeType::shorts, 4, CGI::IeUsage::instData, 0},
+		{ 0, offsetof(Vertex, _pos),               CGI::ViaType::shorts, 4, CGI::ViaUsage::position, 0},
+		{ 0, offsetof(Vertex, _tc),                CGI::ViaType::shorts, 4, CGI::ViaUsage::texCoord, 0},
+		{-1, offsetof(PerInstanceData, _patchPos), CGI::ViaType::shorts, 4, CGI::ViaUsage::instData, 0},
 		CGI::VertexInputAttrDesc::End()
 	};
 	geoDesc._pVertexInputAttrDesc = viaDesc;
@@ -161,6 +161,18 @@ void Grass::Update()
 {
 	VERUS_UPDATE_ONCE_CHECK;
 
+	VERUS_QREF_ATMO;
+	VERUS_QREF_TIMER;
+
+	_phase = glm::fract(_phase + dt * 2.3f);
+
+	const float windSpeed = atmo.GetWindSpeed();
+	const float warpStrength = Math::Clamp<float>(windSpeed * (1 / 10.f), 0, 1.f);
+	const float turbulence = Math::Clamp<float>(windSpeed * (1 / 14.f), 0, 0.4f);
+
+	_warpSpring.Update(atmo.GetWindDirection() * (warpStrength * 30.f));
+	_turbulence = turbulence * turbulence;
+
 	// Async texture loading:
 	VERUS_FOR(i, s_maxBushTypes)
 	{
@@ -213,8 +225,7 @@ void Grass::Draw()
 	s_ubGrassVS._phase_mapSideInv_bushMask.z = *(float*)&bushMask;
 	s_ubGrassVS._posEye = float4(atmo.GetEyePosition().GLM(), 0);
 	s_ubGrassVS._viewportSize = cb->GetViewportSize().GLM();
-	//s_ubGrassVS._wind = Vector3(VMath::normalize(atmo.GetWindVelocity()) * bendByWind);
-	//s_ubGrassVS._wind.w = m_shaker.Get();
+	s_ubGrassVS._warp_turb = Vector4(_warpSpring.GetOffset(), _turbulence).GLM();
 
 	cb->BindVertexBuffers(_geo);
 	cb->BindIndexBuffer(_geo);
@@ -271,7 +282,7 @@ void Grass::ResetInstanceCount()
 	_instanceCount = 0;
 }
 
-void Grass::QuadtreeIntegral_ProcessVisibleNode(const short* ij, RcPoint3 center)
+void Grass::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center)
 {
 	VERUS_QREF_ATMO;
 
@@ -292,7 +303,7 @@ void Grass::QuadtreeIntegral_ProcessVisibleNode(const short* ij, RcPoint3 center
 	_vPatches[_visiblePatchCount++] = patch;
 }
 
-void Grass::QuadtreeIntegral_GetHeights(const short* ij, float height[2])
+void Grass::QuadtreeIntegral_GetHeights(const short ij[2], float height[2])
 {
 	VERUS_RT_FAIL(__FUNCTION__);
 }

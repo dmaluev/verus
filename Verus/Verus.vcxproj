@@ -116,6 +116,7 @@
     <ClInclude Include="src\CGI\CGI.h" />
     <ClInclude Include="src\CGI\DebugDraw.h" />
     <ClInclude Include="src\CGI\DeferredShading.h" />
+    <ClInclude Include="src\CGI\DynamicBuffer.h" />
     <ClInclude Include="src\CGI\RendererParser.h" />
     <ClInclude Include="src\CGI\Scheduled.h" />
     <ClInclude Include="src\CGI\TextureRAM.h" />
@@ -129,6 +130,10 @@
     <ClInclude Include="src\D\Log.h" />
     <ClInclude Include="src\D\Recoverable.h" />
     <ClInclude Include="src\D\RuntimeError.h" />
+    <ClInclude Include="src\Effects\Bloom.h" />
+    <ClInclude Include="src\Effects\Blur.h" />
+    <ClInclude Include="src\Effects\Effects.h" />
+    <ClInclude Include="src\Effects\Ssao.h" />
     <ClInclude Include="src\Extra\Extra.h" />
     <ClInclude Include="src\Extra\FileParser.h" />
     <ClInclude Include="src\Game\BaseGame.h" />
@@ -158,6 +163,21 @@
     <ClInclude Include="src\Global\Str.h" />
     <ClInclude Include="src\Global\Timer.h" />
     <ClInclude Include="src\Global\Utils.h" />
+    <ClInclude Include="src\GUI\Animator.h" />
+    <ClInclude Include="src\GUI\Button.h" />
+    <ClInclude Include="src\GUI\Container.h" />
+    <ClInclude Include="src\GUI\Cursor.h" />
+    <ClInclude Include="src\GUI\Font.h" />
+    <ClInclude Include="src\GUI\GUI.h" />
+    <ClInclude Include="src\GUI\Image.h" />
+    <ClInclude Include="src\GUI\Label.h" />
+    <ClInclude Include="src\GUI\Sizer.h" />
+    <ClInclude Include="src\GUI\Table.h" />
+    <ClInclude Include="src\GUI\TextBox.h" />
+    <ClInclude Include="src\GUI\View.h" />
+    <ClInclude Include="src\GUI\ViewController.h" />
+    <ClInclude Include="src\GUI\ViewManager.h" />
+    <ClInclude Include="src\GUI\Widget.h" />
     <ClInclude Include="src\Input\Input.h" />
     <ClInclude Include="src\Input\KeyMapper.h" />
     <ClInclude Include="src\Input\DragController.h" />
@@ -200,16 +220,19 @@
     <ClInclude Include="src\Physics\Groups.h" />
     <ClInclude Include="src\Physics\KinematicCharacterController.h" />
     <ClInclude Include="src\Physics\Physics.h" />
+    <ClInclude Include="src\Physics\Spring.h" />
     <ClInclude Include="src\Physics\UserPtr.h" />
     <ClInclude Include="src\Scene\Atmosphere.h" />
     <ClInclude Include="src\Scene\BaseMesh.h" />
     <ClInclude Include="src\Scene\Camera.h" />
     <ClInclude Include="src\Scene\CameraOrbit.h" />
     <ClInclude Include="src\Scene\EditorTerrain.h" />
+    <ClInclude Include="src\Scene\Forest.h" />
     <ClInclude Include="src\Scene\Grass.h" />
     <ClInclude Include="src\Scene\Helpers.h" />
     <ClInclude Include="src\Scene\MaterialManager.h" />
     <ClInclude Include="src\Scene\Mesh.h" />
+    <ClInclude Include="src\Scene\Scatter.h" />
     <ClInclude Include="src\Scene\Scene.h" />
     <ClInclude Include="src\Scene\SceneManager.h" />
     <ClInclude Include="src\Scene\ShadowMap.h" />
@@ -284,6 +307,10 @@
     <ClCompile Include="src\CGI\TextureRAM.cpp" />
     <ClCompile Include="src\D\D.cpp" />
     <ClCompile Include="src\D\Log.cpp" />
+    <ClCompile Include="src\Effects\Bloom.cpp" />
+    <ClCompile Include="src\Effects\Blur.cpp" />
+    <ClCompile Include="src\Effects\Effects.cpp" />
+    <ClCompile Include="src\Effects\Ssao.cpp" />
     <ClCompile Include="src\Extra\Extra.cpp" />
     <ClCompile Include="src\Extra\FileParser.cpp" />
     <ClCompile Include="src\Game\BaseGame.cpp" />
@@ -302,6 +329,21 @@
     <ClCompile Include="src\Global\Str.cpp" />
     <ClCompile Include="src\Global\Timer.cpp" />
     <ClCompile Include="src\Global\Utils.cpp" />
+    <ClCompile Include="src\GUI\Animator.cpp" />
+    <ClCompile Include="src\GUI\Button.cpp" />
+    <ClCompile Include="src\GUI\Container.cpp" />
+    <ClCompile Include="src\GUI\Cursor.cpp" />
+    <ClCompile Include="src\GUI\Font.cpp" />
+    <ClCompile Include="src\GUI\GUI.cpp" />
+    <ClCompile Include="src\GUI\Image.cpp" />
+    <ClCompile Include="src\GUI\Label.cpp" />
+    <ClCompile Include="src\GUI\Sizer.cpp" />
+    <ClCompile Include="src\GUI\Table.cpp" />
+    <ClCompile Include="src\GUI\TextBox.cpp" />
+    <ClCompile Include="src\GUI\View.cpp" />
+    <ClCompile Include="src\GUI\ViewController.cpp" />
+    <ClCompile Include="src\GUI\ViewManager.cpp" />
+    <ClCompile Include="src\GUI\Widget.cpp" />
     <ClCompile Include="src\Input\Input.cpp" />
     <ClCompile Include="src\Input\KeyMapper.cpp" />
     <ClCompile Include="src\Input\DragController.cpp" />
@@ -338,15 +380,18 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\Physics\Physics.cpp" />
+    <ClCompile Include="src\Physics\Spring.cpp" />
     <ClCompile Include="src\Scene\Atmosphere.cpp" />
     <ClCompile Include="src\Scene\BaseMesh.cpp" />
     <ClCompile Include="src\Scene\Camera.cpp" />
     <ClCompile Include="src\Scene\CameraOrbit.cpp" />
     <ClCompile Include="src\Scene\EditorTerrain.cpp" />
+    <ClCompile Include="src\Scene\Forest.cpp" />
     <ClCompile Include="src\Scene\Grass.cpp" />
     <ClCompile Include="src\Scene\Helpers.cpp" />
     <ClCompile Include="src\Scene\MaterialManager.cpp" />
     <ClCompile Include="src\Scene\Mesh.cpp" />
+    <ClCompile Include="src\Scene\Scatter.cpp" />
     <ClCompile Include="src\Scene\Scene.cpp" />
     <ClCompile Include="src\Scene\SceneManager.cpp" />
     <ClCompile Include="src\Scene\ShadowMap.cpp" />
@@ -637,6 +682,48 @@
       <FileType>Document</FileType>
     </None>
     <None Include="src\Shaders\SimpleTerrain.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\Font.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\Font.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\GUI.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\GUI.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\Ssao.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\Ssao.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\Blur.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\Blur.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\Bloom.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\Bloom.inc.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

@@ -74,6 +74,10 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
 {
 	VERUS_SDL_CENTERED;
 
+	const int ret = SDL_Init(SDL_INIT_EVERYTHING);
+	if (ret)
+		throw VERUS_RUNTIME_ERROR << "SDL_Init(), " << ret;
+
 	Utils::I().InitPaths();
 
 	App::Settings::Make();
@@ -83,10 +87,6 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
 	settings.Validate();
 	settings.Save();
 	BaseGame_UpdateSettings();
-
-	const int ret = SDL_Init(SDL_INIT_EVERYTHING);
-	if (ret)
-		throw VERUS_RUNTIME_ERROR << "SDL_Init(), " << ret;
 
 	if (settings._screenAllowHighDPI)
 	{
@@ -117,6 +117,7 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
 
 	renderer->BeginFrame(false); // Begin recording a command buffer.
 	renderer.InitCmd();
+	_engineInit.InitCmd();
 	mm.InitCmd();
 	BaseGame_LoadContent();
 	renderer->EndFrame(false); // End recording a command buffer.

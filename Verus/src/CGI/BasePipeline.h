@@ -36,6 +36,12 @@ namespace verus
 			PipelineDesc(ShaderPtr shader, CSZ branch) :
 				_shader(shader), _shaderBranch(branch), _compute(true) {}
 
+			void DisableDepthTest()
+			{
+				_depthTestEnable = false;
+				_depthWriteEnable = false;
+			}
+
 			void EnableDepthBias()
 			{
 				_rasterizationState._depthBiasEnable = true;

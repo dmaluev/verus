@@ -24,9 +24,12 @@ namespace verus
 			void Update();
 
 			CGI::TexturePtr GetTex() const { return (_texHuge && _texHuge->IsLoaded()) ? _texHuge : _texTiny; }
+			CGI::TexturePtr GetTinyTex() const { return _texTiny; }
+			CGI::TexturePtr GetHugeTex() const { return _texHuge; }
 
 			void ResetPart() { _requestedPart = FLT_MAX; }
 			void IncludePart(float part) { _requestedPart = Math::Min(_requestedPart, part); }
+			int GetPart() const;
 		};
 		VERUS_TYPEDEFS(Texture);
 
@@ -89,6 +92,7 @@ namespace verus
 				void FromPixels(const glm::vec4& pix);
 			};
 
+			INT64          _cshFreeFrame = -1;
 			String         _name;
 			IO::Dictionary _dict;
 			glm::vec2      _alphaSwitch = glm::vec2(1, 1);
@@ -116,6 +120,10 @@ namespace verus
 			Pick           _userPick;
 			Blending       _blending = Blending::opaque;
 			CGI::CSHandle  _csh;
+			CGI::CSHandle  _cshTiny;
+			CGI::CSHandle  _cshTemp;
+			int            _albedoPart = -1;
+			int            _normalPart = -1;
 			int            _refCount = 0;
 
 			Material();
@@ -136,11 +144,11 @@ namespace verus
 
 			void SetName(CSZ name) { _name = name; }
 
-			String ToString();
+			String ToString(bool cleanDict = false);
 			void FromString(CSZ txt);
 
 			// Mesh interaction:
-			CGI::CSHandle GetComplexSetHandle() const { return _csh; }
+			CGI::CSHandle GetComplexSetHandle() const;
 			void BindDescriptorSetTextures();
 			bool UpdateMeshUniformBuffer(float motionBlur = 1);
 

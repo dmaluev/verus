@@ -22,6 +22,11 @@ float3 ConvertRGBtoHCV(float3 color)
 	return float3(h, c, q.x);
 }
 
+float Contrast(float gray, float contrast)
+{
+	return saturate(((gray - 0.5) * contrast) + 0.5);
+}
+
 float3 Overlay(float3 colorA, float3 colorB)
 {
 	const float3 x = step(0.5, colorA);

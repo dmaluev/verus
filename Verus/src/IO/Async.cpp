@@ -77,7 +77,10 @@ void Async::Load(CSZ url, PAsyncCallback pCallback, RcTaskDesc desc)
 		}
 
 		if (full)
+		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(290));
+			Update();
+		}
 	} while (full);
 
 	_cv.notify_one();
@@ -246,7 +249,7 @@ void Async::ThreadProc()
 		VERUS_LOCK(*this);
 		_ex = e;
 	}
-	catch (const std::exception & e)
+	catch (const std::exception& e)
 	{
 		VERUS_LOCK(*this);
 		_ex = VERUS_RUNTIME_ERROR << e.what();

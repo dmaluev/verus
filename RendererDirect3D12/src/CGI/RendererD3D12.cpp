@@ -330,6 +330,12 @@ void RendererD3D12::CreateSamplers()
 	desc.MaxAnisotropy = settings._gpuAnisotropyLevel;
 	_vSamplers[+Sampler::anisoClamp] = desc;
 
+	desc = init;
+	desc.Filter = D3D12_FILTER_ANISOTROPIC;
+	desc.MipLODBias = -0.5f;
+	desc.MaxAnisotropy = settings._gpuAnisotropyLevel;
+	_vSamplers[+Sampler::anisoSharp] = desc;
+
 	// <Wrap>
 	desc = init;
 	_vSamplers[+Sampler::linearMipL] = desc;

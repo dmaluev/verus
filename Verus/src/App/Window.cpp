@@ -38,10 +38,12 @@ void Window::Init(RcDesc constDesc)
 		flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 	if (desc._resizable)
 		flags |= SDL_WINDOW_RESIZABLE;
-	if (0 == settings._gapi)
-		flags |= SDL_WINDOW_VULKAN;
+	if (desc._maximized)
+		flags |= SDL_WINDOW_MAXIMIZED;
 	if (settings._screenAllowHighDPI)
 		flags |= SDL_WINDOW_ALLOW_HIGHDPI;
+	if (0 == settings._gapi)
+		flags |= SDL_WINDOW_VULKAN;
 
 	_pWnd = SDL_CreateWindow(
 		desc._title ? desc._title : "",

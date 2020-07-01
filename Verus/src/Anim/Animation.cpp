@@ -19,7 +19,7 @@ void Collection::Async_Run(CSZ url, RcBlob blob)
 	IO::StreamPtr sp(blob);
 	CSZ niceName = strrchr(url, '/');
 	niceName = niceName ? niceName + 1 : url;
-	RMotionData md = _map[niceName];
+	RMotionData md = *TStoreMotions::Insert(niceName);
 	md._motion.Init();
 	md._motion.Deserialize(sp);
 	if (md._duration)
@@ -30,7 +30,7 @@ void Collection::AddMotion(CSZ name, bool loop, float duration)
 {
 	CSZ niceName = strrchr(name, '/');
 	niceName = niceName ? niceName + 1 : name;
-	RMotionData md = _map[niceName];
+	RMotionData md = *TStoreMotions::Insert(niceName);
 	md._duration = duration;
 	md._loop = loop;
 	IO::Async::I().Load(name, this);
@@ -39,7 +39,7 @@ void Collection::AddMotion(CSZ name, bool loop, float duration)
 void Collection::DeleteAll()
 {
 	IO::Async::Cancel(this);
-	_map.clear();
+	TStoreMotions::DeleteAll();
 }
 
 PMotionData Collection::Find(CSZ name)
@@ -50,7 +50,7 @@ PMotionData Collection::Find(CSZ name)
 int Collection::GetMaxBones()
 {
 	int count = 0;
-	VERUS_FOREACH(TStoreMotions::TMap, _map, it)
+	VERUS_FOREACH(TStoreMotions::TMap, TStoreMotions::_map, it)
 		count = Math::Max(count, it->second._motion.GetBoneCount());
 	return count;
 }

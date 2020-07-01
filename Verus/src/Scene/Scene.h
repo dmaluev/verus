@@ -13,6 +13,8 @@
 #include "MaterialManager.h"
 #include "SceneManager.h"
 #include "Helpers.h"
+#include "Scatter.h"
+#include "Forest.h"
 
 namespace verus
 {

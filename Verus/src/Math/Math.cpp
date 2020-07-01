@@ -244,7 +244,7 @@ Transform3 Math::QuadMatrix(float x, float y, float w, float h)
 	return mat;
 }
 
-Transform3 Math::ToUVMatrix(float zOffset, RcVector4 texSize, PcVector4 pTileSize)
+Transform3 Math::ToUVMatrix(float zOffset, RcVector4 texSize, PcVector4 pTileSize, float uOffset, float vOffset)
 {
 	Transform3 m = Transform3::identity();
 	m[0][0] = m[3][0] = m[3][1] = 0.5f;
@@ -255,6 +255,12 @@ Transform3 Math::ToUVMatrix(float zOffset, RcVector4 texSize, PcVector4 pTileSiz
 		m = VMath::prependScale(Vector3(
 			texSize.getX() * pTileSize->getZ(),
 			texSize.getY() * pTileSize->getW(), 1), m);
+
+	if (uOffset || vOffset)
+	{
+		const Vector4 uvOffset(uOffset * texSize.getZ(), vOffset * texSize.getW());
+		m = Transform3::translation(uvOffset.getXYZ()) * m;
+	}
 
 	return m;
 }

@@ -112,6 +112,24 @@ void FileSystem::PreloadCache(CSZ pak, CSZ types[])
 	}
 }
 
+void FileSystem::PreloadDefaultCache()
+{
+	CSZ types[] =
+	{
+		".primary",
+		".rig",
+		".txt",
+		".xml",
+		".xmt",
+		".xwa",
+		".xwx",
+		nullptr
+	};
+	PreloadCache("Misc.pak", types);
+	PreloadCache("Models.pak", types);
+	PreloadCache("Textures.pak", types);
+}
+
 void FileSystem::LoadResource(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc)
 {
 	String pakPathname, pakEntry;

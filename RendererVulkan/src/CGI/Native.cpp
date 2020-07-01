@@ -145,26 +145,26 @@ VkShaderStageFlags CGI::ToNativeStageFlags(ShaderStageFlags stageFlags)
 	return ret;
 }
 
-int CGI::ToNativeLocation(IeUsage usage, int usageIndex)
+int CGI::ToNativeLocation(ViaUsage usage, int usageIndex)
 {
 	switch (usage)
 	{
-	case IeUsage::position: return 0;
-	case IeUsage::blendWeights: return 1;
-	case IeUsage::blendIndices: return 6;
-	case IeUsage::normal: return 2;
-	case IeUsage::tangent: return 14;
-	case IeUsage::binormal: return 15;
-	case IeUsage::color: return 3 + usageIndex;
-	case IeUsage::psize: return 7;
-	case IeUsage::texCoord: return 8 + usageIndex;
-	case IeUsage::instData: return 16 + usageIndex;
-	case IeUsage::attr: return usageIndex;
+	case ViaUsage::position: return 0;
+	case ViaUsage::blendWeights: return 1;
+	case ViaUsage::blendIndices: return 6;
+	case ViaUsage::normal: return 2;
+	case ViaUsage::tangent: return 14;
+	case ViaUsage::binormal: return 15;
+	case ViaUsage::color: return 3 + usageIndex;
+	case ViaUsage::psize: return 7;
+	case ViaUsage::texCoord: return 8 + usageIndex;
+	case ViaUsage::instData: return 16 + usageIndex;
+	case ViaUsage::attr: return usageIndex;
 	default: throw VERUS_RECOVERABLE << "ToNativeLocation()";
 	}
 }
 
-VkFormat CGI::ToNativeFormat(IeUsage usage, IeType type, int components)
+VkFormat CGI::ToNativeFormat(ViaUsage usage, ViaType type, int components)
 {
 	VERUS_RT_ASSERT(components >= 1 && components <= 4);
 	int index = components - 1;
@@ -203,34 +203,34 @@ VkFormat CGI::ToNativeFormat(IeUsage usage, IeType type, int components)
 	};
 	switch (type)
 	{
-	case IeType::floats:
+	case ViaType::floats:
 	{
 		return floats[index];
 	}
 	break;
-	case IeType::ubytes:
+	case ViaType::ubytes:
 	{
 		VERUS_RT_ASSERT(4 == components);
 		switch (usage)
 		{
-		case IeUsage::normal: index += 8; break; // SNORM.
-		case IeUsage::color: index += 4; break; // UNORM.
+		case ViaUsage::normal: index += 8; break; // SNORM.
+		case ViaUsage::color: index += 4; break; // UNORM.
 		}
 		return bytes[index];
 	}
 	break;
-	case IeType::shorts:
+	case ViaType::shorts:
 	{
 		VERUS_RT_ASSERT(2 == components || 4 == components);
 		switch (usage)
 		{
-		case IeUsage::tangent:
-		case IeUsage::binormal:
+		case ViaUsage::tangent:
+		case ViaUsage::binormal:
 			index += 4; break; // SNORM.
 		}
 		return shorts[index];
 	}
 	break;
-	default: throw VERUS_RECOVERABLE << "ToNativeFormat(), IeType=?";
+	default: throw VERUS_RECOVERABLE << "ToNativeFormat(), ViaType=?";
 	}
 }

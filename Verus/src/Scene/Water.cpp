@@ -76,7 +76,7 @@ void Water::Init(RTerrain terrain)
 	CGI::GeometryDesc geoDesc;
 	const CGI::VertexInputAttrDesc viaDesc[] =
 	{
-		{0, offsetof(Vertex, _pos), CGI::IeType::floats, 4, CGI::IeUsage::position, 0},
+		{0, offsetof(Vertex, _pos), CGI::ViaType::floats, 4, CGI::ViaUsage::position, 0},
 		CGI::VertexInputAttrDesc::End()
 	};
 	geoDesc._pVertexInputAttrDesc = viaDesc;
@@ -100,13 +100,13 @@ void Water::Init(RTerrain terrain)
 	{
 		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader[SHADER_GEN], "#GenHeightmap", _rphGenHeightmap);
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
-		pipeDesc._depthTestEnable = false;
+		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_GEN_HEIGHTMAP].Init(pipeDesc);
 	}
 	{
 		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader[SHADER_GEN], "#GenNormals", _rphGenNormals);
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
-		pipeDesc._depthTestEnable = false;
+		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_GEN_NORMALS].Init(pipeDesc);
 	}
 

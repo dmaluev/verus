@@ -18,26 +18,26 @@ void EngineInit::Make()
 		Make_CGI();
 	if (_makePhysics)
 		Make_Physics();
-	//if (_makeEffects)
-	//	Make_Effects();
+	if (_makeEffects)
+		Make_Effects();
 	if (_makeExtra)
 		Make_Extra();
 	if (_makeScene)
 		Make_Scene();
-	//if (_makeGUI)
-	//	Make_GUI();
+	if (_makeGUI)
+		Make_GUI();
 }
 
 void EngineInit::Free()
 {
-	//if (_makeGUI)
-	//	Free_GUI();
+	if (_makeGUI)
+		Free_GUI();
 	if (_makeScene)
 		Free_Scene();
 	if (_makeExtra)
 		Free_Extra();
-	//if (_makeEffects)
-	//	Free_Effects();
+	if (_makeEffects)
+		Free_Effects();
 	if (_makePhysics)
 		Free_Physics();
 	if (_makeCGI)
@@ -80,8 +80,8 @@ void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::Rendere
 	// Static init:
 	//if (_makeEffects)
 	//	Effects::CParticles::InitStatic();
-	//if (_makeGUI)
-	//	GUI::CFont::InitStatic();
+	if (_makeGUI)
+		GUI::Font::InitStatic();
 	if (_makeScene)
 	{
 		Scene::Mesh::InitStatic();
@@ -97,17 +97,25 @@ void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::Rendere
 		Scene::Helpers::I().Init();
 
 	// Effects:
-	//if (_makeEffects)
-	//{
-	//	Effects::CBlur::I().Init();
-	//	Effects::CBloom::I().Init();
-	//	Effects::CSsao::I().Init();
-	//}
+	if (_makeEffects)
+	{
+		Effects::Bloom::I().Init();
+		Effects::Ssao::I().Init();
+		Effects::Blur::I().Init();
+	}
 
 	// Materials & textures:
 	if (_makeScene)
 		Scene::MaterialManager::I().Init();
 
-	//if (_makeGUI)
-	//	GUI::CGUI::I().Init();
+	if (_makeGUI)
+		GUI::ViewManager::I().Init();
+}
+
+void EngineInit::InitCmd()
+{
+	if (_makeEffects)
+	{
+		Effects::Ssao::I().InitCmd();
+	}
 }

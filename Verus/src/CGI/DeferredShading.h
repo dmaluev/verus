@@ -81,6 +81,8 @@ namespace verus
 			void Init();
 			void InitGBuffers(int w, int h);
 			void InitByAtmosphere(TexturePtr texShadow);
+			void InitByBloom(TexturePtr tex);
+			void InitBySsao(TexturePtr tex);
 			void Done();
 
 			void OnSwapChainResized(bool init, bool done);

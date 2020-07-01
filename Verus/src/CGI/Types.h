@@ -79,7 +79,7 @@ namespace verus
 			vs_hs_ds_fs = vs | hs | ds | fs
 		};
 
-		enum class IeType : int
+		enum class ViaType : int
 		{
 			floats,
 			ubytes,
@@ -87,7 +87,7 @@ namespace verus
 		};
 
 		// See: https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3ddeclusage
-		enum class IeUsage : int
+		enum class ViaUsage : int
 		{
 			position,
 			blendWeights,
@@ -105,14 +105,14 @@ namespace verus
 		// See: https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3dvertexelement9
 		struct VertexInputAttrDesc
 		{
-			int     _binding;
-			int     _offset;
-			IeType  _type;
-			int     _components;
-			IeUsage _usage;
-			int     _usageIndex;
+			int      _binding;
+			int      _offset;
+			ViaType  _type;
+			int      _components;
+			ViaUsage _usage;
+			int      _usageIndex;
 
-			static constexpr VertexInputAttrDesc End() { return { -1, -1, IeType::floats, 0, IeUsage::position, 0 }; }
+			static constexpr VertexInputAttrDesc End() { return { -1, -1, ViaType::floats, 0, ViaUsage::position, 0 }; }
 		};
 		VERUS_TYPEDEFS(VertexInputAttrDesc);
 
@@ -124,6 +124,7 @@ namespace verus
 			shadow,
 			aniso, // Most common sampler for 3D.
 			anisoClamp,
+			anisoSharp, // For UI.
 			linearMipL,
 			nearestMipL,
 			linearMipN,

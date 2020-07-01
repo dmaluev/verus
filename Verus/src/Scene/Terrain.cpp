@@ -518,9 +518,9 @@ void Terrain::Init(RcDesc desc)
 	CGI::GeometryDesc geoDesc;
 	const CGI::VertexInputAttrDesc viaDesc[] =
 	{
-		{ 0, 0,                                    CGI::IeType::shorts, 4, CGI::IeUsage::position, 0},
-		{-1, offsetof(PerInstanceData, _posPatch), CGI::IeType::shorts, 4, CGI::IeUsage::instData, 0},
-		{-1, offsetof(PerInstanceData, _layers),   CGI::IeType::shorts, 4, CGI::IeUsage::instData, 1},
+		{ 0, 0,                                    CGI::ViaType::shorts, 4, CGI::ViaUsage::position, 0},
+		{-1, offsetof(PerInstanceData, _posPatch), CGI::ViaType::shorts, 4, CGI::ViaUsage::instData, 0},
+		{-1, offsetof(PerInstanceData, _layers),   CGI::ViaType::shorts, 4, CGI::ViaUsage::instData, 1},
 		CGI::VertexInputAttrDesc::End()
 	};
 	geoDesc._pVertexInputAttrDesc = viaDesc;

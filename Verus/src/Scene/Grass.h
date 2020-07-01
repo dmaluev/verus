@@ -68,6 +68,8 @@ namespace verus
 			Vector<UINT32>                _vTextureSubresData;
 			Vector<Patch>                 _vPatches;
 			Vector<Magnet>                _vMagnets;
+			Physics::Spring               _warpSpring = Physics::Spring(55, 2.5f);
+			float                         _turbulence = 0;
 			int                           _mapSide = 0;
 			int                           _mapShift = 0;
 			int                           _vertCount = 0;
@@ -96,8 +98,8 @@ namespace verus
 
 			void ResetInstanceCount();
 
-			virtual void QuadtreeIntegral_ProcessVisibleNode(const short* ij, RcPoint3 center) override;
-			virtual void QuadtreeIntegral_GetHeights(const short* ij, float height[2]) override;
+			virtual void QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center) override;
+			virtual void QuadtreeIntegral_GetHeights(const short ij[2], float height[2]) override;
 
 			VERUS_P(void CreateBuffers());
 

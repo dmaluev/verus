@@ -82,7 +82,7 @@ namespace verus
 
 		// Matrices:
 		Transform3 QuadMatrix(float x = 0, float y = 0, float w = 1, float h = 1);
-		Transform3 ToUVMatrix(float zOffset = 0, RcVector4 texSize = Vector4(0), PcVector4 pTileSize = nullptr);
+		Transform3 ToUVMatrix(float zOffset = 0, RcVector4 texSize = Vector4(0), PcVector4 pTileSize = nullptr, float uOffset = 0, float vOffset = 0);
 
 		float Reduce(float val, float reduction);
 

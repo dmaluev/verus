@@ -124,6 +124,51 @@ namespace verus
 		}
 	};
 
+	template<typename TKey, typename TValue>
+	class StoreUniqueWithNoRefCount
+	{
+	protected:
+		typedef Map<TKey, TValue> TMap;
+
+		TMap _map;
+
+	public:
+		TValue* Insert(const TKey& key)
+		{
+			return &_map[key];
+		}
+
+		TValue* Find(const TKey& key)
+		{
+			VERUS_IF_FOUND_IN(TMap, _map, key, it)
+				return &it->second;
+			return nullptr;
+		}
+
+		void Delete(const TKey& key)
+		{
+			VERUS_IF_FOUND_IN(TMap, _map, key, it)
+				_map.erase(it);
+		}
+
+		void DeleteAll()
+		{
+			_map.clear();
+		}
+
+		TValue& GetStoredAt(int index)
+		{
+			auto it = _map.begin();
+			std::advance(it, index);
+			return *it;
+		}
+
+		int GetStoredCount() const
+		{
+			return static_cast<int>(_map.size());
+		}
+	};
+
 	template<typename T>
 	class Ptr
 	{

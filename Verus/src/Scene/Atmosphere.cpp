@@ -114,6 +114,45 @@ void Atmosphere::UpdateSun(float time)
 	_sun._color *= _sun._alpha;
 }
 
+void Atmosphere::UpdateWind()
+{
+	VERUS_QREF_TIMER;
+
+	const float baseWindSpeed = VMath::length(_wind._baseVelocity);
+	const float baseWindStrength = Math::Clamp<float>(baseWindSpeed * (1 / 50.f), 0, 1);
+
+	const glm::vec2 jounceDir = glm::circularRand(1.f);
+	const glm::vec2 jounce = jounceDir * 100.f;
+	_wind._jerk += Vector3(jounce.x, 0, jounce.y) * dt;
+	_wind._accel += _wind._jerk * dt;
+	_wind._velocity += _wind._accel * dt;
+
+	auto Stabilize = [dt](RVector3 v, RcVector3 base, float power)
+	{
+		const Vector3 toBase = base - v;
+		const float toBaseLen = VMath::length(toBase);
+		if (toBaseLen >= 0.01f)
+		{
+			const float scale = pow(toBaseLen, power) * dt;
+			v += (toBase / toBaseLen) * Math::Min(scale, toBaseLen);
+		}
+	};
+	Stabilize(_wind._jerk, Vector3(0), 0.9f - 0.6f * baseWindStrength);
+	Stabilize(_wind._accel, Vector3(0), 1.1f - 0.6f * baseWindStrength);
+	Stabilize(_wind._velocity, _wind._baseVelocity, 2 - 0.5f * baseWindStrength);
+
+	//static bool null = false;
+	//if (timer.IsEventEvery(2000))
+	//	null = !null;
+	//_wind._velocity = null ? Vector3(0) : Vector3(4, 0, 0);
+
+	_wind._speed = VMath::length(_wind._velocity);
+	if (_wind._speed >= VERUS_FLOAT_THRESHOLD)
+		_wind._direction = _wind._velocity / _wind._speed;
+	else
+		_wind._direction = Vector3(1, 0, 0);
+}
+
 void Atmosphere::Update()
 {
 	VERUS_QREF_RENDERER;
@@ -165,6 +204,8 @@ void Atmosphere::Update()
 	if (!_async_loaded)
 		return;
 
+	UpdateWind();
+
 	_time = glm::fract(_time + dt * _timeSpeed);
 
 	_clouds._cloudiness.Update();
@@ -194,6 +235,10 @@ void Atmosphere::Update()
 		VERUS_RT_ASSERT(glm::epsilonEqual(graySun.x, 32000.f, 3200.f));
 	}
 #endif
+
+	const Vector4 phaseV(_wind._baseVelocity.getX(), _wind._baseVelocity.getZ());
+	_clouds._phaseA = Vector4(_clouds._phaseA - phaseV * (dt * _clouds._speedPhaseA * 0.05f)).Mod(1);
+	_clouds._phaseB = Vector4(_clouds._phaseB - phaseV * (dt * _clouds._speedPhaseB * 0.05f)).Mod(1);
 
 	UpdateSun(_time);
 }
@@ -357,6 +402,31 @@ float Atmosphere::GetSunAlpha() const
 	return _sun._alpha;
 }
 
+RcVector3 Atmosphere::GetBaseWindVelocity() const
+{
+	return _wind._baseVelocity;
+}
+
+void Atmosphere::SetBaseWindVelocity(RcVector3 v)
+{
+	_wind._baseVelocity = v;
+}
+
+RcVector3 Atmosphere::GetWindVelocity() const
+{
+	return _wind._velocity;
+}
+
+RcVector3 Atmosphere::GetWindDirection() const
+{
+	return _wind._direction;
+}
+
+float Atmosphere::GetWindSpeed() const
+{
+	return _wind._speed;
+}
+
 void Atmosphere::BeginShadow(int split)
 {
 	_shadowMap.Begin(_sun._dirTo, 1, 0, split);
@@ -389,8 +459,8 @@ void Atmosphere::CreateCelestialBodyMesh()
 	CGI::GeometryDesc geoDesc;
 	const CGI::VertexInputAttrDesc viaDesc[] =
 	{
-		{0, offsetof(Vertex, _pos), CGI::IeType::floats, 3, CGI::IeUsage::position, 0},
-		{0, offsetof(Vertex, _tc), CGI::IeType::shorts, 2, CGI::IeUsage::texCoord, 0},
+		{0, offsetof(Vertex, _pos), CGI::ViaType::floats, 3, CGI::ViaUsage::position, 0},
+		{0, offsetof(Vertex, _tc),  CGI::ViaType::shorts, 2, CGI::ViaUsage::texCoord, 0},
 		CGI::VertexInputAttrDesc::End()
 	};
 	geoDesc._pVertexInputAttrDesc = viaDesc;

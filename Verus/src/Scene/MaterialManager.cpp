@@ -80,6 +80,13 @@ void Texture::Update()
 	}
 }
 
+int Texture::GetPart() const
+{
+	if (_texHuge && _texHuge->IsLoaded())
+		return _texHuge->GetPart();
+	return _texTiny->GetPart();
+}
+
 // TexturePtr:
 
 void TexturePtr::Init(CSZ url, bool streamParts, bool sync, CGI::PcSamplerDesc pSamplerDesc)
@@ -241,6 +248,8 @@ bool Material::Done()
 	_refCount--;
 	if (_refCount <= 0)
 	{
+		Mesh::GetShader()->FreeDescriptorSet(_cshTemp);
+		Mesh::GetShader()->FreeDescriptorSet(_cshTiny);
 		Mesh::GetShader()->FreeDescriptorSet(_csh);
 		_texAlbedo.Done();
 		_texNormal.Done();
@@ -267,6 +276,28 @@ bool Material::operator<(RcMaterial that) const
 void Material::Update()
 {
 	VERUS_UPDATE_ONCE_CHECK;
+	VERUS_QREF_RENDERER;
+
+	// Garbage collection:
+	if (_cshTemp.IsSet() && static_cast<INT64>(renderer.GetFrameCount()) >= _cshFreeFrame)
+		Mesh::GetShader()->FreeDescriptorSet(_cshTemp);
+
+	// Request BindDescriptorSetTextures call by clearing _csh:
+	const bool partChanged =
+		_albedoPart != _texAlbedo->GetPart() ||
+		_normalPart != _texNormal->GetPart();
+	if (partChanged && !_cshTemp.IsSet())
+	{
+		_albedoPart = _texAlbedo->GetPart();
+		_normalPart = _texNormal->GetPart();
+		_cshTemp = _csh;
+		_csh = CGI::CSHandle();
+		_cshFreeFrame = renderer.GetFrameCount() + CGI::BaseRenderer::s_ringBufferSize;
+	}
+
+	// Update _csh:
+	if (!_csh.IsSet() && IsLoaded())
+		BindDescriptorSetTextures();
 }
 
 bool Material::IsLoaded() const
@@ -295,9 +326,12 @@ void Material::LoadTextures(bool streamParts)
 	_texEnableNormal.w = 1;
 }
 
-String Material::ToString()
+String Material::ToString(bool cleanDict)
 {
 	VERUS_QREF_MM;
+
+	if (cleanDict)
+		_dict.DeleteAll();
 
 	CSZ empty = "";
 
@@ -360,11 +394,20 @@ void Material::FromString(CSZ txt)
 	_eyePick.FromPixels(_eyePick);
 }
 
+CGI::CSHandle Material::GetComplexSetHandle() const
+{
+	if (_csh.IsSet())
+		return _csh;
+	return _cshTiny;
+}
+
 void Material::BindDescriptorSetTextures()
 {
 	VERUS_RT_ASSERT(!_csh.IsSet());
 	VERUS_RT_ASSERT(IsLoaded());
 	VERUS_QREF_MM;
+	if (!_cshTiny.IsSet())
+		_cshTiny = Mesh::GetShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTinyTex(), _texNormal->GetTinyTex(), mm.GetDetailTexture(), mm.GetStrassTexture() });
 	_csh = Mesh::GetShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTex(), _texNormal->GetTex(), mm.GetDetailTexture(), mm.GetStrassTexture() });
 }
 

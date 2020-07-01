@@ -633,6 +633,12 @@ void RendererVulkan::CreateSamplers()
 	vksci.maxAnisotropy = static_cast<float>(settings._gpuAnisotropyLevel);
 	_vSamplers[+Sampler::anisoClamp] = Create(vksci);
 
+	vksci = init;
+	vksci.mipLodBias = -0.5f;
+	vksci.anisotropyEnable = (settings._gpuAnisotropyLevel > 0) ? VK_TRUE : VK_FALSE;
+	vksci.maxAnisotropy = static_cast<float>(settings._gpuAnisotropyLevel);
+	_vSamplers[+Sampler::anisoSharp] = Create(vksci);
+
 	// <Repeat>
 	vksci = init;
 	_vSamplers[+Sampler::linearMipL] = Create(vksci);
@@ -746,7 +752,7 @@ void RendererVulkan::ImGuiInit(RPHandle renderPassHandle)
 	info.PipelineCache = nullptr;
 	info.DescriptorPool = _descriptorPoolImGui;
 	info.Allocator = GetAllocator();
-	info.MinImageCount = settings._screenVSync ? 3 : 2;;
+	info.MinImageCount = settings._screenVSync ? 3 : 2;
 	info.ImageCount = s_ringBufferSize;
 	info.CheckVkResultFn = ImGuiCheckVkResultFn;
 	ImGui_ImplVulkan_Init(&info, _vRenderPasses[renderPassHandle.Get()]);

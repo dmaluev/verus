@@ -17,6 +17,7 @@ namespace verus
 				Uint32 _flags = 0;
 				bool   _fullscreen = false;
 				bool   _resizable = false;
+				bool   _maximized = false;
 				bool   _useSettings = true;
 
 				void ApplySettings();

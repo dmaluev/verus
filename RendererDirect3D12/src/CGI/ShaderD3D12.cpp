@@ -187,8 +187,7 @@ void ShaderD3D12::Done()
 		dsd._pConstantBuffer.Reset();
 	}
 
-	VERUS_COM_RELEASE_CHECK(_pRootSignature.Get());
-	_pRootSignature.Reset();
+	_pRootSignature.Reset(); // Can be shared with another shader, don't check ref count.
 
 	for (auto& x : _mapCompiled)
 	{

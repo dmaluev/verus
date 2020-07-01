@@ -99,7 +99,7 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	GeometryDesc geoDesc;
 	const VertexInputAttrDesc viaDesc[] =
 	{
-		{0, offsetof(Vertex, _pos), IeType::floats, 2, IeUsage::position, 0},
+		{0, offsetof(Vertex, _pos), ViaType::floats, 2, ViaUsage::position, 0},
 		VertexInputAttrDesc::End()
 	};
 	geoDesc._pVertexInputAttrDesc = viaDesc;
@@ -136,7 +136,7 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	{
 		PipelineDesc pipeDesc(_geoQuad, _shader[SHADER_QUAD], "#", _rphSwapChainWithDepth);
 		pipeDesc._topology = PrimitiveTopology::triangleStrip;
-		pipeDesc._depthTestEnable = false;
+		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_OFFSCREEN_COLOR].Init(pipeDesc);
 	}
 
@@ -178,6 +178,7 @@ void Renderer::Done()
 		Scene::Grass::DoneStatic();
 		Scene::Terrain::DoneStatic();
 		Scene::Mesh::DoneStatic();
+		GUI::Font::DoneStatic();
 
 		_pBaseRenderer->ReleaseMe();
 		_pBaseRenderer = nullptr;
@@ -204,10 +205,10 @@ void Renderer::Update()
 		const float alpha = Math::Max(0.001f, floatColor[3]);
 		const float actual = gray.r;
 		const float expScale = Math::Clamp(_exposure[1] * (1 / 15.f), 0.f, 1.f);
-		const float target = -0.4f + 0.8f * expScale * expScale; // Dark scene exposure compensation.
+		const float target = -0.4f + 0.75f * expScale * expScale; // Dark scene exposure compensation.
 		const float important = (actual - 0.5f * (1 - alpha)) / alpha;
 		const float delta = abs(target - important);
-		const float speed = delta * sqrt(delta) * 50;
+		const float speed = delta * sqrt(delta) * 43;
 
 		if (important < target * 0.95f)
 			_exposure[1] -= speed * dt;
@@ -246,6 +247,9 @@ void Renderer::OnWindowResized(int w, int h)
 	OnSwapChainResized(true, true);
 	_ds.OnSwapChainResized(true, true);
 	Scene::Water::I().OnSwapChainResized();
+	Effects::Bloom::I().OnSwapChainResized();
+	Effects::Ssao::I().OnSwapChainResized();
+	Effects::Blur::I().OnSwapChainResized();
 }
 
 void Renderer::OnSwapChainResized(bool init, bool done)

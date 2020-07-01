@@ -140,26 +140,26 @@ D3D12_COMPARISON_FUNC CGI::ToNativeCompareOp(CompareOp compareOp)
 	}
 }
 
-CSZ CGI::ToNativeSemanticName(IeUsage usage)
+CSZ CGI::ToNativeSemanticName(ViaUsage usage)
 {
 	static const CSZ names[] =
 	{
-		"POSITION",     // IeUsage::position
-		"BLENDWEIGHTS", // IeUsage::blendWeights
-		"BLENDINDICES", // IeUsage::blendIndices
-		"NORMAL",       // IeUsage::normal
-		"TANGENT",      // IeUsage::tangent
-		"BINORMAL",     // IeUsage::binormal
-		"COLOR",        // IeUsage::color
-		"PSIZE",        // IeUsage::psize
-		"TEXCOORD",     // IeUsage::texCoord
-		"INSTDATA",     // IeUsage::instData
-		"ATTR"          // IeUsage::attr
+		"POSITION",     // ViaUsage::position
+		"BLENDWEIGHTS", // ViaUsage::blendWeights
+		"BLENDINDICES", // ViaUsage::blendIndices
+		"NORMAL",       // ViaUsage::normal
+		"TANGENT",      // ViaUsage::tangent
+		"BINORMAL",     // ViaUsage::binormal
+		"COLOR",        // ViaUsage::color
+		"PSIZE",        // ViaUsage::psize
+		"TEXCOORD",     // ViaUsage::texCoord
+		"INSTDATA",     // ViaUsage::instData
+		"ATTR"          // ViaUsage::attr
 	};
 	return names[+usage];
 }
 
-DXGI_FORMAT CGI::ToNativeFormat(IeUsage usage, IeType type, int components)
+DXGI_FORMAT CGI::ToNativeFormat(ViaUsage usage, ViaType type, int components)
 {
 	VERUS_RT_ASSERT(components >= 1 && components <= 4);
 	int index = components - 1;
@@ -198,34 +198,34 @@ DXGI_FORMAT CGI::ToNativeFormat(IeUsage usage, IeType type, int components)
 	};
 	switch (type)
 	{
-	case IeType::floats:
+	case ViaType::floats:
 	{
 		return floats[index];
 	}
 	break;
-	case IeType::ubytes:
+	case ViaType::ubytes:
 	{
 		VERUS_RT_ASSERT(4 == components);
 		switch (usage)
 		{
-		case IeUsage::normal: index += 8; break; // SNORM.
-		case IeUsage::color: index += 4; break; // UNORM.
+		case ViaUsage::normal: index += 8; break; // SNORM.
+		case ViaUsage::color: index += 4; break; // UNORM.
 		}
 		return bytes[index];
 	}
 	break;
-	case IeType::shorts:
+	case ViaType::shorts:
 	{
 		VERUS_RT_ASSERT(2 == components || 4 == components);
 		switch (usage)
 		{
-		case IeUsage::tangent:
-		case IeUsage::binormal:
+		case ViaUsage::tangent:
+		case ViaUsage::binormal:
 			index += 4; break; // SNORM.
 		}
 		return shorts[index];
 	}
 	break;
-	default: throw VERUS_RECOVERABLE << "ToNativeFormat(), IeType=?";
+	default: throw VERUS_RECOVERABLE << "ToNativeFormat(), ViaType=?";
 	}
 }

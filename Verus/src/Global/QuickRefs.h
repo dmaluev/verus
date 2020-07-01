@@ -12,7 +12,6 @@
 #define VERUS_QREF_FSYS           IO::RFileSystem         fsys     = IO::FileSystem::I()
 #define VERUS_QREF_GAME           Game::RGame             game     = Game::Game::I()
 #define VERUS_QREF_GRASS          Scene::RGrass           grass    = Scene::Grass::I()
-#define VERUS_QREF_GUI            GUI::RGUI               gui      = GUI::GUI::I()
 #define VERUS_QREF_HELPERS        Scene::RHelpers         helpers  = Scene::Helpers::I()
 #define VERUS_QREF_KM             Input::RKeyMapper       km       = Input::KeyMapper::I()
 #define VERUS_QREF_LS             Scene::RLandscape       ls       = Scene::Landscape::I()
@@ -26,4 +25,5 @@
 #define VERUS_QREF_TIMER          RTimer                  timer    = Timer::I(); const float dt = timer.GetDeltaTime()
 #define VERUS_QREF_TIMER_GUI      RTimer                  timer    = Timer::I(); const float dt = timer.GetDeltaTime(Timer::Type::gui)
 #define VERUS_QREF_UTILS          RUtils                  utils    = Utils::I()
+#define VERUS_QREF_VM             GUI::RViewManager       vm       = GUI::ViewManager::I()
 #define VERUS_QREF_WATER          Scene::RWater           water    = Scene::Water::I()

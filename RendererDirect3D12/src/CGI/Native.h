@@ -18,7 +18,7 @@ namespace verus
 
 		D3D12_COMPARISON_FUNC ToNativeCompareOp(CompareOp compareOp);
 
-		CSZ ToNativeSemanticName(IeUsage usage);
-		DXGI_FORMAT ToNativeFormat(IeUsage usage, IeType type, int components);
+		CSZ ToNativeSemanticName(ViaUsage usage);
+		DXGI_FORMAT ToNativeFormat(ViaUsage usage, ViaType type, int components);
 	}
 }

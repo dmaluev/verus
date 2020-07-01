@@ -108,22 +108,24 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 		static CSZ branches[] =
 		{
 			"#",
+			"#Instanced",
 			"#Robotic",
 			"#Skinned",
 
-			"#Instanced",
-
 			"#Depth",
+			"#DepthInstanced",
 			"#DepthRobotic",
 			"#DepthSkinned",
 
 			"#Tess",
+			"#TessInstanced",
 			"#TessRobotic",
 			"#TessSkinned",
 
 			"#SolidColor",
+			"#SolidColorInstanced",
 			"#SolidColorRobotic",
-			"#SolidColorSkinned",
+			"#SolidColorSkinned"
 		};
 
 		CGI::PipelineDesc pipeDesc(_geo, s_shader, branches[pipe], renderer.GetDS().GetRenderPassHandle());
@@ -138,6 +140,7 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 		switch (pipe)
 		{
 		case PIPE_MAIN:
+		case PIPE_INSTANCED:
 		case PIPE_ROBOTIC:
 		case PIPE_SKINNED:
 		{
@@ -145,6 +148,7 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 		}
 		break;
 		case PIPE_DEPTH:
+		case PIPE_DEPTH_INSTANCED:
 		case PIPE_DEPTH_ROBOTIC:
 		case PIPE_DEPTH_SKINNED:
 		{
@@ -153,6 +157,7 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 		}
 		break;
 		case PIPE_TESS:
+		case PIPE_TESS_INSTANCED:
 		case PIPE_TESS_ROBOTIC:
 		case PIPE_TESS_SKINNED:
 		{
@@ -162,6 +167,7 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 		}
 		break;
 		case PIPE_WIREFRAME:
+		case PIPE_WIREFRAME_INSTANCED:
 		case PIPE_WIREFRAME_ROBOTIC:
 		case PIPE_WIREFRAME_SKINNED:
 		{
@@ -204,6 +210,17 @@ void Mesh::BindPipeline(CGI::CommandBufferPtr cb, bool allowTess)
 		else
 			BindPipeline(Scene::Mesh::PIPE_MAIN, cb);
 	}
+}
+
+void Mesh::BindPipelineInstanced(CGI::CommandBufferPtr cb, bool allowTess)
+{
+	VERUS_QREF_ATMO;
+	if (atmo.GetShadowMap().IsRendering())
+		BindPipeline(Scene::Mesh::PIPE_DEPTH_INSTANCED, cb);
+	else if (allowTess)
+		BindPipeline(Scene::Mesh::PIPE_TESS_INSTANCED, cb);
+	else
+		BindPipeline(Scene::Mesh::PIPE_INSTANCED, cb);
 }
 
 void Mesh::BindGeo(CGI::CommandBufferPtr cb)
@@ -273,20 +290,20 @@ void Mesh::CreateDeviceBuffers()
 	CGI::GeometryDesc geoDesc;
 	const CGI::VertexInputAttrDesc viaDesc[] =
 	{
-		{0, offsetof(VertexInputBinding0, _pos), CGI::IeType::shorts, 4, CGI::IeUsage::position, 0},
-		{0, offsetof(VertexInputBinding0, _tc0), CGI::IeType::shorts, 2, CGI::IeUsage::texCoord, 0},
-		{0, offsetof(VertexInputBinding0, _nrm), CGI::IeType::ubytes, 4, CGI::IeUsage::normal, 0},
-		{1, offsetof(VertexInputBinding1, _bw),  CGI::IeType::shorts, 4, CGI::IeUsage::blendWeights, 0},
-		{1, offsetof(VertexInputBinding1, _bi),  CGI::IeType::shorts, 4, CGI::IeUsage::blendIndices, 0},
-		{2, offsetof(VertexInputBinding2, _tan), CGI::IeType::shorts, 4, CGI::IeUsage::tangent, 0},
-		{2, offsetof(VertexInputBinding2, _bin), CGI::IeType::shorts, 4, CGI::IeUsage::binormal, 0},
-		{3, offsetof(VertexInputBinding3, _tc1), CGI::IeType::shorts, 2, CGI::IeUsage::texCoord, 1},
-		{3, offsetof(VertexInputBinding3, _clr), CGI::IeType::ubytes, 4, CGI::IeUsage::color, 0},
+		{0, offsetof(VertexInputBinding0, _pos), CGI::ViaType::shorts, 4, CGI::ViaUsage::position, 0},
+		{0, offsetof(VertexInputBinding0, _tc0), CGI::ViaType::shorts, 2, CGI::ViaUsage::texCoord, 0},
+		{0, offsetof(VertexInputBinding0, _nrm), CGI::ViaType::ubytes, 4, CGI::ViaUsage::normal, 0},
+		{1, offsetof(VertexInputBinding1, _bw),  CGI::ViaType::shorts, 4, CGI::ViaUsage::blendWeights, 0},
+		{1, offsetof(VertexInputBinding1, _bi),  CGI::ViaType::shorts, 4, CGI::ViaUsage::blendIndices, 0},
+		{2, offsetof(VertexInputBinding2, _tan), CGI::ViaType::shorts, 4, CGI::ViaUsage::tangent, 0},
+		{2, offsetof(VertexInputBinding2, _bin), CGI::ViaType::shorts, 4, CGI::ViaUsage::binormal, 0},
+		{3, offsetof(VertexInputBinding3, _tc1), CGI::ViaType::shorts, 2, CGI::ViaUsage::texCoord, 1},
+		{3, offsetof(VertexInputBinding3, _clr), CGI::ViaType::ubytes, 4, CGI::ViaUsage::color, 0},
 
-		{-4, offsetof(PerInstanceData, _matPart0), CGI::IeType::floats, 4, CGI::IeUsage::instData, 0},
-		{-4, offsetof(PerInstanceData, _matPart1), CGI::IeType::floats, 4, CGI::IeUsage::instData, 1},
-		{-4, offsetof(PerInstanceData, _matPart2), CGI::IeType::floats, 4, CGI::IeUsage::instData, 2},
-		{-4, offsetof(PerInstanceData, _instData), CGI::IeType::floats, 4, CGI::IeUsage::instData, 3},
+		{-4, offsetof(PerInstanceData, _matPart0), CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 0},
+		{-4, offsetof(PerInstanceData, _matPart1), CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 1},
+		{-4, offsetof(PerInstanceData, _matPart2), CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 2},
+		{-4, offsetof(PerInstanceData, _instData), CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 3},
 		CGI::VertexInputAttrDesc::End()
 	};
 	geoDesc._pVertexInputAttrDesc = viaDesc;
@@ -368,16 +385,17 @@ bool Mesh::IsInstanceBufferFull()
 	return _instanceCount >= _instanceCapacity;
 }
 
-bool Mesh::IsInstanceBufferEmpty()
+bool Mesh::IsInstanceBufferEmpty(bool fromFirstInstance)
 {
 	if (!_vertCount)
 		return true;
-	return _instanceCount <= 0;
+	return GetInstanceCount(fromFirstInstance) <= 0;
 }
 
 void Mesh::ResetInstanceCount()
 {
 	_instanceCount = 0;
+	_firstInstance = 0;
 }
 
 void Mesh::UpdateInstanceBuffer()

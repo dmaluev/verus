@@ -245,6 +245,7 @@ DS_ACC_FSO mainFS(VSO si)
 				g_ubShadowFS._matSunShadowCSM1,
 				g_ubShadowFS._matSunShadowCSM2,
 				g_ubShadowFS._matSunShadowCSM3);
+			shadowMask = saturate(shadowMask + saturate(lamScaleBiasWithHair.y - 1.7)); // Light pass effect.
 #endif
 		}
 		// </Shadow>

@@ -62,6 +62,16 @@ namespace verus
 				float   _latitude = 0.7f;
 			};
 
+			struct Wind
+			{
+				Vector3 _baseVelocity = Vector3(4, 0, 0);
+				Vector3 _velocity = Vector3(4, 0, 0);
+				Vector3 _accel = Vector3(0);
+				Vector3 _jerk = Vector3(0);
+				Vector3 _direction = Vector3(0);
+				float   _speed = 0;
+			};
+
 			static UB_PerFrame      s_ubPerFrame;
 			static UB_PerMaterialFS s_ubPerMaterialFS;
 			static UB_PerMeshVS     s_ubPerMeshVS;
@@ -74,6 +84,7 @@ namespace verus
 			Clouds                        _clouds;
 			Fog                           _fog;
 			Sun                           _sun;
+			Wind                          _wind;
 			Vector3                       _ambientColor = Vector3(0);
 			CascadedShadowMap             _shadowMap;
 			Mesh                          _skyDome;
@@ -94,6 +105,7 @@ namespace verus
 			void Done();
 
 			void UpdateSun(float time);
+			void UpdateWind();
 			void Update();
 			void DrawSky(bool reflection = false);
 
@@ -122,6 +134,13 @@ namespace verus
 			RcVector3 GetDirToSun() const;
 			RcVector3 GetSunColor() const;
 			float GetSunAlpha() const;
+
+			// Wind:
+			RcVector3 GetBaseWindVelocity() const;
+			void SetBaseWindVelocity(RcVector3 v);
+			RcVector3 GetWindVelocity() const;
+			RcVector3 GetWindDirection() const;
+			float GetWindSpeed() const;
 
 			// Shadow:
 			void BeginShadow(int split);

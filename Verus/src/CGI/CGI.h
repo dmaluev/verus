@@ -17,6 +17,7 @@
 #include "DeferredShading.h"
 #include "Renderer.h"
 #include "RendererParser.h"
+#include "DynamicBuffer.h"
 
 namespace verus
 {

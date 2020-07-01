@@ -34,7 +34,7 @@ void DeferredShading::Init()
 			RP::Attachment("GBuffer2", Format::unormR8G8B8A8).LoadOpClear().Layout(ImageLayout::fsReadOnly),
 			RP::Attachment("LightAccDiff", Format::floatR11G11B10).LoadOpClear().Layout(ImageLayout::fsReadOnly),
 			RP::Attachment("LightAccSpec", Format::floatR11G11B10).LoadOpClear().Layout(ImageLayout::fsReadOnly),
-			RP::Attachment("Depth", Format::unormD24uintS8).LoadOpClear().Layout(ImageLayout::depthStencilAttachment),
+			RP::Attachment("Depth", Format::unormD24uintS8).LoadOpClear().Layout(ImageLayout::depthStencilAttachment, ImageLayout::depthStencilReadOnly),
 		},
 		{
 			RP::Subpass("Sp0").Color(
@@ -62,7 +62,7 @@ void DeferredShading::Init()
 		{
 			RP::Attachment("ComposedA", Format::floatR11G11B10).LoadOpDontCare().Layout(ImageLayout::fsReadOnly),
 			RP::Attachment("ComposedB", Format::floatR11G11B10).LoadOpDontCare().Layout(ImageLayout::fsReadOnly),
-			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilAttachment),
+			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilReadOnly),
 		},
 		{
 			RP::Subpass("Sp0").Color(
@@ -74,8 +74,8 @@ void DeferredShading::Init()
 		{});
 	_rphExtraCompose = renderer->CreateRenderPass(
 		{
-			RP::Attachment("ComposedA", Format::floatR11G11B10).LoadOpDontCare().Layout(ImageLayout::fsReadOnly),
-			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilAttachment),
+			RP::Attachment("ComposedA", Format::floatR11G11B10).Layout(ImageLayout::fsReadOnly),
+			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilReadOnly, ImageLayout::depthStencilAttachment),
 		},
 		{
 			RP::Subpass("Sp0").Color(
@@ -94,7 +94,7 @@ void DeferredShading::Init()
 			Sampler::input,
 			Sampler::input,
 			Sampler::shadow,
-			Sampler::nearestMipN
+			Sampler::nearestClampMipN
 		}, CGI::ShaderStageFlags::fs);
 	_shader[SHADER_LIGHT]->CreateDescriptorSet(2, &s_ubPerMeshVS, sizeof(s_ubPerMeshVS), 1000, {}, CGI::ShaderStageFlags::vs);
 	_shader[SHADER_LIGHT]->CreateDescriptorSet(3, &s_ubShadowFS, sizeof(s_ubShadowFS), 1000, {}, CGI::ShaderStageFlags::fs);
@@ -105,12 +105,12 @@ void DeferredShading::Init()
 	_shader[SHADER_COMPOSE]->CreateDescriptorSet(0, &s_ubComposeVS, sizeof(s_ubComposeVS), 2, {}, CGI::ShaderStageFlags::vs);
 	_shader[SHADER_COMPOSE]->CreateDescriptorSet(1, &s_ubComposeFS, sizeof(s_ubComposeFS), 2,
 		{
-			Sampler::nearestMipN,
-			Sampler::nearestMipN,
-			Sampler::nearestMipN,
-			Sampler::nearestMipN,
-			Sampler::nearestMipN,
-			Sampler::nearestMipN
+			Sampler::nearestClampMipN,
+			Sampler::nearestClampMipN,
+			Sampler::linearClampMipN, // For bloom.
+			Sampler::nearestClampMipN,
+			Sampler::nearestClampMipN,
+			Sampler::nearestClampMipN
 		}, CGI::ShaderStageFlags::fs);
 	_shader[SHADER_COMPOSE]->CreatePipelineLayout();
 
@@ -119,19 +119,19 @@ void DeferredShading::Init()
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._topology = PrimitiveTopology::triangleStrip;
-		pipeDesc._depthTestEnable = false;
+		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_COMPOSE].Init(pipeDesc);
 	}
 	{
 		PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader[SHADER_COMPOSE], "#ToneMapping", renderer.GetRenderPassHandle_AutoWithDepth());
 		pipeDesc._topology = PrimitiveTopology::triangleStrip;
-		pipeDesc._depthTestEnable = false;
+		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_TONE_MAPPING].Init(pipeDesc);
 	}
 	{
 		PipelineDesc pipeDesc(renderer.GetGeoQuad(), renderer.GetShaderQuad(), "#", renderer.GetRenderPassHandle_AutoWithDepth());
 		pipeDesc._topology = PrimitiveTopology::triangleStrip;
-		pipeDesc._depthTestEnable = false;
+		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_QUAD].Init(pipeDesc);
 	}
 
@@ -184,6 +184,38 @@ void DeferredShading::InitByAtmosphere(TexturePtr texShadow)
 			renderer.GetTexDepthStencil(),
 			_texShadowAtmo,
 			_texShadowAtmo
+		});
+}
+
+void DeferredShading::InitByBloom(TexturePtr tex)
+{
+	VERUS_QREF_RENDERER;
+
+	_shader[SHADER_COMPOSE]->FreeDescriptorSet(_cshToneMapping);
+	_cshToneMapping = _shader[SHADER_COMPOSE]->BindDescriptorSetTextures(1,
+		{
+			_tex[TEX_GBUFFER_0],
+			_tex[TEX_GBUFFER_1],
+			tex,
+			_tex[TEX_COMPOSED_A],
+			_tex[TEX_LIGHT_ACC_DIFF],
+			_tex[TEX_LIGHT_ACC_SPEC]
+		});
+}
+
+void DeferredShading::InitBySsao(TexturePtr tex)
+{
+	VERUS_QREF_RENDERER;
+
+	_shader[SHADER_COMPOSE]->FreeDescriptorSet(_cshCompose);
+	_cshCompose = _shader[SHADER_COMPOSE]->BindDescriptorSetTextures(1,
+		{
+			_tex[TEX_GBUFFER_0],
+			_tex[TEX_GBUFFER_1],
+			tex,
+			renderer.GetTexDepthStencil(),
+			_tex[TEX_LIGHT_ACC_DIFF],
+			_tex[TEX_LIGHT_ACC_SPEC]
 		});
 }
 
@@ -409,7 +441,7 @@ bool DeferredShading::BeginLightingPass()
 			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
 			pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_ADD;
 			pipeDesc._vertexInputBindingsFilter = (1 << 0) | (1 << 4);
-			pipeDesc._depthTestEnable = false;
+			pipeDesc.DisableDepthTest();
 			_pipe[PIPE_INSTANCED_DIR].Init(pipeDesc);
 		}
 		{

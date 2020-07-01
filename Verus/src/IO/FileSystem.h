@@ -36,6 +36,7 @@ namespace verus
 			static void ReadPakHeader(RFile file, UINT32& magic, INT64& entriesOffset, INT64& entriesSize);
 
 			void PreloadCache(CSZ pak, CSZ types[]);
+			void PreloadDefaultCache();
 
 			static void LoadResource			/**/(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc = LoadDesc());
 			static void LoadResourceFromFile	/**/(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc = LoadDesc());

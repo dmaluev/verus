@@ -27,8 +27,8 @@ void DebugDraw::Init()
 	GeometryDesc geoDesc;
 	const VertexInputAttrDesc viaDesc[] =
 	{
-		{0, offsetof(Vertex, _pos),   IeType::floats, 3, IeUsage::position, 0},
-		{0, offsetof(Vertex, _color), IeType::ubytes, 4, IeUsage::color, 0},
+		{0, offsetof(Vertex, _pos),   ViaType::floats, 3, ViaUsage::position, 0},
+		{0, offsetof(Vertex, _color), ViaType::ubytes, 4, ViaUsage::color, 0},
 		VertexInputAttrDesc::End()
 	};
 	geoDesc._pVertexInputAttrDesc = viaDesc;
@@ -47,7 +47,7 @@ void DebugDraw::Init()
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		pipeDesc._topology = PrimitiveTopology::pointList;
 		_pipe[PIPE_POINTS].Init(pipeDesc);
-		pipeDesc._depthTestEnable = false;
+		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_POINTS_NO_Z].Init(pipeDesc);
 	}
 	{
@@ -55,7 +55,7 @@ void DebugDraw::Init()
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		pipeDesc._topology = PrimitiveTopology::lineList;
 		_pipe[PIPE_LINES].Init(pipeDesc);
-		pipeDesc._depthTestEnable = false;
+		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_LINES_NO_Z].Init(pipeDesc);
 	}
 	{
@@ -64,7 +64,7 @@ void DebugDraw::Init()
 		pipeDesc._rasterizationState._polygonMode = PolygonMode::line;
 		pipeDesc._topology = PrimitiveTopology::triangleList;
 		_pipe[PIPE_POLY].Init(pipeDesc);
-		pipeDesc._depthTestEnable = false;
+		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_POLY_NO_Z].Init(pipeDesc);
 	}
 }

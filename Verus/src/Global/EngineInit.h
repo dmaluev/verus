@@ -33,6 +33,7 @@ namespace verus
 		void Free();
 
 		void Init(Input::KeyMapperDelegate* pKeyMapperDelegate, CGI::RendererDelegate* pRendererDelegate);
+		void InitCmd();
 	};
 	VERUS_TYPEDEFS(EngineInit);
 }

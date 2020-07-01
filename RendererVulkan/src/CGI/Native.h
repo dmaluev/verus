@@ -20,7 +20,7 @@ namespace verus
 
 		VkShaderStageFlags ToNativeStageFlags(ShaderStageFlags stageFlags);
 
-		int ToNativeLocation(IeUsage usage, int usageIndex);
-		VkFormat ToNativeFormat(IeUsage usage, IeType type, int components);
+		int ToNativeLocation(ViaUsage usage, int usageIndex);
+		VkFormat ToNativeFormat(ViaUsage usage, ViaType type, int components);
 	}
 }

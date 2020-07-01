@@ -223,13 +223,11 @@ VSO mainDS(_IN_DS)
 
 #ifdef _FS
 #ifdef DEF_DEPTH
-#ifdef DEF_CLIP
 void mainFS(VSO si)
 {
 	const float rawAlbedo = g_texAlbedo.Sample(g_samAlbedo, si.tc0).a;
 	clip(rawAlbedo - 1.0 / 16.0);
 }
-#endif
 #else
 DS_FSO mainFS(VSO si)
 {
@@ -298,7 +296,7 @@ DS_FSO mainFS(VSO si)
 	// <Gloss>
 	float gloss = lerp(4.0, 16.0, alpha_spec.y) * mm_glossScaleBias.x + mm_glossScaleBias.y;
 	gloss = lerp(gloss, mm_gloss, glossAlpha);
-	gloss = lerp(gloss, 4.0 + alpha_spec.y, skinAlpha);
+	gloss = lerp(gloss, 4.5 + alpha_spec.y, skinAlpha);
 	gloss = lerp(gloss, 0.0, eyeAlpha);
 	// </Gloss>
 
@@ -331,7 +329,7 @@ DS_FSO mainFS(VSO si)
 	float strass;
 	{
 		const float rawStrass = g_texStrass.Sample(g_samStrass, tc0 * mm_strassScale).r;
-		strass = saturate(rawStrass * (0.3 + 0.7 * alpha_spec.y) * 4.0);
+		strass = saturate(rawStrass * (0.3 + 0.7 * alpha_spec.y) * 2.0);
 	}
 	// </Strass>
 
@@ -374,19 +372,21 @@ DS_FSO mainFS(VSO si)
 #endif
 
 //@main:#
-//@main:#Robotic           ROBOTIC
-//@main:#Skinned           SKINNED
+//@main:#Instanced INSTANCED
+//@main:#Robotic   ROBOTIC
+//@main:#Skinned   SKINNED
 
-//@main:#Instanced         INSTANCED
+//@main:#Depth          DEPTH
+//@main:#DepthInstanced DEPTH INSTANCED
+//@main:#DepthRobotic   DEPTH ROBOTIC
+//@main:#DepthSkinned   DEPTH SKINNED
 
-//@main:#Depth             DEPTH (V)
-//@main:#DepthRobotic      DEPTH ROBOTIC (V)
-//@main:#DepthSkinned      DEPTH SKINNED (V)
+//@main:#SolidColor          SOLID_COLOR
+//@main:#SolidColorInstanced SOLID_COLOR INSTANCED
+//@main:#SolidColorRobotic   SOLID_COLOR ROBOTIC
+//@main:#SolidColorSkinned   SOLID_COLOR SKINNED
 
-//@main:#SolidColor        SOLID_COLOR
-//@main:#SolidColorRobotic SOLID_COLOR ROBOTIC
-//@main:#SolidColorSkinned SOLID_COLOR SKINNED
-
-//@main:#Tess              TESS (VHDF)
-//@main:#TessRobotic       TESS ROBOTIC (VHDF)
-//@main:#TessSkinned       TESS SKINNED (VHDF)
+//@main:#Tess          TESS (VHDF)
+//@main:#TessInstanced TESS INSTANCED (VHDF)
+//@main:#TessRobotic   TESS ROBOTIC (VHDF)
+//@main:#TessSkinned   TESS SKINNED (VHDF)

@@ -15,6 +15,10 @@ namespace verus
 		double NextDouble();
 		float  NextFloat();
 
+		UINT32 Next(UINT32 mn, UINT32 mx);
+		double NextDouble(double mn, double mx);
+		float  NextFloat(float mn, float mx);
+
 		void NextArray(UINT32* p, int count);
 		void NextArray(float* p, int count);
 		void NextArray(Vector<BYTE>& v);

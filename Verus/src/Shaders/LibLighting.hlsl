@@ -21,13 +21,14 @@ float4 VerusLit(float3 dirToLight, float3 normal, float3 dirToEye, float gloss,
 {
 	float4 ret = float4(1, 0, 0, 1);
 	const float3 hv = normalize(dirToEye + dirToLight);
-	const float nDotL = dot(normal, dirToLight) * lamScaleBias.x + lamScaleBias.y;
+	const float nDotLRaw = dot(normal, dirToLight);
+	const float nDotL = nDotLRaw * lamScaleBias.x + lamScaleBias.y;
 	const float nDotE = dot(normal, dirToEye);
 	const float nDotH = dot(normal, hv);
 	const float aDotH = SinAcos(dot(aniso.xyz, hv));
 	const float4 spec = float4(EnergyNorm(gloss).xx, 1, 1) *
 		pow(saturate(float4(nDotH, aDotH, 1.0 - nDotL, 1.0 - nDotE)), float4(gloss, gloss * 8.0, 5, 5));
-	ret.x = saturate(nDotL * -4.0); // For subsurface scattering effect.
+	ret.x = saturate(nDotLRaw * -4.0); // For subsurface scattering effect.
 	ret.y = saturate(nDotL);
 	ret.z = saturate(nDotL * 8.0) * max(spec.x, spec.y * aniso.w);
 	ret.w = lerp(spec.z, spec.w, eyeFresnel); // For fresnel effect.

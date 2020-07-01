@@ -26,11 +26,9 @@ namespace verus
 		public:
 			struct CommandLine
 			{
-				bool _normalMapOnlyLS;
-				bool _physicsDebug;
-				bool _physicsDebugFull;
-				bool _profiler;
-				bool _testTexToPix;
+				int _gapi = -1;
+				bool _fullscreen = false;
+				bool _windowed = false;
 			};
 
 			enum class Quality : int
@@ -76,7 +74,7 @@ namespace verus
 			int	          _sceneGrassDensity = 1000;
 			ShadowQuality _sceneShadowQuality = ShadowQuality::multisampled;
 			WaterQuality  _sceneWaterQuality = WaterQuality::solidColor;
-			bool          _screenAllowHighDPI = false;
+			bool          _screenAllowHighDPI = true;
 			float         _screenFOV = 70;
 			bool          _screenOffscreenDraw = true;
 			int           _screenSizeHeight = 720;
@@ -92,14 +90,13 @@ namespace verus
 			Settings();
 			~Settings();
 
+			void ParseCommandLineArgs(int argc, wchar_t* argv[]);
+			void ParseCommandLineArgs(int argc, char* argv[]);
+			void SetQuality(Quality q);
+
 			void Load();
 			void Validate();
 			void Save();
-
-			void ParseCommandLineArgs(int argc, wchar_t* argv[]);
-			void ParseCommandLineArgs(int argc, char* argv[]);
-
-			void SetQuality(Quality q);
 
 			void MatchScreen();
 
