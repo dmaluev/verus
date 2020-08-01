@@ -60,6 +60,7 @@ namespace verus
 			void CreateSamplers();
 
 			ID3D12Device3* GetD3DDevice() const { return _pDevice.Get(); }
+			ID3D12CommandQueue* GetCommandQueue() const { return _pCommandQueue.Get(); }
 			D3D12MA::Allocator* GetMaAllocator() const { return _pMaAllocator; }
 			ID3D12CommandAllocator* GetD3DCommandAllocator(int ringBufferIndex) const { return _mapCommandAllocators[ringBufferIndex].at(std::this_thread::get_id()).Get(); }
 			D3D12_STATIC_SAMPLER_DESC GetStaticSamplerDesc(Sampler s) const;
@@ -102,6 +103,7 @@ namespace verus
 
 			RDynamicDescriptorHeap GetViewHeap() { return _dhViews; }
 			RDynamicDescriptorHeap GetSamplerHeap() { return _dhSamplers; }
+			void SetDescriptorHeaps(PBaseCommandBuffer p);
 		};
 		VERUS_TYPEDEFS(RendererD3D12);
 	}

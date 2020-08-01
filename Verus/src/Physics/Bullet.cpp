@@ -46,41 +46,12 @@ void Bullet::Done()
 {
 	DeleteAllCollisionObjects();
 
-	if (_pStaticPlaneShape)
-	{
-		delete _pStaticPlaneShape;
-		_pStaticPlaneShape = nullptr;
-	}
-
-	if (_pDiscreteDynamicsWorld)
-	{
-		delete _pDiscreteDynamicsWorld;
-		_pDiscreteDynamicsWorld = nullptr;
-	}
-
-	if (_pConstraintSolver)
-	{
-		delete _pConstraintSolver;
-		_pConstraintSolver = nullptr;
-	}
-
-	if (_pBroadphaseInterface)
-	{
-		delete _pBroadphaseInterface;
-		_pBroadphaseInterface = nullptr;
-	}
-
-	if (_pDispatcher)
-	{
-		delete _pDispatcher;
-		_pDispatcher = nullptr;
-	}
-
-	if (_pCollisionConfiguration)
-	{
-		delete _pCollisionConfiguration;
-		_pCollisionConfiguration = nullptr;
-	}
+	VERUS_SMART_DELETE(_pStaticPlaneShape);
+	VERUS_SMART_DELETE(_pDiscreteDynamicsWorld);
+	VERUS_SMART_DELETE(_pConstraintSolver);
+	VERUS_SMART_DELETE(_pBroadphaseInterface);
+	VERUS_SMART_DELETE(_pDispatcher);
+	VERUS_SMART_DELETE(_pCollisionConfiguration);
 
 	VERUS_DONE(Bullet);
 }

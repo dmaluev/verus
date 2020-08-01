@@ -418,7 +418,7 @@ void RendererD3D12::ImGuiRenderDrawData()
 {
 	VERUS_QREF_RENDERER;
 	ImGui::Render();
-	auto pCmdList = static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList();
+	auto pCmdList = static_cast<CommandBufferD3D12*>(renderer.GetCommandBuffer().Get())->GetD3DGraphicsCommandList();
 	if (ImGui::GetDrawData())
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCmdList);
 }
@@ -460,10 +460,9 @@ void RendererD3D12::BeginFrame(bool present)
 	if (FAILED(hr = pCommandAllocator->Reset()))
 		throw VERUS_RUNTIME_ERROR << "Reset(), hr=" << VERUS_HR(hr);
 
-	renderer.GetCommandBuffer()->Begin();
-
-	ID3D12DescriptorHeap* ppHeaps[] = { _dhViews.GetD3DDescriptorHeap(), _dhSamplers.GetD3DDescriptorHeap() };
-	static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList()->SetDescriptorHeaps(2, ppHeaps);
+	auto cb = renderer.GetCommandBuffer();
+	cb->Begin();
+	SetDescriptorHeaps(cb.Get());
 }
 
 void RendererD3D12::EndFrame(bool present)
@@ -473,7 +472,7 @@ void RendererD3D12::EndFrame(bool present)
 
 	renderer.GetCommandBuffer()->End();
 
-	ID3D12CommandList* ppCommandLists[] = { static_cast<CommandBufferD3D12*>(&(*renderer.GetCommandBuffer()))->GetD3DGraphicsCommandList() };
+	ID3D12CommandList* ppCommandLists[] = { static_cast<CommandBufferD3D12*>(renderer.GetCommandBuffer().Get())->GetD3DGraphicsCommandList() };
 	_pCommandQueue->ExecuteCommandLists(VERUS_COUNT_OF(ppCommandLists), ppCommandLists);
 
 	if (!present)
@@ -813,4 +812,10 @@ RP::RcD3DRenderPass RendererD3D12::GetRenderPass(RPHandle handle) const
 RP::RcD3DFramebuffer RendererD3D12::GetFramebuffer(FBHandle handle) const
 {
 	return _vFramebuffers[handle.Get()];
+}
+
+void RendererD3D12::SetDescriptorHeaps(PBaseCommandBuffer p)
+{
+	ID3D12DescriptorHeap* ppHeaps[] = { _dhViews.GetD3DDescriptorHeap(), _dhSamplers.GetD3DDescriptorHeap() };
+	static_cast<CommandBufferD3D12*>(p)->GetD3DGraphicsCommandList()->SetDescriptorHeaps(2, ppHeaps);
 }

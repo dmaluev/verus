@@ -34,18 +34,18 @@ struct VSI
 
 struct VSO
 {
-	float4 pos							/**/ : SV_Position;
-	float4 clipSpacePos					/**/ : TEXCOORD0;
+	float4 pos                         : SV_Position;
+	float4 clipSpacePos                : TEXCOORD0;
 #if defined(DEF_OMNI) || defined(DEF_SPOT)
-	float3 radius_radiusSq_invRadiusSq	/**/ : TEXCOORD1;
-	float3 lightPosWV					/**/ : TEXCOORD2;
+	float3 radius_radiusSq_invRadiusSq : TEXCOORD1;
+	float3 lightPosWV                  : TEXCOORD2;
 #endif
 #if defined(DEF_DIR) || defined(DEF_SPOT)
-	float4 lightDirWV_invConeDelta		/**/ : TEXCOORD3;
+	float4 lightDirWV_invConeDelta     : TEXCOORD3;
 #endif
-	float4 color_coneOut				/**/ : TEXCOORD4;
+	float4 color_coneOut               : TEXCOORD4;
 #ifdef DEF_DIR
-	float3 dirZenithWV					/**/ : TEXCOORD5;
+	float3 dirZenithWV                 : TEXCOORD5;
 #endif
 };
 
@@ -166,7 +166,7 @@ DS_ACC_FSO mainFS(VSO si)
 	so.target1 = 0.0;
 
 #if defined(DEF_OMNI) || defined(DEF_SPOT)
-	if (lightPosWV.z - posWV.z + radius >= 0.0) // Optimize finite volume lights.
+	if (posWV.z <= lightPosWV.z + radius)
 #endif
 	{
 		// Light's diffuse & specular color:
@@ -228,10 +228,11 @@ DS_ACC_FSO mainFS(VSO si)
 		float shadowMask = 1.0;
 		{
 #ifdef DEF_DIR
+			const float lightPassOffset = saturate((lamScaleBiasWithHair.y - 0.5) * 5.0) * 2.0;
 			float4 config = g_ubShadowFS._shadowConfig;
 			const float lamBiasMask = saturate(lamScaleBiasWithHair.y * config.y);
 			config.y = 1.0 - lamBiasMask; // Keep penumbra blurry.
-			const float3 posForShadow = AdjustPosForShadow(posWV, normalWV, dirToLightWV, -posWV.z);
+			const float3 posForShadow = AdjustPosForShadow(posWV, normalWV, dirToLightWV, -posWV.z, lightPassOffset);
 			const float4 tcShadow = ShadowCoords(float4(posForShadow, 1), g_ubShadowFS._matSunShadow, -posForShadow.z);
 			shadowMask = ShadowMapCSM(
 				g_texShadowCmp,
@@ -245,7 +246,6 @@ DS_ACC_FSO mainFS(VSO si)
 				g_ubShadowFS._matSunShadowCSM1,
 				g_ubShadowFS._matSunShadowCSM2,
 				g_ubShadowFS._matSunShadowCSM3);
-			shadowMask = saturate(shadowMask + saturate(lamScaleBiasWithHair.y - 1.7)); // Light pass effect.
 #endif
 		}
 		// </Shadow>

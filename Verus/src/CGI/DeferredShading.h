@@ -16,11 +16,15 @@ namespace verus
 		{
 #include "../Shaders/DS.inc.hlsl"
 #include "../Shaders/DS_Compose.inc.hlsl"
+#include "../Shaders/DS_AO.inc.hlsl"
+#include "../Shaders/DS_BakeSprites.inc.hlsl"
 
 			enum SHADER
 			{
 				SHADER_LIGHT,
 				SHADER_COMPOSE,
+				SHADER_AO,
+				SHADER_BAKE_SPRITES,
 				SHADER_COUNT
 			};
 
@@ -32,6 +36,8 @@ namespace verus
 				PIPE_COMPOSE,
 				PIPE_TONE_MAPPING,
 				PIPE_QUAD,
+				PIPE_INSTANCED_AO,
+				PIPE_BAKE_SPRITES,
 				PIPE_COUNT
 			};
 
@@ -47,29 +53,42 @@ namespace verus
 				TEX_COUNT
 			};
 
-			static UB_PerFrame   s_ubPerFrame;
-			static UB_TexturesFS s_ubTexturesFS;
-			static UB_PerMeshVS  s_ubPerMeshVS;
-			static UB_ShadowFS   s_ubShadowFS;
-			static UB_PerObject  s_ubPerObject;
-			static UB_ComposeVS  s_ubComposeVS;
-			static UB_ComposeFS  s_ubComposeFS;
+			static UB_PerFrame      s_ubPerFrame;
+			static UB_TexturesFS    s_ubTexturesFS;
+			static UB_PerMeshVS     s_ubPerMeshVS;
+			static UB_ShadowFS      s_ubShadowFS;
+			static UB_PerObject     s_ubPerObject;
+			static UB_ComposeVS     s_ubComposeVS;
+			static UB_ComposeFS     s_ubComposeFS;
+			static UB_AOPerFrame    s_ubAOPerFrame;
+			static UB_AOTexturesFS  s_ubAOTexturesFS;
+			static UB_AOPerMeshVS   s_ubAOPerMeshVS;
+			static UB_AOPerObject   s_ubAOPerObject;
+			static UB_BakeSpritesVS s_ubBakeSpritesVS;
+			static UB_BakeSpritesFS s_ubBakeSpritesFS;
 
 			ShaderPwns<SHADER_COUNT> _shader;
 			PipelinePwns<PIPE_COUNT> _pipe;
 			TexturePwns<TEX_COUNT>   _tex;
 			TexturePtr               _texShadowAtmo;
+			TexturePtr               _texAO;
 			UINT64                   _frame = 0;
 			RPHandle                 _rph;
+			RPHandle                 _rphAO;
 			RPHandle                 _rphCompose;
 			RPHandle                 _rphExtraCompose;
+			RPHandle                 _rphBakeSprites;
 			FBHandle                 _fbh;
+			FBHandle                 _fbhAO;
 			FBHandle                 _fbhCompose;
 			FBHandle                 _fbhExtraCompose;
+			FBHandle                 _fbhBakeSprites;
 			CSHandle                 _cshLight;
+			CSHandle                 _cshAO;
 			CSHandle                 _cshCompose;
 			CSHandle                 _cshToneMapping;
 			CSHandle                 _cshQuad[5];
+			CSHandle                 _cshBakeSprites;
 			bool                     _activeGeometryPass = false;
 			bool                     _activeLightingPass = false;
 			bool                     _async_initPipe = false;
@@ -89,6 +108,7 @@ namespace verus
 
 			static bool IsLoaded();
 
+			void ResetInstanceCount();
 			void Draw(int gbuffer);
 
 			bool IsActiveGeometryPass() const { return _activeGeometryPass; }
@@ -101,16 +121,20 @@ namespace verus
 			void EndGeometryPass(bool resetRT = false);
 			bool BeginLightingPass();
 			void EndLightingPass();
+			void BeginAmbientOcclusion();
+			void EndAmbientOcclusion();
 			void BeginCompose();
 			void EndCompose();
 			void ToneMapping(RcVector4 bgColor = Vector4(0));
-			void AntiAliasing();
 
 			static bool IsLightUrl(CSZ url);
+			void OnNewLightType(CommandBufferPtr cb, LightType type, bool wireframe = false);
+			void BindDescriptorsPerMeshVS(CommandBufferPtr cb);
 			static UB_PerMeshVS& GetUbPerMeshVS() { return s_ubPerMeshVS; }
-			void OnNewLightType(LightType type, bool wireframe = false);
-			void UpdateUniformBufferPerFrame();
-			void BindDescriptorsPerMeshVS();
+
+			void OnNewAOType(CommandBufferPtr cb, LightType type);
+			void BindDescriptorsAOPerMeshVS(CommandBufferPtr cb);
+			static UB_AOPerMeshVS& GetUbAOPerMeshVS() { return s_ubAOPerMeshVS; }
 
 			void Load();
 
@@ -118,6 +142,13 @@ namespace verus
 
 			TexturePtr GetComposedTextureA();
 			TexturePtr GetComposedTextureB();
+
+			static Vector4 GetClearValueForGBuffer0();
+			static Vector4 GetClearValueForGBuffer1();
+			static Vector4 GetClearValueForGBuffer2();
+
+			void BakeSprites(TexturePtr texGBufferIn[3], TexturePtr texGBufferOut[3], PBaseCommandBuffer pCB = nullptr);
+			void BakeSpritesCleanup();
 		};
 		VERUS_TYPEDEFS(DeferredShading);
 	}

@@ -185,17 +185,24 @@ namespace verus
 		bool operator==(const Ptr<T>& that) const { return _p == that._p; }
 		bool operator!=(const Ptr<T>& that) const { return _p != that._p; }
 		bool operator<(const Ptr<T>& that) const { return _p < that._p; }
+
 		T* Attach(T* ptr)
 		{
 			T* p = _p;
 			_p = ptr;
 			return p;
 		}
+
 		T* Detach()
 		{
 			T* p = _p;
 			_p = nullptr;
 			return p;
+		}
+
+		T* Get() const
+		{
+			return _p;
 		}
 	};
 

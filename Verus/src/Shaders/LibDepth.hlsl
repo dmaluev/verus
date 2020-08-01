@@ -7,7 +7,10 @@ float ToLinearDepth(float d, float4 zNearFarEx)
 	// INFO: zNearFarEx.w = zFar*zNear/(zNear-zFar)
 	return zNearFarEx.w / (d - zNearFarEx.z);
 }
-
+float2 ToLinearDepth(float2 d, float4 zNearFarEx)
+{
+	return zNearFarEx.w / (d - zNearFarEx.z);
+}
 float4 ToLinearDepth(float4 d, float4 zNearFarEx)
 {
 	return zNearFarEx.w / (d - zNearFarEx.z);
@@ -21,10 +24,10 @@ float ComputeFog(float depth, float density, float height = 0.0)
 	return 1.0 - saturate(fog);
 }
 
-float3 AdjustPosForShadow(float3 pos, float3 normal, float3 dirToLight, float depth)
+float3 AdjustPosForShadow(float3 pos, float3 normal, float3 dirToLight, float depth, float offset = 0.0)
 {
 	const float scale = depth - 5.0;
-	return pos + normal * 0.012 * max(1.0, scale * 0.2) + dirToLight * max(0.0, scale * 0.002);
+	return pos + normal * 0.012 * max(1.0, scale * 0.2) + dirToLight * max(0.0, scale * 0.002 + offset);
 }
 
 float4 ShadowCoords(float4 pos, matrix mat, float depth)

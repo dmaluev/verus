@@ -29,8 +29,8 @@ struct VSI
 
 struct VSO
 {
-	float4 pos : SV_Position;
-	float2 tc0 : TEXCOORD0;
+	float4 pos          : SV_Position;
+	float2 tc0          : TEXCOORD0;
 	float2 clipSpacePos : TEXCOORD1;
 };
 
@@ -69,13 +69,13 @@ FSO2 mainFS(VSO si)
 
 	const float2 ndcPos = si.clipSpacePos.xy;
 
-	const float4 rawGBuffer0 = g_texGBuffer0.Sample(g_samGBuffer0, si.tc0);
-	const float4 rawGBuffer1 = g_texGBuffer1.Sample(g_samGBuffer1, si.tc0);
-	const float4 rawGBuffer2 = g_texGBuffer2.Sample(g_samGBuffer2, si.tc0);
-	const float1 rawDepth = g_texDepth.Sample(g_samDepth, si.tc0).r;
+	const float4 rawGBuffer0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.0);
+	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
+	const float4 rawGBuffer2 = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.0);
+	const float rawDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
 
-	const float4 rawAccDiff = g_texAccDiff.Sample(g_samAccDiff, si.tc0);
-	const float4 rawAccSpec = g_texAccSpec.Sample(g_samAccSpec, si.tc0);
+	const float4 rawAccDiff = g_texAccDiff.SampleLevel(g_samAccDiff, si.tc0, 0.0);
+	const float4 rawAccSpec = g_texAccSpec.SampleLevel(g_samAccSpec, si.tc0, 0.0);
 	const float4 accDiff = rawAccDiff;
 	const float4 accSpec = rawAccSpec;
 
@@ -86,13 +86,13 @@ FSO2 mainFS(VSO si)
 	const float3 posW = DS_GetPosition(rawDepth, g_ubComposeFS._matInvVP, ndcPos);
 	const float depth = ToLinearDepth(rawDepth, g_ubComposeFS._zNearFarEx);
 
-	const float ssaoDiff = 0.8 + 0.2 * rawGBuffer2.r;
+	const float ssaoDiff = 0.5 + 0.5 * rawGBuffer2.r;
 	const float ssaoSpec = ssaoDiff;
 	const float ssaoAmb = rawGBuffer2.r;
 
 	const float3 normalW = mul(normalWV, (float3x3)g_ubComposeFS._matInvV);
 	const float grayAmbient = Grayscale(ambientColor);
-	const float3 finalAmbientColor = lerp(grayAmbient * 0.5, ambientColor, normalW.y * 0.5 + 0.5);
+	const float3 finalAmbientColor = lerp(grayAmbient * 0.2, ambientColor, normalW.y * 0.5 + 0.5);
 
 	const float3 color =
 		albedo * (accDiff.rgb * ssaoDiff + finalAmbientColor * ssaoAmb) +
@@ -125,7 +125,7 @@ FSO2 mainFS(VSO si)
 	}
 	// </Fog>
 
-	so.target0.rgb = colorWithFog;
+	so.target0.rgb = lerp(colorWithFog, albedo, floor(rawDepth));
 	so.target0.a = 1.0;
 
 	so.target1 = so.target0;
@@ -138,10 +138,10 @@ FSO mainFS(VSO si)
 {
 	FSO so;
 
-	const float4 rawGBuffer0 = g_texGBuffer0.Sample(g_samGBuffer0, si.tc0);
-	const float4 rawGBuffer1 = g_texGBuffer1.Sample(g_samGBuffer1, si.tc0);
-	const float4 rawGBuffer2 = g_texGBuffer2.Sample(g_samGBuffer2, si.tc0);
-	const float4 rawComposed = g_texDepth.Sample(g_samDepth, si.tc0);
+	const float4 rawGBuffer0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.0);
+	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
+	const float4 rawGBuffer2 = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.0);
+	const float4 rawComposed = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0);
 
 	const float3 exposedComposed = rawComposed.rgb * g_ubComposeFS._ambientColor_exposure.a;
 	so.color.rgb = VerusToneMapping(exposedComposed, 0.5);

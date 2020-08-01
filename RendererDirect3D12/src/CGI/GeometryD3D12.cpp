@@ -170,7 +170,7 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, PBaseCommandB
 		}
 
 		if (!pCB)
-			pCB = &(*renderer.GetCommandBuffer());
+			pCB = renderer.GetCommandBuffer().Get();
 		auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
 		if (revertState)
 		{
@@ -241,7 +241,7 @@ void GeometryD3D12::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB)
 	}
 
 	if (!pCB)
-		pCB = &(*renderer.GetCommandBuffer());
+		pCB = renderer.GetCommandBuffer().Get();
 	auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
 	if (revertState)
 	{

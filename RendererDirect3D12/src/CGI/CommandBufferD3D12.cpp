@@ -33,11 +33,39 @@ void CommandBufferD3D12::Done()
 	VERUS_DONE(CommandBufferD3D12);
 }
 
+void CommandBufferD3D12::InitOneTimeSubmit()
+{
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_RENDERER_D3D12;
+	_pOneTimeCommandAllocator = pRendererD3D12->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	auto pCmdList = pRendererD3D12->CreateCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, _pOneTimeCommandAllocator);
+	VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
+		_pCommandLists[i] = pCmdList;
+	_pOneTimeCommandAllocator->Reset();
+	Begin();
+	pRendererD3D12->SetDescriptorHeaps(this);
+}
+
+void CommandBufferD3D12::DoneOneTimeSubmit()
+{
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_RENDERER_D3D12;
+	End();
+	ID3D12CommandList* ppCommandLists[] = { _pCommandLists[0].Get() };
+	pRendererD3D12->GetCommandQueue()->ExecuteCommandLists(VERUS_COUNT_OF(ppCommandLists), ppCommandLists);
+	pRendererD3D12->QueueWaitIdle();
+	_pOneTimeCommandAllocator.Reset();
+	VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
+		_pCommandLists[i].Reset();
+}
+
 void CommandBufferD3D12::Begin()
 {
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
-	if (FAILED(hr = GetD3DGraphicsCommandList()->Reset(pRendererD3D12->GetD3DCommandAllocator(pRendererD3D12->GetRingBufferIndex()), nullptr)))
+	if (FAILED(hr = GetD3DGraphicsCommandList()->Reset(
+		_pOneTimeCommandAllocator ? _pOneTimeCommandAllocator.Get() : pRendererD3D12->GetD3DCommandAllocator(pRendererD3D12->GetRingBufferIndex()),
+		nullptr)))
 		throw VERUS_RUNTIME_ERROR << "Reset(), hr=" << VERUS_HR(hr);
 }
 

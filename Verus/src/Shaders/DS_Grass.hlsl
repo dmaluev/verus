@@ -57,7 +57,7 @@ VSO mainVS(VSI si)
 	float3 intactPos;
 	float3 pos;
 	float2 center;
-	float2 pointSpriteScale = 1.0;
+	float2 pointSpriteSize = 1.0;
 	float groundHeight;
 	float3 normal;
 	float2 tc0;
@@ -67,8 +67,8 @@ VSO mainVS(VSI si)
 		pos = intactPos + float3(si.patchPos.x, 0, si.patchPos.z);
 		center = si.tc.zw * (1.0 / 1000.0) + si.patchPos.xz;
 #ifdef DEF_BILLBOARDS
-		pointSpriteScale = intactPos.y;
-		pos = float3(center.x, 0.45 * pointSpriteScale.y, center.y);
+		pointSpriteSize = intactPos.y;
+		pos = float3(center.x, 0.45 * pointSpriteSize.y, center.y);
 #endif
 
 		const float distToEye = distance(pos + float3(0, si.patchPos.y * 0.01, 0), g_ubGrassVS._posEye.xyz);
@@ -146,7 +146,7 @@ VSO mainVS(VSI si)
 		hide = saturate(hide);
 
 #ifdef DEF_BILLBOARDS
-		pointSpriteScale = lerp(pointSpriteScale, float2(0.0, pointSpriteScale.y), hide);
+		pointSpriteSize = lerp(pointSpriteSize, float2(0.0, pointSpriteSize.y), hide);
 #else
 		posWarped = lerp(posWarped, float3(center.x, posWarped.y, center.y), hide); // Optimize by morphing to center point.
 #endif
@@ -163,8 +163,7 @@ VSO mainVS(VSI si)
 
 #ifdef DEF_BILLBOARDS
 	so.tcOffset_phaseShift.xy = tc0;
-	const float2 pointSize = g_ubGrassVS._viewportSize.yx * g_ubGrassVS._viewportSize.z * pointSpriteScale;
-	so.psize = pointSize * g_ubGrassVS._matP._m11;
+	so.psize = pointSpriteSize * (g_ubGrassVS._viewportSize.yx * g_ubGrassVS._viewportSize.z) * g_ubGrassVS._matP._m11;
 #else
 	so.normal_top.xyz += float3(0, 0, top * top * 0.25);
 #endif
@@ -219,6 +218,7 @@ DS_FSO mainFS(VSO si)
 
 		DS_SetNormal(so, normal + NormalDither(rand));
 		DS_SetEmission(so, 0.0, 0.0);
+		DS_SetMotionBlur(so, 1.0);
 
 		DS_SetLamScaleBias(so, float2(1.2, -0.2), 0.0);
 		DS_SetMetallicity(so, 0.05, 0.0);

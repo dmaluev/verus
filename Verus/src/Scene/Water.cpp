@@ -210,8 +210,6 @@ void Water::Draw()
 			return;
 	}
 
-	auto cb = renderer.GetCommandBuffer();
-
 	RCamera cam = *sm.GetCamera();
 
 	Transform3 matW;
@@ -231,6 +229,8 @@ void Water::Draw()
 	const Transform3 matShift = Transform3::translation(Vector3(0, -0.01f, 0)); // Sky-waterline bleeding fix.
 	const Matrix4 matWVP = cam.GetMatrixVP() * matW;
 	const Matrix4 matScreen = Matrix4(Math::ToUVMatrix()) * matShift * cam.GetMatrixVP();
+
+	auto cb = renderer.GetCommandBuffer();
 
 	s_ubWaterVS._matW = matW.UniformBufferFormat();
 	s_ubWaterVS._matVP = cam.GetMatrixVP().UniformBufferFormat();
@@ -264,15 +264,14 @@ void Water::Draw()
 	memcpy(&s_ubWaterFS._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubWaterFS._shadowConfig));
 	s_ubWaterFS._splitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
 
+	cb->BindPipeline(_pipe[PIPE_MAIN]);
 	cb->BindVertexBuffers(_geo);
 	cb->BindIndexBuffer(_geo);
-	cb->BindPipeline(_pipe[PIPE_MAIN]);
-
 	_shader[SHADER_MAIN]->BeginBindDescriptors();
 	cb->BindDescriptors(_shader[SHADER_MAIN], 0, _cshWaterVS);
 	cb->BindDescriptors(_shader[SHADER_MAIN], 1, _cshWaterFS);
-	cb->DrawIndexed(_indexCount);
 	_shader[SHADER_MAIN]->EndBindDescriptors();
+	cb->DrawIndexed(_indexCount);
 }
 
 void Water::OnSwapChainResized()
@@ -305,7 +304,7 @@ void Water::BeginReflection(CGI::PBaseCommandBuffer pCB)
 	VERUS_QREF_SM;
 
 	if (!pCB)
-		pCB = &(*renderer.GetCommandBuffer());
+		pCB = renderer.GetCommandBuffer().Get();
 
 	_camera = *sm.GetCamera();
 	if (!IsUnderwater(_camera.GetEyePosition()))
@@ -325,7 +324,7 @@ void Water::EndReflection(CGI::PBaseCommandBuffer pCB)
 	VERUS_QREF_SM;
 
 	if (!pCB)
-		pCB = &(*renderer.GetCommandBuffer());
+		pCB = renderer.GetCommandBuffer().Get();
 
 	pCB->EndRenderPass();
 
@@ -355,54 +354,50 @@ void Water::GenerateHeightmapTexture()
 {
 	VERUS_QREF_RENDERER;
 
+	auto cb = renderer.GetCommandBuffer();
+
 	s_ubGen._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubGen._matV = Math::ToUVMatrix().UniformBufferFormat();
 	s_ubGenHeightmapFS._phase.x = _phase;
 	memcpy(&s_ubGenHeightmapFS._amplitudes, _amplitudes, sizeof(_amplitudes));
 
-	auto cb = renderer.GetCommandBuffer();
-
 	cb->BeginRenderPass(_rphGenHeightmap, _fbhGenHeightmap, { _tex[TEX_GEN_HEIGHTMAP]->GetClearValue(), });
 
 	cb->BindPipeline(_pipe[PIPE_GEN_HEIGHTMAP]);
-
 	_shader[SHADER_GEN]->BeginBindDescriptors();
 	cb->BindDescriptors(_shader[SHADER_GEN], 0);
 	cb->BindDescriptors(_shader[SHADER_GEN], 1, _cshGenHeightmap);
 	_shader[SHADER_GEN]->EndBindDescriptors();
-
-	renderer.DrawQuad(&(*cb));
+	renderer.DrawQuad(cb.Get());
 
 	cb->EndRenderPass();
 
-	_tex[TEX_GEN_HEIGHTMAP]->GenerateMips(&(*cb));
+	_tex[TEX_GEN_HEIGHTMAP]->GenerateMips(cb.Get());
 }
 
 void Water::GenerateNormalsTexture()
 {
 	VERUS_QREF_RENDERER;
 
+	auto cb = renderer.GetCommandBuffer();
+
 	s_ubGen._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubGen._matV = Math::ToUVMatrix().UniformBufferFormat();
 	s_ubGenNormalsFS._textureSize = _tex[TEX_GEN_HEIGHTMAP]->GetSize().GLM();
 	s_ubGenNormalsFS._waterScale.x = 1 / _patchSide;
 
-	auto cb = renderer.GetCommandBuffer();
-
 	cb->BeginRenderPass(_rphGenNormals, _fbhGenNormals, { _tex[TEX_GEN_NORMALS]->GetClearValue(), });
 
 	cb->BindPipeline(_pipe[PIPE_GEN_NORMALS]);
-
 	_shader[SHADER_GEN]->BeginBindDescriptors();
 	cb->BindDescriptors(_shader[SHADER_GEN], 0);
 	cb->BindDescriptors(_shader[SHADER_GEN], 2, _cshGenNormals);
 	_shader[SHADER_GEN]->EndBindDescriptors();
-
-	renderer.DrawQuad(&(*cb));
+	renderer.DrawQuad(cb.Get());
 
 	cb->EndRenderPass();
 
-	_tex[TEX_GEN_NORMALS]->GenerateMips(&(*cb));
+	_tex[TEX_GEN_NORMALS]->GenerateMips(cb.Get());
 }
 
 CGI::TexturePtr Water::GetCausticsTexture() const

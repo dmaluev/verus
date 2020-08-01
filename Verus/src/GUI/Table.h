@@ -42,7 +42,7 @@ namespace verus
 			virtual void InputFocus_Key(int scancode) override;
 
 			void Clear();
-			int GetRowCount() const { return _vRows.size(); }
+			int GetRowCount() const { return Utils::Cast32(_vRows.size()); }
 			int GetSelectedRow() const { return _selectedRow; }
 			void SelectRow(int row) { _selectedRow = row; }
 			void SelectNextRow();

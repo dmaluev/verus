@@ -11,6 +11,7 @@
 #include "Atmosphere.h"
 #include "Water.h"
 #include "MaterialManager.h"
+#include "SceneNodes/SceneNodes.h"
 #include "SceneManager.h"
 #include "Helpers.h"
 #include "Scatter.h"

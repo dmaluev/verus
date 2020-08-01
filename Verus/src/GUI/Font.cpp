@@ -156,8 +156,8 @@ void Font::Draw(RcDrawDesc dd)
 
 	auto cb = renderer.GetCommandBuffer();
 
-	cb->BindVertexBuffers(_dynBuffer);
 	cb->BindPipeline(_pipe);
+	cb->BindVertexBuffers(_dynBuffer);
 
 	s_shader->BeginBindDescriptors();
 	cb->BindDescriptors(s_shader, 0, _csh);
@@ -168,7 +168,7 @@ void Font::Draw(RcDrawDesc dd)
 	{
 		const float spaceLeft = (dd._x + dd._w) - xoffset;
 
-		int wordLen = wcscspn(text, wrapChars); // First occurrence of wrap chars.
+		int wordLen = static_cast<int>(wcscspn(text, wrapChars)); // First occurrence of wrap chars.
 
 		if (!wordLen && L'-' == *text)
 			wordLen = 1; // Don't throw away hyphen.
@@ -296,7 +296,7 @@ float Font::DrawWord(CWSZ word, int wordLen, float xoffset, float yoffset, bool 
 
 int Font::GetTextWidth(CWSZ text, int textLen)
 {
-	const int len = (textLen >= 0) ? textLen : wcslen(text);
+	const int len = (textLen >= 0) ? textLen : static_cast<int>(wcslen(text));
 	int width = 0;
 	VERUS_FOR(i, len)
 	{

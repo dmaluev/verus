@@ -26,6 +26,34 @@ void CommandBufferVulkan::Done()
 	VERUS_DONE(CommandBufferVulkan);
 }
 
+void CommandBufferVulkan::InitOneTimeSubmit()
+{
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_RENDERER_VULKAN;
+	_oneTimeSubmit = true;
+	auto commandPool = pRendererVulkan->GetVkCommandPool(renderer->GetRingBufferIndex());
+	auto commandBuffer = pRendererVulkan->CreateCommandBuffer(commandPool);
+	VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
+		_commandBuffers[i] = commandBuffer;
+	Begin();
+}
+
+void CommandBufferVulkan::DoneOneTimeSubmit()
+{
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_RENDERER_VULKAN;
+	End();
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = _commandBuffers;
+	vkQueueSubmit(pRendererVulkan->GetVkGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(pRendererVulkan->GetVkGraphicsQueue());
+	auto commandPool = pRendererVulkan->GetVkCommandPool(renderer->GetRingBufferIndex());
+	vkFreeCommandBuffers(pRendererVulkan->GetVkDevice(), commandPool, 1, _commandBuffers);
+	_oneTimeSubmit = false;
+}
+
 void CommandBufferVulkan::Begin()
 {
 	VkResult res = VK_SUCCESS;
@@ -217,121 +245,87 @@ void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout
 		vkimb[index].subresourceRange.layerCount = 1;
 
 		// See: https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples
-		if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_GENERAL)
-		{
-			// Storage image (UAV) initialization.
-			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-			vkimb[index].srcAccessMask = 0;
-			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		}
-		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-		{
-			// Depth texture initialization.
-			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-			vkimb[index].srcAccessMask = 0;
-			dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-			vkimb[index].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-			vkimb[index].subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-			if (Format::unormD24uintS8 == tex->GetFormat())
-				vkimb[index].subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-		}
-		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
+		auto UseDefaultsForOldLayout = [&vkimb, index, &srcStageMask]()
 		{
-			// Shadow map initialization.
-			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 			vkimb[index].srcAccessMask = 0;
-			dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			switch (vkimb[index].oldLayout)
+			{
+			case VK_IMAGE_LAYOUT_UNDEFINED:
+			case VK_IMAGE_LAYOUT_GENERAL:
+				srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+				break;
+			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+				srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+				break;
+			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+			case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+				srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+				break;
+			case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+				srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+				break;
+			case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+				srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+				vkimb[index].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+				break;
+			default:
+				VERUS_RT_FAIL("Unknown oldLayout");
+			}
+		};
 
-			vkimb[index].subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-			if (Format::unormD24uintS8 == tex->GetFormat())
-				vkimb[index].subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-		}
-		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+		auto UseDefaultsForNewLayout = [&vkimb, index, &dstStageMask, dstStageMaskXS, newLayout, tex]()
 		{
-			// Render target initialization.
-			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-			vkimb[index].srcAccessMask = 0;
-			dstStageMask = (ImageLayout::xsReadOnly == newLayout) ? dstStageMaskXS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		}
-		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+			switch (vkimb[index].newLayout)
+			{
+			case VK_IMAGE_LAYOUT_UNDEFINED:
+			case VK_IMAGE_LAYOUT_GENERAL:
+				dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+				vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+				break;
+			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+				dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+				vkimb[index].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+				break;
+			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+				dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+				vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+				break;
+			case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+				dstStageMask = (ImageLayout::xsReadOnly == newLayout) ? dstStageMaskXS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+				vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+				break;
+			case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+				dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+				vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+				break;
+			case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+				dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+				vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+				break;
+			default:
+				VERUS_RT_FAIL("Unknown newLayout");
+			}
+
+			if (vkimb[index].newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ||
+				vkimb[index].newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
+			{
+				vkimb[index].subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+				if (Format::unormD24uintS8 == tex->GetFormat())
+					vkimb[index].subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+			}
+		};
+
+		if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_GENERAL)
 		{
-			// Reading to readback buffer.
-			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-			vkimb[index].srcAccessMask = 0;
-			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-		}
-		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-		{
-			// Regular texture's first and only update (before transfer).
-			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-			vkimb[index].srcAccessMask = 0;
-			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		}
-		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_GENERAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-		{
-			// To transfer data from storage image during mipmap generation.
-			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-			vkimb[index].srcAccessMask = 0;
-			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-		}
-		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-		{
-			// To support vertex texture fetch.
-			srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			vkimb[index].srcAccessMask = 0;
-			dstStageMask = (ImageLayout::xsReadOnly == newLayout) ? dstStageMaskXS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		}
-		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-		{
-			// Reading to readback buffer.
-			srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			vkimb[index].srcAccessMask = 0;
-			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-		}
-		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-		{
-			// To update regular texture during mipmap generation.
-			srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			vkimb[index].srcAccessMask = 0;
-			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-			vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		}
-		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_GENERAL)
-		{
-			// To restore storage image after transfer during mipmap generation.
-			srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-			vkimb[index].srcAccessMask = 0;
+			UseDefaultsForOldLayout();
 			dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		}
-		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-		{
-			// To restore image after transfer to readback buffer.
-			srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-			vkimb[index].srcAccessMask = 0;
-			dstStageMask = (ImageLayout::xsReadOnly == newLayout) ? dstStageMaskXS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		}
-		else if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-		{
-			// To sample regular texture after update.
-			srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-			vkimb[index].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-			dstStageMask = (ImageLayout::xsReadOnly == newLayout) ? dstStageMaskXS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		}
 		else
 		{
-			VERUS_RT_FAIL("");
+			UseDefaultsForOldLayout();
+			UseDefaultsForNewLayout();
 		}
 
 		index++;
@@ -361,32 +355,4 @@ VkCommandBuffer CommandBufferVulkan::GetVkCommandBuffer() const
 {
 	VERUS_QREF_RENDERER;
 	return _commandBuffers[renderer->GetRingBufferIndex()];
-}
-
-void CommandBufferVulkan::InitOneTimeSubmit()
-{
-	VERUS_QREF_RENDERER;
-	VERUS_QREF_RENDERER_VULKAN;
-	_oneTimeSubmit = true;
-	auto commandPool = pRendererVulkan->GetVkCommandPool(renderer->GetRingBufferIndex());
-	auto commandBuffer = pRendererVulkan->CreateCommandBuffer(commandPool);
-	VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
-		_commandBuffers[i] = commandBuffer;
-	Begin();
-}
-
-void CommandBufferVulkan::DoneOneTimeSubmit()
-{
-	VERUS_QREF_RENDERER;
-	VERUS_QREF_RENDERER_VULKAN;
-	End();
-	VkSubmitInfo submitInfo = {};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = _commandBuffers;
-	vkQueueSubmit(pRendererVulkan->GetVkGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(pRendererVulkan->GetVkGraphicsQueue());
-	auto commandPool = pRendererVulkan->GetVkCommandPool(renderer->GetRingBufferIndex());
-	vkFreeCommandBuffers(pRendererVulkan->GetVkDevice(), commandPool, 1, _commandBuffers);
-	_oneTimeSubmit = false;
 }

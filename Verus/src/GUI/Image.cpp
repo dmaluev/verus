@@ -101,7 +101,6 @@ void Image::Draw()
 	cb->BindDescriptors(shader, 0);
 	cb->BindDescriptors(shader, 1, _solidColor ? CGI::CSHandle() : _csh);
 	shader->EndBindDescriptors();
-
 	renderer.DrawQuad();
 }
 

@@ -54,20 +54,20 @@ void ShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar)
 
 	const Vector3 up(0, 1, 0);
 	Point3 eye, at;
-	const float size = 4096 * 0.005f;
+	const float texSizeInMeters = 4096 * 0.005f;
 	if (0 == zFar)
 		zFar = 1001;
 
-	at = sm.GetCamera()->GetEyePosition() + sm.GetCamera()->GetFrontDirection() * (size * (1 / 3.f));
+	at = sm.GetCamera()->GetEyePosition() + sm.GetCamera()->GetFrontDirection() * (texSizeInMeters * (1 / 3.f));
 	if (_snapToTexels)
 	{
 		const Matrix4 matToShadowSpace = Matrix4::lookAt(Point3(dirToSun), Point3(0), up);
 		const Matrix4 matFromShadowSpace = VMath::orthoInverse(matToShadowSpace);
 		const Point3 atPosShadowSpace = (matToShadowSpace * at).getXYZ();
-		const float texelSize = size / _side;
+		const float texelSizeInMeters = texSizeInMeters / _side;
 		Point3 atPosShadowSpaceSnapped(atPosShadowSpace);
-		atPosShadowSpaceSnapped.setX(atPosShadowSpaceSnapped.getX() - fmod(static_cast<float>(atPosShadowSpaceSnapped.getX()), texelSize));
-		atPosShadowSpaceSnapped.setY(atPosShadowSpaceSnapped.getY() - fmod(static_cast<float>(atPosShadowSpaceSnapped.getY()), texelSize));
+		atPosShadowSpaceSnapped.setX(atPosShadowSpaceSnapped.getX() - fmod(atPosShadowSpaceSnapped.getX(), texelSizeInMeters));
+		atPosShadowSpaceSnapped.setY(atPosShadowSpaceSnapped.getY() - fmod(atPosShadowSpaceSnapped.getY(), texelSizeInMeters));
 		at = (matFromShadowSpace * atPosShadowSpaceSnapped).getXYZ();
 	}
 	eye = at + dirToSun * ((zFar - zNear) * 0.5f);
@@ -79,8 +79,8 @@ void ShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar)
 	_camera.SetFovY(0);
 	_camera.SetZNear(zNear);
 	_camera.SetZFar(zFar);
-	_camera.SetWidth(size);
-	_camera.SetHeight(size);
+	_camera.SetWidth(texSizeInMeters);
+	_camera.SetHeight(texSizeInMeters);
 	_camera.Update();
 	_pSceneCamera = sm.SetCamera(&_camera);
 
@@ -239,8 +239,7 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 
 	const Vector3 up(0, 1, 0);
 	Point3 eye, at;
-	int sideW, sideH, side;
-	float sizeW, sizeH;
+	float texWidthInMeters, texHeightInMeters, texSizeInMeters;
 
 	float zNearFrustum, zFarFrustum;
 	const float closerToLight = 1500;
@@ -267,10 +266,9 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 		if (0 == zFar)
 			zFar = abs(zFarFrustum - zNearFrustum) + closerToLight;
 
-		sideW = static_cast<int>(frustumBounds.getZ() - frustumBounds.getX() + 2.5f);
-		sideH = static_cast<int>(frustumBounds.getW() - frustumBounds.getY() + 2.5f);
-		sizeW = static_cast<float>(sideW);
-		sizeH = static_cast<float>(sideH);
+		texWidthInMeters = ceil(frustumBounds.getZ() - frustumBounds.getX() + 2.5f);
+		texHeightInMeters = ceil(frustumBounds.getW() - frustumBounds.getY() + 2.5f);
+		texSizeInMeters = Math::Max(texWidthInMeters, texHeightInMeters);
 
 		// Setup CSM light space camera for full range (used for terrain layout, etc.):
 		_cameraCSM.SetUpDirection(up);
@@ -279,8 +277,8 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 		_cameraCSM.SetFovY(0);
 		_cameraCSM.SetZNear(zNear);
 		_cameraCSM.SetZFar(zFar);
-		_cameraCSM.SetWidth(sizeW);
-		_cameraCSM.SetHeight(sizeH);
+		_cameraCSM.SetWidth(texSizeInMeters);
+		_cameraCSM.SetHeight(texSizeInMeters);
 		_cameraCSM.Update();
 	}
 
@@ -319,26 +317,16 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 		(frustumBounds.getY() + frustumBounds.getW()) * 0.5f,
 		zNearFrustum);
 
-	sideW = static_cast<int>(frustumBounds.getZ() - frustumBounds.getX() + 2.5f);
-	sideH = static_cast<int>(frustumBounds.getW() - frustumBounds.getY() + 2.5f);
-	if (_currentSplit < 3)
-	{
-		side = (sideW < sideH) ? sideH : sideW;
-		side = Math::NextPowerOfTwo(side);
-		sizeW = static_cast<float>(side);
-		sizeH = static_cast<float>(side);
-	}
-	else
-	{
-		sizeW = static_cast<float>(sideW);
-		sizeH = static_cast<float>(sideH);
-	}
+	texWidthInMeters = ceil(frustumBounds.getZ() - frustumBounds.getX() + 2.5f);
+	texHeightInMeters = ceil(frustumBounds.getW() - frustumBounds.getY() + 2.5f);
+	texSizeInMeters = Math::Max(texWidthInMeters, texHeightInMeters);
 
 	if (_snapToTexels)
 	{
-		const float sideInv = 2.f / _side;
-		pos.setX(pos.getX() - fmod(static_cast<float>(pos.getX()), sizeW * sideInv));
-		pos.setY(pos.getY() - fmod(static_cast<float>(pos.getY()), sizeH * sideInv));
+		const float invSide = 2.f / _side;
+		const float texelSizeInMeters = texSizeInMeters * invSide;
+		pos.setX(pos.getX() - fmod(pos.getX(), texelSizeInMeters));
+		pos.setY(pos.getY() - fmod(pos.getY(), texelSizeInMeters));
 	}
 	pos = (VMath::orthoInverse(matToLightSpace) * pos).getXYZ(); // To world space.
 
@@ -356,8 +344,8 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 	_camera.SetFovY(0);
 	_camera.SetZNear(zNear);
 	_camera.SetZFar(zFar);
-	_camera.SetWidth(sizeW);
-	_camera.SetHeight(sizeH);
+	_camera.SetWidth(texSizeInMeters);
+	_camera.SetHeight(texSizeInMeters);
 	_camera.Update();
 	_pSceneCamera = sm.SetCamera(&_camera);
 

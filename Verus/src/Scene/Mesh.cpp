@@ -59,6 +59,7 @@ void Mesh::Init(RcDesc desc)
 	}
 
 	_instanceCapacity = desc._instanceCapacity;
+	_initShape = desc._initShape;
 
 	BaseMesh::Init(desc._url);
 }
@@ -70,19 +71,19 @@ void Mesh::Done()
 
 void Mesh::Draw(RcDrawDesc dd, CGI::CommandBufferPtr cb)
 {
-	BindGeo(cb);
 	BindPipeline(cb, dd._allowTess);
+	BindGeo(cb);
 
 	UpdateUniformBufferPerFrame();
-	cb->BindDescriptors(Scene::Mesh::GetShader(), 0);
-	UpdateUniformBufferPerMaterialFS();
-	cb->BindDescriptors(Scene::Mesh::GetShader(), 1, dd._cshMaterial);
+	cb->BindDescriptors(GetShader(), 0);
+	// Material buffer should already be updated. For example call Material::UpdateMeshUniformBuffer.
+	cb->BindDescriptors(GetShader(), 1, dd._cshMaterial);
 	UpdateUniformBufferPerMeshVS();
-	cb->BindDescriptors(Scene::Mesh::GetShader(), 2);
+	cb->BindDescriptors(GetShader(), 2);
 	UpdateUniformBufferSkeletonVS();
-	cb->BindDescriptors(Scene::Mesh::GetShader(), 3);
+	cb->BindDescriptors(GetShader(), 3);
 	UpdateUniformBufferPerObject(dd._matW);
-	cb->BindDescriptors(Scene::Mesh::GetShader(), 4);
+	cb->BindDescriptors(GetShader(), 4);
 
 	cb->DrawIndexed(GetIndexCount());
 }
@@ -97,9 +98,17 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 	{
 		switch (pipe)
 		{
-		case PIPE_TESS:         pipe = PIPE_MAIN; break;
-		case PIPE_TESS_ROBOTIC: pipe = PIPE_ROBOTIC; break;
-		case PIPE_TESS_SKINNED: pipe = PIPE_SKINNED; break;
+		case PIPE_TESS:           pipe = PIPE_MAIN; break;
+		case PIPE_TESS_INSTANCED: pipe = PIPE_INSTANCED; break;
+		case PIPE_TESS_PLANT:     pipe = PIPE_PLANT; break;
+		case PIPE_TESS_ROBOTIC:   pipe = PIPE_ROBOTIC; break;
+		case PIPE_TESS_SKINNED:   pipe = PIPE_SKINNED; break;
+
+		case PIPE_DEPTH_TESS:           pipe = PIPE_DEPTH; break;
+		case PIPE_DEPTH_TESS_INSTANCED: pipe = PIPE_DEPTH_INSTANCED; break;
+		case PIPE_DEPTH_TESS_PLANT:     pipe = PIPE_DEPTH_PLANT; break;
+		case PIPE_DEPTH_TESS_ROBOTIC:   pipe = PIPE_DEPTH_ROBOTIC; break;
+		case PIPE_DEPTH_TESS_SKINNED:   pipe = PIPE_DEPTH_SKINNED; break;
 		};
 	}
 
@@ -109,18 +118,27 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 		{
 			"#",
 			"#Instanced",
+			"#Plant",
 			"#Robotic",
 			"#Skinned",
 
+			"#Tess",
+			"#TessInstanced",
+			"#TessPlant",
+			"#TessRobotic",
+			"#TessSkinned",
+
 			"#Depth",
 			"#DepthInstanced",
+			"#DepthPlant",
 			"#DepthRobotic",
 			"#DepthSkinned",
 
-			"#Tess",
-			"#TessInstanced",
-			"#TessRobotic",
-			"#TessSkinned",
+			"#DepthTess",
+			"#DepthTessInstanced",
+			"#DepthTessPlant",
+			"#DepthTessRobotic",
+			"#DepthTessSkinned",
 
 			"#SolidColor",
 			"#SolidColorInstanced",
@@ -141,14 +159,27 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 		{
 		case PIPE_MAIN:
 		case PIPE_INSTANCED:
+		case PIPE_PLANT:
 		case PIPE_ROBOTIC:
 		case PIPE_SKINNED:
 		{
 			SetBlendEqsForDS();
 		}
 		break;
+		case PIPE_TESS:
+		case PIPE_TESS_INSTANCED:
+		case PIPE_TESS_PLANT:
+		case PIPE_TESS_ROBOTIC:
+		case PIPE_TESS_SKINNED:
+		{
+			SetBlendEqsForDS();
+			if (settings._gpuTessellation)
+				pipeDesc._topology = CGI::PrimitiveTopology::patchList3;
+		}
+		break;
 		case PIPE_DEPTH:
 		case PIPE_DEPTH_INSTANCED:
+		case PIPE_DEPTH_PLANT:
 		case PIPE_DEPTH_ROBOTIC:
 		case PIPE_DEPTH_SKINNED:
 		{
@@ -156,12 +187,14 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 			pipeDesc._renderPassHandle = atmo.GetShadowMap().GetRenderPassHandle();
 		}
 		break;
-		case PIPE_TESS:
-		case PIPE_TESS_INSTANCED:
-		case PIPE_TESS_ROBOTIC:
-		case PIPE_TESS_SKINNED:
+		case PIPE_DEPTH_TESS:
+		case PIPE_DEPTH_TESS_INSTANCED:
+		case PIPE_DEPTH_TESS_PLANT:
+		case PIPE_DEPTH_TESS_ROBOTIC:
+		case PIPE_DEPTH_TESS_SKINNED:
 		{
-			SetBlendEqsForDS();
+			pipeDesc._colorAttachBlendEqs[0] = "";
+			pipeDesc._renderPassHandle = atmo.GetShadowMap().GetRenderPassHandle();
 			if (settings._gpuTessellation)
 				pipeDesc._topology = CGI::PrimitiveTopology::patchList3;
 		}
@@ -195,32 +228,56 @@ void Mesh::BindPipeline(CGI::CommandBufferPtr cb, bool allowTess)
 	if (_skeleton.IsInitialized())
 	{
 		if (atmo.GetShadowMap().IsRendering())
-			BindPipeline(Scene::Mesh::PIPE_DEPTH_SKINNED, cb);
-		else if (allowTess)
-			BindPipeline(Scene::Mesh::PIPE_TESS_SKINNED, cb);
+		{
+			if (allowTess)
+				BindPipeline(PIPE_DEPTH_TESS_SKINNED, cb);
+			else
+				BindPipeline(PIPE_DEPTH_SKINNED, cb);
+		}
 		else
-			BindPipeline(Scene::Mesh::PIPE_SKINNED, cb);
+		{
+			if (allowTess)
+				BindPipeline(PIPE_TESS_SKINNED, cb);
+			else
+				BindPipeline(PIPE_SKINNED, cb);
+		}
 	}
 	else
 	{
 		if (atmo.GetShadowMap().IsRendering())
-			BindPipeline(Scene::Mesh::PIPE_DEPTH, cb);
-		else if (allowTess)
-			BindPipeline(Scene::Mesh::PIPE_TESS, cb);
+		{
+			if (allowTess)
+				BindPipeline(PIPE_DEPTH_TESS, cb);
+			else
+				BindPipeline(PIPE_DEPTH, cb);
+		}
 		else
-			BindPipeline(Scene::Mesh::PIPE_MAIN, cb);
+		{
+			if (allowTess)
+				BindPipeline(PIPE_TESS, cb);
+			else
+				BindPipeline(PIPE_MAIN, cb);
+		}
 	}
 }
 
-void Mesh::BindPipelineInstanced(CGI::CommandBufferPtr cb, bool allowTess)
+void Mesh::BindPipelineInstanced(CGI::CommandBufferPtr cb, bool allowTess, bool plant)
 {
 	VERUS_QREF_ATMO;
 	if (atmo.GetShadowMap().IsRendering())
-		BindPipeline(Scene::Mesh::PIPE_DEPTH_INSTANCED, cb);
-	else if (allowTess)
-		BindPipeline(Scene::Mesh::PIPE_TESS_INSTANCED, cb);
+	{
+		if (allowTess)
+			BindPipeline(plant ? PIPE_DEPTH_TESS_PLANT : PIPE_DEPTH_TESS_INSTANCED, cb);
+		else
+			BindPipeline(plant ? PIPE_DEPTH_PLANT : PIPE_DEPTH_INSTANCED, cb);
+	}
 	else
-		BindPipeline(Scene::Mesh::PIPE_INSTANCED, cb);
+	{
+		if (allowTess)
+			BindPipeline(plant ? PIPE_TESS_PLANT : PIPE_TESS_INSTANCED, cb);
+		else
+			BindPipeline(plant ? PIPE_PLANT : PIPE_INSTANCED, cb);
+	}
 }
 
 void Mesh::BindGeo(CGI::CommandBufferPtr cb)
@@ -234,18 +291,20 @@ void Mesh::BindGeo(CGI::CommandBufferPtr cb, UINT32 bindingsFilter)
 	cb->BindIndexBuffer(_geo);
 }
 
-void Mesh::UpdateUniformBufferPerFrame()
+void Mesh::UpdateUniformBufferPerFrame(float invTessDist)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
+	VERUS_QREF_ATMO;
+
+	RcPoint3 eyePos = atmo.GetEyePosition();
+	Point3 eyePosWV = sm.GetCamera()->GetMatrixV() * eyePos;
+
 	s_ubPerFrame._matV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
 	s_ubPerFrame._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubPerFrame._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
 	s_ubPerFrame._viewportSize = renderer.GetCommandBuffer()->GetViewportSize().GLM();
-}
-
-void Mesh::UpdateUniformBufferPerMaterialFS()
-{
+	s_ubPerFrame._eyePosWV_invTessDistSq = float4(eyePosWV.GLM(), invTessDist * invTessDist);
 }
 
 void Mesh::UpdateUniformBufferPerMeshVS()
@@ -354,7 +413,7 @@ void Mesh::CreateDeviceBuffers()
 	}
 
 	// Instance buffer:
-	if (_instanceCapacity > 1)
+	if (_instanceCapacity > 0)
 	{
 		_vInstanceBuffer.resize(_instanceCapacity);
 		_bindingsMask |= (1 << 4);
@@ -367,8 +426,15 @@ void Mesh::UpdateVertexBuffer(const void* p, int binding)
 	_geo->UpdateVertexBuffer(p, binding);
 }
 
+void Mesh::ResetInstanceCount()
+{
+	_instanceCount = 0;
+	_firstInstance = 0;
+}
+
 void Mesh::PushInstance(RcTransform3 matW, RcVector4 instData)
 {
+	VERUS_RT_ASSERT(!_vInstanceBuffer.empty());
 	if (!_vertCount)
 		return;
 	if (IsInstanceBufferFull())
@@ -380,6 +446,7 @@ void Mesh::PushInstance(RcTransform3 matW, RcVector4 instData)
 
 bool Mesh::IsInstanceBufferFull()
 {
+	VERUS_RT_ASSERT(!_vInstanceBuffer.empty());
 	if (!_vertCount)
 		return false;
 	return _instanceCount >= _instanceCapacity;
@@ -387,18 +454,14 @@ bool Mesh::IsInstanceBufferFull()
 
 bool Mesh::IsInstanceBufferEmpty(bool fromFirstInstance)
 {
+	VERUS_RT_ASSERT(!_vInstanceBuffer.empty());
 	if (!_vertCount)
 		return true;
 	return GetInstanceCount(fromFirstInstance) <= 0;
 }
 
-void Mesh::ResetInstanceCount()
-{
-	_instanceCount = 0;
-	_firstInstance = 0;
-}
-
 void Mesh::UpdateInstanceBuffer()
 {
+	VERUS_RT_ASSERT(!_vInstanceBuffer.empty());
 	_geo->UpdateVertexBuffer(_vInstanceBuffer.data(), 4);
 }

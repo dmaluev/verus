@@ -14,28 +14,38 @@ namespace verus
 		class Octree : public Object
 		{
 		public:
-			class Entity
+			class Client
 			{
 			public:
 				Bounds _bounds;
 				Sphere _sphere;
 				void* _pToken = nullptr;
 
-				Entity() {}
-				Entity(RcBounds bounds, void* pToken) :
+				Client() {}
+				Client(RcBounds bounds, void* pToken) :
 					_bounds(bounds), _pToken(pToken)
 				{
 					_sphere = _bounds.GetSphere();
 				}
 			};
-			VERUS_TYPEDEFS(Entity);
+			VERUS_TYPEDEFS(Client);
+
+			class Result
+			{
+			public:
+				void* _pLastFoundToken = nullptr;
+				int   _testCount = 0;
+				int   _passedTestCount = 0;
+				bool  _depth = false;
+			};
+			VERUS_TYPEDEFS(Result);
 
 		private:
 			class Node : public AllocatorAware
 			{
 				Bounds         _bounds;
 				Sphere         _sphere;
-				Vector<Entity> _vEntities;
+				Vector<Client> _vClients;
 
 			public:
 				Node();
@@ -48,12 +58,12 @@ namespace verus
 				RcBounds GetBounds() const { return _bounds; }
 				void SetBounds(RcBounds b) { _bounds = b; _sphere = b.GetSphere(); }
 
-				void BindEntity(RcEntity entity);
-				void UnbindEntity(void* pToken);
-				void UpdateDynamicEntity(RcEntity entity);
+				void BindClient(RcClient client);
+				void UnbindClient(void* pToken);
+				void UpdateDynamicClient(RcClient client);
 
-				int GetEntityCount() const { return Utils::Cast32(_vEntities.size()); }
-				RcEntity GetEntityAt(int i) const { return _vEntities[i]; }
+				int GetClientCount() const { return Utils::Cast32(_vClients.size()); }
+				RcClient GetClientAt(int i) const { return _vClients[i]; }
 			};
 			VERUS_TYPEDEFS(Node);
 
@@ -61,18 +71,9 @@ namespace verus
 			Vector3         _limit = Vector3(0);
 			Vector<Node>    _vNodes;
 			POctreeDelegate _pDelegate = nullptr;
+			Result          _defaultResult;
 
 		public:
-			class Result
-			{
-			public:
-				void* _pLastFoundToken = nullptr;
-				int   _testCount = 0;
-				int   _passedTestCount = 0;
-				bool  _depth = false;
-			};
-			VERUS_TYPEDEFS(Result);
-
 			Octree();
 			~Octree();
 
@@ -83,13 +84,13 @@ namespace verus
 
 			VERUS_P(void Build(int currentNode = 0, int depth = 0));
 
-			bool BindEntity(RcEntity entity, bool forceRoot = false, int currentNode = 0);
-			void UnbindEntity(void* pToken);
-			void UpdateDynamicBounds(RcEntity entity);
+			bool BindClient(RcClient client, bool forceRoot = false, int currentNode = 0);
+			void UnbindClient(void* pToken);
+			void UpdateDynamicBounds(RcClient client);
 			VERUS_P(bool MustBind(int currentNode, RcBounds bounds) const);
 
-			Continue TraverseProper(RcFrustum frustum, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr);
-			Continue TraverseProper(RcPoint3 point, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr);
+			Continue TraverseVisible(RcFrustum frustum, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr);
+			Continue TraverseVisible(RcPoint3 point, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr);
 
 			VERUS_P(static void RemapChildIndices(RcPoint3 point, RcPoint3 center, BYTE childIndices[8]));
 

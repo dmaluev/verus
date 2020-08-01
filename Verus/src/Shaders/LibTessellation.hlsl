@@ -113,12 +113,13 @@ float3 ComputeBezierPoint(float3 posA, float3 posB, float3 nrmA)
 // Optimized version of the projection transform:
 float4 ApplyProjection(float3 posWV, matrix matP)
 {
-	float4 clipSpacePos;
-	clipSpacePos[0] = matP[0][0] * posWV[0];
-	clipSpacePos[1] = matP[1][1] * posWV[1];
-	clipSpacePos[2] = matP[2][2] * posWV[2] + matP[3][2];
-	clipSpacePos[3] = -posWV[2];
-	return clipSpacePos;
+	return mul(float4(posWV, 1), matP);
+	//float4 clipSpacePos;
+	//clipSpacePos[0] = matP[0][0] * posWV[0];
+	//clipSpacePos[1] = matP[1][1] * posWV[1];
+	//clipSpacePos[2] = matP[2][2] * posWV[2] + matP[3][2];
+	//clipSpacePos[3] = -posWV[2];
+	//return clipSpacePos;
 }
 
 float2 ProjectAndScale(float3 posWV, matrix matP, float2 viewportSize)

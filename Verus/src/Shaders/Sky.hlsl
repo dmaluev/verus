@@ -152,7 +152,7 @@ FSO mainFS(VSO si)
 	const float4 rawStars = g_texStars.Sample(g_samStars, si.tcStars);
 
 	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * (10.0 + 5.0 * sunBoost);
-	so.color = float4(skyColor.rgb * hdrScale + rawStars.rgb * 5.0, 1);
+	so.color = float4(skyColor.rgb * hdrScale + rawStars.rgb * 20.0, 1);
 #endif
 
 	return so;

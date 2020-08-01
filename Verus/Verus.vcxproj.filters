@@ -94,6 +94,9 @@
     <Filter Include="src\Effects">
       <UniqueIdentifier>{5ea015f8-8b97-4159-ad67-d71abdba3c91}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\Scene\SceneNodes">
+      <UniqueIdentifier>{07af1a9e-5cdc-4264-811b-d958ec70a709}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\CGI\BaseGeometry.h">
@@ -645,6 +648,27 @@
     <ClInclude Include="src\Scene\Scatter.h">
       <Filter>src\Scene</Filter>
     </ClInclude>
+    <ClInclude Include="src\Scene\SceneNodes\Block.h">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\SceneNodes\Light.h">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\SceneNodes\Model.h">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\SceneNodes\SceneNode.h">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\SceneNodes\SceneNodes.h">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\SceneNodes\TransformGizmo.h">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\SceneNodes\Types.h">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -1094,6 +1118,24 @@
     <ClCompile Include="src\Scene\Scatter.cpp">
       <Filter>src\Scene</Filter>
     </ClCompile>
+    <ClCompile Include="src\Scene\SceneNodes\Block.cpp">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\SceneNodes\Light.cpp">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\SceneNodes\Model.cpp">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\SceneNodes\SceneNode.cpp">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\SceneNodes\SceneNodes.cpp">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\SceneNodes\TransformGizmo.cpp">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\Shaders\Lib.hlsl">
@@ -1222,6 +1264,18 @@
     <None Include="src\Shaders\Bloom.inc.hlsl">
       <Filter>src\Shaders</Filter>
     </None>
+    <None Include="src\Shaders\DS_AO.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_AO.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_BakeSprites.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_BakeSprites.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="src\ThirdParty\pugixml-1.10\pugixml.natvis">
@@ -1233,5 +1287,13 @@
     <Natvis Include="src\ThirdParty\imgui\imgui.natvis">
       <Filter>src\ThirdParty\imgui</Filter>
     </Natvis>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="src\Shaders\DS_Forest.hlsl">
+      <Filter>src\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="src\Shaders\DS_Forest.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

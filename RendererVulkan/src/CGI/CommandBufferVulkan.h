@@ -16,6 +16,9 @@ namespace verus
 			virtual void Init() override;
 			virtual void Done() override;
 
+			virtual void InitOneTimeSubmit();
+			virtual void DoneOneTimeSubmit();
+
 			virtual void Begin() override;
 			virtual void End() override;
 
@@ -46,9 +49,6 @@ namespace verus
 			//
 
 			VkCommandBuffer GetVkCommandBuffer() const;
-
-			void InitOneTimeSubmit();
-			void DoneOneTimeSubmit();
 		};
 		VERUS_TYPEDEFS(CommandBufferVulkan);
 	}

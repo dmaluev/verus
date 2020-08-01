@@ -79,6 +79,8 @@ void DebugDraw::Begin(Type type, PcTransform3 pMat, bool zEnable)
 	VERUS_QREF_SM;
 	VERUS_QREF_RENDERER;
 
+	auto cb = renderer.GetCommandBuffer();
+
 	_type = type;
 	_vertCount = 0;
 	if (_currentFrame != renderer.GetFrameCount())
@@ -104,10 +106,8 @@ void DebugDraw::Begin(Type type, PcTransform3 pMat, bool zEnable)
 	if (!zEnable)
 		pipe = static_cast<PIPE>(pipe + 1);
 
-	auto cb = renderer.GetCommandBuffer();
-
-	cb->BindVertexBuffers(_geo);
 	cb->BindPipeline(_pipe[pipe]);
+	cb->BindVertexBuffers(_geo);
 	_shader->BeginBindDescriptors();
 	cb->BindDescriptors(_shader, 0);
 	_shader->EndBindDescriptors();

@@ -57,19 +57,17 @@ void Table::Draw()
 	{
 		if (row == _selectedRow)
 		{
-			vm.GetUbGui()._matW = Math::QuadMatrix(x, yOffset, w, _rowHeight).UniformBufferFormat();
-			vm.GetUbGuiFS()._color = Vector4(1, 1, 1, 0.25f).GLM();
-
 			auto cb = renderer.GetCommandBuffer();
 			auto shader = vm.GetShader();
 
-			vm.BindPipeline(ViewManager::PIPE_SOLID_COLOR, cb);
+			vm.GetUbGui()._matW = Math::QuadMatrix(x, yOffset, w, _rowHeight).UniformBufferFormat();
+			vm.GetUbGuiFS()._color = Vector4(1, 1, 1, 0.25f).GLM();
 
+			vm.BindPipeline(ViewManager::PIPE_SOLID_COLOR, cb);
 			shader->BeginBindDescriptors();
 			cb->BindDescriptors(shader, 0);
 			cb->BindDescriptors(shader, 1);
 			shader->EndBindDescriptors();
-
 			renderer.DrawQuad();
 		}
 
@@ -178,7 +176,7 @@ void Table::UpdateRow(int index, int col, CSZ txt, UINT32 color, const void* pUs
 
 int Table::AppendRow()
 {
-	const int size = _vRows.size();
+	const int size = Utils::Cast32(_vRows.size());
 	_vRows.resize(size + 1);
 	_vRows[size]._vCells.resize(_cols);
 	return size;

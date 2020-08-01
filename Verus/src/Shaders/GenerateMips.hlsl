@@ -22,6 +22,7 @@ struct CSI
 
 #define THREAD_GROUP_SIZE 8
 
+// Width/height even/odd:
 #define DIM_CASE_WE_HE 0
 #define DIM_CASE_WO_HE 1
 #define DIM_CASE_WE_HO 2

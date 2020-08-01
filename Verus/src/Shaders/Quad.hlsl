@@ -50,5 +50,3 @@ FSO mainFS(VSO si)
 #endif
 
 //@main:#
-//@main:#Clear CLEAR
-//@main:#Depth DEPTH

@@ -161,8 +161,8 @@ void BaseRenderer::SetAlphaBlendHelper(
 	}
 	else
 	{
-		alphaBlendOp = colorBlendOp;
-		srcAlphaBlendFactor = srcColorBlendFactor;
-		dstAlphaBlendFactor = dstColorBlendFactor;
+		alphaBlendOp = 0;
+		srcAlphaBlendFactor = 1;
+		dstAlphaBlendFactor = 0;
 	}
 }

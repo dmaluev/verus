@@ -15,17 +15,17 @@ Quadtree::Node::~Node()
 {
 }
 
-void Quadtree::Node::BindEntity(RcEntity entity)
+void Quadtree::Node::BindClient(RcClient client)
 {
-	_vEntities.push_back(entity);
+	_vClients.push_back(client);
 }
 
-void Quadtree::Node::UnbindEntity(int index)
+void Quadtree::Node::UnbindClient(int index)
 {
-	VERUS_WHILE(Vector<Entity>, _vEntities, it)
+	VERUS_WHILE(Vector<Client>, _vClients, it)
 	{
 		if (index == (*it)._userIndex)
-			it = _vEntities.erase(it);
+			it = _vClients.erase(it);
 		else
 			it++;
 	}
@@ -110,22 +110,22 @@ void Quadtree::Build(int currentNode, int level)
 	}
 }
 
-bool Quadtree::BindEntity(RcEntity entity, bool forceRoot, int currentNode)
+bool Quadtree::BindClient(RcClient client, bool forceRoot, int currentNode)
 {
 	if (!currentNode)
 	{
 		if (_vNodes.empty())
 			return false; // Quadtree is not ready.
-		UnbindEntity(entity._userIndex);
+		UnbindClient(client._userIndex);
 	}
 
-	Entity entityEx = entity;
+	Client clientEx = client;
 	if (forceRoot)
-		entityEx._bounds = _vNodes[currentNode].GetBounds();
+		clientEx._bounds = _vNodes[currentNode].GetBounds();
 
-	if (MustBind(currentNode, entityEx._bounds))
+	if (MustBind(currentNode, clientEx._bounds))
 	{
-		_vNodes[currentNode].BindEntity(entityEx);
+		_vNodes[currentNode].BindClient(clientEx);
 		return true;
 	}
 	else
@@ -135,7 +135,7 @@ bool Quadtree::BindEntity(RcEntity entity, bool forceRoot, int currentNode)
 			const int index = _vNodes[currentNode].GetChildIndex(i);
 			if (index >= 0)
 			{
-				if (BindEntity(entity, false, index))
+				if (BindClient(client, false, index))
 					return true;
 			}
 		}
@@ -143,10 +143,10 @@ bool Quadtree::BindEntity(RcEntity entity, bool forceRoot, int currentNode)
 	return false;
 }
 
-void Quadtree::UnbindEntity(int index)
+void Quadtree::UnbindClient(int index)
 {
 	VERUS_FOREACH(Vector<Node>, _vNodes, it)
-		(*it).UnbindEntity(index);
+		(*it).UnbindClient(index);
 }
 
 bool Quadtree::MustBind(int currentNode, RcBounds bounds) const
@@ -168,7 +168,7 @@ bool Quadtree::MustBind(int currentNode, RcBounds bounds) const
 	return false;
 }
 
-Continue Quadtree::TraverseProper(RcPoint3 point, PResult pResult, int currentNode, void* pUser) const
+Continue Quadtree::TraverseVisible(RcPoint3 point, PResult pResult, int currentNode, void* pUser) const
 {
 	if (_vNodes.empty())
 		return Continue::no;
@@ -186,14 +186,14 @@ Continue Quadtree::TraverseProper(RcPoint3 point, PResult pResult, int currentNo
 	{
 		{
 			RcNode node = _vNodes[currentNode];
-			const int count = node.GetEntityCount();
+			const int count = node.GetClientCount();
 			VERUS_FOR(i, count)
 			{
-				RcEntity entity = node.GetEntityAt(i);
+				RcClient client = node.GetClientAt(i);
 				pResult->_testCount++;
-				if (entity._bounds.IsInside2D(point))
+				if (client._bounds.IsInside2D(point))
 				{
-					pResult->_lastFoundIndex = entity._userIndex;
+					pResult->_lastFoundIndex = client._userIndex;
 					pResult->_passedTestCount++;
 					if (Continue::no == _pDelegate->Quadtree_ProcessNode(pResult->_lastFoundIndex, pUser))
 						return Continue::no;
@@ -208,7 +208,7 @@ Continue Quadtree::TraverseProper(RcPoint3 point, PResult pResult, int currentNo
 			const int index = _vNodes[currentNode].GetChildIndex(childIndices[i]);
 			if (index >= 0)
 			{
-				if (Continue::no == TraverseProper(point, pResult, index, pUser))
+				if (Continue::no == TraverseVisible(point, pResult, index, pUser))
 					return Continue::no;
 			}
 		}

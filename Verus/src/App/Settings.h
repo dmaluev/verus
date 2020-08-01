@@ -4,15 +4,19 @@ namespace verus
 {
 	namespace App
 	{
+		// Capacity is per frame. 3 frames are buffered.
 		class Limits
 		{
 		public:
-			int _d3d12_dhViewsCapacity = 10000;
-			int _d3d12_dhSamplersCapacity = 500;
+			int _d3d12_dhViewsCapacity = 10000; // D3D limit is one million.
+			int _d3d12_dhSamplersCapacity = 500; // D3D limit is 2048.
+			int _generateMips_ubCapacity = 100;
 			int _mesh_ubPerFrameCapacity = 100;
 			int _mesh_ubPerMaterialFSCapacity = 1000;
 			int _mesh_ubPerMeshVSCapacity = 10000;
 			int _mesh_ubSkinningVSCapacity = 5000;
+			int _quad_ubVSCapacity = 100;
+			int _quad_ubFSCapacity = 100;
 			int _terrain_ubDrawDepthCapacity = 100;
 		};
 		VERUS_TYPEDEFS(Limits);

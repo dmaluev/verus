@@ -389,25 +389,24 @@ String FileSystem::ConvertFilenameToPassword(CSZ fileEntry)
 
 bool FileSystem::FileExist(CSZ url)
 {
-	String path(url), pak, projectPathname;
+	String pathname(url), pakPathname, projectPathname;
 	const size_t pakPos = FindPosForPAK(url);
 	if (pakPos != String::npos)
 	{
-		StringStream ssPak;
-		ssPak << _C(Utils::I().GetModulePath()) << s_dataFolder << path.substr(0, pakPos) << ".pak";
-		pak = ssPak.str();
+		const String dataFolder(s_dataFolder);
+		const String pakFilename = pathname.substr(1, pakPos - 1);
 
-		path.replace(pakPos, 1, "/");
-		projectPathname = String(_C(Utils::I().GetProjectPath())) + "/" + path;
+		pakPathname = _C(Utils::I().GetModulePath()) + dataFolder + pakFilename + ".pak";
 
-		StringStream ss;
-		ss << _C(Utils::I().GetModulePath()) << s_dataFolder << path;
-		path = ss.str();
+		pathname = pakFilename + '/' + pathname.substr(pakPos + 2);
+		projectPathname = _C(Utils::I().GetProjectPath()) + dataFolder + pathname;
+
+		pathname = _C(Utils::I().GetModulePath()) + dataFolder + pathname;
 	}
 	File file;
-	if (file.Open(_C(path))) // Normal filename:
+	if (file.Open(_C(pathname))) // Normal filename:
 		return true;
-	if (file.Open(_C(pak))) // PAK filename:
+	if (file.Open(_C(pakPathname))) // PAK filename:
 		return true;
 	if (file.Open(_C(projectPathname))) // File in another project dir:
 		return true;
@@ -430,7 +429,7 @@ String FileSystem::ConvertAbsolutePathToRelative(RcString path)
 	const size_t data = path.rfind("\\Data\\");
 	if (data != String::npos)
 	{
-		s = "[" + path.substr(data + 6);
+		s = '[' + path.substr(data + 6);
 		const size_t colon = s.find('\\');
 		if (colon != String::npos)
 			s.replace(colon, 1, "]:");
@@ -442,14 +441,15 @@ String FileSystem::ConvertAbsolutePathToRelative(RcString path)
 String FileSystem::ConvertRelativePathToAbsolute(RcString path, bool useProjectDir)
 {
 	VERUS_QREF_UTILS;
-	String systemPath = path;
+	const String dataFolder(s_dataFolder);
+	String systemPath = path.substr(1);
 	const size_t colon = systemPath.find(':');
-	if (colon != String::npos)
-		systemPath[colon] = '/';
-	if (useProjectDir && *_C(utils.GetProjectPath()))
-		systemPath = String(_C(utils.GetProjectPath())) + "/" + systemPath;
+	if (colon != String::npos && colon > 0)
+		systemPath = systemPath.substr(0, colon - 1) + '/' + systemPath.substr(colon + 1);
+	if (useProjectDir && !utils.GetProjectPath().IsEmpty())
+		systemPath = _C(utils.GetProjectPath()) + dataFolder + systemPath;
 	else
-		systemPath = String(_C(utils.GetModulePath())) + s_dataFolder + systemPath;
+		systemPath = _C(utils.GetModulePath()) + dataFolder + systemPath;
 	return systemPath;
 }
 
@@ -472,7 +472,6 @@ String FileSystem::ReplaceFilename(CSZ pathname, CSZ filename)
 	return filename;
 }
 
-#if 0
 void FileSystem::SaveImage(CSZ pathname, const UINT32* p, int w, int h, bool upsideDown, ILenum type)
 {
 	struct RAII
@@ -511,7 +510,6 @@ void FileSystem::SaveImage(CSZ pathname, const UINT32* p, int w, int h, bool ups
 	else
 		throw VERUS_RUNTIME_ERROR << "SaveImage(), Open()";
 }
-#endif
 
 void FileSystem::SaveDDS(CSZ pathname, const UINT32* p, int w, int h, int d)
 {

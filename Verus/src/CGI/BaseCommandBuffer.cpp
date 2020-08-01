@@ -13,6 +13,14 @@ void CommandBufferPtr::Init()
 	_p->Init();
 }
 
+void CommandBufferPtr::InitOneTimeSubmit()
+{
+	VERUS_QREF_RENDERER;
+	VERUS_RT_ASSERT(!_p);
+	_p = renderer->InsertCommandBuffer();
+	_p->InitOneTimeSubmit();
+}
+
 void CommandBufferPwn::Done()
 {
 	if (_p)

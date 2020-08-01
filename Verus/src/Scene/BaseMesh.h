@@ -42,6 +42,7 @@ namespace verus
 			Anim::Warp                  _warp;
 			String                      _warpUrl;
 			String                      _url;
+			btBvhTriangleMeshShape* _pShape = nullptr;
 			int                         _vertCount = 0;
 			int                         _faceCount = 0;
 			int                         _indexCount = 0;
@@ -51,6 +52,7 @@ namespace verus
 			float                       _tc1Deq[4];
 			bool                        _loadOnly = false;
 			bool                        _rigidSkeleton = false;
+			bool                        _initShape = false;
 
 		public:
 			BaseMesh();
@@ -97,6 +99,11 @@ namespace verus
 			// GPU:
 			virtual void CreateDeviceBuffers() {}
 			virtual void UpdateVertexBuffer(const void* p, int binding) {}
+
+			// Physics:
+			btBvhTriangleMeshShape* GetShape() const { return _pShape; }
+			btBvhTriangleMeshShape* InitShape(RcTransform3 tr, CSZ url = nullptr);
+			void DoneShape();
 
 			// Bounds:
 			void GetBounds(RPoint3 mn, RPoint3 mx) const;

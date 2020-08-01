@@ -86,6 +86,8 @@ void Ssao::Generate()
 
 	Scene::RCamera cam = *sm.GetCamera();
 
+	auto cb = renderer.GetCommandBuffer();
+
 	s_ubSsaoVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubSsaoVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 	s_ubSsaoVS._matP = Math::ToUVMatrix(0, _tex[TEX_GEN_AO]->GetSize(), &_tex[TEX_RAND_NORMALS]->GetSize()).UniformBufferFormat();
@@ -93,18 +95,14 @@ void Ssao::Generate()
 	s_ubSsaoFS._camScale.x = cam.GetFovScale() / cam.GetAspectRatio();
 	s_ubSsaoFS._camScale.y = -cam.GetFovScale();
 
-	auto cb = renderer.GetCommandBuffer();
-
 	cb->BeginRenderPass(_rph, _fbh, { _tex[TEX_GEN_AO]->GetClearValue() });
 
 	cb->BindPipeline(_pipe);
-
 	_shader->BeginBindDescriptors();
 	cb->BindDescriptors(_shader, 0);
 	cb->BindDescriptors(_shader, 1, _csh);
 	_shader->EndBindDescriptors();
-
-	renderer.DrawQuad(&(*cb));
+	renderer.DrawQuad(cb.Get());
 
 	cb->EndRenderPass();
 

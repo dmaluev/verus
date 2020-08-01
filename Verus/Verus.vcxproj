@@ -235,6 +235,13 @@
     <ClInclude Include="src\Scene\Scatter.h" />
     <ClInclude Include="src\Scene\Scene.h" />
     <ClInclude Include="src\Scene\SceneManager.h" />
+    <ClInclude Include="src\Scene\SceneNodes\Block.h" />
+    <ClInclude Include="src\Scene\SceneNodes\Light.h" />
+    <ClInclude Include="src\Scene\SceneNodes\Model.h" />
+    <ClInclude Include="src\Scene\SceneNodes\SceneNode.h" />
+    <ClInclude Include="src\Scene\SceneNodes\SceneNodes.h" />
+    <ClInclude Include="src\Scene\SceneNodes\TransformGizmo.h" />
+    <ClInclude Include="src\Scene\SceneNodes\Types.h" />
     <ClInclude Include="src\Scene\ShadowMap.h" />
     <ClInclude Include="src\Scene\Terrain.h" />
     <ClInclude Include="src\Scene\Water.h" />
@@ -394,6 +401,12 @@
     <ClCompile Include="src\Scene\Scatter.cpp" />
     <ClCompile Include="src\Scene\Scene.cpp" />
     <ClCompile Include="src\Scene\SceneManager.cpp" />
+    <ClCompile Include="src\Scene\SceneNodes\Block.cpp" />
+    <ClCompile Include="src\Scene\SceneNodes\Light.cpp" />
+    <ClCompile Include="src\Scene\SceneNodes\Model.cpp" />
+    <ClCompile Include="src\Scene\SceneNodes\SceneNode.cpp" />
+    <ClCompile Include="src\Scene\SceneNodes\SceneNodes.cpp" />
+    <ClCompile Include="src\Scene\SceneNodes\TransformGizmo.cpp" />
     <ClCompile Include="src\Scene\ShadowMap.cpp" />
     <ClCompile Include="src\Scene\Terrain.cpp" />
     <ClCompile Include="src\Scene\Water.cpp" />
@@ -724,6 +737,30 @@
       <FileType>Document</FileType>
     </None>
     <None Include="src\Shaders\Bloom.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\DS_AO.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DS_AO.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\DS_BakeSprites.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DS_BakeSprites.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\DS_Forest.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DS_Forest.inc.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

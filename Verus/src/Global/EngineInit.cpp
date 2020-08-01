@@ -87,7 +87,7 @@ void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::Rendere
 		Scene::Mesh::InitStatic();
 		Scene::Terrain::InitStatic();
 		Scene::Grass::InitStatic();
-		//Scene::CForest::InitStatic();
+		Scene::Forest::InitStatic();
 	}
 
 	// Helpers:

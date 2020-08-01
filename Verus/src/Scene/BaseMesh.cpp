@@ -29,6 +29,7 @@ void BaseMesh::Init(CSZ url)
 void BaseMesh::Done()
 {
 	IO::Async::Cancel(this);
+	DoneShape();
 	VERUS_DONE(BaseMesh);
 }
 
@@ -303,6 +304,9 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 		ComputeTangentSpace();
 	}
 
+	if (_initShape)
+		InitShape(Transform3::identity());
+
 	CreateDeviceBuffers();
 }
 
@@ -474,6 +478,83 @@ void BaseMesh::ComputeTangentSpace()
 			Convert::SnormToSint16(&vTan[i].x, _vBinding2[i]._tan, 3);
 			Convert::SnormToSint16(&vBin[i].x, _vBinding2[i]._bin, 3);
 		}
+	}
+}
+
+btBvhTriangleMeshShape* BaseMesh::InitShape(RcTransform3 tr, CSZ url)
+{
+	if (!_vertCount)
+		return nullptr;
+
+	DoneShape();
+
+	String finalUrl = url ? url : _url;
+	String cacheFilename;
+	if (!finalUrl.empty())
+	{
+		String filename = Str::ToPakFriendlyUrl(_C(finalUrl));
+		if (url)
+			filename += ".INST";
+		filename = "[Models]:PhyCache/" + filename + ".bullet";
+		cacheFilename = IO::FileSystem::ConvertRelativePathToAbsolute(filename, true);
+		if (IO::FileSystem::FileExist(_C(filename)))
+		{
+			Vector<BYTE> vMesh;
+			IO::FileSystem::LoadResource(_C(filename), vMesh);
+
+			btBulletWorldImporter bwi(0);
+			if (!vMesh.empty() && bwi.loadFileFromMemory(reinterpret_cast<char*>(vMesh.data()), Utils::Cast32(vMesh.size())))
+			{
+				const int count = bwi.getNumCollisionShapes();
+				if (count)
+					_pShape = static_cast<btBvhTriangleMeshShape*>(bwi.getCollisionShapeByIndex(0));
+			}
+
+			return _pShape;
+		}
+	}
+
+	btTriangleMesh* pTriangleMesh = new btTriangleMesh(_vIndices.empty());
+	pTriangleMesh->preallocateVertices(_vertCount);
+	pTriangleMesh->preallocateIndices(_indexCount);
+	VERUS_FOR(i, _vertCount)
+	{
+		Point3 pos;
+		DequantizeUsingDeq3D(_vBinding0[i]._pos, _posDeq, pos);
+		pos = tr * pos;
+		pTriangleMesh->findOrAddVertex(pos.Bullet(), false);
+	}
+	VERUS_FOR(i, _faceCount)
+	{
+		const int i0 = _vIndices.empty() ? _vIndices32[i * 3 + 0] : _vIndices[i * 3 + 0];
+		const int i1 = _vIndices.empty() ? _vIndices32[i * 3 + 1] : _vIndices[i * 3 + 1];
+		const int i2 = _vIndices.empty() ? _vIndices32[i * 3 + 2] : _vIndices[i * 3 + 2];
+		pTriangleMesh->addTriangleIndices(i0, i1, i2);
+	}
+
+	_pShape = new btBvhTriangleMeshShape(pTriangleMesh, true);
+
+	if (!cacheFilename.empty())
+	{
+		btDefaultSerializer s;
+		s.startSerialization();
+		_pShape->serializeSingleShape(&s);
+		s.finishSerialization();
+		IO::File file;
+		if (file.Open(_C(cacheFilename), "wb"))
+			file.Write(s.getBufferPointer(), s.getCurrentBufferSize());
+	}
+
+	return _pShape;
+}
+
+void BaseMesh::DoneShape()
+{
+	if (_pShape)
+	{
+		delete _pShape->getMeshInterface();
+		delete _pShape;
+		_pShape = nullptr;
 	}
 }
 

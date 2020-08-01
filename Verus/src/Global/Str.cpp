@@ -146,6 +146,21 @@ String Str::GetFilename(CSZ pathname)
 	return pathname;
 }
 
+String Str::ToPakFriendlyUrl(CSZ url)
+{
+	if (!url || !url[0] || url[0] != '[')
+		return url;
+	String ret(url + 1);
+	const size_t pos = ret.find("]:");
+	if (pos != String::npos)
+	{
+		ret.replace(pos, 2, "-");
+		ReplaceAll(ret, "/", ".");
+		return ret;
+	}
+	return url;
+}
+
 String Str::FromInt(int n)
 {
 	StringStream ss;

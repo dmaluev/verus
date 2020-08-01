@@ -210,7 +210,7 @@ void TextureVulkan::UpdateSubresource(const void* p, int mipLevel, int arrayLaye
 	vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), sb._vmaAllocation);
 
 	if (!pCB)
-		pCB = &(*renderer.GetCommandBuffer());
+		pCB = renderer.GetCommandBuffer().Get();
 	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), GetSubresourceMainLayout(mipLevel, arrayLayer), ImageLayout::transferDst, mipLevel, arrayLayer);
 	pRendererVulkan->CopyBufferToImage(
 		sb._buffer,
@@ -223,7 +223,7 @@ void TextureVulkan::UpdateSubresource(const void* p, int mipLevel, int arrayLaye
 	Schedule();
 }
 
-bool TextureVulkan::ReadbackSubresource(void* p, PBaseCommandBuffer pCB)
+bool TextureVulkan::ReadbackSubresource(void* p, bool recordCopyCommand, PBaseCommandBuffer pCB)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_VULKAN;
@@ -235,23 +235,27 @@ bool TextureVulkan::ReadbackSubresource(void* p, PBaseCommandBuffer pCB)
 
 	auto& rb = _vReadbackBuffers[renderer->GetRingBufferIndex()];
 
-	// Schedule copying to readback buffer:
-	if (!pCB)
-		pCB = &(*renderer.GetCommandBuffer());
-	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), GetSubresourceMainLayout(_desc._readbackMip, 0), ImageLayout::transferSrc, _desc._readbackMip, 0);
-	pRendererVulkan->CopyImageToBuffer(
-		_image, _desc._readbackMip, 0,
-		w, h,
-		rb._buffer,
-		pCB);
-	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::transferSrc, _mainLayout, _desc._readbackMip, 0);
+	if (recordCopyCommand)
+	{
+		if (!pCB)
+			pCB = renderer.GetCommandBuffer().Get();
+		pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), GetSubresourceMainLayout(_desc._readbackMip, 0), ImageLayout::transferSrc, _desc._readbackMip, 0);
+		pRendererVulkan->CopyImageToBuffer(
+			_image, _desc._readbackMip, 0,
+			w, h,
+			rb._buffer,
+			pCB);
+		pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::transferSrc, _mainLayout, _desc._readbackMip, 0);
+	}
 
-	// Read current data from readback buffer:
-	void* pData = nullptr;
-	if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), rb._vmaAllocation, &pData)))
-		throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
-	memcpy(p, pData, bufferSize);
-	vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), rb._vmaAllocation);
+	if (p) // Read current data from readback buffer:
+	{
+		void* pData = nullptr;
+		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), rb._vmaAllocation, &pData)))
+			throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
+		memcpy(p, pData, bufferSize);
+		vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), rb._vmaAllocation);
+	}
 
 	return _initAtFrame + BaseRenderer::s_ringBufferSize < renderer.GetFrameCount();
 }
@@ -263,7 +267,9 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 	VERUS_QREF_RENDERER_VULKAN;
 
 	if (!pCB)
-		pCB = &(*renderer.GetCommandBuffer());
+		pCB = renderer.GetCommandBuffer().Get();
+	auto shader = renderer.GetShaderGenerateMips();
+	auto& ub = renderer.GetUbGenerateMips();
 	auto tex = TexturePtr::From(this);
 
 	if (!_definedStorage)
@@ -286,10 +292,7 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 
 	pCB->BindPipeline(renderer.GetPipelineGenerateMips(!!(_desc._flags & TextureDesc::Flags::exposureMips)));
 
-	auto shader = renderer.GetShaderGenerateMips();
 	shader->BeginBindDescriptors();
-	auto& ub = renderer.GetUbGenerateMips();
-
 	const bool createComplexSets = _vCshGenerateMips.empty();
 	int dispatchIndex = 0;
 	for (int srcMip = 0; srcMip < _desc._mipLevels - 1;)
@@ -357,7 +360,6 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 		srcMip += dispatchMipCount;
 		dispatchIndex++;
 	}
-
 	shader->EndBindDescriptors();
 
 	// Revert to main layout:

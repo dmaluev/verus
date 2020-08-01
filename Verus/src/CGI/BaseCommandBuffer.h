@@ -16,6 +16,9 @@ namespace verus
 			virtual void Init() = 0;
 			virtual void Done() = 0;
 
+			virtual void InitOneTimeSubmit() = 0;
+			virtual void DoneOneTimeSubmit() = 0;
+
 			virtual void Begin() = 0;
 			virtual void End() = 0;
 
@@ -50,6 +53,7 @@ namespace verus
 		{
 		public:
 			void Init();
+			void InitOneTimeSubmit();
 		};
 		VERUS_TYPEDEFS(CommandBufferPtr);
 

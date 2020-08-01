@@ -15,21 +15,25 @@ namespace verus
 				TEX_COUNT
 			};
 
-			static UB_BloomVS s_ubBloomVS;
-			static UB_BloomFS s_ubBloomFS;
+			static UB_BloomVS        s_ubBloomVS;
+			static UB_BloomFS        s_ubBloomFS;
+			static UB_BloomGodRaysFS s_ubBloomGodRaysFS;
 
 			CGI::ShaderPwn              _shader;
 			CGI::PipelinePwn            _pipe;
 			CGI::TexturePwns<TEX_COUNT> _tex;
+			CGI::TexturePtr             _texAtmoShadow;
 			CGI::RPHandle               _rph;
 			CGI::FBHandle               _fbh;
 			CGI::CSHandle               _csh;
+			CGI::CSHandle               _cshGodRays;
 
 		public:
 			Bloom();
 			~Bloom();
 
 			void Init();
+			void InitByAtmosphere(CGI::TexturePtr texShadow);
 			void Done();
 
 			void OnSwapChainResized();

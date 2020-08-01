@@ -3,8 +3,8 @@
 struct DS_FSO
 {
 	float4 target0 : SV_Target0; // {albedo, spec}
-	float4 target1 : SV_Target1; // {normal, emission, motion}
-	float4 target2 : SV_Target2; // {lam, metal, gloss}
+	float4 target1 : SV_Target1; // {normal, emission + skin, motion}
+	float4 target2 : SV_Target2; // {lamScaleBias, metal + hair, gloss}
 };
 
 struct DS_ACC_FSO

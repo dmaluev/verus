@@ -228,7 +228,7 @@ void TextureD3D12::UpdateSubresource(const void* p, int mipLevel, int arrayLayer
 	}
 
 	if (!pCB)
-		pCB = &(*renderer.GetCommandBuffer());
+		pCB = renderer.GetCommandBuffer().Get();
 	auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
 	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), _mainLayout, ImageLayout::transferDst, mipLevel, arrayLayer);
 	D3D12_SUBRESOURCE_DATA sd = {};
@@ -257,7 +257,7 @@ void TextureD3D12::UpdateSubresource(const void* p, int mipLevel, int arrayLayer
 	Schedule();
 }
 
-bool TextureD3D12::ReadbackSubresource(void* p, PBaseCommandBuffer pCB)
+bool TextureD3D12::ReadbackSubresource(void* p, bool recordCopyCommand, PBaseCommandBuffer pCB)
 {
 	VERUS_QREF_RENDERER;
 	HRESULT hr = 0;
@@ -268,32 +268,44 @@ bool TextureD3D12::ReadbackSubresource(void* p, PBaseCommandBuffer pCB)
 
 	auto& rb = _vReadbackBuffers[renderer->GetRingBufferIndex()];
 
-	// Schedule copying to readback buffer:
-	if (!pCB)
-		pCB = &(*renderer.GetCommandBuffer());
-	auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
-	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), _mainLayout, ImageLayout::transferSrc, _desc._readbackMip, 0);
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
-	footprint.Footprint.Format = ToNativeFormat(_desc._format, false);
-	footprint.Footprint.Width = w;
-	footprint.Footprint.Height = h;
-	footprint.Footprint.Depth = 1;
-	footprint.Footprint.RowPitch = rowPitch;
-	const UINT subresource = D3D12CalcSubresource(_desc._readbackMip, 0, 0, _desc._mipLevels, _desc._arrayLayers);
-	pCmdList->CopyTextureRegion(
-		&CD3DX12_TEXTURE_COPY_LOCATION(rb._pResource.Get(), footprint),
-		0, 0, 0,
-		&CD3DX12_TEXTURE_COPY_LOCATION(_resource._pResource.Get(), subresource),
-		nullptr);
-	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::transferSrc, _mainLayout, _desc._readbackMip, 0);
+	if (recordCopyCommand)
+	{
+		if (!pCB)
+			pCB = renderer.GetCommandBuffer().Get();
+		auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
+		pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), _mainLayout, ImageLayout::transferSrc, _desc._readbackMip, 0);
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+		footprint.Footprint.Format = ToNativeFormat(_desc._format, false);
+		footprint.Footprint.Width = w;
+		footprint.Footprint.Height = h;
+		footprint.Footprint.Depth = 1;
+		footprint.Footprint.RowPitch = rowPitch;
+		const UINT subresource = D3D12CalcSubresource(_desc._readbackMip, 0, 0, _desc._mipLevels, _desc._arrayLayers);
+		pCmdList->CopyTextureRegion(
+			&CD3DX12_TEXTURE_COPY_LOCATION(rb._pResource.Get(), footprint),
+			0, 0, 0,
+			&CD3DX12_TEXTURE_COPY_LOCATION(_resource._pResource.Get(), subresource),
+			nullptr);
+		pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::transferSrc, _mainLayout, _desc._readbackMip, 0);
+	}
 
-	// Read current data from readback buffer:
-	CD3DX12_RANGE readRange(0, 0);
-	void* pData = nullptr;
-	if (FAILED(hr = rb._pResource->Map(0, &readRange, &pData)))
-		throw VERUS_RUNTIME_ERROR << "Map(), hr=" << VERUS_HR(hr);
-	memcpy(p, pData, _bytesPerPixel * w);
-	rb._pResource->Unmap(0, nullptr);
+	if (p) // Read current data from readback buffer:
+	{
+		CD3DX12_RANGE readRange(0, 0);
+		void* pData = nullptr;
+		if (FAILED(hr = rb._pResource->Map(0, &readRange, &pData)))
+			throw VERUS_RUNTIME_ERROR << "Map(), hr=" << VERUS_HR(hr);
+		BYTE* pDst = static_cast<BYTE*>(p);
+		BYTE* pSrc = static_cast<BYTE*>(pData);
+		VERUS_FOR(i, h)
+		{
+			memcpy(
+				pDst + i * _bytesPerPixel * w,
+				pSrc + i * rowPitch,
+				_bytesPerPixel * w);
+		}
+		rb._pResource->Unmap(0, nullptr);
+	}
 
 	return _initAtFrame + BaseRenderer::s_ringBufferSize < renderer.GetFrameCount();
 }
@@ -304,8 +316,10 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 	VERUS_QREF_RENDERER;
 
 	if (!pCB)
-		pCB = &(*renderer.GetCommandBuffer());
+		pCB = renderer.GetCommandBuffer().Get();
 	auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
+	auto shader = renderer.GetShaderGenerateMips();
+	auto& ub = renderer.GetUbGenerateMips();
 	auto tex = TexturePtr::From(this);
 
 	// Transition state for sampling in compute shader:
@@ -314,10 +328,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 
 	pCB->BindPipeline(renderer.GetPipelineGenerateMips(!!(_desc._flags & TextureDesc::Flags::exposureMips)));
 
-	auto shader = renderer.GetShaderGenerateMips();
 	shader->BeginBindDescriptors();
-	auto& ub = renderer.GetUbGenerateMips();
-
 	const bool createComplexSets = _vCshGenerateMips.empty();
 	int dispatchIndex = 0;
 	for (int srcMip = 0; srcMip < _desc._mipLevels - 1;)
@@ -399,7 +410,6 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 		srcMip += dispatchMipCount;
 		dispatchIndex++;
 	}
-
 	shader->EndBindDescriptors();
 
 	// Revert to main state:

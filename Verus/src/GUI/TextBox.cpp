@@ -44,20 +44,18 @@ void TextBox::Draw()
 		PFont pFont = vm.FindFont(GetFont());
 		const float caretX = Font::ToFloatX(pFont->GetTextWidth(_C(GetText())), GetFontScale());
 
+		auto cb = renderer.GetCommandBuffer();
+		auto shader = vm.GetShader();
+
 		vm.GetUbGui()._matW = Math::QuadMatrix(x + caretX, y, 0.0015f, GetH()).UniformBufferFormat();
 		vm.GetUbGui()._matV = Math::ToUVMatrix(0, 0).UniformBufferFormat();
 		vm.GetUbGuiFS()._color = Vector4(1, 1, 1, 1).GLM();
 
-		auto cb = renderer.GetCommandBuffer();
-		auto shader = vm.GetShader();
-
 		vm.BindPipeline(ViewManager::PIPE_SOLID_COLOR, cb);
-
 		shader->BeginBindDescriptors();
 		cb->BindDescriptors(shader, 0);
 		cb->BindDescriptors(shader, 1);
 		shader->EndBindDescriptors();
-
 		renderer.DrawQuad();
 	}
 }
@@ -67,7 +65,7 @@ void TextBox::Parse(pugi::xml_node node)
 	Label::Parse(node);
 
 	_fullText = _C(GetText());
-	_cursor = GetText().Length();
+	_cursor = Utils::Cast32(GetText().Length());
 
 	_maxLength = node.attribute("maxLength").as_int(_maxLength);
 
@@ -176,7 +174,7 @@ void TextBox::SetText(CWSZ txt)
 	if (!txt)
 		return;
 	_fullText = txt;
-	_cursor = _fullText.length();
+	_cursor = Utils::Cast32(_fullText.length());
 	UpdateLabelText();
 }
 
@@ -185,6 +183,6 @@ void TextBox::SetText(CSZ txt)
 	if (!txt)
 		return;
 	_fullText = Str::Utf8ToWide(txt);
-	_cursor = _fullText.length();
+	_cursor = Utils::Cast32(_fullText.length());
 	UpdateLabelText();
 }

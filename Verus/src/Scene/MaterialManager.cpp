@@ -335,8 +335,8 @@ String Material::ToString(bool cleanDict)
 
 	CSZ empty = "";
 
-	CGI::PBaseTexture pTexAlbedo = &(*_texAlbedo->GetTex());
-	CGI::PBaseTexture pTexNormal = &(*_texNormal->GetTex());
+	CGI::PBaseTexture pTexAlbedo = _texAlbedo->GetTex().Get();
+	CGI::PBaseTexture pTexNormal = _texNormal->GetTex().Get();
 
 	_dict.Insert("alphaSwitch",     /**/_C(Str::ToString(_alphaSwitch)));
 	_dict.Insert("anisoSpecDir",    /**/_C(Str::ToString(_anisoSpecDir)));

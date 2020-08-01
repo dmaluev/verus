@@ -94,13 +94,11 @@ void View::Draw()
 			ubGuiFS._color = Vector4::Replicate(1).GLM();
 
 			vm.BindPipeline(ViewManager::PIPE_MAIN, cb);
-
 			shader->BeginBindDescriptors();
 			cb->BindDescriptors(shader, 0);
 			cb->BindDescriptors(shader, 1, _csh);
 			shader->EndBindDescriptors();
-
-			renderer.DrawQuad(&(*cb));
+			renderer.DrawQuad(cb.Get());
 		}
 	}
 	else if (!GetColor().IsZero())
@@ -112,13 +110,11 @@ void View::Draw()
 		ubGuiFS._color = GetColor().GLM();
 
 		vm.BindPipeline(ViewManager::PIPE_SOLID_COLOR, cb);
-
 		shader->BeginBindDescriptors();
 		cb->BindDescriptors(shader, 0);
 		cb->BindDescriptors(shader, 1, vm.GetDefaultComplexSetHandle());
 		shader->EndBindDescriptors();
-
-		renderer.DrawQuad(&(*cb));
+		renderer.DrawQuad(cb.Get());
 	}
 
 	DrawWidgets();
@@ -128,17 +124,12 @@ void View::Draw()
 		vm.GetUbGui()._matW = Transform3::UniformBufferFormatIdentity();
 		vm.GetUbGuiFS()._color = Vector4(0, 0, 0, _fade.GetValue()).GLM();
 
-		auto cb = renderer.GetCommandBuffer();
-		auto shader = vm.GetShader();
-
 		vm.BindPipeline(ViewManager::PIPE_SOLID_COLOR, cb);
-
 		shader->BeginBindDescriptors();
 		cb->BindDescriptors(shader, 0);
 		cb->BindDescriptors(shader, 1, vm.GetDefaultComplexSetHandle());
 		shader->EndBindDescriptors();
-
-		renderer.DrawQuad(&(*cb));
+		renderer.DrawQuad(cb.Get());
 	}
 }
 

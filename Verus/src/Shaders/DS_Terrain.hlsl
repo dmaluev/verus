@@ -292,6 +292,7 @@ DS_FSO mainFS(VSO si)
 
 		DS_SetNormal(so, normalWV + NormalDither(rand));
 		DS_SetEmission(so, 0.0, 0.0);
+		DS_SetMotionBlur(so, 1.0);
 
 		DS_SetLamScaleBias(so, g_ubTerrainFS._lamScaleBias.xy, float4(0, 0, 1, 0));
 		DS_SetMetallicity(so, 0.05, 0.0);
@@ -304,6 +305,9 @@ DS_FSO mainFS(VSO si)
 #endif
 
 //@main:#
-//@main:#Depth DEPTH (V)
-//@main:#SolidColor SOLID_COLOR
 //@main:#Tess TESS (VHDF)
+
+//@main:#Depth     DEPTH (V)
+//@main:#DepthTess DEPTH TESS (VHD)
+
+//@main:#SolidColor SOLID_COLOR

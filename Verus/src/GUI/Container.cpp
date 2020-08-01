@@ -133,7 +133,7 @@ PWidget Container::GetWidgetById(CSZ id)
 
 int Container::GetWidgetIndex(PWidget p)
 {
-	const int size = _vWidgets.size();
+	const int size = Utils::Cast32(_vWidgets.size());
 	VERUS_FOR(i, size)
 	{
 		if (_vWidgets[i] == p)

@@ -65,7 +65,7 @@ FSO mainFS(VSO si)
 {
 	FSO so;
 
-	const float3 randNormal = g_texRandNormals.SampleLevel(g_samRandNormals, si.tcNorm, 0.0).xyz * 2.0 - 1.0;
+	const float3 randNormalWV = g_texRandNormals.SampleLevel(g_samRandNormals, si.tcNorm, 0.0).xyz * 2.0 - 1.0;
 
 	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
 	const float3 normalWV = DS_GetNormal(rawGBuffer1);
@@ -73,25 +73,32 @@ FSO mainFS(VSO si)
 	const float rawDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
 	const float originDepth = ToLinearDepth(rawDepth, g_ubSsaoFS._zNearFarEx);
 
-	const float perspectScale = 1.0 / originDepth;
-	const float3 scale = 0.025 * float3(perspectScale * g_ubSsaoFS._camScale.xy, 1);
+	const float smallRad = 0.02;
+	const float largeRad = 0.06;
+	const float perspectScale = max(1.0 / originDepth, 0.05);
+	const float4 scale = float4(smallRad, smallRad, largeRad, largeRad) * perspectScale * g_ubSsaoFS._camScale.xyxy;
 
-	float2 acc = float2(0, _SINGULARITY_FIX);
+	float2 acc = _SINGULARITY_FIX;
 	[unroll] for (uint i = 0; i < 8; i++)
 	{
-		const float3 randRayWV = reflect(g_rays[i], randNormal);
+		const float3 randRayWV = reflect(g_rays[i], randNormalWV);
 		const float3 hemiRayWV = randRayWV + normalWV * saturate(-dot(normalWV, randRayWV)) * 2.0;
 		const float nDotR = saturate(dot(normalWV, hemiRayWV));
-		const float3 ray = hemiRayWV * scale;
 
-		const float rawKernelDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0 + ray.xy, 0.0).r;
-		const float kernelDepth = ToLinearDepth(rawKernelDepth, g_ubSsaoFS._zNearFarEx);
+		const float3 smallRay = hemiRayWV * float3(scale.xy, smallRad);
+		const float3 largeRay = hemiRayWV * float3(scale.zw, largeRad);
 
-		const float zOffset = kernelDepth - originDepth + ray.z;
-		const float visible = step(0.0, zOffset);
-		const float weight = saturate(0.4 + zOffset * 4.0) * nDotR;
+		const float2 rawKernelDepths = float2(
+			g_texDepth.SampleLevel(g_samDepth, si.tc0 + smallRay.xy, 0.0).r,
+			g_texDepth.SampleLevel(g_samDepth, si.tc0 + largeRay.xy, 0.0).r);
+		const float2 kernelDepths = ToLinearDepth(rawKernelDepths, g_ubSsaoFS._zNearFarEx);
 
-		acc += float2(visible * weight, weight);
+		const float2 kernelDeeper = kernelDepths - originDepth;
+		const float2 rayCloser = kernelDeeper + float2(smallRay.z, largeRay.z);
+		const float2 visible = step(0.0, rayCloser);
+		const float weight = saturate(1.2 + 5.0 * rayCloser.y) * nDotR;
+
+		acc += float2(min(visible.x, visible.y) * weight, weight);
 	}
 
 	so.color = acc.x / acc.y;

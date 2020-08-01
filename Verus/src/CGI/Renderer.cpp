@@ -108,7 +108,7 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	_geoQuad.Init(geoDesc);
 
 	_shader[SHADER_GENERATE_MIPS].Init("[Shaders]:GenerateMips.hlsl");
-	_shader[SHADER_GENERATE_MIPS]->CreateDescriptorSet(0, &_ubGenerateMips, sizeof(_ubGenerateMips), 100,
+	_shader[SHADER_GENERATE_MIPS]->CreateDescriptorSet(0, &_ubGenerateMips, sizeof(_ubGenerateMips), settings.GetLimits()._generateMips_ubCapacity,
 		{
 			Sampler::linearClampMipN,
 			Sampler::storage,
@@ -120,8 +120,8 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	_shader[SHADER_GENERATE_MIPS]->CreatePipelineLayout();
 
 	_shader[SHADER_QUAD].Init("[Shaders]:Quad.hlsl");
-	_shader[SHADER_QUAD]->CreateDescriptorSet(0, &_ubQuadVS, sizeof(_ubQuadVS), 100, {}, ShaderStageFlags::vs);
-	_shader[SHADER_QUAD]->CreateDescriptorSet(1, &_ubQuadFS, sizeof(_ubQuadFS), 100, { Sampler::linearClampMipN }, ShaderStageFlags::fs);
+	_shader[SHADER_QUAD]->CreateDescriptorSet(0, &_ubQuadVS, sizeof(_ubQuadVS), settings.GetLimits()._quad_ubVSCapacity, {}, ShaderStageFlags::vs);
+	_shader[SHADER_QUAD]->CreateDescriptorSet(1, &_ubQuadFS, sizeof(_ubQuadFS), settings.GetLimits()._quad_ubFSCapacity, { Sampler::linearClampMipN }, ShaderStageFlags::fs);
 	_shader[SHADER_QUAD]->CreatePipelineLayout();
 
 	{
@@ -175,6 +175,7 @@ void Renderer::Done()
 		_geoQuad.Done();
 		_commandBuffer.Done();
 
+		Scene::Forest::DoneStatic();
 		Scene::Grass::DoneStatic();
 		Scene::Terrain::DoneStatic();
 		Scene::Mesh::DoneStatic();
@@ -205,10 +206,10 @@ void Renderer::Update()
 		const float alpha = Math::Max(0.001f, floatColor[3]);
 		const float actual = gray.r;
 		const float expScale = Math::Clamp(_exposure[1] * (1 / 15.f), 0.f, 1.f);
-		const float target = -0.4f + 0.75f * expScale * expScale; // Dark scene exposure compensation.
+		const float target = -0.3f + 0.6f * expScale * expScale; // Dark scene exposure compensation.
 		const float important = (actual - 0.5f * (1 - alpha)) / alpha;
 		const float delta = abs(target - important);
-		const float speed = delta * sqrt(delta) * 43;
+		const float speed = delta * sqrt(delta) * 30;
 
 		if (important < target * 0.95f)
 			_exposure[1] -= speed * dt;
@@ -312,7 +313,7 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 void Renderer::DrawQuad(PBaseCommandBuffer pCB)
 {
 	if (!pCB)
-		pCB = &(*_commandBuffer);
+		pCB = _commandBuffer.Get();
 	pCB->BindVertexBuffers(_geoQuad);
 	pCB->Draw(4, 1);
 }
@@ -323,7 +324,7 @@ void Renderer::DrawOffscreenColor(PBaseCommandBuffer pCB, bool endRenderPass)
 		return;
 
 	if (!pCB)
-		pCB = &(*_commandBuffer);
+		pCB = _commandBuffer.Get();
 
 	_tex[TEX_OFFSCREEN_COLOR]->GenerateMips();
 
@@ -332,8 +333,8 @@ void Renderer::DrawOffscreenColor(PBaseCommandBuffer pCB, bool endRenderPass)
 
 	pCB->BeginRenderPass(_rphSwapChainWithDepth, _fbhSwapChainWithDepth[_pBaseRenderer->GetSwapChainBufferIndex()], { Vector4(0), Vector4(1) });
 
-	pCB->BindVertexBuffers(_geoQuad);
 	pCB->BindPipeline(_pipe[PIPE_OFFSCREEN_COLOR]);
+	pCB->BindVertexBuffers(_geoQuad);
 	_shader[SHADER_QUAD]->BeginBindDescriptors();
 	pCB->BindDescriptors(_shader[SHADER_QUAD], 0);
 	pCB->BindDescriptors(_shader[SHADER_QUAD], 1, _cshOffscreenColor);
@@ -350,7 +351,7 @@ void Renderer::DrawOffscreenColorSwitchRenderPass(PBaseCommandBuffer pCB)
 		return;
 
 	if (!pCB)
-		pCB = &(*_commandBuffer);
+		pCB = _commandBuffer.Get();
 
 	pCB->EndRenderPass();
 

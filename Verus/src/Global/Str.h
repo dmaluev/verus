@@ -39,6 +39,7 @@ namespace verus
 		static void ReplaceFilename(RString pathname, CSZ filename);
 		static String GetPath(CSZ pathname);
 		static String GetFilename(CSZ pathname);
+		static String ToPakFriendlyUrl(CSZ url);
 		static String FromInt(int n);
 		static void Explode(CSZ s, CSZ delimiter, Vector<String>& pieces);
 		static void Trim(RString s);

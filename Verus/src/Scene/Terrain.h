@@ -93,11 +93,14 @@ namespace verus
 			{
 				PIPE_LIST,
 				PIPE_STRIP,
+				PIPE_TESS,
+
 				PIPE_DEPTH_LIST,
 				PIPE_DEPTH_STRIP,
+				PIPE_DEPTH_TESS,
+
 				PIPE_WIREFRAME_LIST,
 				PIPE_WIREFRAME_STRIP,
-				PIPE_TESS,
 				PIPE_REFLECTION_LIST,
 				PIPE_REFLECTION_STRIP,
 				PIPE_UNDERWATER_LIST,
@@ -183,7 +186,7 @@ namespace verus
 
 			struct DrawDesc
 			{
-				bool _tess = false;
+				bool _allowTess = false;
 				bool _wireframe = false;
 
 				void Reset()
@@ -203,11 +206,10 @@ namespace verus
 			void InitByWater();
 			void Done();
 
+			void ResetInstanceCount();
 			void Layout();
 			void Draw(RcDrawDesc dd = DrawDesc());
 			void DrawReflection();
-
-			void ResetInstanceCount();
 
 			void SortVisiblePatches();
 

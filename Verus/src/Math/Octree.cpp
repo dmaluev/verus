@@ -23,29 +23,29 @@ bool Octree::Node::HasChildren(int currentNode, int nodeCount)
 	return GetChildIndex(currentNode, 7) < nodeCount;
 }
 
-void Octree::Node::BindEntity(RcEntity entity)
+void Octree::Node::BindClient(RcClient client)
 {
-	_vEntities.push_back(entity);
+	_vClients.push_back(client);
 }
 
-void Octree::Node::UnbindEntity(void* pToken)
+void Octree::Node::UnbindClient(void* pToken)
 {
-	VERUS_WHILE(Vector<Entity>, _vEntities, it)
+	VERUS_WHILE(Vector<Client>, _vClients, it)
 	{
 		if (pToken == (*it)._pToken)
-			it = _vEntities.erase(it);
+			it = _vClients.erase(it);
 		else
 			it++;
 	}
 }
 
-void Octree::Node::UpdateDynamicEntity(RcEntity entity)
+void Octree::Node::UpdateDynamicClient(RcClient client)
 {
-	for (auto& o : _vEntities)
+	for (auto& o : _vClients)
 	{
-		if (o._pToken == entity._pToken)
+		if (o._pToken == client._pToken)
 		{
-			o = entity;
+			o = client;
 			return;
 		}
 	}
@@ -135,25 +135,25 @@ void Octree::Build(int currentNode, int depth)
 	}
 }
 
-bool Octree::BindEntity(RcEntity entity, bool forceRoot, int currentNode)
+bool Octree::BindClient(RcClient client, bool forceRoot, int currentNode)
 {
 	if (!currentNode)
 	{
 		if (_vNodes.empty())
 			return false; // Octree is not ready.
-		UnbindEntity(entity._pToken);
+		UnbindClient(client._pToken);
 	}
 
-	Entity entityEx = entity;
+	Client clientEx = client;
 	if (forceRoot)
 	{
-		entityEx._bounds = _vNodes[currentNode].GetBounds();
-		entityEx._sphere = entityEx._bounds.GetSphere();
+		clientEx._bounds = _vNodes[currentNode].GetBounds();
+		clientEx._sphere = clientEx._bounds.GetSphere();
 	}
 
-	if (MustBind(currentNode, entityEx._bounds))
+	if (MustBind(currentNode, clientEx._bounds))
 	{
-		_vNodes[currentNode].BindEntity(entityEx);
+		_vNodes[currentNode].BindClient(clientEx);
 		return true;
 	}
 	else if (Node::HasChildren(currentNode, Utils::Cast32(_vNodes.size())))
@@ -161,25 +161,25 @@ bool Octree::BindEntity(RcEntity entity, bool forceRoot, int currentNode)
 		VERUS_FOR(i, 8)
 		{
 			const int childIndex = Node::GetChildIndex(currentNode, i);
-			if (BindEntity(entity, false, childIndex))
+			if (BindClient(client, false, childIndex))
 				return true;
 		}
 	}
 	return false;
 }
 
-void Octree::UnbindEntity(void* pToken)
+void Octree::UnbindClient(void* pToken)
 {
 	for (auto& node : _vNodes)
-		node.UnbindEntity(pToken);
+		node.UnbindClient(pToken);
 }
 
-void Octree::UpdateDynamicBounds(RcEntity entity)
+void Octree::UpdateDynamicBounds(RcClient client)
 {
 	if (_vNodes.empty())
 		return; // Octree is not ready.
 
-	_vNodes[0].UpdateDynamicEntity(entity);
+	_vNodes[0].UpdateDynamicClient(client);
 }
 
 bool Octree::MustBind(int currentNode, RcBounds bounds) const
@@ -200,13 +200,16 @@ bool Octree::MustBind(int currentNode, RcBounds bounds) const
 	return _vNodes[currentNode].GetBounds().IsOverlappingWith(bounds);
 }
 
-Continue Octree::TraverseProper(RcFrustum frustum, PResult pResult, int currentNode, void* pUser)
+Continue Octree::TraverseVisible(RcFrustum frustum, PResult pResult, int currentNode, void* pUser)
 {
 	if (_vNodes.empty())
 		return Continue::no;
 
 	if (!currentNode)
 	{
+		_defaultResult = Result();
+		if (!pResult)
+			pResult = &_defaultResult;
 		pResult->_testCount = 0;
 		pResult->_passedTestCount = 0;
 		pResult->_pLastFoundToken = nullptr;
@@ -225,22 +228,22 @@ Continue Octree::TraverseProper(RcFrustum frustum, PResult pResult, int currentN
 	{
 		{
 			RcNode node = _vNodes[currentNode];
-			const int count = node.GetEntityCount();
+			const int count = node.GetClientCount();
 			VERUS_FOR(i, count)
 			{
-				RcEntity entity = node.GetEntityAt(i);
+				RcClient client = node.GetClientAt(i);
 
 				pResult->_testCount++;
 				const float onePixel = Math::ComputeOnePixelDistance(
-					entity._sphere.GetRadius());
+					client._sphere.GetRadius());
 				const bool notTooSmall = pResult->_depth || VMath::distSqr(
-					frustum.GetEyePosition(), entity._sphere.GetCenter()) < onePixel * onePixel;
+					frustum.GetEyePosition(), client._sphere.GetCenter()) < onePixel * onePixel;
 
 				if (notTooSmall &&
-					Relation::outside != frustum.ContainsSphere(entity._sphere) &&
-					Relation::outside != frustum.ContainsAabb(entity._bounds))
+					Relation::outside != frustum.ContainsSphere(client._sphere) &&
+					Relation::outside != frustum.ContainsAabb(client._bounds))
 				{
-					pResult->_pLastFoundToken = entity._pToken;
+					pResult->_pLastFoundToken = client._pToken;
 					pResult->_passedTestCount++;
 					if (Continue::no == _pDelegate->Octree_ProcessNode(pResult->_pLastFoundToken, pUser))
 						return Continue::no;
@@ -253,7 +256,7 @@ Continue Octree::TraverseProper(RcFrustum frustum, PResult pResult, int currentN
 			VERUS_FOR(i, 8)
 			{
 				const int childIndex = Node::GetChildIndex(currentNode, i);
-				if (Continue::no == TraverseProper(frustum, pResult, childIndex, pUser))
+				if (Continue::no == TraverseVisible(frustum, pResult, childIndex, pUser))
 					return Continue::no;
 			}
 		}
@@ -261,13 +264,16 @@ Continue Octree::TraverseProper(RcFrustum frustum, PResult pResult, int currentN
 	return Continue::yes;
 }
 
-Continue Octree::TraverseProper(RcPoint3 point, PResult pResult, int currentNode, void* pUser)
+Continue Octree::TraverseVisible(RcPoint3 point, PResult pResult, int currentNode, void* pUser)
 {
 	if (_vNodes.empty())
 		return Continue::no;
 
 	if (!currentNode)
 	{
+		_defaultResult = Result();
+		if (!pResult)
+			pResult = &_defaultResult;
 		pResult->_testCount = 0;
 		pResult->_passedTestCount = 0;
 		pResult->_pLastFoundToken = nullptr;
@@ -278,14 +284,14 @@ Continue Octree::TraverseProper(RcPoint3 point, PResult pResult, int currentNode
 	{
 		{
 			RcNode node = _vNodes[currentNode];
-			const int count = node.GetEntityCount();
+			const int count = node.GetClientCount();
 			VERUS_FOR(i, count)
 			{
-				RcEntity entity = node.GetEntityAt(i);
+				RcClient client = node.GetClientAt(i);
 				pResult->_testCount++;
-				if (entity._bounds.IsInside(point))
+				if (client._bounds.IsInside(point))
 				{
-					pResult->_pLastFoundToken = entity._pToken;
+					pResult->_pLastFoundToken = client._pToken;
 					pResult->_passedTestCount++;
 					if (Continue::no == _pDelegate->Octree_ProcessNode(pResult->_pLastFoundToken, pUser))
 						return Continue::no;
@@ -300,7 +306,7 @@ Continue Octree::TraverseProper(RcPoint3 point, PResult pResult, int currentNode
 			VERUS_FOR(i, 8)
 			{
 				const int childIndex = Node::GetChildIndex(currentNode, remapped[i]);
-				if (Continue::no == TraverseProper(point, pResult, childIndex, pUser))
+				if (Continue::no == TraverseVisible(point, pResult, childIndex, pUser))
 					return Continue::no;
 			}
 		}

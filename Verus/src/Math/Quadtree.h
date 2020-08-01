@@ -14,23 +14,23 @@ namespace verus
 		class Quadtree : public Object
 		{
 		public:
-			class Entity
+			class Client
 			{
 			public:
 				Bounds _bounds;
 				int    _userIndex;
 
-				Entity() {}
-				Entity(RcBounds bounds, int index) :
+				Client() {}
+				Client(RcBounds bounds, int index) :
 					_bounds(bounds), _userIndex(index) {}
 			};
-			VERUS_TYPEDEFS(Entity);
+			VERUS_TYPEDEFS(Client);
 
 		private:
 			class Node : public AllocatorAware
 			{
 				Bounds         _bounds;
-				Vector<Entity> _vEntities;
+				Vector<Client> _vClients;
 				int            _children[4];
 
 			public:
@@ -43,11 +43,11 @@ namespace verus
 				int  GetChildIndex(int child) const { return _children[child]; }
 				void SetChildIndex(int child, int index) { _children[child] = index; }
 
-				void BindEntity(RcEntity entity);
-				void UnbindEntity(int index);
+				void BindClient(RcClient client);
+				void UnbindClient(int index);
 
-				int GetEntityCount() const { return Utils::Cast32(_vEntities.size()); }
-				RcEntity GetEntityAt(int i) const { return _vEntities[i]; }
+				int GetClientCount() const { return Utils::Cast32(_vClients.size()); }
+				RcClient GetClientAt(int i) const { return _vClients[i]; }
 			};
 			VERUS_TYPEDEFS(Node);
 
@@ -77,11 +77,11 @@ namespace verus
 
 			VERUS_P(void Build(int currentNode = 0, int level = 0));
 
-			bool BindEntity(RcEntity entity, bool forceRoot = false, int currentNode = 0);
-			void UnbindEntity(int index);
+			bool BindClient(RcClient client, bool forceRoot = false, int currentNode = 0);
+			void UnbindClient(int index);
 			VERUS_P(bool MustBind(int currentNode, RcBounds bounds) const);
 
-			Continue TraverseProper(RcPoint3 point, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr) const;
+			Continue TraverseVisible(RcPoint3 point, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr) const;
 
 			VERUS_P(static void ChildIndices(RcPoint3 point, RcPoint3 center, BYTE childIndices[4]));
 

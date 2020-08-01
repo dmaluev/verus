@@ -31,7 +31,7 @@ namespace verus
 			virtual void Done() override;
 
 			virtual void UpdateSubresource(const void* p, int mipLevel, int arrayLayer, PBaseCommandBuffer pCB) override;
-			virtual bool ReadbackSubresource(void* p, PBaseCommandBuffer pCB) override;
+			virtual bool ReadbackSubresource(void* p, bool recordCopyCommand, PBaseCommandBuffer pCB) override;
 
 			virtual void GenerateMips(PBaseCommandBuffer pCB) override;
 

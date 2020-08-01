@@ -6,6 +6,7 @@ VERUS_UBUFFER UB_PerFrame
 	matrix _matVP;
 	matrix _matP;
 	float4 _viewportSize;
+	float4 _eyePosWV_invTessDistSq;
 };
 
 VERUS_UBUFFER UB_PerMaterialFS

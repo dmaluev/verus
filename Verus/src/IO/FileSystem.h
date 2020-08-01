@@ -57,9 +57,9 @@ namespace verus
 			static String ReplaceFilename(CSZ pathname, CSZ filename);
 
 			// Save data:
-			//static void SaveImage	/**/(CSZ pathname, const UINT32* p, int w, int h, bool upsideDown = false, ILenum type = IL_PSD);
-			static void SaveDDS		/**/(CSZ pathname, const UINT32* p, int w, int h, int d = 0);
-			static void SaveString	/**/(CSZ pathname, CSZ s);
+			static void SaveImage /**/(CSZ pathname, const UINT32* p, int w, int h, bool upsideDown = false, ILenum type = IL_PSD);
+			static void SaveDDS   /**/(CSZ pathname, const UINT32* p, int w, int h, int d = 0);
+			static void SaveString/**/(CSZ pathname, CSZ s);
 		};
 		VERUS_TYPEDEFS(FileSystem);
 

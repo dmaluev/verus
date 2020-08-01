@@ -50,12 +50,12 @@ struct VSO
 {
 	float4 pos     : SV_Position;
 	float2 tc0     : TEXCOORD0;
+	float4 matTBN2 : TEXCOORD1;
 #if !defined(DEF_DEPTH)
 	float4 color0  : COLOR0;
 #if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
-	float4 matTBN0 : TEXCOORD1;
-	float4 matTBN1 : TEXCOORD2;
-	float4 matTBN2 : TEXCOORD3;
+	float4 matTBN0 : TEXCOORD2;
+	float4 matTBN1 : TEXCOORD3;
 #endif
 #endif
 };
@@ -148,12 +148,19 @@ VSO mainVS(VSI si)
 
 	so.pos = MulTessPos(float4(posW, 1), g_ubPerFrame._matV, g_ubPerFrame._matVP);
 	so.tc0 = intactTc0;
+	so.matTBN2 = float4(nrmWV, posW.z);
+#ifdef DEF_TESS
+	so.matTBN2.xyz = normalize(so.matTBN2.xyz);
+#endif
+
 #if !defined(DEF_DEPTH)
 	so.color0 = userColor;
+#ifdef DEF_PLANT
+	so.color0.rgb = RandomColor(userColor.xz, 0.3, 0.2);
+#endif
 #if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
 	so.matTBN0 = float4(tanWV, posW.x);
 	so.matTBN1 = float4(binWV, posW.y);
-	so.matTBN2 = float4(nrmWV, posW.z);
 #endif
 #endif
 
@@ -185,12 +192,12 @@ HSO mainHS(InputPatch<VSO, 3> inputPatch, uint id : SV_OutputControlPointID)
 
 	_HS_COPY(pos);
 	_HS_COPY(tc0);
+	_HS_COPY(matTBN2);
 #if !defined(DEF_DEPTH)
 	_HS_COPY(color0);
 #if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
 	_HS_COPY(matTBN0);
 	_HS_COPY(matTBN1);
-	_HS_COPY(matTBN2);
 #endif
 #endif
 
@@ -204,16 +211,21 @@ VSO mainDS(_IN_DS)
 {
 	VSO so;
 
+	_DS_INIT_FLAT_POS;
 	_DS_INIT_SMOOTH_POS;
 
-	so.pos = ApplyProjection(smoothPosWV, g_ubPerFrame._matP);
+	const float3 toEyeWV = g_ubPerFrame._eyePosWV_invTessDistSq.xyz - flatPosWV;
+	const float distToEyeSq = dot(toEyeWV, toEyeWV);
+	const float tessStrength = 1.0 - saturate(distToEyeSq * g_ubPerFrame._eyePosWV_invTessDistSq.w * 1.1 - 0.1);
+	const float3 posWV = lerp(flatPosWV, smoothPosWV, tessStrength);
+	so.pos = ApplyProjection(posWV, g_ubPerFrame._matP);
 	_DS_COPY(tc0);
+	_DS_COPY(matTBN2);
 #if !defined(DEF_DEPTH)
 	_DS_COPY(color0);
 #if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
 	_DS_COPY(matTBN0);
 	_DS_COPY(matTBN1);
-	_DS_COPY(matTBN2);
 #endif
 #endif
 
@@ -290,7 +302,11 @@ DS_FSO mainFS(VSO si)
 	const float skinAlpha = PickAlpha(rawAlbedo.rgb, mm_skinPick, 16.0);
 	const float userAlpha = PickAlphaHue(rawAlbedo.rgb, mm_userPick, 32.0);
 
+#ifdef DEF_PLANT
+	rawAlbedo.rgb *= si.color0.rgb;
+#else
 	rawAlbedo.rgb = lerp(rawAlbedo.rgb, Overlay(gray, si.color0.rgb), userAlpha * si.color0.a);
+#endif
 	const float3 hairAlbedo = Overlay(alpha_spec.y, Desaturate(rawAlbedo.rgb, hairAlpha * mm_hairDesat));
 
 	// <Gloss>
@@ -373,20 +389,29 @@ DS_FSO mainFS(VSO si)
 
 //@main:#
 //@main:#Instanced INSTANCED
+//@main:#Plant     PLANT INSTANCED
 //@main:#Robotic   ROBOTIC
 //@main:#Skinned   SKINNED
 
+//@main:#Tess          TESS (VHDF)
+//@main:#TessInstanced TESS INSTANCED (VHDF)
+//@main:#TessPlant     TESS PLANT INSTANCED (VHDF)
+//@main:#TessRobotic   TESS ROBOTIC (VHDF)
+//@main:#TessSkinned   TESS SKINNED (VHDF)
+
 //@main:#Depth          DEPTH
 //@main:#DepthInstanced DEPTH INSTANCED
+//@main:#DepthPlant     DEPTH PLANT INSTANCED
 //@main:#DepthRobotic   DEPTH ROBOTIC
 //@main:#DepthSkinned   DEPTH SKINNED
+
+//@main:#DepthTess          DEPTH TESS (VHDF)
+//@main:#DepthTessInstanced DEPTH TESS INSTANCED (VHDF)
+//@main:#DepthTessPlant     DEPTH TESS PLANT INSTANCED (VHDF)
+//@main:#DepthTessRobotic   DEPTH TESS ROBOTIC (VHDF)
+//@main:#DepthTessSkinned   DEPTH TESS SKINNED (VHDF)
 
 //@main:#SolidColor          SOLID_COLOR
 //@main:#SolidColorInstanced SOLID_COLOR INSTANCED
 //@main:#SolidColorRobotic   SOLID_COLOR ROBOTIC
 //@main:#SolidColorSkinned   SOLID_COLOR SKINNED
-
-//@main:#Tess          TESS (VHDF)
-//@main:#TessInstanced TESS INSTANCED (VHDF)
-//@main:#TessRobotic   TESS ROBOTIC (VHDF)
-//@main:#TessSkinned   TESS SKINNED (VHDF)

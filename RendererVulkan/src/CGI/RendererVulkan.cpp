@@ -768,7 +768,7 @@ void RendererVulkan::ImGuiRenderDrawData()
 {
 	VERUS_QREF_RENDERER;
 	ImGui::Render();
-	VkCommandBuffer commandBuffer = static_cast<CommandBufferVulkan*>(&(*renderer.GetCommandBuffer()))->GetVkCommandBuffer();
+	VkCommandBuffer commandBuffer = static_cast<CommandBufferVulkan*>(renderer.GetCommandBuffer().Get())->GetVkCommandBuffer();
 	if (ImGui::GetDrawData())
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
 }
@@ -825,7 +825,7 @@ void RendererVulkan::EndFrame(bool present)
 	_acquireNextImageSemaphore = _acquireNextImageSemaphores[_ringBufferIndex];
 	_queueSubmitSemaphore = _queueSubmitSemaphores[_ringBufferIndex];
 
-	VkCommandBuffer commandBuffer = static_cast<CommandBufferVulkan*>(&(*renderer.GetCommandBuffer()))->GetVkCommandBuffer();
+	VkCommandBuffer commandBuffer = static_cast<CommandBufferVulkan*>(renderer.GetCommandBuffer().Get())->GetVkCommandBuffer();
 	VkSubmitInfo vksi = {};
 	vksi.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	if (present)
@@ -1260,7 +1260,7 @@ void RendererVulkan::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDevice
 	VERUS_QREF_RENDERER;
 
 	if (!pCB)
-		pCB = &(*renderer.GetCommandBuffer());
+		pCB = renderer.GetCommandBuffer().Get();
 	auto commandBuffer = static_cast<PCommandBufferVulkan>(pCB)->GetVkCommandBuffer();
 
 	VkBufferCopy region = {};
@@ -1287,7 +1287,7 @@ void RendererVulkan::CopyImage(
 	VERUS_QREF_RENDERER;
 
 	if (!pCB)
-		pCB = &(*renderer.GetCommandBuffer());
+		pCB = renderer.GetCommandBuffer().Get();
 	auto commandBuffer = static_cast<PCommandBufferVulkan>(pCB)->GetVkCommandBuffer();
 
 	VkImageCopy region = {};
@@ -1313,7 +1313,7 @@ void RendererVulkan::CopyBufferToImage(
 	VERUS_QREF_RENDERER;
 
 	if (!pCB)
-		pCB = &(*renderer.GetCommandBuffer());
+		pCB = renderer.GetCommandBuffer().Get();
 	auto commandBuffer = static_cast<PCommandBufferVulkan>(pCB)->GetVkCommandBuffer();
 
 	VkBufferImageCopy region = {};
@@ -1339,7 +1339,7 @@ void RendererVulkan::CopyImageToBuffer(
 	VERUS_QREF_RENDERER;
 
 	if (!pCB)
-		pCB = &(*renderer.GetCommandBuffer());
+		pCB = renderer.GetCommandBuffer().Get();
 	auto commandBuffer = static_cast<PCommandBufferVulkan>(pCB)->GetVkCommandBuffer();
 
 	VkBufferImageCopy region = {};

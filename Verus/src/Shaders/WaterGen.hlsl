@@ -70,7 +70,7 @@ FSO mainGenHeightmapFS(VSO si)
 	float accHeight = 0.0;
 	[unroll] for (uint i = 0; i < 4; ++i)
 	{
-		float height = g_texSourceHeightmap.Sample(g_samSourceHeightmap, (si.tc0 + offsets[i]) * (i / 2 + 1) + g_ubGenHeightmapFS._phase.x * dirs[i]).r - 0.5;
+		float height = g_texSourceHeightmap.SampleLevel(g_samSourceHeightmap, (si.tc0 + offsets[i]) * (i / 2 + 1) + g_ubGenHeightmapFS._phase.x * dirs[i], 0.0).r - 0.5;
 		height *= amplitudes[i]; // Must be local float4 to work in D3D12!
 		accHeight += height;
 	}

@@ -19,7 +19,7 @@ WideStr Widget::GetText() const
 void Widget::SetText(CWSZ text)
 {
 	if (_fixedTextLength)
-		wcsncpy(_vFixedText.data(), text, Math::Min<int>(wcslen(text), _fixedTextLength - 1));
+		wcsncpy(_vFixedText.data(), text, Math::Min<int>(Utils::Cast32(wcslen(text)), _fixedTextLength - 1));
 	else
 		_text = text;
 }
@@ -65,19 +65,17 @@ void Widget::DrawInputStyle()
 	float x, y;
 	GetAbsolutePosition(x, y);
 
-	vm.GetUbGui()._matW = Math::QuadMatrix(x, y, GetW(), GetH()).UniformBufferFormat();
-	vm.GetUbGuiFS()._color = Vector4(0, 0, 0, 0.75f * GetColor().getW()).GLM();
-
 	auto cb = renderer.GetCommandBuffer();
 	auto shader = vm.GetShader();
 
-	vm.BindPipeline(ViewManager::PIPE_SOLID_COLOR, cb);
+	vm.GetUbGui()._matW = Math::QuadMatrix(x, y, GetW(), GetH()).UniformBufferFormat();
+	vm.GetUbGuiFS()._color = Vector4(0, 0, 0, 0.75f * GetColor().getW()).GLM();
 
+	vm.BindPipeline(ViewManager::PIPE_SOLID_COLOR, cb);
 	shader->BeginBindDescriptors();
 	cb->BindDescriptors(shader, 0);
 	cb->BindDescriptors(shader, 1);
 	shader->EndBindDescriptors();
-
 	renderer.DrawQuad();
 }
 

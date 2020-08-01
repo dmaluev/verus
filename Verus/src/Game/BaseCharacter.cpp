@@ -290,13 +290,14 @@ void BaseCharacter::ComputeThirdPersonCameraArgs(RcVector3 offset, RPoint3 eye, 
 	Point3 point;
 	Vector3 norm;
 
+	const RcVector3 offsetW = GetYawMatrix() * offset;
 	const Point3 pos = _smoothPosition;
 	const float startAt = _cc.GetRadius() + _cc.GetHeight() * 0.5f; // Inside capsule.
 	const Point3 origin = pos + Vector3(0, startAt, 0);
-	at = pos + GetYawMatrix() * offset;
+	at = pos + offsetW;
 	if (sm.RayCastingTest(origin, at, nullptr, &point, &norm, &r))
 		at = point + norm * r;
-	eye = at - GetFrontDirection() * _cameraRadius.GetValue();
+	eye = at - GetFrontDirection() * _cameraRadius.GetValue() + offsetW * 0.05f;
 }
 
 float BaseCharacter::ComputeThirdPersonCamera(Scene::RCamera camera, Anim::RcOrbit orbit, RcVector3 offset)

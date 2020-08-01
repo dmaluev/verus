@@ -92,11 +92,10 @@ namespace verus
 			void Init(RTerrain terrain);
 			void Done();
 
+			void ResetInstanceCount();
 			void Update();
 			void Layout();
 			void Draw();
-
-			void ResetInstanceCount();
 
 			virtual void QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center) override;
 			virtual void QuadtreeIntegral_GetHeights(const short ij[2], float height[2]) override;

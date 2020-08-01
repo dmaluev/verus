@@ -112,7 +112,7 @@ namespace verus
 			virtual void Async_Run(CSZ url, RcBlob blob) override;
 
 			virtual void UpdateSubresource(const void* p, int mipLevel = 0, int arrayLayer = 0, BaseCommandBuffer* pCB = nullptr) = 0;
-			virtual bool ReadbackSubresource(void* p, BaseCommandBuffer* pCB = nullptr) = 0;
+			virtual bool ReadbackSubresource(void* p, bool recordCopyCommand = true, BaseCommandBuffer* pCB = nullptr) = 0;
 
 			virtual void GenerateMips(BaseCommandBuffer* pCB = nullptr) = 0;
 

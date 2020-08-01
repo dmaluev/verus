@@ -41,7 +41,7 @@
 #	define VK_SUBPASS_INPUT(index, tex, sam, t, s, space)\
 	Texture2D    tex : register(t, space);\
 	SamplerState sam : register(s, space)
-#	define VK_SUBPASS_LOAD(tex, sam, tc) tex.SampleLevel(sam, tc, 0)
+#	define VK_SUBPASS_LOAD(tex, sam, tc) tex.SampleLevel(sam, tc, 0.0)
 
 #	define VK_POINT_SIZE
 #	define VK_SET_POINT_SIZE
@@ -76,6 +76,16 @@ matrix ToFloat4x4(mataff m)
 		float4(m[3], 1));
 }
 
+float2 ToNdcPos(float2 tc)
+{
+	return tc * float2(2, -2) - float2(1, -1);
+}
+
+float2 ToTexCoords(float2 ndcPos)
+{
+	return ndcPos * float2(0.5, -0.5) + 0.5;
+}
+
 // Asymmetric abs():
 float2 AsymAbs(float2 x, float negScale = -1.0, float posScale = 1.0)
 {
@@ -85,6 +95,19 @@ float2 AsymAbs(float2 x, float negScale = -1.0, float posScale = 1.0)
 float3 Rand(float2 uv)
 {
 	return frac(sin(dot(uv, float2(12.9898, 78.233)) * float3(1, 2, 3)) * 43758.5453);
+}
+
+float4 Rand2(float2 pos)
+{
+	const float4 primeA = float4(9.907, 9.923, 9.929, 9.931);
+	const float4 primeB = float4(9.941, 9.949, 9.967, 9.973);
+	return frac(primeA * pos.x + primeB * pos.y);
+}
+
+float3 RandomColor(float2 pos, float randLum, float randRGB)
+{
+	const float4 r = Rand2(pos);
+	return (1.0 - randLum - randRGB) + r.a * randLum + r.rgb * randRGB;
 }
 
 float3 NormalDither(float3 rand)

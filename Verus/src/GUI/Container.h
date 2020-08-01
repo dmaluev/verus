@@ -31,7 +31,7 @@ namespace verus
 
 			PWidget GetHovered(float x, float y);
 			PWidget GetWidgetById(CSZ id);
-			int GetWidgetCount() const { return _vWidgets.size(); }
+			int GetWidgetCount() const { return Utils::Cast32(_vWidgets.size()); }
 			int GetWidgetIndex(PWidget p);
 		};
 		VERUS_TYPEDEFS(Container);

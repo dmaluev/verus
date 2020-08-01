@@ -16,6 +16,8 @@ namespace verus
 				PIPE_BLOOM_V,
 				PIPE_SSAO_H,
 				PIPE_SSAO_V,
+				PIPE_AA,
+				PIPE_MOTION_BLUR,
 				PIPE_COUNT
 			};
 
@@ -32,14 +34,23 @@ namespace verus
 				void DeleteFramebuffers();
 			};
 
-			static UB_BlurVS s_ubBlurVS;
-			static UB_BlurFS s_ubBlurFS;
+			static UB_BlurVS      s_ubBlurVS;
+			static UB_BlurFS      s_ubBlurFS;
+			static UB_ExtraBlurFS s_ubExtraBlurFS;
 
 			CGI::ShaderPwn                _shader;
 			CGI::PipelinePwns<PIPE_COUNT> _pipe;
 			CGI::TexturePwn               _tex;
 			Handles                       _bloomHandles;
 			Handles                       _ssaoHandles;
+			CGI::RPHandle                 _rphAntiAliasing;
+			CGI::FBHandle                 _fbhAntiAliasing;
+			CGI::CSHandle                 _cshAntiAliasing;
+			CGI::CSHandle                 _cshAntiAliasingExtra;
+			CGI::RPHandle                 _rphMotionBlur;
+			CGI::FBHandle                 _fbhMotionBlur;
+			CGI::CSHandle                 _cshMotionBlur;
+			CGI::CSHandle                 _cshMotionBlurExtra;
 
 		public:
 			Blur();
@@ -53,7 +64,7 @@ namespace verus
 			void Generate();
 			void GenerateForBloom();
 			void GenerateForSsao();
-			void GenerateForDepthOfField();
+			void GenerateForAntiAliasing();
 			void GenerateForMotionBlur();
 		};
 		VERUS_TYPEDEFS(Blur);

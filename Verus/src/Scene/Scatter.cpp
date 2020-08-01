@@ -24,7 +24,7 @@ void Scatter::Init(int side, int typeCount, PcTypeDesc pTypes, int seed)
 
 	// Fill 2D array of instances:
 	_vInstances.resize(_side * _side);
-	const int instanceCount = _vInstances.size();
+	const int instanceCount = Utils::Cast32(_vInstances.size());
 	int type = 0;
 	int maxPermille = (typeCount >= 1) ? pTypes[0]._permille : 1000;
 	VERUS_FOR(i, instanceCount)

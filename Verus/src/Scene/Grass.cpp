@@ -157,6 +157,11 @@ void Grass::Done()
 	VERUS_DONE(Grass);
 }
 
+void Grass::ResetInstanceCount()
+{
+	_instanceCount = 0;
+}
+
 void Grass::Update()
 {
 	VERUS_UPDATE_ONCE_CHECK;
@@ -209,12 +214,12 @@ void Grass::Draw()
 	VERUS_QREF_SM;
 	VERUS_RT_ASSERT(_pTerrain->GetMapSide() == _mapSide);
 
-	auto cb = renderer.GetCommandBuffer();
-
 	const bool drawingDepth = Scene::SceneManager::IsDrawingDepth(Scene::DrawDepth::automatic);
 
 	const UINT32 bushMask = _bushMask & 0xFF; // Use only first 8 bushes, next 8 are reserved.
 	const int half = _mapSide >> 1;
+
+	auto cb = renderer.GetCommandBuffer();
 
 	s_ubGrassVS._matW = Transform3::UniformBufferFormatIdentity();
 	s_ubGrassVS._matWV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
@@ -275,11 +280,6 @@ void Grass::Draw()
 	s_shader->EndBindDescriptors();
 
 	_geo->UpdateVertexBuffer(_vInstanceBuffer.data(), 1);
-}
-
-void Grass::ResetInstanceCount()
-{
-	_instanceCount = 0;
 }
 
 void Grass::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center)

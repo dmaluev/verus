@@ -3,9 +3,9 @@
 using namespace verus;
 using namespace verus::Scene;
 
-CGI::ShaderPwn							Forest::s_shader;
-//CGI::CStateBlockPwns<Forest::SB_MAX>	Forest::ms_sb;
-//Forest::CB_PerFrame					Forest::ms_cbPerFrame;
+CGI::ShaderPwn      Forest::s_shader;
+Forest::UB_ForestVS Forest::s_ubForestVS;
+Forest::UB_ForestFS Forest::s_ubForestFS;
 
 // Forest::Plant:
 
@@ -28,38 +28,20 @@ Forest::~Forest()
 
 void Forest::InitStatic()
 {
-	//VERUS_OUTPUT_DEBUG_STRING(__FUNCTION__);
-	//
-	//CGI::CShaderDesc sd;
-	//sd._url = "Shaders:DS_Forest.cg";
-	//s_shader.Init(sd);
-	//s_shader->BindBufferSource(&ms_cbPerFrame, sizeof(ms_cbPerFrame), 0, "PerFrame");
-	//
-	//CGI::CStateBlockDesc sbd;
-	//sbd.B();
-	//sbd.R();
-	//sbd.Z().depthEnable = true;
-	//sbd.Z().depthWriteEnable = true;
-	//sbd.S(0).Set("a", "ww");
-	//sbd.S(1).Set("a", "ww");
-	//sbd.S(2).Set("a", "ww");
-	//ms_sb[SB_MASTER].Init(sbd);
-	//
-	//sbd.Reset();
-	//sbd.B().rtWriteMasks[0] = CShadowMap::GetWriteMask();
-	//sbd.R().depthBias = CShadowMap::GetDepthBias() * 48;
-	//sbd.R().slopeScaledDepthBias = CShadowMap::GetSlopeScaledDepthBias();
-	//sbd.Z().depthEnable = true;
-	//sbd.Z().depthWriteEnable = true;
-	//sbd.S(0).Set("a", "ww");
-	//ms_sb[SB_DEPTH].Init(sbd);
+	s_shader.Init("[Shaders]:DS_Forest.hlsl");
+	s_shader->CreateDescriptorSet(0, &s_ubForestVS, sizeof(s_ubForestVS), 100, {}, CGI::ShaderStageFlags::vs_hs_ds_fs);
+	s_shader->CreateDescriptorSet(1, &s_ubForestFS, sizeof(s_ubForestFS), 100,
+		{
+			CGI::Sampler::aniso,
+			CGI::Sampler::aniso,
+			CGI::Sampler::aniso
+		}, CGI::ShaderStageFlags::fs);
+	s_shader->CreatePipelineLayout();
 }
 
 void Forest::DoneStatic()
 {
-	//VERUS_OUTPUT_DEBUG_STRING(__FUNCTION__);
-	//ms_sb.Done();
-	//s_shader.Done();
+	s_shader.Done();
 }
 
 void Forest::Init(PTerrain pTerrain)
@@ -92,6 +74,7 @@ void Forest::Init(PTerrain pTerrain)
 	_scatter.SetDelegate(this);
 
 	_vPlants.reserve(16);
+	_vLayerPlants.reserve(16);
 	_vDrawPlants.resize(_capacity);
 }
 
@@ -120,6 +103,7 @@ void Forest::Update()
 			Mesh::Desc meshDesc;
 			meshDesc._url = _C(plant._url);
 			meshDesc._instanceCapacity = _capacity;
+			meshDesc._initShape = true;
 			plant._mesh.Init(meshDesc);
 
 			Material::Desc matDesc;
@@ -132,6 +116,7 @@ void Forest::Update()
 	for (auto& plant : _vPlants)
 	{
 		plant._material->IncludePart(0);
+
 		if (!plant._maxSize && plant._mesh.IsLoaded())
 		{
 			// Time to get the size of this mesh.
@@ -142,10 +127,29 @@ void Forest::Update()
 				_maxSizeAll = plant._maxSize;
 				_pTerrain->FattenQuadtreeNodesBy(_maxSizeAll);
 			}
+			plant._aoSize = plant._mesh.GetBounds().GetAverageSize() * 1.7f;
+		}
+
+		if (!plant._tex[0] && plant._mesh.IsLoaded() && plant._material->IsLoaded())
+			LoadSprite(plant);
+
+		if (!plant._csh.IsSet())
+		{
+			if (plant._tex[Plant::TEX_GBUFFER_0] && plant._tex[Plant::TEX_GBUFFER_0]->IsLoaded() &&
+				plant._tex[Plant::TEX_GBUFFER_1] && plant._tex[Plant::TEX_GBUFFER_1]->IsLoaded() &&
+				plant._tex[Plant::TEX_GBUFFER_2] && plant._tex[Plant::TEX_GBUFFER_2]->IsLoaded())
+			{
+				plant._csh = s_shader->BindDescriptorSetTextures(1,
+					{
+						plant._tex[Plant::TEX_GBUFFER_0],
+						plant._tex[Plant::TEX_GBUFFER_1],
+						plant._tex[Plant::TEX_GBUFFER_2]
+					});
+			}
 		}
 	}
 
-	if (false && !_geo)
+	if (!_geo)
 	{
 		bool allLoaded = !_vPlants.empty();
 		for (auto& plant : _vPlants)
@@ -164,7 +168,7 @@ void Forest::Update()
 				for (auto& bc : plant._vBakedChunks)
 				{
 					bc._vbOffset = vertCount;
-					vertCount += bc._vSprites.size();
+					vertCount += Utils::Cast32(bc._vSprites.size());
 				}
 			}
 			Vector<Vertex> vVB;
@@ -178,26 +182,45 @@ void Forest::Update()
 					for (auto& s : bc._vSprites)
 						bounds.Include(s._pos);
 					bounds.FattenBy(plant.GetSize());
-					_octree.BindEntity(Math::Octree::Entity(bounds, &bc));
+					_octree.BindClient(Math::Octree::Client(bounds, &bc));
 
 					if (!bc._vSprites.empty())
 						memcpy(&vVB[vertCount], bc._vSprites.data(), bc._vSprites.size() * sizeof(Vertex));
-					vertCount += bc._vSprites.size();
+					vertCount += Utils::Cast32(bc._vSprites.size());
 				}
 			}
 
-			//CGI::CVertexElement ve[] =
-			//{
-			//	{0, offsetof(Vertex, _pos),	/**/CGI::VeType::_float, 3, CGI::VeUsage::position, 0},
-			//	{0, offsetof(Vertex, _tc),	/**/CGI::VeType::_short, 2, CGI::VeUsage::texCoord, 0},
-			//	VERUS_END_DECL
-			//};
-			//CGI::GeometryDesc gd;
-			//gd._pVertDecl = ve;
-			//gd._pShader = &(*s_shader);
-			//_geo.Init(gd);
-			//_geo->DefineVertexStream(0, sizeof(Vertex), vertCount * sizeof(Vertex));
-			//_geo->BufferDataVB(vVB.data());
+			CGI::GeometryDesc geoDesc;
+			const CGI::VertexInputAttrDesc viaDesc[] =
+			{
+				{0, offsetof(Vertex, _pos), CGI::ViaType::floats, 3, CGI::ViaUsage::position, 0},
+				{0, offsetof(Vertex, _tc),  CGI::ViaType::shorts, 2, CGI::ViaUsage::texCoord, 0},
+				CGI::VertexInputAttrDesc::End()
+			};
+			geoDesc._pVertexInputAttrDesc = viaDesc;
+			const int strides[] = { sizeof(Vertex), 0 };
+			geoDesc._pStrides = strides;
+			_geo.Init(geoDesc);
+			_geo->CreateVertexBuffer(vertCount, 0);
+			_geo->UpdateVertexBuffer(vVB.data(), 0);
+
+			VERUS_QREF_RENDERER;
+			VERUS_QREF_ATMO;
+
+			{
+				CGI::PipelineDesc pipeDesc(_geo, s_shader, "#", renderer.GetDS().GetRenderPassHandle());
+				pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+				pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
+				pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
+				pipeDesc._topology = CGI::PrimitiveTopology::pointList;
+				_pipe[PIPE_MAIN].Init(pipeDesc);
+			}
+			{
+				CGI::PipelineDesc pipeDesc(_geo, s_shader, "#Depth", atmo.GetShadowMap().GetRenderPassHandle());
+				pipeDesc._colorAttachBlendEqs[0] = "";
+				pipeDesc._topology = CGI::PrimitiveTopology::pointList;
+				_pipe[PIPE_DEPTH].Init(pipeDesc);
+			}
 		}
 	}
 }
@@ -215,120 +238,140 @@ void Forest::Layout()
 		for (auto& bc : plant._vBakedChunks)
 			bc._visible = false;
 
-	const float zFarWas = sm.GetCamera()->GetZFar();
-	if (Atmosphere::I().GetShadowMap().IsRendering())
 	{
-		const int csmSplit = Atmosphere::I().GetShadowMap().GetCurrentSplit();
-		if (!csmSplit)
-			return;
-	}
-	else
-		sm.GetCamera()->SetFrustumFar(_maxDist);
+		const float zFarWas = sm.GetCamera()->GetZFar();
 
-	Math::RQuadtreeIntegral qt = _pTerrain->GetQuadtree();
-	qt.SetDelegate(&_scatter);
-	qt.TraverseVisible();
-	qt.SetDelegate(_pTerrain);
-	sm.GetCamera()->SetFrustumFar(zFarWas);
-
-	const Point3 eyePos = sm.GetCamera()->GetEyePosition();
-	std::sort(_vDrawPlants.begin(), _vDrawPlants.begin() + _visibleCount, [&eyePos](RcDrawPlant plantA, RcDrawPlant plantB)
+		const bool drawingDepth = Scene::SceneManager::IsDrawingDepth(DrawDepth::automatic);
+		if (drawingDepth)
 		{
+			const int csmSplit = Atmosphere::I().GetShadowMap().GetCurrentSplit();
+			if (!csmSplit)
+				return;
+		}
+		else
+			sm.GetCamera()->SetFrustumFar(_maxDist);
+
+		Math::RQuadtreeIntegral qt = _pTerrain->GetQuadtree();
+		qt.SetDelegate(&_scatter);
+		qt.TraverseVisible();
+		qt.SetDelegate(_pTerrain);
+
+		if (drawingDepth)
+			_octree.TraverseVisible(sm.GetCamera()->GetFrustum());
+		sm.GetCamera()->SetFrustumFar(_maxDist * 8);
+		if (!drawingDepth)
+			_octree.TraverseVisible(sm.GetCamera()->GetFrustum());
+
+		sm.GetCamera()->SetFrustumFar(zFarWas);
+	}
+
+	const float tessDistSq = _tessDist * _tessDist;
+	std::sort(_vDrawPlants.begin(), _vDrawPlants.begin() + _visibleCount, [tessDistSq](RDrawPlant plantA, RDrawPlant plantB)
+		{
+			const bool tessA = plantA._distToEyeSq < tessDistSq;
+			const bool tessB = plantB._distToEyeSq < tessDistSq;
+			if (tessA != tessB)
+				return tessA;
 			if (plantA._plantIndex != plantB._plantIndex)
 				return plantA._plantIndex < plantB._plantIndex;
-			const float distA = VMath::distSqr(eyePos, plantA._pos);
-			const float distB = VMath::distSqr(eyePos, plantB._pos);
-			return distA < distB;
+			return plantA._distToEyeSq < plantB._distToEyeSq;
 		});
 }
 
-void Forest::Draw()
+void Forest::Draw(bool allowTess)
 {
 	if (!IsInitialized())
 		return;
 	VERUS_UPDATE_ONCE_CHECK_DRAW;
 
-	//for (auto& plant : _vPlants)
-	//{
-	//	if (!plant._tex[0] && plant._mesh.IsLoaded() && plant._material->IsLoaded())
-	//	{
-	//		if (!LoadSprite(plant))
-	//			BakeSprite(plant);
-	//	}
-	//}
-
-	DrawModels();
+	DrawModels(allowTess);
 	DrawSprites();
 }
 
-void Forest::DrawModels()
+void Forest::DrawModels(bool allowTess)
 {
 	if (!_visibleCount)
 		return;
 
 	VERUS_QREF_RENDERER;
+	VERUS_QREF_CONST_SETTINGS;
 
 	PMesh pMesh = nullptr;
 	MaterialPtr material;
-	bool bindPipeline = true;
+	int bindPipelineStage = -1;
+	bool tess = true;
+	const float tessDistSq = _tessDist * _tessDist;
 
 	auto cb = renderer.GetCommandBuffer();
 	auto shader = Scene::Mesh::GetShader();
 
-	// Draw all visible assets:
+	auto DrawMesh = [cb](PMesh pMesh)
+	{
+		if (pMesh && !pMesh->IsInstanceBufferEmpty(true))
+		{
+			pMesh->UpdateInstanceBuffer();
+			cb->DrawIndexed(pMesh->GetIndexCount(), pMesh->GetInstanceCount(true), 0, 0, pMesh->GetFirstInstance());
+		}
+	};
+
 	shader->BeginBindDescriptors();
 	for (int i = 0; i <= _visibleCount; ++i)
 	{
 		if (i == _visibleCount) // The end?
 		{
-			if (pMesh && !pMesh->IsInstanceBufferEmpty(true))
-			{
-				pMesh->UpdateInstanceBuffer();
-				cb->DrawIndexed(pMesh->GetIndexCount(), pMesh->GetInstanceCount(true), 0, 0, pMesh->GetFirstInstance());
-			}
+			DrawMesh(pMesh);
 			break;
 		}
 
 		RcDrawPlant drawPlant = _vDrawPlants[i];
 		RPlant plant = _vPlants[drawPlant._plantIndex];
-		PMesh pNewMesh = &plant._mesh;
-		MaterialPtr newMaterial = plant._material;
+		PMesh pNextMesh = &plant._mesh;
+		MaterialPtr nextMaterial = plant._material;
+		const bool nextTess = drawPlant._distToEyeSq < tessDistSq;
 
-		if (!pNewMesh->IsLoaded() || !newMaterial->IsLoaded())
+		if (!pNextMesh->IsLoaded() || !nextMaterial->IsLoaded())
 			continue;
 
-		if (pNewMesh != pMesh) // New pMesh?
+		if (pNextMesh != pMesh || nextTess != tess)
 		{
-			if (pMesh && !pMesh->IsInstanceBufferEmpty(true))
-			{
-				pMesh->UpdateInstanceBuffer();
-				cb->DrawIndexed(pMesh->GetIndexCount(), pMesh->GetInstanceCount(true), 0, 0, pMesh->GetFirstInstance());
-			}
-			pMesh = pNewMesh;
-			pMesh->MarkFirstInstance();
-			if (bindPipeline)
-			{
-				bindPipeline = false;
-				pMesh->BindPipelineInstanced(cb, false);
-			}
-			pMesh->BindGeo(cb);
+			DrawMesh(pMesh);
 
-			pMesh->UpdateUniformBufferPerFrame();
-			cb->BindDescriptors(shader, 0);
+			pMesh = pNextMesh;
+			pMesh->MarkFirstInstance();
+			if (bindPipelineStage)
+			{
+				if (-1 == bindPipelineStage)
+				{
+					bindPipelineStage = (nextTess && allowTess && settings._gpuTessellation) ? 1 : 0;
+					pMesh->BindPipelineInstanced(cb, 1 == bindPipelineStage, true);
+					pMesh->UpdateUniformBufferPerFrame(1 / (_tessDist - 10));
+					cb->BindDescriptors(shader, 0);
+				}
+				else if (1 == bindPipelineStage && !nextTess)
+				{
+					bindPipelineStage = 0;
+					pMesh->BindPipelineInstanced(cb, false, true);
+					pMesh->UpdateUniformBufferPerFrame();
+					cb->BindDescriptors(shader, 0);
+				}
+			}
+			tess = nextTess;
+			pMesh->BindGeo(cb);
 			pMesh->UpdateUniformBufferPerMeshVS();
 			cb->BindDescriptors(shader, 2);
 		}
-		if (newMaterial != material) // Switch material?
+		if (nextMaterial != material)
 		{
-			material = newMaterial;
+			material = nextMaterial;
 			material->UpdateMeshUniformBuffer();
 			cb->BindDescriptors(shader, 1, material->GetComplexSetHandle());
 		}
-		if (pMesh) // Draw this pMesh:
+
+		if (pMesh)
 		{
 			const Transform3 matW = VMath::appendScale(Transform3(drawPlant._basis * Matrix3::rotationY(drawPlant._angle),
 				Vector3(drawPlant._pos + drawPlant._pushBack)), Vector3::Replicate(drawPlant._scale));
-			pMesh->PushInstance(matW, Vector4::Replicate(1));
+			pMesh->PushInstance(matW, Vector4(Vector3(drawPlant._pos), 1));
 		}
 	}
 	shader->EndBindDescriptors();
@@ -336,51 +379,104 @@ void Forest::DrawModels()
 
 void Forest::DrawSprites()
 {
-	//if (!_geo)
-	//	return;
-	//
-	//VERUS_QREF_RENDER;
-	//VERUS_QREF_SM;
-	//
-	//const bool depth = Utils::IsDrawingDepth(DrawDepth::automatic);
-	//
-	//if (depth)
-	//	ms_sb[SB_DEPTH]->Apply();
-	//else
-	//	ms_sb[SB_MASTER]->Apply();
-	//
-	//ms_cbPerFrame.matP = sm.GetCamera()->GetMatrixP().ConstBufferFormat();
-	//ms_cbPerFrame.matWVP = sm.GetCamera()->GetMatrixVP().ConstBufferFormat();
-	//ms_cbPerFrame.viewportSize = render.GetViewportSize();
-	//ms_cbPerFrame.eyePos = sm.GetCamera()->GetPositionEye();
-	//ms_cbPerFrame.posEyeScreen = Atmosphere::I().GetEyePosition();
-	//
-	//s_shader->Bind(depth ? "TDepth" : "T");
-	//s_shader->UpdateBuffer(0);
-	//
-	//_geo->BeginDraw(0x1);
-	//for (auto& plant : _vPlants)
-	//{
-	//	if (depth)
-	//	{
-	//		render->SetTextures({ plant._tex[Plant::TEX_GBUFFER_0] });
-	//	}
-	//	else
-	//	{
-	//		render->SetTextures(
-	//			{
-	//				plant._tex[Plant::TEX_GBUFFER_0],
-	//				plant._tex[Plant::TEX_GBUFFER_2],
-	//				plant._tex[Plant::TEX_GBUFFER_3]
-	//			});
-	//	}
-	//	for (auto& bc : plant._vBakedChunks)
-	//	{
-	//		if (bc._visible)
-	//			render->DrawPrimitive(CGI::PT_POINTLIST, bc._vbOffset, bc._vSprites.size());
-	//	}
-	//}
-	//_geo->EndDraw(0x1);
+	if (!_geo)
+		return;
+
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_SM;
+	VERUS_QREF_ATMO;
+
+	const bool drawingDepth = Scene::SceneManager::IsDrawingDepth(DrawDepth::automatic);
+
+	auto cb = renderer.GetCommandBuffer();
+
+	s_ubForestVS._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
+	s_ubForestVS._matWVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubForestVS._viewportSize = renderer.GetCommandBuffer()->GetViewportSize().GLM();
+	s_ubForestVS._eyePos = float4(sm.GetCamera()->GetEyePosition().GLM(), 0);
+	s_ubForestVS._eyePosScreen = float4(atmo.GetEyePosition().GLM(), 0);
+
+	cb->BindPipeline(_pipe[drawingDepth ? PIPE_DEPTH : PIPE_MAIN]);
+	cb->BindVertexBuffers(_geo);
+	s_shader->BeginBindDescriptors();
+	cb->BindDescriptors(s_shader, 0);
+	for (auto& plant : _vPlants)
+	{
+		if (!plant._csh.IsSet())
+			continue;
+		cb->BindDescriptors(s_shader, 1, plant._csh);
+		for (auto& bc : plant._vBakedChunks)
+		{
+			if (bc._visible)
+				cb->Draw(bc._vSprites.size(), 1, bc._vbOffset);
+		}
+	}
+	s_shader->EndBindDescriptors();
+}
+
+void Forest::DrawAO()
+{
+	if (!_visibleCount)
+		return;
+
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_HELPERS;
+
+	CGI::LightType type = CGI::LightType::none;
+	PMesh pMesh = nullptr;
+
+	auto& ds = renderer.GetDS();
+	auto cb = renderer.GetCommandBuffer();
+
+	auto DrawMesh = [cb](PMesh pMesh)
+	{
+		if (pMesh && !pMesh->IsInstanceBufferEmpty(true))
+		{
+			pMesh->UpdateInstanceBuffer();
+			cb->DrawIndexed(pMesh->GetIndexCount(), pMesh->GetInstanceCount(true), 0, 0, pMesh->GetFirstInstance());
+		}
+	};
+
+	for (int i = 0; i <= _visibleCount; ++i)
+	{
+		if (i == _visibleCount) // The end?
+		{
+			DrawMesh(pMesh);
+			break;
+		}
+
+		RcDrawPlant drawPlant = _vDrawPlants[i];
+		RPlant plant = _vPlants[drawPlant._plantIndex];
+
+		const CGI::LightType nextType = CGI::LightType::omni;
+
+		if (nextType != type)
+		{
+			DrawMesh(pMesh);
+
+			type = nextType;
+			ds.OnNewAOType(cb, type);
+
+			pMesh = (type != CGI::LightType::none) ? &helpers.GetDeferredLights().Get(type) : nullptr;
+
+			if (pMesh)
+			{
+				pMesh->MarkFirstInstance();
+				pMesh->BindGeo(cb, (1 << 0) | (1 << 4));
+				pMesh->CopyPosDeqScale(&ds.GetUbAOPerMeshVS()._posDeqScale.x);
+				pMesh->CopyPosDeqBias(&ds.GetUbAOPerMeshVS()._posDeqBias.x);
+				ds.BindDescriptorsAOPerMeshVS(cb);
+			}
+		}
+
+		if (pMesh)
+		{
+			const float size = drawPlant._scale * plant._aoSize;
+			const Transform3 matW = VMath::appendScale(Transform3(Matrix3::identity(),
+				Vector3(drawPlant._pos + drawPlant._pushBack + Vector3(0, size * 0.25f, 0))), Vector3::Replicate(size));
+			pMesh->PushInstance(matW, Vector4::Replicate(1));
+		}
+	}
 }
 
 void Forest::SetLayer(int layer, RcLayerDesc desc)
@@ -402,18 +498,19 @@ void Forest::SetLayer(int layer, RcLayerDesc desc)
 			}
 			else // Add new plant?
 			{
-				_vLayerPlants[layer]._plants[type] = _vPlants.size();
+				_vLayerPlants[layer]._plants[type] = Utils::Cast32(_vPlants.size());
 				_vPlants.resize(_vPlants.size() + 1);
 				RPlant plant = _vPlants[_vPlants.size() - 1];
 				plant._url = plantDesc._url;
-				plant._normal = plantDesc._normal;
+				plant._alignToNormal = plantDesc._alignToNormal;
+				plant._maxScale = plantDesc._maxScale;
+				plant._allowedNormal = plantDesc._allowedNormal;
 				const float ds = plantDesc._maxScale - plantDesc._minScale;
 				const int count = 64;
 				plant._vScales.resize(count);
 				VERUS_FOR(i, count)
 					plant._vScales[i] = plantDesc._minScale + ds * (i * i * i) / (count * count * count);
 				std::shuffle(plant._vScales.begin(), plant._vScales.end(), random.GetGenerator());
-				plant._maxScale = plantDesc._maxScale;
 			}
 		}
 	}
@@ -450,7 +547,7 @@ void Forest::BakeChunks(RPlant plant)
 				if (layer >= _vLayerPlants.size())
 					continue;
 
-				if (_pTerrain->GetNormalAt(ij)[1] < plant._normal)
+				if (_pTerrain->GetNormalAt(ij)[1] < plant._allowedNormal)
 					continue;
 
 				VERUS_FOR(type, SCATTER_TYPE_COUNT)
@@ -480,8 +577,8 @@ void Forest::BakeChunks(RPlant plant)
 								xOffset - half + instance._x,
 								hMin - psize * 0.05f,
 								zOffset - half + instance._z);
-							v._tc[0] = Math::Clamp<int>(psize * 500, 0, SHRT_MAX);
-							v._tc[1] = Math::Clamp<int>(instance._angle * SHRT_MAX / VERUS_2PI, 0, SHRT_MAX);
+							v._tc[0] = Math::Clamp<int>(static_cast<int>(psize * 500), 0, SHRT_MAX);
+							v._tc[1] = Math::Clamp<int>(static_cast<int>(instance._angle * SHRT_MAX / VERUS_2PI), 0, SHRT_MAX);
 							v._pos.y += psize * 0.5f / _margin;
 							if (!bc._vSprites.capacity())
 								bc._vSprites.reserve(256);
@@ -506,125 +603,224 @@ void Forest::BakeChunks(RPlant plant)
 bool Forest::LoadSprite(RPlant plant)
 {
 	int count = 0;
-	const CSZ ext2[] = { "", ".NM", ".FX" };
-	VERUS_FOR(gb, 3)
+	const CSZ ext[] = { "", ".FX", ".FX" };
+	VERUS_FOR(i, 3)
 	{
-		const int gbIndices[3] = { 0, 2, 3 };
-		const int gbIndex = gbIndices[gb];
+		String pathname = _C(plant._mesh.GetUrl());
+		char filename[20];
+		sprintf_s(filename, "GB%d%s.dds", i, ext[i]);
+		Str::ReplaceFilename(pathname, filename);
+		pathname = Str::ToPakFriendlyUrl(_C(pathname));
+		pathname = "[Textures]:Forest/" + pathname;
 
-		String path = _C(plant._mesh.GetUrl());
-		char name[20];
-		sprintf_s(name, "GB%d%s.dds", gbIndex, ext2[gb]);
-		Str::ReplaceFilename(path, name);
-		Str::ReplaceAll(path, ":", "-");
-		Str::ReplaceAll(path, "/", ".");
-
-		const String url = "Textures:Forest/" + path;
-
-		if (IO::FileSystem::FileExist(_C(url)))
+		if (IO::FileSystem::FileExist(_C(pathname)))
 		{
 			count++;
-			CGI::TextureDesc td;
-			td._url = _C(url);
-			plant._tex[gb].Init(td);
+			plant._tex[i].Init(_C(pathname));
 		}
 	}
 	return 3 == count;
 }
 
-void Forest::BakeSprite(RPlant plant)
+void Forest::BakeSprite(RPlant plant, CSZ url)
 {
-	//#ifdef _DEBUG
-	//	const bool depth = Utils::IsDrawingDepth(DrawDepth::automatic);
-	//	if (depth)
-	//		return;
-	//
-	//	VERUS_QREF_RENDER;
-	//	VERUS_QREF_SM;
-	//	VERUS_RT_ASSERT(render.GetDS().IsActiveGeometryPass());
-	//
-	//	const int frameSide = 512;
-	//	const int framePad = 16;
-	//	const int numFramesH = 8;
-	//	const int numFramesV = 4;
-	//	const int texW = numFramesH * frameSide;
-	//	const int texH = numFramesV * frameSide;
-	//	const float stepH = VERUS_2PI / numFramesH;
-	//	const float stepV = VERUS_PI / 2 / numFramesV;
-	//
-	//	CGI::DeferredShading ds;
-	//	ds.InitGBuffers(texW, texH, true, true);
-	//
-	//	ds.BeginGeometryPass(false, true);
-	//	VERUS_FOR(i, numFramesV)
-	//	{
-	//		const Matrix3 matV = Matrix3::rotationX(-stepV * i);
-	//		VERUS_FOR(j, numFramesH)
-	//		{
-	//			int vp[4] =
-	//			{
-	//				j * frameSide + framePad,
-	//				i * frameSide + framePad,
-	//				frameSide - framePad * 2,
-	//				frameSide - framePad * 2,
-	//			};
-	//			render->SetViewport(vp);
-	//
-	//			const float size = plant.GetSize();
-	//			const Matrix3 matH = Matrix3::rotationY(stepH * j);
-	//			const Matrix3 matR = matH * matV;
-	//			const Vector3 offset = matR * Vector3(0, 0, size);
-	//
-	//			Camera cam;
-	//			cam.MoveAtTo(Vector3(0, size * 0.5f / m_margin, 0));
-	//			cam.MoveEyeTo(Vector3(0, size * 0.5f / m_margin, 0) + offset);
-	//			cam.SetFOV(0);
-	//			cam.SetWidth(size * m_margin);
-	//			cam.SetHeight(size * m_margin);
-	//			cam.SetAspectRatio(1);
-	//			cam.SetZNear(0);
-	//			cam.SetZFar(size * 2);
-	//			cam.Update();
-	//			PCamera pPrevCamera = sm.SetCamera(&cam);
-	//
-	//			Mesh::CDrawDesc dd;
-	//			dd._material = plant._material;
-	//			dd._spriteBaking = true;
-	//			plant._mesh.Draw(dd);
-	//
-	//			sm.SetCamera(pPrevCamera);
-	//		}
-	//	}
-	//	ds.EndGeometryPass();
-	//
-	//	Vector<UINT32> vData;
-	//	vData.resize(texW * texH);
-	//	VERUS_FOR(gb, 3)
-	//	{
-	//		const int gbIndices[3] = { 0, 2, 3 };
-	//		const int gbIndex = gbIndices[gb];
-	//
-	//		ds.GetGBuffer(gbIndex)->GetTexImage(reinterpret_cast<BYTE*>(vData.data()));
-	//
-	//		String path = _C(plant._mesh.GetUrl());
-	//		char name[20];
-	//		sprintf_s(name, "GB%d.psd", gbIndex);
-	//		Str::ReplaceFilename(path, name);
-	//		Str::ReplaceAll(path, ":", "-");
-	//		Str::ReplaceAll(path, "/", ".");
-	//		path = "D:\\Stuff\\Gulman\\Data\\Textures\\Forest/" + path;
-	//		IO::FileSystem::SaveImage(_C(path), vData.data(), texW, texH);
-	//	}
-	//
-	//	render.GetDS().BeginGeometryPass(true);
-	//	VERUS_RT_ASSERT(false);
-	//#endif
+	const bool drawingDepth = Scene::SceneManager::IsDrawingDepth(DrawDepth::automatic);
+	if (drawingDepth)
+		return;
+
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_SM;
+
+	CGI::CommandBufferPtr cb;
+	cb.InitOneTimeSubmit();
+
+	const int frameSide = 512;
+	const int framePad = 16;
+	const int frameCountH = 16;
+	const int frameCountV = 16;
+	const int texWidth = frameCountH * frameSide;
+	const int texHeight = frameCountV * frameSide;
+	const float stepH = VERUS_2PI / frameCountH;
+	const float stepV = VERUS_PI / 2 / frameCountV;
+
+	CGI::RPHandle rph = renderer->CreateRenderPass(
+		{
+			CGI::RP::Attachment("GBuffer0", CGI::Format::srgbR8G8B8A8).LoadOpClear().Layout(CGI::ImageLayout::fsReadOnly),
+			CGI::RP::Attachment("GBuffer1", CGI::Format::unormR10G10B10A2).LoadOpClear().Layout(CGI::ImageLayout::fsReadOnly),
+			CGI::RP::Attachment("GBuffer2", CGI::Format::unormR8G8B8A8).LoadOpClear().Layout(CGI::ImageLayout::fsReadOnly),
+			CGI::RP::Attachment("Depth", CGI::Format::unormD24uintS8).LoadOpClear().Layout(CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly),
+		},
+		{
+			CGI::RP::Subpass("Sp0").Color(
+				{
+					CGI::RP::Ref("GBuffer0", CGI::ImageLayout::colorAttachment),
+					CGI::RP::Ref("GBuffer1", CGI::ImageLayout::colorAttachment),
+					CGI::RP::Ref("GBuffer2", CGI::ImageLayout::colorAttachment)
+				}).DepthStencil(CGI::RP::Ref("Depth", CGI::ImageLayout::depthStencilAttachment))
+		},
+		{});
+
+	CGI::TexturePwn texGB[3], texDepth;
+	CGI::TextureDesc texDesc;
+	texDesc._width = texWidth;
+	texDesc._height = texHeight;
+	texDesc._flags = CGI::TextureDesc::Flags::colorAttachment;
+
+	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer0();
+	texDesc._format = CGI::Format::srgbR8G8B8A8;
+	texGB[0].Init(texDesc);
+	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer1();
+	texDesc._format = CGI::Format::unormR10G10B10A2;
+	texGB[1].Init(texDesc);
+	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer2();
+	texDesc._format = CGI::Format::unormR8G8B8A8;
+	texGB[2].Init(texDesc);
+	texDesc.Reset();
+	texDesc._clearValue = Vector4(1);
+	texDesc._format = CGI::Format::unormD24uintS8;
+	texDesc._width = texWidth;
+	texDesc._height = texHeight;
+	texDepth.Init(texDesc);
+
+	CGI::FBHandle fbh = renderer->CreateFramebuffer(rph,
+		{
+			texGB[0],
+			texGB[1],
+			texGB[2],
+			texDepth
+		},
+		texWidth,
+		texHeight);
+
+	cb->BeginRenderPass(rph, fbh,
+		{
+			texGB[0]->GetClearValue(),
+			texGB[1]->GetClearValue(),
+			texGB[2]->GetClearValue(),
+			texDepth->GetClearValue()
+		});
+
+	plant._mesh.BindPipeline(cb, false);
+	plant._mesh.BindGeo(cb);
+	Mesh::GetShader()->BeginBindDescriptors();
+	plant._material->UpdateMeshUniformBuffer();
+	cb->BindDescriptors(Scene::Mesh::GetShader(), 1, plant._material->GetComplexSetHandle());
+	plant._mesh.UpdateUniformBufferPerMeshVS();
+	cb->BindDescriptors(Scene::Mesh::GetShader(), 2);
+	plant._mesh.UpdateUniformBufferSkeletonVS();
+	cb->BindDescriptors(Scene::Mesh::GetShader(), 3);
+	plant._mesh.UpdateUniformBufferPerObject(Transform3::identity());
+	cb->BindDescriptors(Scene::Mesh::GetShader(), 4);
+	VERUS_FOR(i, frameCountV)
+	{
+		const Matrix3 matV = Matrix3::rotationX(-stepV * i);
+		VERUS_FOR(j, frameCountH)
+		{
+			const Vector4 vp(
+				static_cast<float>(j * frameSide + framePad),
+				static_cast<float>(i * frameSide + framePad),
+				static_cast<float>(frameSide - framePad * 2),
+				static_cast<float>(frameSide - framePad * 2));
+			cb->SetViewport({ vp });
+
+			const float size = plant.GetSize();
+			const Matrix3 matH = Matrix3::rotationY(stepH * j);
+			const Matrix3 matR = matH * matV;
+			const Vector3 offset = matR * Vector3(0, 0, size);
+
+			Camera cam;
+			cam.MoveAtTo(Vector3(0, size * 0.5f / _margin, 0));
+			cam.MoveEyeTo(Vector3(0, size * 0.5f / _margin, 0) + offset);
+			cam.SetFovY(0);
+			cam.SetWidth(size * _margin);
+			cam.SetHeight(size * _margin);
+			cam.SetAspectRatio(1);
+			cam.SetZNear(0);
+			cam.SetZFar(size * 2);
+			cam.Update();
+			PCamera pPrevCamera = sm.SetCamera(&cam);
+
+			plant._mesh.UpdateUniformBufferPerFrame();
+			cb->BindDescriptors(Scene::Mesh::GetShader(), 0);
+			cb->DrawIndexed(plant._mesh.GetIndexCount());
+
+			sm.SetCamera(pPrevCamera);
+		}
+	}
+	Mesh::GetShader()->EndBindDescriptors();
+
+	cb->EndRenderPass();
+
+	CGI::TexturePwn texFinalGB[3];
+	texDesc.Reset();
+	texDesc._width = texWidth;
+	texDesc._height = texHeight;
+	texDesc._mipLevels = 0;
+	texDesc._flags = CGI::TextureDesc::Flags::colorAttachment | CGI::TextureDesc::Flags::generateMips;
+	texDesc._readbackMip = 2;
+
+	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer0();
+	texDesc._format = CGI::Format::srgbR8G8B8A8;
+	texFinalGB[0].Init(texDesc);
+	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer1();
+	texDesc._format = CGI::Format::unormR8G8B8A8;
+	texFinalGB[1].Init(texDesc);
+	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer2();
+	texDesc._format = CGI::Format::unormR8G8B8A8;
+	texFinalGB[2].Init(texDesc);
+
+	renderer.GetDS().BakeSprites(texGB, texFinalGB, cb.Get());
+
+	VERUS_FOR(i, 3)
+	{
+		texFinalGB[i]->GenerateMips(cb.Get());
+		texFinalGB[i]->ReadbackSubresource(nullptr, true, cb.Get());
+	}
+
+	cb->DoneOneTimeSubmit();
+
+	const int mipWidth = texWidth / 4;
+	const int mipHeight = texHeight / 4;
+	Vector<UINT32> vData;
+	vData.resize(mipWidth * mipHeight);
+	const CSZ ext[] = { "", ".FX", ".FX" };
+	VERUS_FOR(i, 3)
+	{
+		texFinalGB[i]->ReadbackSubresource(vData.data(), false);
+
+		String pathname = _C(plant._mesh.GetUrl());
+		char filename[20];
+		sprintf_s(filename, "GB%d%s.psd", i, ext[i]);
+		Str::ReplaceFilename(pathname, filename);
+		pathname = Str::ToPakFriendlyUrl(_C(pathname));
+		pathname = String(url) + '/' + pathname;
+		IO::FileSystem::SaveImage(_C(pathname), vData.data(), mipWidth, mipHeight);
+	}
+
+	renderer.GetDS().BakeSpritesCleanup();
+	renderer->DeleteFramebuffer(fbh);
+	renderer->DeleteRenderPass(rph);
+	renderer->DeleteCommandBuffer(cb.Detach());
+}
+
+bool Forest::BakeSprites(CSZ url)
+{
+	for (auto& plant : _vPlants)
+	{
+		if (plant._mesh.IsLoaded() && plant._material->IsLoaded())
+			BakeSprite(plant, url);
+		else
+			return false;
+	}
+	return true;
 }
 
 void Forest::Scatter_AddInstance(const int ij[2], int type, float x, float z, float scale, float angle, UINT32 r)
 {
 	if (_visibleCount == _vDrawPlants.size())
 		return;
+
+	VERUS_QREF_ATMO;
 
 	const int layer = _pTerrain->GetMainLayerAt(ij);
 	if (layer >= _vLayerPlants.size())
@@ -635,14 +831,15 @@ void Forest::Scatter_AddInstance(const int ij[2], int type, float x, float z, fl
 
 	const float h = _pTerrain->GetHeightAt(ij);
 	Point3 pos(x, h, z);
-	RcPoint3 eyePos = Atmosphere::I().GetEyePosition();
+	RcPoint3 eyePos = atmo.GetEyePosition();
 	const float distSq = VMath::distSqr(eyePos, pos);
-	if (distSq >= _maxDist * _maxDist)
+	const float maxDistSq = _maxDist * _maxDist;
+	if (distSq >= maxDistSq)
 		return;
 
 	RPlant plant = _vPlants[plantIndex];
 
-	if (_pTerrain->GetNormalAt(ij)[1] < plant._normal)
+	if (_pTerrain->GetNormalAt(ij)[1] < plant._allowedNormal)
 		return;
 
 	int ij4[2] = { ij[0], ij[1] };
@@ -652,26 +849,32 @@ void Forest::Scatter_AddInstance(const int ij[2], int type, float x, float z, fl
 	ij4[1]++; h4[2] = _pTerrain->GetHeightAt(ij4);
 	ij4[0]--; h4[3] = _pTerrain->GetHeightAt(ij4);
 	pos.setY(*std::min_element(h4 + 0, h4 + 4));
-	const float ratio = 1 - sqrt(distSq) / _maxDist;
-	const float t = Math::Clamp<float>((ratio - 0.1f) / 0.8f, 0, 1);
+
+	const float distFractionSq = distSq / maxDistSq;
+	const float alignToNormal = (1 - distFractionSq) * plant._alignToNormal;
+	const float t = Math::Clamp<float>((alignToNormal - 0.1f) / 0.8f, 0, 1);
+
 	Vector3 pushBack(0);
 	Matrix3 matScale = Matrix3::identity();
-	if (ratio < 0.25f)
+	if (Scene::SceneManager::IsDrawingDepth(DrawDepth::automatic))
 	{
-		const float a = ratio * 4;
-		//if (Utils::IsDrawingDepth(DrawDepth::automatic))
-		//{
-		//	const float b = Math::Clamp<float>((a - 0.5f) * 2, 0, 1);
-		//	matScale = Matrix3::scale(Vector3(b, 1, b));
-		//}
-		pushBack = VMath::normalizeApprox(pos - eyePos) * plant._maxSize * (1 - a) * 0.4f;
+		const float strength = Math::Clamp<float>((1 - distFractionSq) * 1.25f, 0, 1);
+		matScale = Matrix3::scale(Vector3(strength, 0.5f + 0.5f * strength, strength));
 	}
+	else
+	{
+		const float strength = Math::Clamp<float>((distFractionSq - 0.5f) * 2, 0, 1);
+		const Point3 center = pos + Vector3(0, plant._maxSize * 0.5f, 0);
+		pushBack = VMath::normalizeApprox(center - eyePos) * plant._maxSize * strength;
+	}
+
 	DrawPlant drawPlant;
 	drawPlant._basis = Matrix3::Lerp(Matrix3::identity(), _pTerrain->GetBasisAt(ij), t) * matScale;
 	drawPlant._pos = pos;
 	drawPlant._pushBack = pushBack;
 	drawPlant._scale = plant._vScales[r % plant._vScales.size()];
 	drawPlant._angle = angle;
+	drawPlant._distToEyeSq = distSq;
 	drawPlant._plantIndex = plantIndex;
 	_vDrawPlants[_visibleCount++] = drawPlant;
 }

@@ -422,6 +422,7 @@ void Terrain::Init(RcDesc desc)
 	VERUS_INIT();
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_CONST_SETTINGS;
+	VERUS_QREF_ATMO;
 
 	if (!Math::IsPowerOfTwo(desc._mapSide))
 		throw VERUS_RECOVERABLE << "Init(), mapSide must be power of two";
@@ -543,8 +544,17 @@ void Terrain::Init(RcDesc desc)
 		pipeDesc._primitiveRestartEnable = true;
 		_pipe[PIPE_STRIP].Init(pipeDesc);
 	}
+	if (settings._gpuTessellation)
 	{
-		VERUS_QREF_ATMO;
+		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#Tess", renderer.GetDS().GetRenderPassHandle());
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._topology = CGI::PrimitiveTopology::patchList3;
+		_pipe[PIPE_TESS].Init(pipeDesc);
+	}
+
+	{
 		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#Depth", atmo.GetShadowMap().GetRenderPassHandle());
 		pipeDesc._colorAttachBlendEqs[0] = "";
 		_pipe[PIPE_DEPTH_LIST].Init(pipeDesc);
@@ -552,6 +562,14 @@ void Terrain::Init(RcDesc desc)
 		pipeDesc._primitiveRestartEnable = true;
 		_pipe[PIPE_DEPTH_STRIP].Init(pipeDesc);
 	}
+	if (settings._gpuTessellation)
+	{
+		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#DepthTess", atmo.GetShadowMap().GetRenderPassHandle());
+		pipeDesc._colorAttachBlendEqs[0] = "";
+		pipeDesc._topology = CGI::PrimitiveTopology::patchList3;
+		_pipe[PIPE_DEPTH_TESS].Init(pipeDesc);
+	}
+
 	{
 		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#SolidColor", renderer.GetDS().GetRenderPassHandle());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
@@ -565,15 +583,6 @@ void Terrain::Init(RcDesc desc)
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc._primitiveRestartEnable = true;
 		_pipe[PIPE_WIREFRAME_STRIP].Init(pipeDesc);
-	}
-	if (settings._gpuTessellation)
-	{
-		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#Tess", renderer.GetDS().GetRenderPassHandle());
-		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
-		pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
-		pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
-		pipeDesc._topology = CGI::PrimitiveTopology::patchList3;
-		_pipe[PIPE_TESS].Init(pipeDesc);
 	}
 
 	CGI::TextureDesc texDesc;
@@ -659,6 +668,11 @@ void Terrain::Done()
 	VERUS_DONE(Terrain);
 }
 
+void Terrain::ResetInstanceCount()
+{
+	_instanceCount = 0;
+}
+
 void Terrain::Layout()
 {
 	VERUS_QREF_CONST_SETTINGS;
@@ -696,11 +710,12 @@ void Terrain::Draw(RcDrawDesc dd)
 	if (!_visiblePatchCount)
 		return;
 
-	auto cb = renderer.GetCommandBuffer();
-
 	const bool drawingDepth = Scene::SceneManager::IsDrawingDepth(Scene::DrawDepth::automatic);
 
 	const Transform3 matW = Transform3::identity();
+
+	auto cb = renderer.GetCommandBuffer();
+
 	s_ubTerrainVS._matW = matW.UniformBufferFormat();
 	s_ubTerrainVS._matWV = Transform3(sm.GetCamera()->GetMatrixV() * matW).UniformBufferFormat();
 	s_ubTerrainVS._matV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
@@ -709,7 +724,6 @@ void Terrain::Draw(RcDrawDesc dd)
 	s_ubTerrainVS._eyePos_mapSideInv = float4(atmo.GetEyePosition().GLM(), 0);
 	s_ubTerrainVS._eyePos_mapSideInv.w = 1.f / _mapSide;
 	s_ubTerrainVS._viewportSize = cb->GetViewportSize().GLM();
-
 	s_ubTerrainFS._matWV = s_ubTerrainVS._matWV;
 	VERUS_FOR(i, VERUS_COUNT_OF(_layerData))
 	{
@@ -738,14 +752,13 @@ void Terrain::Draw(RcDrawDesc dd)
 
 			if (!lod)
 			{
+				const bool tess = dd._allowTess && settings._gpuTessellation;
 				if (dd._wireframe)
 					cb->BindPipeline(_pipe[PIPE_WIREFRAME_LIST]);
 				else if (drawingDepth)
-					cb->BindPipeline(_pipe[PIPE_DEPTH_LIST]);
-				else if (dd._tess && settings._gpuTessellation)
-					cb->BindPipeline(_pipe[PIPE_TESS]);
+					cb->BindPipeline(_pipe[tess ? PIPE_DEPTH_TESS : PIPE_DEPTH_LIST]);
 				else
-					cb->BindPipeline(_pipe[PIPE_LIST]);
+					cb->BindPipeline(_pipe[tess ? PIPE_TESS : PIPE_LIST]);
 				cb->BindDescriptors(s_shader[SHADER_MAIN], 0, _cshVS);
 				cb->BindDescriptors(s_shader[SHADER_MAIN], 1, _cshFS);
 			}
@@ -812,15 +825,15 @@ void Terrain::DrawReflection()
 	if (!_visiblePatchCount)
 		return;
 
+	const Transform3 matW = Transform3::identity();
+
 	auto cb = renderer.GetCommandBuffer();
 
-	const Transform3 matW = Transform3::identity();
 	s_ubSimpleTerrainVS._matW = matW.UniformBufferFormat();
 	s_ubSimpleTerrainVS._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubSimpleTerrainVS._eyePos = float4(atmo.GetEyePosition().GLM(), 0);
 	s_ubSimpleTerrainVS._mapSideInv_clipDistanceOffset.x = 1.f / _mapSide;
 	s_ubSimpleTerrainVS._mapSideInv_clipDistanceOffset.y = static_cast<float>(water.IsUnderwater() ? USHRT_MAX : 0);
-
 	VERUS_FOR(i, VERUS_COUNT_OF(_layerData))
 		s_ubSimpleTerrainFS._vSpecStrength[i >> 2][i & 0x3] = _layerData[i]._specStrength;
 	s_ubSimpleTerrainFS._lamScaleBias.x = _lamScale;
@@ -897,11 +910,6 @@ void Terrain::DrawReflection()
 
 	_instanceCount += _visiblePatchCount;
 	_geo->UpdateVertexBuffer(_vInstanceBuffer.data(), 1);
-}
-
-void Terrain::ResetInstanceCount()
-{
-	_instanceCount = 0;
 }
 
 void Terrain::SortVisiblePatches()

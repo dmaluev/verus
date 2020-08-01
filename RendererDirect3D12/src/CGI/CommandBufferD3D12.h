@@ -6,6 +6,7 @@ namespace verus
 	{
 		class CommandBufferD3D12 : public BaseCommandBuffer
 		{
+			ComPtr<ID3D12CommandAllocator>     _pOneTimeCommandAllocator;
 			ComPtr<ID3D12GraphicsCommandList3> _pCommandLists[BaseRenderer::s_ringBufferSize];
 			RP::PcD3DRenderPass                _pRenderPass = nullptr;
 			RP::PcD3DFramebuffer               _pFramebuffer = nullptr;
@@ -19,6 +20,9 @@ namespace verus
 
 			virtual void Init() override;
 			virtual void Done() override;
+
+			virtual void InitOneTimeSubmit() override;
+			virtual void DoneOneTimeSubmit() override;
 
 			virtual void Begin() override;
 			virtual void End() override;

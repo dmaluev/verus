@@ -90,8 +90,8 @@ float3 ToneMappingACES(float3 x)
 float3 VerusToneMapping(float3 hdr, float filmicLook = 1.0)
 {
 	const float maxValue = max(max(hdr.r, hdr.g), hdr.b);
-	const float desatMask = saturate(maxValue * 0.1);
-	hdr = lerp(hdr, maxValue, desatMask * desatMask);
+	const float desatMask = saturate(maxValue * 0.15);
+	hdr = lerp(hdr, maxValue, desatMask * desatMask); // Color crosstalk.
 	const float3 ldr = lerp(1.0 - exp(-hdr), ToneMappingACES(hdr), filmicLook);
 	return saturate(ldr);
 }
