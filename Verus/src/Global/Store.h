@@ -49,7 +49,7 @@ namespace verus
 			return *it;
 		}
 
-		int FindIndex(TValue* p)
+		int FindStoredIndex(TValue* p) const
 		{
 			int index = 0;
 			for (const auto& x : _list)
@@ -64,6 +64,28 @@ namespace verus
 		int GetStoredCount() const
 		{
 			return static_cast<int>(_list.size());
+		}
+
+		void MoveStoredUp(int index)
+		{
+			if (index <= 0)
+				return;
+			auto it = _list.begin();
+			std::advance(it, index);
+			auto itTo = it;
+			itTo--;
+			_list.splice(itTo, _list, it);
+		}
+		void MoveStoredDown(int index)
+		{
+			if (index + 1 >= _list.size())
+				return;
+			auto it = _list.begin();
+			std::advance(it, index);
+			auto itTo = it;
+			itTo++;
+			itTo++;
+			_list.splice(itTo, _list, it);
 		}
 	};
 

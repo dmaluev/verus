@@ -84,6 +84,7 @@ void Grass::Init(RTerrain terrain)
 	_vInstanceBuffer.resize(maxInstances);
 
 	CGI::GeometryDesc geoDesc;
+	geoDesc._name = "Grass.Geo";
 	const CGI::VertexInputAttrDesc viaDesc[] =
 	{
 		{ 0, offsetof(Vertex, _pos),               CGI::ViaType::shorts, 4, CGI::ViaUsage::position, 0},
@@ -124,6 +125,7 @@ void Grass::Init(RTerrain terrain)
 	_vTextureSubresData.resize(texW * texH);
 
 	CGI::TextureDesc texDesc;
+	texDesc._name = "Grass.Tex";
 	texDesc._format = CGI::Format::srgbR8G8B8A8;
 	texDesc._width = texW;
 	texDesc._height = texH;
@@ -209,7 +211,6 @@ void Grass::Draw()
 	if (!_visiblePatchCount)
 		return;
 
-	VERUS_QREF_ATMO;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
 	VERUS_RT_ASSERT(_pTerrain->GetMapSide() == _mapSide);
@@ -228,7 +229,7 @@ void Grass::Draw()
 	s_ubGrassVS._phase_mapSideInv_bushMask.x = _phase;
 	s_ubGrassVS._phase_mapSideInv_bushMask.y = 1.f / _mapSide;
 	s_ubGrassVS._phase_mapSideInv_bushMask.z = *(float*)&bushMask;
-	s_ubGrassVS._posEye = float4(atmo.GetEyePosition().GLM(), 0);
+	s_ubGrassVS._posEye = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
 	s_ubGrassVS._viewportSize = cb->GetViewportSize().GLM();
 	s_ubGrassVS._warp_turb = Vector4(_warpSpring.GetOffset(), _turbulence).GLM();
 
@@ -284,9 +285,9 @@ void Grass::Draw()
 
 void Grass::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center)
 {
-	VERUS_QREF_ATMO;
+	VERUS_QREF_SM;
 
-	const RcPoint3 eyePos = atmo.GetEyePosition();
+	const RcPoint3 eyePos = sm.GetMainCamera()->GetEyePosition();
 	const float distSq = VMath::distSqr(eyePos, center);
 	if (distSq >= 128 * 128.f)
 		return;

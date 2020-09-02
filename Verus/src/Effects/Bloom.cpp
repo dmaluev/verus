@@ -78,6 +78,7 @@ void Bloom::OnSwapChainResized()
 		const int w = renderer.GetSwapChainWidth() / 2;
 		const int h = renderer.GetSwapChainHeight() / 2;
 		CGI::TextureDesc texDesc;
+		texDesc._name = "Bloom.Pong";
 		texDesc._format = CGI::Format::srgbR8G8B8A8;
 		texDesc._width = w;
 		texDesc._height = h;
@@ -113,7 +114,7 @@ void Bloom::Generate()
 	s_ubBloomGodRaysFS._splitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
 	s_ubBloomGodRaysFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
 	s_ubBloomGodRaysFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-	s_ubBloomGodRaysFS._eyePos = float4(atmo.GetEyePosition().GLM(), 0);
+	s_ubBloomGodRaysFS._eyePos = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
 
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
 	cb->BeginRenderPass(_rph, _fbh, { _tex[TEX_PING]->GetClearValue() });

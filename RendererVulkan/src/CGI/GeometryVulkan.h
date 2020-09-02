@@ -29,10 +29,10 @@ namespace verus
 			virtual void Done() override;
 
 			virtual void CreateVertexBuffer(int count, int binding) override;
-			virtual void UpdateVertexBuffer(const void* p, int binding, PBaseCommandBuffer pCB) override;
+			virtual void UpdateVertexBuffer(const void* p, int binding, PBaseCommandBuffer pCB, INT64 size, INT64 offset) override;
 
 			virtual void CreateIndexBuffer(int count) override;
-			virtual void UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB) override;
+			virtual void UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, INT64 size, INT64 offset) override;
 
 			virtual Continue Scheduled_Update() override;
 
@@ -47,6 +47,7 @@ namespace verus
 			VkBuffer GetVkVertexBuffer(int binding) const { return _vVertexBuffers[binding]._buffer; }
 			VkBuffer GetVkIndexBuffer() const { return _indexBuffer._buffer; }
 			VkDeviceSize GetVkVertexBufferOffset(int binding) const;
+			VkDeviceSize GetVkIndexBufferOffset() const;
 		};
 		VERUS_TYPEDEFS(GeometryVulkan);
 	}

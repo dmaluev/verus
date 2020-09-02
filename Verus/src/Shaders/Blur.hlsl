@@ -1,6 +1,7 @@
 // Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
 
 #include "Lib.hlsl"
+#include "LibColor.hlsl"
 #include "LibDeferredShading.hlsl"
 #include "LibDepth.hlsl"
 #include "Blur.inc.hlsl"
@@ -125,13 +126,13 @@ FSO mainAntiAliasingFS(VSO si)
 		const float rawOriginDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
 		const float originDepth = ToLinearDepth(rawOriginDepth, g_ubExtraBlurFS._zNearFarEx);
 		const float4 rawKernelDepths = float4(
-			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(-2, +0)).r, // L
-			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(+0, -2)).r, // T
-			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(+2, +0)).r, // R
-			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(+0, +2)).r); // B
+			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(-1, +0)).r, // L
+			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(+0, -1)).r, // T
+			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(+1, +0)).r, // R
+			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(+0, +1)).r); // B
 		const float4 kernelDepths = ToLinearDepth(rawKernelDepths, g_ubExtraBlurFS._zNearFarEx);
 		const float minDepth = min(min(kernelDepths[0], kernelDepths[1]), min(kernelDepths[2], kernelDepths[3]));
-		const float equalize = max(1.0 / originDepth, 0.05);
+		const float equalize = 1.0 / originDepth;
 		originDeeper = saturate((originDepth - minDepth) * equalize);
 		const float4 depthOffsets = abs((originDepth - kernelDepths) * equalize);
 		depthBasedEdge = saturate(dot(depthOffsets, 1.0));
@@ -146,11 +147,11 @@ FSO mainAntiAliasingFS(VSO si)
 	float normalBasedEdge;
 	{
 		const float4 rawNrmLT = float4(
-			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(-2, +0)).rg,
-			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(+0, -2)).rg);
+			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(-1, +0)).rg,
+			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(+0, -1)).rg);
 		const float4 rawNrmRB = float4(
-			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(+2, +0)).rg,
-			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(+0, +2)).rg);
+			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(+1, +0)).rg,
+			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(+0, +1)).rg);
 		const float4 diffA = rawNrmLT - rawNrmRB;
 		const float4 diffB = rawNrmLT - rawNrmRB.zwxy;
 		const float4 dots = float4(
@@ -170,10 +171,10 @@ FSO mainAntiAliasingFS(VSO si)
 	const float omni = max(perp.z * perp.z * perp.z, originDeeper);
 	const float2 dirs[4] =
 	{
-		lerp(perp.xy * +4.0, float2(-0.6, -0.3), omni),
-		lerp(perp.xy * -2.0, float2(+0.3, -0.6), omni),
-		lerp(perp.xy * -4.0, float2(-0.3, +0.6), omni),
-		lerp(perp.xy * +2.0, float2(+0.6, +0.3), omni)
+		lerp(perp.xy * +4.0, float2(-0.4, -0.2), omni),
+		lerp(perp.xy * -2.0, float2(+0.2, -0.4), omni),
+		lerp(perp.xy * -4.0, float2(-0.2, +0.4), omni),
+		lerp(perp.xy * +2.0, float2(+0.4, +0.2), omni)
 	};
 	const float2 offsetScale = g_ubExtraBlurFS._textureSize.zw * max(normalBasedEdge, depthBasedEdge);
 	const float3 kernelColors[4] =
@@ -183,7 +184,15 @@ FSO mainAntiAliasingFS(VSO si)
 		g_tex.SampleLevel(g_sam, si.tc0 + dirs[2] * offsetScale, 0.0).rgb,
 		g_tex.SampleLevel(g_sam, si.tc0 + dirs[3] * offsetScale, 0.0).rgb
 	};
-	so.color.rgb = (kernelColors[0] + kernelColors[1] + kernelColors[2] + kernelColors[3]) * 0.25;
+	const float3 sdrKernelColors[4] =
+	{
+		ToneMappingReinhard(kernelColors[0] * 0.001),
+		ToneMappingReinhard(kernelColors[1] * 0.001),
+		ToneMappingReinhard(kernelColors[2] * 0.001),
+		ToneMappingReinhard(kernelColors[3] * 0.001)
+	};
+	so.color.rgb = (sdrKernelColors[0] + sdrKernelColors[1] + sdrKernelColors[2] + sdrKernelColors[3]) * 0.25;
+	so.color.rgb = ToneMappingInvReinhard(so.color.rgb) * 1000.0;
 	so.color.a = 1.0;
 
 	return so;

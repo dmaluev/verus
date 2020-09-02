@@ -64,6 +64,7 @@ namespace verus
 
 			struct Wind
 			{
+				Matrix3 _matPlantBending = Matrix3::identity();
 				Vector3 _baseVelocity = Vector3(4, 0, 0);
 				Vector3 _velocity = Vector3(4, 0, 0);
 				Vector3 _accel = Vector3(0);
@@ -136,6 +137,7 @@ namespace verus
 			float GetSunAlpha() const;
 
 			// Wind:
+			RcMatrix3 GetPlantBendingMatrix() const;
 			RcVector3 GetBaseWindVelocity() const;
 			void SetBaseWindVelocity(RcVector3 v);
 			RcVector3 GetWindVelocity() const;
@@ -146,8 +148,6 @@ namespace verus
 			void BeginShadow(int split);
 			void EndShadow(int split);
 			RCascadedShadowMap GetShadowMap() { return _shadowMap; }
-
-			RcPoint3 GetEyePosition(PVector3 pDirFront = nullptr);
 
 			void CreateCelestialBodyMesh();
 		};

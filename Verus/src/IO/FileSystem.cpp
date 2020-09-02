@@ -499,7 +499,7 @@ void FileSystem::SaveImage(CSZ pathname, const UINT32* p, int w, int h, bool ups
 	ilTexImage(w, h, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, (void*)p);
 	Vector<BYTE> v;
 	v.resize(w * h * 8);
-	ilSaveL(type, v.data(), v.size());
+	ilSaveL(type, v.data(), Utils::Cast32(v.size()));
 	const ILuint sizeOut = ilGetLumpPos();
 	IO::File file;
 	if (file.Open(pathname, "wb"))

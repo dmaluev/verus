@@ -29,6 +29,7 @@ namespace verus
 		private:
 			PScatterDelegate _pDelegate = nullptr;
 			Vector<Instance> _vInstances;
+			float            _maxDistSq = FLT_MAX;
 			int              _side = 0;
 			int              _shift = 0;
 
@@ -53,6 +54,8 @@ namespace verus
 
 			void Init(int side, int typeCount, PcTypeDesc pTypes, int seed = 192000);
 			void Done();
+
+			void SetMaxDist(float dist) { _maxDistSq = dist * dist; }
 
 			PScatterDelegate SetDelegate(PScatterDelegate p) { return Utils::Swap(_pDelegate, p); }
 

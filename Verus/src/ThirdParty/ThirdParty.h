@@ -1,6 +1,6 @@
 #pragma once
 
-// Last updated on 13-Jun-2020
+// Last updated on 5-Sep-2020
 
 // Base64 (https://sourceforge.net/projects/libb64/):
 #ifdef _WIN32

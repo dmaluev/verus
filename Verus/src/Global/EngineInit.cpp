@@ -78,8 +78,8 @@ void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::Rendere
 	}
 
 	// Static init:
-	//if (_makeEffects)
-	//	Effects::CParticles::InitStatic();
+	if (_makeEffects)
+		Effects::Particles::InitStatic();
 	if (_makeGUI)
 		GUI::Font::InitStatic();
 	if (_makeScene)

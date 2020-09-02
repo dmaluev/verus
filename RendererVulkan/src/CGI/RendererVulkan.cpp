@@ -30,7 +30,7 @@ static void DestroyDebugUtilsMessengerEXT(
 
 CSZ RendererVulkan::s_requiredValidationLayers[] =
 {
-	"VK_LAYER_LUNARG_standard_validation"
+	"VK_LAYER_KHRONOS_validation"
 };
 
 CSZ RendererVulkan::s_requiredDeviceExtensions[] =

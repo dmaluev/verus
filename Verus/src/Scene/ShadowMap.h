@@ -18,16 +18,15 @@ namespace verus
 
 		protected:
 			Matrix4         _matShadow;
-			Matrix4         _matShadowDS;
+			Matrix4         _matShadowDS; // For WV positions in Deferred Shading.
 			Config          _config;
 			CGI::TexturePwn _tex;
 			Camera          _camera;
-			PCamera         _pSceneCamera = nullptr;
+			PCamera         _pPrevCamera = nullptr;
 			int             _side = 0;
 			CGI::RPHandle   _rph;
 			CGI::FBHandle   _fbh;
 			bool            _snapToTexels = true;
-			bool            _rendering = false;
 
 		public:
 			ShadowMap();
@@ -37,12 +36,11 @@ namespace verus
 			void Done();
 
 			void SetSnapToTexels(bool b) { _snapToTexels = b; }
-			bool IsRendering() const { return _rendering; }
+			bool IsRendering() const { return !!_pPrevCamera; }
 
 			CGI::RPHandle GetRenderPassHandle() const { return _rph; }
 
-			void Begin(RcVector3 dirToSun, float zNear = 1, float zFar = 0);
-			void BeginLight(RcPoint3 pos, RcPoint3 target, float side = 10);
+			void Begin(RcVector3 dirToSun);
 			void End();
 
 			RcMatrix4 GetShadowMatrix() const;
@@ -51,15 +49,13 @@ namespace verus
 			RConfig GetConfig() { return _config; }
 
 			CGI::TexturePtr GetTexture() const;
-
-			PCamera GetSceneCamera() { return _pSceneCamera; }
 		};
 		VERUS_TYPEDEFS(ShadowMap);
 
 		class CascadedShadowMap : public ShadowMap
 		{
 			Matrix4 _matShadowCSM[4];
-			Matrix4 _matShadowCSM_DS[4];
+			Matrix4 _matShadowCSM_DS[4]; // For WV positions in Deferred Shading.
 			Matrix4 _matOffset[4];
 			Vector4 _splitRanges = Vector4(0);
 			Camera  _cameraCSM;
@@ -72,7 +68,7 @@ namespace verus
 			void Init(int side);
 			void Done();
 
-			void Begin(RcVector3 dirToSun, float zNear, float zFar, int split);
+			void Begin(RcVector3 dirToSun, int split);
 			void End(int split);
 
 			RcMatrix4 GetShadowMatrix(int split = 0) const;

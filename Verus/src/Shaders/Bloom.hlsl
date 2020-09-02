@@ -52,7 +52,7 @@ FSO mainFS(VSO si)
 
 	const float4 rawColor = g_tex.SampleLevel(g_sam, si.tc0, 0.0);
 	const float3 color = rawColor.rgb * g_ubBloomFS._exposure.x;
-	const float3 bloom = saturate((color - 1.0) * 0.4);
+	const float3 bloom = saturate((color - 1.0) * 0.3);
 
 #ifdef DEF_GOD_RAYS
 	const float2 ndcPos = ToNdcPos(si.tc0);

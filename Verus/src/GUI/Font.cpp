@@ -37,9 +37,7 @@ void Font::Init(CSZ url)
 	VERUS_INIT();
 	VERUS_QREF_RENDERER;
 
-	CGI::TextureDesc texDesc;
-	texDesc._url = url;
-	_tex.Init(texDesc);
+	_tex.Init(url);
 
 	String xmlUrl(url);
 	Str::ReplaceExtension(xmlUrl, ".xml");
@@ -96,6 +94,7 @@ void Font::Init(CSZ url)
 	}
 
 	CGI::GeometryDesc geoDesc;
+	geoDesc._name = "Font.Geo";
 	const CGI::VertexInputAttrDesc viaDesc[] =
 	{
 		{0, offsetof(Vertex, _x),     CGI::ViaType::floats, 2, CGI::ViaUsage::position, 0},

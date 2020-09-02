@@ -420,9 +420,9 @@ void Terrain::DoneStatic()
 void Terrain::Init(RcDesc desc)
 {
 	VERUS_INIT();
-	VERUS_QREF_RENDERER;
-	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_ATMO;
+	VERUS_QREF_CONST_SETTINGS;
+	VERUS_QREF_RENDERER;
 
 	if (!Math::IsPowerOfTwo(desc._mapSide))
 		throw VERUS_RECOVERABLE << "Init(), mapSide must be power of two";
@@ -491,6 +491,7 @@ void Terrain::Init(RcDesc desc)
 		}
 	}
 	_vSortedPatchIndices.resize(patchCount);
+	_vRandomPatchIndices.resize(patchCount);
 
 	// Init LODs:
 	VERUS_FOR(i, VERUS_COUNT_OF(_lods))
@@ -517,6 +518,7 @@ void Terrain::Init(RcDesc desc)
 	_vInstanceBuffer.resize(maxInstances);
 
 	CGI::GeometryDesc geoDesc;
+	geoDesc._name = "Terrain.Geo";
 	const CGI::VertexInputAttrDesc viaDesc[] =
 	{
 		{ 0, 0,                                    CGI::ViaType::shorts, 4, CGI::ViaUsage::position, 0},
@@ -586,6 +588,7 @@ void Terrain::Init(RcDesc desc)
 	}
 
 	CGI::TextureDesc texDesc;
+	texDesc._name = "Terrain.Heightmap";
 	texDesc._format = CGI::Format::floatR16;
 	texDesc._width = _mapSide;
 	texDesc._height = _mapSide;
@@ -593,16 +596,19 @@ void Terrain::Init(RcDesc desc)
 	texDesc._flags = CGI::TextureDesc::Flags::anyShaderResource;
 	_tex[TEX_HEIGHTMAP].Init(texDesc);
 
+	texDesc._name = "Terrain.Normals";
 	texDesc._format = CGI::Format::unormR8G8B8A8;
 	texDesc._width = _mapSide;
 	texDesc._height = _mapSide;
 	texDesc._mipLevels = 0;
 	texDesc._flags = CGI::TextureDesc::Flags::anyShaderResource | CGI::TextureDesc::Flags::generateMips;
 	_tex[TEX_NORMALS].Init(texDesc);
+	texDesc._name = "Terrain.Blend";
 	texDesc._flags = CGI::TextureDesc::Flags::generateMips;
 	_tex[TEX_BLEND].Init(texDesc);
 
 	texDesc.Reset();
+	texDesc._name = "Terrain.MainLayer";
 	texDesc._format = CGI::Format::unormR8;
 	texDesc._width = _mapSide;
 	texDesc._height = _mapSide;
@@ -675,12 +681,9 @@ void Terrain::ResetInstanceCount()
 
 void Terrain::Layout()
 {
-	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_ATMO;
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_SM;
-
-	// Reset LOD data:
-	std::for_each(_vPatches.begin(), _vPatches.end(), [](RTerrainPatch patch) {patch._quadtreeLOD = -1; });
 
 	PCamera pPrevCamera = nullptr;
 	// For CSM we need to create geometry beyond the view frustum (1st slice):
@@ -692,6 +695,8 @@ void Terrain::Layout()
 	}
 
 	_visiblePatchCount = 0;
+	_visibleSortedPatchCount = 0;
+	_visibleRandomPatchCount = 0;
 	_quadtree.TraverseVisible();
 	SortVisiblePatches();
 
@@ -702,10 +707,9 @@ void Terrain::Layout()
 
 void Terrain::Draw(RcDrawDesc dd)
 {
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
-	VERUS_QREF_ATMO;
-	VERUS_QREF_CONST_SETTINGS;
 
 	if (!_visiblePatchCount)
 		return;
@@ -721,7 +725,7 @@ void Terrain::Draw(RcDrawDesc dd)
 	s_ubTerrainVS._matV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
 	s_ubTerrainVS._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubTerrainVS._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
-	s_ubTerrainVS._eyePos_mapSideInv = float4(atmo.GetEyePosition().GLM(), 0);
+	s_ubTerrainVS._eyePos_mapSideInv = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
 	s_ubTerrainVS._eyePos_mapSideInv.w = 1.f / _mapSide;
 	s_ubTerrainVS._viewportSize = cb->GetViewportSize().GLM();
 	s_ubTerrainFS._matWV = s_ubTerrainVS._matWV;
@@ -810,16 +814,15 @@ void Terrain::Draw(RcDrawDesc dd)
 	}
 	s_shader[SHADER_MAIN]->EndBindDescriptors();
 
+	_geo->UpdateVertexBuffer(&_vInstanceBuffer[_instanceCount], 1, cb.Get(), _visiblePatchCount, _instanceCount);
 	_instanceCount += _visiblePatchCount;
-	_geo->UpdateVertexBuffer(_vInstanceBuffer.data(), 1);
 }
 
 void Terrain::DrawReflection()
 {
+	VERUS_QREF_ATMO;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
-	VERUS_QREF_ATMO;
-	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_WATER;
 
 	if (!_visiblePatchCount)
@@ -831,7 +834,7 @@ void Terrain::DrawReflection()
 
 	s_ubSimpleTerrainVS._matW = matW.UniformBufferFormat();
 	s_ubSimpleTerrainVS._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubSimpleTerrainVS._eyePos = float4(atmo.GetEyePosition().GLM(), 0);
+	s_ubSimpleTerrainVS._eyePos = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
 	s_ubSimpleTerrainVS._mapSideInv_clipDistanceOffset.x = 1.f / _mapSide;
 	s_ubSimpleTerrainVS._mapSideInv_clipDistanceOffset.y = static_cast<float>(water.IsUnderwater() ? USHRT_MAX : 0);
 	VERUS_FOR(i, VERUS_COUNT_OF(_layerData))
@@ -908,13 +911,14 @@ void Terrain::DrawReflection()
 	}
 	s_shader[SHADER_SIMPLE]->EndBindDescriptors();
 
+	_geo->UpdateVertexBuffer(&_vInstanceBuffer[_instanceCount], 1, cb.Get(), _visiblePatchCount, _instanceCount);
 	_instanceCount += _visiblePatchCount;
-	_geo->UpdateVertexBuffer(_vInstanceBuffer.data(), 1);
 }
 
 void Terrain::SortVisiblePatches()
 {
-	std::sort(_vSortedPatchIndices.begin(), _vSortedPatchIndices.begin() + _visiblePatchCount, [this](int a, int b)
+	_visiblePatchCount = _visibleSortedPatchCount + _visibleRandomPatchCount;
+	std::sort(_vSortedPatchIndices.begin(), _vSortedPatchIndices.begin() + _visibleSortedPatchCount, [this](int a, int b)
 		{
 			RcTerrainPatch patchA = GetPatch(a);
 			RcTerrainPatch patchB = GetPatch(b);
@@ -924,19 +928,20 @@ void Terrain::SortVisiblePatches()
 
 			return patchA._distToCameraSq < patchB._distToCameraSq;
 		});
+	if (_visibleRandomPatchCount)
+		memcpy(&_vSortedPatchIndices[_visibleSortedPatchCount], _vRandomPatchIndices.data(), _visibleRandomPatchCount * sizeof(UINT16));
 }
 
 int Terrain::UserPtr_GetType()
 {
-	return 0;
-	//return +NodeType::terrain;
+	return +NodeType::terrain;
 }
 
 void Terrain::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center)
 {
-	VERUS_QREF_ATMO;
+	VERUS_QREF_SM;
 
-	const RcPoint3 posEye = atmo.GetEyePosition();
+	const RcPoint3 posEye = sm.GetMainCamera()->GetEyePosition();
 
 	const Vector3 toCenter = center - posEye;
 	const float dist = VMath::length(toCenter);
@@ -959,7 +964,10 @@ void Terrain::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 ce
 	patch._patchHeight = ConvertHeight(center.getY());
 	patch._quadtreeLOD = lod;
 
-	_vSortedPatchIndices[_visiblePatchCount++] = offsetPatch;
+	if (4 == lod)
+		_vRandomPatchIndices[_visibleRandomPatchCount++] = offsetPatch;
+	else
+		_vSortedPatchIndices[_visibleSortedPatchCount++] = offsetPatch;
 }
 
 void Terrain::QuadtreeIntegral_GetHeights(const short ij[2], float height[2])
@@ -983,6 +991,7 @@ void Terrain::FattenQuadtreeNodesBy(float x)
 	_quadtreeFatten = x;
 	_quadtree.Done();
 	_quadtree.Init(_mapSide, 16, this, _quadtreeFatten);
+	_quadtree.SetDistCoarseMode(true);
 }
 
 float Terrain::GetHeightAt(const float xz[2]) const
@@ -1150,9 +1159,9 @@ void Terrain::LoadLayerTextures()
 	if (_vLayerUrls.empty())
 		return;
 
+	VERUS_QREF_ATMO;
 	VERUS_QREF_MM;
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_ATMO;
 
 	renderer->WaitIdle();
 
@@ -1244,7 +1253,6 @@ void Terrain::UpdateMainLayerAt(const int ij[2])
 
 void Terrain::UpdateHeightmapTexture()
 {
-	VERUS_QREF_RENDERER;
 	_vHeightmapSubresData.resize(_mapSide * _mapSide);
 	const int mipLevels = Math::ComputeMipLevels(_mapSide, _mapSide);
 	VERUS_FOR(lod, mipLevels)
@@ -1337,6 +1345,7 @@ void Terrain::OnHeightModified()
 {
 	_quadtree.Done();
 	_quadtree.Init(_mapSide, 16, this, _quadtreeFatten);
+	_quadtree.SetDistCoarseMode(true);
 
 	UpdateHeightBuffer();
 	UpdateHeightmapTexture();
@@ -1411,9 +1420,6 @@ void Terrain::Serialize(IO::RSeekableStream stream)
 
 void Terrain::Deserialize(IO::RStream stream)
 {
-	VERUS_QREF_CONST_SETTINGS;
-	VERUS_QREF_SM;
-
 	char buffer[IO::Stream::s_bufferSize] = {};
 
 	Done();

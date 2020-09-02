@@ -40,6 +40,7 @@ void Ssao::Init()
 	}
 
 	CGI::TextureDesc texDesc;
+	texDesc._name = "Ssao.RandNormals";
 	texDesc._format = CGI::Format::unormR8G8B8A8;
 	texDesc._width = 4;
 	texDesc._height = 4;
@@ -68,6 +69,7 @@ void Ssao::OnSwapChainResized()
 	}
 	{
 		CGI::TextureDesc texDesc;
+		texDesc._name = "Ssao.GenAO";
 		texDesc._format = CGI::Format::unormR8;
 		texDesc._width = renderer.GetSwapChainWidth();
 		texDesc._height = renderer.GetSwapChainHeight();

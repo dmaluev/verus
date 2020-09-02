@@ -204,7 +204,7 @@ DS_FSO mainFS(VSO si)
 	const float4 rawAlbedo = g_texAlbedo.Sample(g_samAlbedo, tc);
 	const float3 normal = normalize(si.normal_top.xyz);
 	const float gray = Grayscale(rawAlbedo.rgb);
-	const float mask = saturate((gray - 0.25) * 4.0 + 0.25);
+	const float mask = saturate((gray - 0.25) * 2.0 + 0.2);
 
 	const float top = si.normal_top.w;
 	const float spec = saturate(top * top * (mask + si.tcOffset_phaseShift.z * 0.1));

@@ -153,7 +153,8 @@ FSO mainFS(VSO si)
 	}
 	// </Water>
 
-	const float gloss = lerp(3.3, 15.0, specStrength) + waterGlossBoost;
+	const float gloss64 = lerp(3.3, 15.0, specStrength) + waterGlossBoost;
+	const float gloss = gloss64 * gloss64;
 
 	const float3 normal = normalize(si.nrmW);
 	const float3 dirToEye = normalize(si.dirToEye.xyz);
@@ -188,7 +189,7 @@ FSO mainFS(VSO si)
 	const float3 diffColor = litRet.y * g_ubSimpleTerrainFS._sunColor.rgb * shadowMask + g_ubSimpleTerrainFS._ambientColor.rgb;
 	const float3 specColor = litRet.z * g_ubSimpleTerrainFS._sunColor.rgb * shadowMask * specStrength;
 
-	so.color.rgb = albedo.rgb * 0.5 * diffColor + specColor;
+	so.color.rgb = (albedo.rgb * 0.5) * diffColor + specColor;
 	so.color.a = 1.0;
 
 	const float fog = ComputeFog(depth, g_ubSimpleTerrainFS._fogColor.a, si.posW_depth.y);

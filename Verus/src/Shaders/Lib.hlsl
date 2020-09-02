@@ -150,5 +150,6 @@ float ToWaterDiffuseMask(float height)
 
 float3 ReflectionDimming(float3 hdr, float scale)
 {
-	return lerp(hdr * scale, hdr, saturate(hdr * (1.0 / 65536.0)));
+	const float gray = dot(hdr, 1.0 / 3.0);
+	return lerp(hdr * scale, hdr, saturate(gray * (1.0 / 65536.0)));
 }

@@ -45,6 +45,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 	VERUS_QREF_CONST_SETTINGS;
 	HRESULT hr = 0;
 
+	_sourceName = sourceName;
 	const size_t len = strlen(source);
 	ShaderInclude inc;
 	const String version = "5_1";
@@ -230,6 +231,7 @@ void ShaderD3D12::CreateDescriptorSet(int setNumber, const void* pSrc, int size,
 			&dsd._pMaAllocation,
 			IID_PPV_ARGS(&dsd._pConstantBuffer))))
 			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+		dsd._pConstantBuffer->SetName(_C(Str::Utf8ToWide("Shader.ConstantBuffer (" + _sourceName + ", set=" + std::to_string(setNumber) + ")")));
 
 		const int count = dsd._capacity * BaseRenderer::s_ringBufferSize;
 		dsd._dhDynamicOffsets.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, count);
@@ -383,6 +385,7 @@ void ShaderD3D12::CreatePipelineLayout()
 	}
 	if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateRootSignature(0, pRootSignatureBlob->GetBufferPointer(), pRootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&_pRootSignature))))
 		throw VERUS_RUNTIME_ERROR << "CreateRootSignature(), hr=" << VERUS_HR(hr);
+	_pRootSignature->SetName(_C(Str::Utf8ToWide("RootSignature (" + _sourceName + ")")));
 }
 
 CSHandle ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips)

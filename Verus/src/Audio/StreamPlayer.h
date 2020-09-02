@@ -75,6 +75,7 @@ namespace verus
 			void FadeIn(float time);
 			void FadeOut(float time);
 			void Mute();
+			void SetGain(float gain);
 		};
 		VERUS_TYPEDEFS(StreamPlayer);
 	}

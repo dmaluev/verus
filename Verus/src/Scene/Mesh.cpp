@@ -90,9 +90,9 @@ void Mesh::Draw(RcDrawDesc dd, CGI::CommandBufferPtr cb)
 
 void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 {
-	VERUS_QREF_RENDERER;
-	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_ATMO;
+	VERUS_QREF_CONST_SETTINGS;
+	VERUS_QREF_RENDERER;
 
 	if (!settings._gpuTessellation) // Fallback:
 	{
@@ -295,9 +295,8 @@ void Mesh::UpdateUniformBufferPerFrame(float invTessDist)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
-	VERUS_QREF_ATMO;
 
-	RcPoint3 eyePos = atmo.GetEyePosition();
+	RcPoint3 eyePos = sm.GetMainCamera()->GetEyePosition();
 	Point3 eyePosWV = sm.GetCamera()->GetMatrixV() * eyePos;
 
 	s_ubPerFrame._matV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
@@ -347,6 +346,7 @@ void Mesh::CreateDeviceBuffers()
 	_bindingsMask = 0;
 
 	CGI::GeometryDesc geoDesc;
+	geoDesc._name = _C(_url);
 	const CGI::VertexInputAttrDesc viaDesc[] =
 	{
 		{0, offsetof(VertexInputBinding0, _pos), CGI::ViaType::shorts, 4, CGI::ViaUsage::position, 0},
@@ -463,5 +463,5 @@ bool Mesh::IsInstanceBufferEmpty(bool fromFirstInstance)
 void Mesh::UpdateInstanceBuffer()
 {
 	VERUS_RT_ASSERT(!_vInstanceBuffer.empty());
-	_geo->UpdateVertexBuffer(_vInstanceBuffer.data(), 4);
+	_geo->UpdateVertexBuffer(&_vInstanceBuffer[_firstInstance], 4, nullptr, GetInstanceCount(true), _firstInstance);
 }

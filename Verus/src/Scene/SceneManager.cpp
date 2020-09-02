@@ -80,15 +80,15 @@ void SceneManager::UpdateParts()
 
 void SceneManager::Layout()
 {
-	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_ATMO;
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_SM;
 
 	// Allocate enough space:
 	int countAll = 0;
 	//countAll += TStorePrefabs::_list.size();
-	countAll += TStoreBlocks::_list.size();
-	countAll += TStoreLights::_list.size();
+	countAll += Utils::Cast32(TStoreBlocks::_list.size());
+	countAll += Utils::Cast32(TStoreLights::_list.size());
 	//countAll += TStoreSites::_map.size();
 	if (_vVisibleNodes.size() != countAll)
 		_vVisibleNodes.resize(countAll);
@@ -233,8 +233,8 @@ void SceneManager::DrawLights()
 	if (!_visibleCountPerType[+NodeType::light])
 		return;
 
-	VERUS_QREF_RENDERER;
 	VERUS_QREF_HELPERS;
+	VERUS_QREF_RENDERER;
 
 	CGI::LightType type = CGI::LightType::none;
 	PMesh pMesh = nullptr;

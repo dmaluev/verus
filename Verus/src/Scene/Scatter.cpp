@@ -81,6 +81,13 @@ void Scatter::Done()
 
 void Scatter::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center)
 {
+	VERUS_QREF_SM;
+
+	RcPoint3 eyePos = sm.GetMainCamera()->GetEyePosition();
+	const float distSq = VMath::distSqr(eyePos, center);
+	if (distSq >= _maxDistSq)
+		return;
+
 	const int mask = _side - 1;
 	VERUS_FOR(i, 16)
 	{

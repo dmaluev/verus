@@ -67,17 +67,15 @@ VSO mainVS(VSI si)
 
 	// World matrix, instance data:
 #ifdef DEF_INSTANCED
-	const mataff matW = GetInstMatrix(
+	mataff matW = GetInstMatrix(
 		si.matPart0,
 		si.matPart1,
 		si.matPart2);
 	const float4 userColor = si.instData;
 #else
-	const mataff matW = g_ubPerObject._matW;
+	mataff matW = g_ubPerObject._matW;
 	const float4 userColor = g_ubPerObject._userColor;
 #endif
-
-	const matrix matWV = mul(ToFloat4x4(matW), ToFloat4x4(g_ubPerFrame._matV));
 
 	// Dequantize:
 	const float3 intactPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMeshVS._posDeqScale.xyz, g_ubPerMeshVS._posDeqBias.xyz);
@@ -86,6 +84,7 @@ VSO mainVS(VSI si)
 	const float3 intactTan = si.tan.xyz;
 	const float3 intactBin = si.bin.xyz;
 
+	float addLamBias = 0.0;
 #if defined(DEF_SKINNED) || defined(DEF_ROBOTIC)
 	const float4 warpMask = float4(
 		1,
@@ -93,9 +92,44 @@ VSO mainVS(VSI si)
 		si.tan.w,
 		si.bin.w) * GetWarpScale();
 	const float3 pos = ApplyWarp(intactPos, g_ubSkeletonVS._vWarpZones, warpMask);
+#elif defined(DEF_PLANT)
+	{
+		const float3 normPos = NormalizePosition(si.pos.xyz);
+		const float weightY = saturate(normPos.y * normPos.y - 0.01);
+		const float3 offsetXYZ = normPos - float3(0.5, 0.8, 0.5);
+		const float weightXZ = saturate((dot(offsetXYZ.xz, offsetXYZ.xz) - 0.01) * 0.4);
+
+		const float phaseShiftY = frac(userColor.x + userColor.z);
+		const float phaseShiftXZ = frac(phaseShiftY + intactPos.x + intactPos.z);
+		const float2 bending = (float2(0.7, 0.5) + float2(0.3, 0.5) *
+			sin((g_ubPerObject._userColor.rg + float2(phaseShiftY, phaseShiftXZ)) * (_PI * 2.0))) * float2(weightY, weightXZ);
+
+		const float3x3 matW33 = (float3x3)matW;
+		const float3x3 matBending = (float3x3)g_ubPerObject._matW;
+		const float3x3 matBentW33 = mul(matW33, matBending);
+		const float3x3 matRandW33 = mul(matBending, matW33);
+		float3x3 matNewW33;
+		matNewW33[0] = lerp(matW33[0], matBentW33[0], bending.x);
+		matNewW33[1] = lerp(matW33[1], matBentW33[1], bending.x);
+		matNewW33[2] = lerp(matW33[2], matBentW33[2], bending.x);
+		matNewW33[0] = lerp(matNewW33[0], matRandW33[0], bending.y);
+		matNewW33[1] = lerp(matNewW33[1], matRandW33[1], bending.y);
+		matNewW33[2] = lerp(matNewW33[2], matRandW33[2], bending.y);
+		matW = mataff(
+			lerp(matW33[0], matNewW33[0], userColor.a),
+			lerp(matW33[1], matNewW33[1], userColor.a),
+			lerp(matW33[2], matNewW33[2], userColor.a),
+			matW[3]);
+
+		const float weight = 1.0 - saturate(dot(offsetXYZ, offsetXYZ));
+		addLamBias = (-(weight * weight * weight)) * saturate(userColor.a);
+	}
+	const float3 pos = intactPos;
 #else
 	const float3 pos = intactPos;
 #endif
+
+	const matrix matWV = mul(ToFloat4x4(matW), ToFloat4x4(g_ubPerFrame._matV));
 
 	float3 posW;
 	float3 nrmWV;
@@ -157,6 +191,7 @@ VSO mainVS(VSI si)
 	so.color0 = userColor;
 #ifdef DEF_PLANT
 	so.color0.rgb = RandomColor(userColor.xz, 0.3, 0.2);
+	so.color0.a = addLamBias;
 #endif
 #if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
 	so.matTBN0 = float4(tanWV, posW.x);
@@ -353,6 +388,9 @@ DS_FSO mainFS(VSO si)
 	float2 lamScaleBias = mm_lamScaleBias + float2(0, lightPassStrength * 8.0 * mm_lightPass);
 	lamScaleBias += float2(-0.1, -0.3) * alpha_spec.y + float2(0.1, 0.2); // We bring the noise!
 	lamScaleBias = lerp(lamScaleBias, float2(1, 0.45), skinAlpha);
+#ifdef DEF_PLANT
+	lamScaleBias.y += si.color0.a;
+#endif
 	// </LambertianScaleBias>
 
 	// <RimAlbedo>

@@ -28,6 +28,7 @@ void ShadowMap::Init(int side)
 
 	CGI::TextureDesc texDesc;
 	texDesc._clearValue = Vector4(1);
+	texDesc._name = "ShadowMap.Tex";
 	texDesc._format = CGI::Format::unormD24uintS8;
 	texDesc._width = _side;
 	texDesc._height = _side;
@@ -47,7 +48,7 @@ void ShadowMap::Done()
 	VERUS_DONE(ShadowMap);
 }
 
-void ShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar)
+void ShadowMap::Begin(RcVector3 dirToSun)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
@@ -55,13 +56,14 @@ void ShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar)
 	const Vector3 up(0, 1, 0);
 	Point3 eye, at;
 	const float texSizeInMeters = 4096 * 0.005f;
-	if (0 == zFar)
-		zFar = 1001;
+	const float depth = texSizeInMeters * 10;
+	const float zNear = 1;
+	const float zFar = zNear + depth;
 
 	at = sm.GetCamera()->GetEyePosition() + sm.GetCamera()->GetFrontDirection() * (texSizeInMeters * (1 / 3.f));
 	if (_snapToTexels)
 	{
-		const Matrix4 matToShadowSpace = Matrix4::lookAt(Point3(dirToSun), Point3(0), up);
+		const Matrix4 matToShadowSpace = Matrix4::lookAt(Point3(0), Point3(-dirToSun), up);
 		const Matrix4 matFromShadowSpace = VMath::orthoInverse(matToShadowSpace);
 		const Point3 atPosShadowSpace = (matToShadowSpace * at).getXYZ();
 		const float texelSizeInMeters = texSizeInMeters / _side;
@@ -70,7 +72,7 @@ void ShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar)
 		atPosShadowSpaceSnapped.setY(atPosShadowSpaceSnapped.getY() - fmod(atPosShadowSpaceSnapped.getY(), texelSizeInMeters));
 		at = (matFromShadowSpace * atPosShadowSpaceSnapped).getXYZ();
 	}
-	eye = at + dirToSun * ((zFar - zNear) * 0.5f);
+	eye = at + dirToSun * (depth * (2 / 3.f));
 
 	// Setup light space camera and use it (used for terrain draw, etc.):
 	_camera.SetUpDirection(up);
@@ -82,69 +84,30 @@ void ShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar)
 	_camera.SetWidth(texSizeInMeters);
 	_camera.SetHeight(texSizeInMeters);
 	_camera.Update();
-	_pSceneCamera = sm.SetCamera(&_camera);
+	_pPrevCamera = sm.SetCamera(&_camera);
 
-	_config._penumbraScale = (zFar - zNear) * 2;
+	_config._penumbraScale = depth * 2;
 
 	renderer.GetCommandBuffer()->BeginRenderPass(_rph, _fbh,
 		{
 			_tex->GetClearValue()
 		});
-
-	_rendering = true;
-}
-
-void ShadowMap::BeginLight(RcPoint3 pos, RcPoint3 target, float side)
-{
-#if 0
-	VERUS_QREF_RENDERER;
-	VERUS_QREF_CONST_SETTINGS;
-	VERUS_QREF_SM;
-
-	const float zFar = 100; // pos.DistanceTo(target)*1.5f;
-	_camera.SetDirectionUp(Vector3(0, 1, 0));
-	_camera.MoveAtTo(target);
-	_camera.MoveEyeTo(pos);
-	_camera.SetFOV(0);
-	_camera.SetZNear(0.1f);
-	_camera.SetZFar(zFar);
-	_camera.SetWidth(side);
-	_camera.SetHeight(side);
-	_camera.Update();
-	_pSceneCamera = sm.SetCamera(&_camera);
-
-	render->SetRenderTargets({ _tex[TEX_COLOR] }, _tex[TEX_DEPTH]);
-	if (1 == settings._gpuDepthTexture)
-	{
-		render->Clear(CGI::CLEAR_ZBUFFER);
-	}
-	else
-	{
-		render.SetClearColor(Vector4(1, 1, 1, 1));
-		render->Clear(CGI::CLEAR_ZBUFFER | CGI::CLEAR_TARGET);
-	}
-
-	_rendering = true;
-#endif
 }
 
 void ShadowMap::End()
 {
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_SM;
 
 	renderer.GetCommandBuffer()->EndRenderPass();
 
 	const Matrix4 m = Math::ToUVMatrix();
 	_matShadow = m * _camera.GetMatrixVP();
-	_matShadowDS = _matShadow * _pSceneCamera->GetMatrixVi();
+	_matShadowDS = _matShadow * _pPrevCamera->GetMatrixVi();
 
-	_pSceneCamera = sm.SetCamera(_pSceneCamera);
-	VERUS_RT_ASSERT(&_camera == _pSceneCamera); // Check camera's integrity.
-	_pSceneCamera = nullptr;
-
-	_rendering = false;
+	_pPrevCamera = sm.SetCamera(_pPrevCamera);
+	VERUS_RT_ASSERT(&_camera == _pPrevCamera); // Check camera's integrity.
+	_pPrevCamera = nullptr;
 }
 
 RcMatrix4 ShadowMap::GetShadowMatrix() const
@@ -199,6 +162,7 @@ void CascadedShadowMap::Init(int side)
 
 	CGI::TextureDesc texDesc;
 	texDesc._clearValue = Vector4(1);
+	texDesc._name = "ShadowMap.Tex (CSM)";
 	texDesc._format = CGI::Format::unormD24uintS8;
 	texDesc._width = _side;
 	texDesc._height = _side;
@@ -224,11 +188,11 @@ void CascadedShadowMap::Done()
 {
 }
 
-void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int split)
+void CascadedShadowMap::Begin(RcVector3 dirToSun, int split)
 {
 	VERUS_QREF_CONST_SETTINGS;
 	if (settings._sceneShadowQuality < App::Settings::ShadowQuality::cascaded)
-		return ShadowMap::Begin(dirToSun, zNear, zFar);
+		return ShadowMap::Begin(dirToSun);
 
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
@@ -242,14 +206,17 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 	float texWidthInMeters, texHeightInMeters, texSizeInMeters;
 
 	float zNearFrustum, zFarFrustum;
-	const float closerToLight = 1500;
 	const Matrix4 matToLightSpace = Matrix4::lookAt(Point3(0), Point3(-dirToSun), up);
-	const float maxRange = (settings._sceneShadowQuality >= App::Settings::ShadowQuality::ultra) ? 850.f : 350.f;
+	const float maxRange = (settings._sceneShadowQuality >= App::Settings::ShadowQuality::ultra) ? 1000.f : 300.f;
 	const float range = Math::Min<float>(maxRange, cam.GetZFar() - cam.GetZNear()); // Clip terrain, etc.
 	_camera = cam;
 
 	if (0 == _currentSplit)
 	{
+		const float depth = Math::Min(range * 10, 10000.f);
+		const float zNear = 1;
+		const float zFar = zNear + depth;
+
 		_camera.SetZNear(cam.GetZNear());
 		_camera.SetZFar(cam.GetZNear() + range);
 		_camera.Update();
@@ -261,10 +228,8 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 			zNearFrustum);
 		pos = (VMath::orthoInverse(matToLightSpace) * pos).getXYZ(); // To world space.
 
-		eye = pos + dirToSun * closerToLight;
+		eye = pos + dirToSun * (depth * (2 / 3.f));
 		at = pos;
-		if (0 == zFar)
-			zFar = abs(zFarFrustum - zNearFrustum) + closerToLight;
 
 		texWidthInMeters = ceil(frustumBounds.getZ() - frustumBounds.getX() + 2.5f);
 		texHeightInMeters = ceil(frustumBounds.getW() - frustumBounds.getY() + 2.5f);
@@ -284,9 +249,9 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 
 	// Compute split ranges:
 	_splitRanges = Vector4(
-		cam.GetZNear() + range * 0.5f * 0.5f,
+		cam.GetZNear() + range * 0.25f,
 		cam.GetZNear() + range * 0.25f * 0.25f,
-		cam.GetZNear() + range * 0.125f * 0.125f,
+		cam.GetZNear() + range * 0.25f * 0.25f * 0.25f,
 		cam.GetZNear());
 
 	// Default scene camera with the current split range:
@@ -320,6 +285,9 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 	texWidthInMeters = ceil(frustumBounds.getZ() - frustumBounds.getX() + 2.5f);
 	texHeightInMeters = ceil(frustumBounds.getW() - frustumBounds.getY() + 2.5f);
 	texSizeInMeters = Math::Max(texWidthInMeters, texHeightInMeters);
+	const float depth = Math::Min(texSizeInMeters * 10, 10000.f);
+	const float zNear = 1;
+	const float zFar = zNear + depth;
 
 	if (_snapToTexels)
 	{
@@ -330,10 +298,8 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 	}
 	pos = (VMath::orthoInverse(matToLightSpace) * pos).getXYZ(); // To world space.
 
-	eye = pos + dirToSun * closerToLight;
+	eye = pos + dirToSun * (depth * (2 / 3.f));
 	at = pos;
-	if (0 == zFar)
-		zFar = _cameraCSM.GetZFar();
 
 	_splitRanges.setW(cam.GetZNear() + range);
 
@@ -347,7 +313,7 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 	_camera.SetWidth(texSizeInMeters);
 	_camera.SetHeight(texSizeInMeters);
 	_camera.Update();
-	_pSceneCamera = sm.SetCamera(&_camera);
+	_pPrevCamera = sm.SetCamera(&_camera);
 
 	_config._penumbraScale = (zFar - zNear) * 2;
 
@@ -367,8 +333,6 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, float zNear, float zFar, int s
 	case 2: renderer.GetCommandBuffer()->SetViewport({ Vector4(0, s, s, s) }); break;
 	case 3: renderer.GetCommandBuffer()->SetViewport({ Vector4(s, s, s, s) }); break;
 	}
-
-	_rendering = true;
 }
 
 void CascadedShadowMap::End(int split)
@@ -386,13 +350,13 @@ void CascadedShadowMap::End(int split)
 
 	const Matrix4 m = Math::ToUVMatrix();
 	_matShadowCSM[_currentSplit] = _matOffset[_currentSplit] * m * _camera.GetMatrixVP();
-	_matShadowCSM_DS[_currentSplit] = _matShadowCSM[_currentSplit] * _pSceneCamera->GetMatrixVi();
+	_matShadowCSM_DS[_currentSplit] = _matShadowCSM[_currentSplit] * _pPrevCamera->GetMatrixVi();
 
-	_pSceneCamera = sm.SetCamera(_pSceneCamera);
-	VERUS_RT_ASSERT(&_camera == _pSceneCamera); // Check camera's integrity.
-	_pSceneCamera = nullptr;
+	_pPrevCamera = sm.SetCamera(_pPrevCamera);
+	VERUS_RT_ASSERT(&_camera == _pPrevCamera); // Check camera's integrity.
+	_pPrevCamera = nullptr;
 
-	_rendering = false;
+	_currentSplit = -1;
 }
 
 RcMatrix4 CascadedShadowMap::GetShadowMatrix(int split) const

@@ -136,6 +136,7 @@ void Blur::OnSwapChainResized()
 		const int swapChainHalfHeight = renderer.GetSwapChainHeight() / 2;
 
 		CGI::TextureDesc texDesc;
+		texDesc._name = "Blur.Tex";
 		texDesc._format = CGI::Format::srgbR8G8B8A8;
 		texDesc._width = swapChainWidth;
 		texDesc._height = swapChainHeight;

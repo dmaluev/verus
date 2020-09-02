@@ -146,6 +146,7 @@ namespace verus
 			Vector<TerrainPatch>          _vPatches;
 			Vector<TerrainPatch::TBN>     _vPatchTBNs;
 			Vector<UINT16>                _vSortedPatchIndices;
+			Vector<UINT16>                _vRandomPatchIndices;
 			Vector<PerInstanceData>       _vInstanceBuffer;
 			Vector<String>                _vLayerUrls;
 			Vector<short>                 _vHeightBuffer;
@@ -160,6 +161,8 @@ namespace verus
 			int                           _indexCount = 0;
 			int                           _instanceCount = 0;
 			int                           _visiblePatchCount = 0;
+			int                           _visibleSortedPatchCount = 0;
+			int                           _visibleRandomPatchCount = 0;
 			CGI::CSHandle                 _cshVS;
 			CGI::CSHandle                 _cshFS;
 			CGI::CSHandle                 _cshSimpleVS;

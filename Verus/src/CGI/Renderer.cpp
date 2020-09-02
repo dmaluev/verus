@@ -97,6 +97,7 @@ void Renderer::Init(PRendererDelegate pDelegate)
 		{});
 
 	GeometryDesc geoDesc;
+	geoDesc._name = "Renderer.Geo";
 	const VertexInputAttrDesc viaDesc[] =
 	{
 		{0, offsetof(Vertex, _pos), ViaType::floats, 2, ViaUsage::position, 0},
@@ -175,6 +176,7 @@ void Renderer::Done()
 		_geoQuad.Done();
 		_commandBuffer.Done();
 
+		Effects::Particles::DoneStatic();
 		Scene::Forest::DoneStatic();
 		Scene::Grass::DoneStatic();
 		Scene::Terrain::DoneStatic();
@@ -277,6 +279,7 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 		TextureDesc texDesc;
 		if (settings._screenOffscreenDraw)
 		{
+			texDesc._name = "Renderer.OffscreenColor";
 			texDesc._format = Format::srgbB8G8R8A8;
 			texDesc._width = _swapChainWidth;
 			texDesc._height = _swapChainHeight;
@@ -287,6 +290,7 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 		}
 		texDesc.Reset();
 		texDesc._clearValue = Vector4(1);
+		texDesc._name = "Renderer.DepthStencil";
 		texDesc._format = Format::unormD24uintS8;
 		texDesc._width = _swapChainWidth;
 		texDesc._height = _swapChainHeight;
@@ -315,7 +319,7 @@ void Renderer::DrawQuad(PBaseCommandBuffer pCB)
 	if (!pCB)
 		pCB = _commandBuffer.Get();
 	pCB->BindVertexBuffers(_geoQuad);
-	pCB->Draw(4, 1);
+	pCB->Draw(4);
 }
 
 void Renderer::DrawOffscreenColor(PBaseCommandBuffer pCB, bool endRenderPass)
@@ -339,7 +343,7 @@ void Renderer::DrawOffscreenColor(PBaseCommandBuffer pCB, bool endRenderPass)
 	pCB->BindDescriptors(_shader[SHADER_QUAD], 0);
 	pCB->BindDescriptors(_shader[SHADER_QUAD], 1, _cshOffscreenColor);
 	_shader[SHADER_QUAD]->EndBindDescriptors();
-	pCB->Draw(4, 1);
+	pCB->Draw(4);
 
 	if (endRenderPass)
 		pCB->EndRenderPass();

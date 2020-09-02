@@ -27,6 +27,7 @@ void ViewManager::Init(bool hasCursor, bool canDebug)
 
 	{
 		CGI::TextureDesc texDesc;
+		texDesc._name = "ViewManager.Dummy";
 		texDesc._format = CGI::Format::unormR8G8B8A8;
 		texDesc._width = 8;
 		texDesc._height = 8;
@@ -36,11 +37,7 @@ void ViewManager::Init(bool hasCursor, bool canDebug)
 	_cshDefault = _shader->BindDescriptorSetTextures(1, { _tex[TEX_DUMMY] });
 
 	if (canDebug)
-	{
-		CGI::TextureDesc texDesc;
-		texDesc._url = "[Textures]:UI/Debug.dds";
-		_tex[TEX_DEBUG].Init(texDesc);
-	}
+		_tex[TEX_DEBUG].Init("[Textures]:UI/Debug.dds");
 
 	if (hasCursor)
 		_cursor.Init();

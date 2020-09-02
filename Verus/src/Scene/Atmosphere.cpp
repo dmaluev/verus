@@ -142,16 +142,18 @@ void Atmosphere::UpdateWind()
 	Stabilize(_wind._accel, Vector3(0), 1.1f - 0.6f * baseWindStrength);
 	Stabilize(_wind._velocity, _wind._baseVelocity, 2 - 0.5f * baseWindStrength);
 
-	//static bool null = false;
-	//if (timer.IsEventEvery(2000))
-	//	null = !null;
-	//_wind._velocity = null ? Vector3(0) : Vector3(4, 0, 0);
-
 	_wind._speed = VMath::length(_wind._velocity);
 	if (_wind._speed >= VERUS_FLOAT_THRESHOLD)
 		_wind._direction = _wind._velocity / _wind._speed;
 	else
 		_wind._direction = Vector3(1, 0, 0);
+
+	const float angle = Math::Clamp<float>(_wind._speed * (1 / 80.f), 0, VERUS_PI * 0.25f);
+	const Vector3 axis = VMath::cross(Vector3(0, 1, 0), _wind._velocity);
+	if (VMath::lengthSqr(axis) >= VERUS_FLOAT_THRESHOLD * VERUS_FLOAT_THRESHOLD)
+		_wind._matPlantBending = Matrix3::rotation(angle, VMath::normalizeApprox(axis));
+	else
+		_wind._matPlantBending = Matrix3::identity();
 }
 
 void Atmosphere::Update()
@@ -216,9 +218,9 @@ void Atmosphere::Update()
 	const float cloudScaleFog = 1 - 0.9f * _clouds._cloudiness * cloudinessSq;
 	const float cloudScaleSun = 1 - 0.999f * _clouds._cloudiness * cloudinessSq;
 	float color[3];
-	GetColor(208, color, 1); _ambientColor = Vector3::MakeFromPointer(color) * (GetMagnitude(60000, 40000, 10) * cloudScaleAmb);
+	GetColor(208, color, 1); _ambientColor = Vector3::MakeFromPointer(color) * (GetMagnitude(50000, 30000, 1) * cloudScaleAmb);
 	GetColor(100, color, 1); _fog._color = Vector3::MakeFromPointer(color) * (GetMagnitude(30000, 2000, 1) * cloudScaleFog);
-	GetColor(240, color, 1); _sun._color = Vector3::MakeFromPointer(color) * (GetMagnitude(85000, 20000, 1) * cloudScaleSun);
+	GetColor(240, color, 1); _sun._color = Vector3::MakeFromPointer(color) * (GetMagnitude(80000, 10000, 1) * cloudScaleSun);
 
 	glm::vec3 ambientColor = _ambientColor.GLM();
 	glm::vec3 fogColor = _fog._color.GLM();
@@ -308,7 +310,7 @@ void Atmosphere::DrawSky(bool reflection)
 		cb->BindDescriptors(_shader, 2);
 		cb->BindDescriptors(_shader, 3);
 		_shader->EndBindDescriptors();
-		cb->Draw(4, 1);
+		cb->Draw(4);
 	}
 	// </Sun>
 
@@ -327,7 +329,7 @@ void Atmosphere::DrawSky(bool reflection)
 		cb->BindDescriptors(_shader, 2);
 		cb->BindDescriptors(_shader, 3);
 		_shader->EndBindDescriptors();
-		cb->Draw(4, 1);
+		cb->Draw(4);
 	}
 	// </Moon>
 
@@ -395,6 +397,11 @@ float Atmosphere::GetSunAlpha() const
 	return _sun._alpha;
 }
 
+RcMatrix3 Atmosphere::GetPlantBendingMatrix() const
+{
+	return _wind._matPlantBending;
+}
+
 RcVector3 Atmosphere::GetBaseWindVelocity() const
 {
 	return _wind._baseVelocity;
@@ -422,7 +429,7 @@ float Atmosphere::GetWindSpeed() const
 
 void Atmosphere::BeginShadow(int split)
 {
-	_shadowMap.Begin(_sun._dirTo, 1, 0, split);
+	_shadowMap.Begin(_sun._dirTo, split);
 }
 
 void Atmosphere::EndShadow(int split)
@@ -430,26 +437,10 @@ void Atmosphere::EndShadow(int split)
 	_shadowMap.End(split);
 }
 
-RcPoint3 Atmosphere::GetEyePosition(PVector3 pDirFront)
-{
-	VERUS_QREF_SM;
-	if (_shadowMap.GetSceneCamera())
-	{
-		if (pDirFront)
-			*pDirFront = _shadowMap.GetSceneCamera()->GetFrontDirection();
-		return _shadowMap.GetSceneCamera()->GetEyePosition();
-	}
-	else
-	{
-		if (pDirFront)
-			*pDirFront = sm.GetCamera()->GetFrontDirection();
-		return sm.GetCamera()->GetEyePosition();
-	}
-}
-
 void Atmosphere::CreateCelestialBodyMesh()
 {
 	CGI::GeometryDesc geoDesc;
+	geoDesc._name = "Atmosphere.Geo";
 	const CGI::VertexInputAttrDesc viaDesc[] =
 	{
 		{0, offsetof(Vertex, _pos), CGI::ViaType::floats, 3, CGI::ViaUsage::position, 0},

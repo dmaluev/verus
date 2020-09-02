@@ -53,6 +53,8 @@ namespace verus
 			int                       _passedTestCount = 0;
 			int                       _limit = 0;
 			int                       _mapSide = 0;
+			int                       _maxDepth = 0;
+			bool                      _distCoarseMode = false;
 
 		public:
 			QuadtreeIntegral();
@@ -61,12 +63,14 @@ namespace verus
 			void Init(int mapSide, int limit, PQuadtreeIntegralDelegate p, float fattenBy = 0.5f);
 			void Done();
 
+			void SetDistCoarseMode(bool b) { _distCoarseMode = b; }
+
 			void SetDelegate(PQuadtreeIntegralDelegate p) { _pDelegate = p; }
 
 			VERUS_P(void AllocNodes());
 			VERUS_P(void InitNodes(int currentNode = 0, int depth = 0));
 
-			void TraverseVisible(int currentNode = 0);
+			void TraverseVisible(int currentNode = 0, int depth = 0);
 
 			int GetTestCount()       const { return _testCount; }
 			int GetPassedTestCount() const { return _passedTestCount; }

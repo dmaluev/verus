@@ -24,7 +24,6 @@ void Water::Init(RTerrain terrain)
 	VERUS_INIT();
 
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_CONST_SETTINGS;
 
 	_pTerrain = &terrain;
 
@@ -74,6 +73,7 @@ void Water::Init(RTerrain terrain)
 	_indexCount = Utils::Cast32(vIndices.size());
 
 	CGI::GeometryDesc geoDesc;
+	geoDesc._name = "Water.Geo";
 	const CGI::VertexInputAttrDesc viaDesc[] =
 	{
 		{0, offsetof(Vertex, _pos), CGI::ViaType::floats, 4, CGI::ViaUsage::position, 0},
@@ -115,9 +115,7 @@ void Water::Init(RTerrain terrain)
 	texDesc._flags = CGI::TextureDesc::Flags::anyShaderResource;
 	_tex[TEX_FOAM].Init(texDesc);
 
-	texDesc.Reset();
-	texDesc._url = "[Textures]:Water/Heightmap.FX.dds";
-	_tex[TEX_SOURCE_HEIGHTMAP].Init(texDesc);
+	_tex[TEX_SOURCE_HEIGHTMAP].Init("[Textures]:Water/Heightmap.FX.dds");
 
 	CGI::SamplerDesc normalsSamplerDesc;
 	normalsSamplerDesc.SetFilter("ll");
@@ -125,12 +123,14 @@ void Water::Init(RTerrain terrain)
 	normalsSamplerDesc._mipLodBias = 0.5f;
 	normalsSamplerDesc._minLod = 1;
 	texDesc.Reset();
+	texDesc._name = "Water.GenHeightmap";
 	texDesc._format = CGI::Format::floatR16;
 	texDesc._width = _genSide;
 	texDesc._height = _genSide;
 	texDesc._mipLevels = 0;
 	texDesc._flags = CGI::TextureDesc::Flags::colorAttachment | CGI::TextureDesc::Flags::anyShaderResource | CGI::TextureDesc::Flags::generateMips;
 	_tex[TEX_GEN_HEIGHTMAP].Init(texDesc);
+	texDesc._name = "Water.GenNormals";
 	texDesc._format = CGI::Format::unormR10G10B10A2;
 	texDesc._flags = CGI::TextureDesc::Flags::colorAttachment | CGI::TextureDesc::Flags::generateMips;
 	texDesc._pSamplerDesc = &normalsSamplerDesc;
@@ -143,12 +143,14 @@ void Water::Init(RTerrain terrain)
 	_cshGenNormals = _shader[SHADER_GEN]->BindDescriptorSetTextures(2, { _tex[TEX_GEN_HEIGHTMAP] });
 
 	texDesc.Reset();
+	texDesc._name = "Water.Reflection";
 	texDesc._format = CGI::Format::floatR11G11B10;
 	texDesc._width = 1024;
 	texDesc._height = 512;
 	texDesc._mipLevels = 0;
 	texDesc._flags = CGI::TextureDesc::Flags::colorAttachment | CGI::TextureDesc::Flags::generateMips;
 	_tex[TEX_REFLECTION].Init(texDesc);
+	texDesc._name = "Water.ReflectionDepth";
 	texDesc._clearValue = Vector4(1);
 	texDesc._format = CGI::Format::unormD24uintS8;
 	texDesc._mipLevels = 1;
@@ -197,11 +199,9 @@ void Water::Draw()
 {
 	VERUS_UPDATE_ONCE_CHECK_DRAW;
 
+	VERUS_QREF_ATMO;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
-	VERUS_QREF_CONST_SETTINGS;
-	VERUS_QREF_TIMER;
-	VERUS_QREF_ATMO;
 
 	if (!_cshWaterFS.IsSet())
 	{
@@ -279,8 +279,8 @@ void Water::OnSwapChainResized()
 	if (!_tex[TEX_FOAM]->IsLoaded())
 		return;
 
-	VERUS_QREF_RENDERER;
 	VERUS_QREF_ATMO;
+	VERUS_QREF_RENDERER;
 
 	_shader[SHADER_MAIN]->FreeDescriptorSet(_cshWaterFS);
 	_shader[SHADER_MAIN]->FreeDescriptorSet(_cshWaterVS);
@@ -309,7 +309,7 @@ void Water::BeginReflection(CGI::PBaseCommandBuffer pCB)
 	_camera = *sm.GetCamera();
 	if (!IsUnderwater(_camera.GetEyePosition()))
 		_camera.EnableReflectionMode();
-	_pSceneCamera = sm.SetCamera(&_camera);
+	_pPrevCamera = sm.SetCamera(&_camera);
 
 	pCB->BeginRenderPass(_rphReflection, _fbhReflection,
 		{
@@ -328,7 +328,7 @@ void Water::EndReflection(CGI::PBaseCommandBuffer pCB)
 
 	pCB->EndRenderPass();
 
-	sm.SetCamera(_pSceneCamera);
+	sm.SetCamera(_pPrevCamera);
 
 	_tex[TEX_REFLECTION]->GenerateMips();
 }
@@ -459,8 +459,8 @@ float Water::PhillipsSpectrum(float k)
 
 bool Water::IsUnderwater() const
 {
-	return _pSceneCamera ?
-		IsUnderwater(_pSceneCamera->GetEyePosition()) :
+	return _pPrevCamera ?
+		IsUnderwater(_pPrevCamera->GetEyePosition()) :
 		IsUnderwater(SceneManager::I().GetCamera()->GetEyePosition());
 }
 

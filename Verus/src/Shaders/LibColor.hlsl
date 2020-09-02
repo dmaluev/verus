@@ -76,6 +76,16 @@ float4 ColorToSRGB(float4 x)
 	return float4(rgb, x.a);
 }
 
+float3 ToneMappingReinhard(float3 x)
+{
+	return x / (1.0 + x);
+}
+
+float3 ToneMappingInvReinhard(float3 x)
+{
+	return -x / (x - 1.0);
+}
+
 // See: https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
 float3 ToneMappingACES(float3 x)
 {

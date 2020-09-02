@@ -21,6 +21,8 @@ void TextureD3D12::Init(RcTextureDesc desc)
 	HRESULT hr = 0;
 
 	_initAtFrame = renderer.GetFrameCount();
+	if (desc._name)
+		_name = desc._name;
 	_size = Vector4(
 		float(desc._width),
 		float(desc._height),
@@ -47,7 +49,11 @@ void TextureD3D12::Init(RcTextureDesc desc)
 	if (renderTarget)
 		resDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 	if (depthFormat)
+	{
 		resDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+		if (!depthSampled)
+			resDesc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+	}
 
 	D3D12_RESOURCE_STATES initialResourceState = ToNativeImageLayout(_mainLayout);
 	D3D12_CLEAR_VALUE clearValue = {};
@@ -71,6 +77,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 		&_resource._pMaAllocation,
 		IID_PPV_ARGS(&_resource._pResource))))
 		throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
+	_resource._pResource->SetName(_C(Str::Utf8ToWide(_name)));
 
 	if (_desc._flags & TextureDesc::Flags::generateMips)
 	{
@@ -80,7 +87,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 		resDescUAV.Width = Math::Max(1, _desc._width >> 1);
 		resDescUAV.Height = Math::Max(1, _desc._height >> 1);
 		resDescUAV.MipLevels = uavMipLevels;
-		resDescUAV.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		resDescUAV.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 		// sRGB cannot be used with UAV:
 		switch (resDescUAV.Format)
 		{
@@ -98,6 +105,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 			&_uaResource._pMaAllocation,
 			IID_PPV_ARGS(&_uaResource._pResource))))
 			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
+		_uaResource._pResource->SetName(_C(Str::Utf8ToWide(_name + " (UAV)")));
 
 		_dhUAV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, uavMipLevels);
 		VERUS_FOR(i, uavMipLevels)
@@ -130,6 +138,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 				&x._pMaAllocation,
 				IID_PPV_ARGS(&x._pResource))))
 				throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_READBACK), hr=" << VERUS_HR(hr);
+			x._pResource->SetName(_C(Str::Utf8ToWide(_name + " (Readback)")));
 		}
 	}
 
@@ -225,6 +234,7 @@ void TextureD3D12::UpdateSubresource(const void* p, int mipLevel, int arrayLayer
 			&sb._pMaAllocation,
 			IID_PPV_ARGS(&sb._pResource))))
 			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+		sb._pResource->SetName(_C(Str::Utf8ToWide(_name + " (Staging)")));
 	}
 
 	if (!pCB)

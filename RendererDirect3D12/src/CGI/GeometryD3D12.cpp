@@ -17,6 +17,7 @@ void GeometryD3D12::Init(RcGeometryDesc desc)
 {
 	VERUS_INIT();
 
+	_name = desc._name;
 	_dynBindingsMask = desc._dynBindingsMask;
 	_32BitIndices = desc._32BitIndices;
 
@@ -102,6 +103,7 @@ void GeometryD3D12::CreateVertexBuffer(int count, int binding)
 			&vb._pMaAllocation,
 			IID_PPV_ARGS(&vb._pBuffer))))
 			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+		vb._pBuffer->SetName(_C(Str::Utf8ToWide(_name + " (Dynamic VB, " + std::to_string(binding) + ")")));
 
 		VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
 		{
@@ -122,6 +124,7 @@ void GeometryD3D12::CreateVertexBuffer(int count, int binding)
 			&vb._pMaAllocation,
 			IID_PPV_ARGS(&vb._pBuffer))))
 			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
+		vb._pBuffer->SetName(_C(Str::Utf8ToWide(_name + " (VB, " + std::to_string(binding) + ")")));
 
 		vb._bufferView[0].BufferLocation = vb._pBuffer->GetGPUVirtualAddress();
 		vb._bufferView[0].SizeInBytes = Utils::Cast32(vb._bufferSize);
@@ -129,7 +132,7 @@ void GeometryD3D12::CreateVertexBuffer(int count, int binding)
 	}
 }
 
-void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, PBaseCommandBuffer pCB)
+void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, PBaseCommandBuffer pCB, INT64 size, INT64 offset)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_D3D12;
@@ -138,12 +141,14 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, PBaseCommandB
 	if (((_instBindingsMask | _dynBindingsMask) >> binding) & 0x1)
 	{
 		auto& vb = _vVertexBuffers[binding];
+		const int elementSize = _vStrides[binding];
+		size = size ? size * elementSize : vb._bufferSize;
 		CD3DX12_RANGE readRange(0, 0);
 		void* pData = nullptr;
 		if (FAILED(hr = vb._pBuffer->Map(0, &readRange, &pData)))
 			throw VERUS_RUNTIME_ERROR << "Map(), hr=" << VERUS_HR(hr);
 		BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererD3D12->GetRingBufferIndex() * vb._bufferSize;
-		memcpy(pMappedData, p, vb._bufferSize);
+		memcpy(pMappedData + offset * elementSize, p, size);
 		vb._pBuffer->Unmap(0, nullptr);
 	}
 	else
@@ -167,6 +172,7 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, PBaseCommandB
 				&svb._pMaAllocation,
 				IID_PPV_ARGS(&svb._pBuffer))))
 				throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+			vb._pBuffer->SetName(_C(Str::Utf8ToWide(_name + " (Staging VB, " + std::to_string(binding) + ")")));
 		}
 
 		if (!pCB)
@@ -202,66 +208,107 @@ void GeometryD3D12::CreateIndexBuffer(int count)
 	const int elementSize = _32BitIndices ? sizeof(UINT32) : sizeof(UINT16);
 	_indexBuffer._bufferSize = count * elementSize;
 
-	D3D12MA::ALLOCATION_DESC allocDesc = {};
-	allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
-	if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
-		&allocDesc,
-		&CD3DX12_RESOURCE_DESC::Buffer(_indexBuffer._bufferSize),
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr,
-		&_indexBuffer._pMaAllocation,
-		IID_PPV_ARGS(&_indexBuffer._pBuffer))))
-		throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
+	if ((_dynBindingsMask >> 31) & 0x1)
+	{
+		D3D12MA::ALLOCATION_DESC allocDesc = {};
+		allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+			&allocDesc,
+			&CD3DX12_RESOURCE_DESC::Buffer(_indexBuffer._bufferSize * BaseRenderer::s_ringBufferSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			&_indexBuffer._pMaAllocation,
+			IID_PPV_ARGS(&_indexBuffer._pBuffer))))
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+		_indexBuffer._pBuffer->SetName(_C(Str::Utf8ToWide(_name + " (Dynamic IB)")));
 
-	_indexBufferView.BufferLocation = _indexBuffer._pBuffer->GetGPUVirtualAddress();
-	_indexBufferView.SizeInBytes = Utils::Cast32(_indexBuffer._bufferSize);
-	_indexBufferView.Format = _32BitIndices ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
+		VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
+		{
+			_indexBufferView[i].BufferLocation = _indexBuffer._pBuffer->GetGPUVirtualAddress() + i * _indexBuffer._bufferSize;
+			_indexBufferView[i].SizeInBytes = Utils::Cast32(_indexBuffer._bufferSize);
+			_indexBufferView[i].Format = _32BitIndices ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
+		}
+	}
+	else
+	{
+		D3D12MA::ALLOCATION_DESC allocDesc = {};
+		allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+			&allocDesc,
+			&CD3DX12_RESOURCE_DESC::Buffer(_indexBuffer._bufferSize),
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			nullptr,
+			&_indexBuffer._pMaAllocation,
+			IID_PPV_ARGS(&_indexBuffer._pBuffer))))
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
+		_indexBuffer._pBuffer->SetName(_C(Str::Utf8ToWide(_name + " (IB)")));
+
+		_indexBufferView[0].BufferLocation = _indexBuffer._pBuffer->GetGPUVirtualAddress();
+		_indexBufferView[0].SizeInBytes = Utils::Cast32(_indexBuffer._bufferSize);
+		_indexBufferView[0].Format = _32BitIndices ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
+	}
 }
 
-void GeometryD3D12::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB)
+void GeometryD3D12::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, INT64 size, INT64 offset)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
 
-	bool revertState = true;
-	if (!_stagingIndexBuffer._pBuffer)
+	if ((_dynBindingsMask >> 31) & 0x1)
 	{
-		revertState = false;
-		D3D12MA::ALLOCATION_DESC allocDesc = {};
-		allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
-		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
-			&allocDesc,
-			&CD3DX12_RESOURCE_DESC::Buffer(_indexBuffer._bufferSize),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			&_stagingIndexBuffer._pMaAllocation,
-			IID_PPV_ARGS(&_stagingIndexBuffer._pBuffer))))
-			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+		const int elementSize = _32BitIndices ? sizeof(UINT32) : sizeof(UINT16);
+		size = size ? size * elementSize : _indexBuffer._bufferSize;
+		CD3DX12_RANGE readRange(0, 0);
+		void* pData = nullptr;
+		if (FAILED(hr = _indexBuffer._pBuffer->Map(0, &readRange, &pData)))
+			throw VERUS_RUNTIME_ERROR << "Map(), hr=" << VERUS_HR(hr);
+		BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererD3D12->GetRingBufferIndex() * _indexBuffer._bufferSize;
+		memcpy(pMappedData + offset * elementSize, p, size);
+		_indexBuffer._pBuffer->Unmap(0, nullptr);
 	}
-
-	if (!pCB)
-		pCB = renderer.GetCommandBuffer().Get();
-	auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
-	if (revertState)
+	else
 	{
+		bool revertState = true;
+		if (!_stagingIndexBuffer._pBuffer)
+		{
+			revertState = false;
+			D3D12MA::ALLOCATION_DESC allocDesc = {};
+			allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+			if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+				&allocDesc,
+				&CD3DX12_RESOURCE_DESC::Buffer(_indexBuffer._bufferSize),
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr,
+				&_stagingIndexBuffer._pMaAllocation,
+				IID_PPV_ARGS(&_stagingIndexBuffer._pBuffer))))
+				throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+			_stagingIndexBuffer._pBuffer->SetName(_C(Str::Utf8ToWide(_name + " (Staging IB)")));
+		}
+
+		if (!pCB)
+			pCB = renderer.GetCommandBuffer().Get();
+		auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
+		if (revertState)
+		{
+			const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+				_indexBuffer._pBuffer.Get(), D3D12_RESOURCE_STATE_INDEX_BUFFER, D3D12_RESOURCE_STATE_COPY_DEST);
+			pCmdList->ResourceBarrier(1, &barrier);
+		}
+		D3D12_SUBRESOURCE_DATA sd = {};
+		sd.pData = p;
+		sd.RowPitch = _indexBuffer._bufferSize;
+		sd.SlicePitch = sd.RowPitch;
+		UpdateSubresources<1>(pCmdList,
+			_indexBuffer._pBuffer.Get(),
+			_stagingIndexBuffer._pBuffer.Get(),
+			0, 0, 1, &sd);
 		const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-			_indexBuffer._pBuffer.Get(), D3D12_RESOURCE_STATE_INDEX_BUFFER, D3D12_RESOURCE_STATE_COPY_DEST);
+			_indexBuffer._pBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER);
 		pCmdList->ResourceBarrier(1, &barrier);
-	}
-	D3D12_SUBRESOURCE_DATA sd = {};
-	sd.pData = p;
-	sd.RowPitch = _indexBuffer._bufferSize;
-	sd.SlicePitch = sd.RowPitch;
-	UpdateSubresources<1>(pCmdList,
-		_indexBuffer._pBuffer.Get(),
-		_stagingIndexBuffer._pBuffer.Get(),
-		0, 0, 1, &sd);
-	const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-		_indexBuffer._pBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER);
-	pCmdList->ResourceBarrier(1, &barrier);
 
-	Schedule();
+		Schedule();
+	}
 }
 
 Continue GeometryD3D12::Scheduled_Update()
@@ -323,5 +370,11 @@ const D3D12_VERTEX_BUFFER_VIEW* GeometryD3D12::GetD3DVertexBufferView(int bindin
 
 const D3D12_INDEX_BUFFER_VIEW* GeometryD3D12::GetD3DIndexBufferView() const
 {
-	return &_indexBufferView;
+	if ((_dynBindingsMask >> 31) & 0x1)
+	{
+		VERUS_QREF_RENDERER_D3D12;
+		return &_indexBufferView[pRendererD3D12->GetRingBufferIndex()];
+	}
+	else
+		return &_indexBufferView[0];
 }

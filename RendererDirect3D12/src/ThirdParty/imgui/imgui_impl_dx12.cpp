@@ -37,8 +37,6 @@
 
 // DirectX data
 static ID3D12Device*                g_pd3dDevice = NULL;
-static ID3D10Blob*                  g_pVertexShaderBlob = NULL;
-static ID3D10Blob*                  g_pPixelShaderBlob = NULL;
 static ID3D12RootSignature*         g_pRootSignature = NULL;
 static ID3D12PipelineState*         g_pPipelineState = NULL;
 static DXGI_FORMAT                  g_RTVFormat = DXGI_FORMAT_UNKNOWN;
@@ -361,7 +359,7 @@ static void ImGui_ImplDX12_CreateFontsTexture()
         hr = cmdList->Close();
         IM_ASSERT(SUCCEEDED(hr));
 
-        cmdQueue->ExecuteCommandLists(1, (ID3D12CommandList* const*) &cmdList);
+        cmdQueue->ExecuteCommandLists(1, (ID3D12CommandList* const*)&cmdList);
         hr = cmdQueue->Signal(fence, 1);
         IM_ASSERT(SUCCEEDED(hr));
 
@@ -473,6 +471,9 @@ bool    ImGui_ImplDX12_CreateDeviceObjects()
     psoDesc.SampleDesc.Count = 1;
     psoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
+    ID3DBlob* vertexShaderBlob;
+    ID3DBlob* pixelShaderBlob;
+
     // Create the vertex shader
     {
         static const char* vertexShader =
@@ -503,13 +504,13 @@ bool    ImGui_ImplDX12_CreateDeviceObjects()
               return output;\
             }";
 
-        D3DCompile(vertexShader, strlen(vertexShader), NULL, NULL, NULL, "main", "vs_5_0", 0, 0, &g_pVertexShaderBlob, NULL);
-        if (g_pVertexShaderBlob == NULL) // NB: Pass ID3D10Blob* pErrorBlob to D3DCompile() to get error showing in (const char*)pErrorBlob->GetBufferPointer(). Make sure to Release() the blob!
-            return false;
-        psoDesc.VS = { g_pVertexShaderBlob->GetBufferPointer(), g_pVertexShaderBlob->GetBufferSize() };
+        if (FAILED(D3DCompile(vertexShader, strlen(vertexShader), NULL, NULL, NULL, "main", "vs_5_0", 0, 0, &vertexShaderBlob, NULL)))
+            return false; // NB: Pass ID3D10Blob* pErrorBlob to D3DCompile() to get error showing in (const char*)pErrorBlob->GetBufferPointer(). Make sure to Release() the blob!
+        psoDesc.VS = { vertexShaderBlob->GetBufferPointer(), vertexShaderBlob->GetBufferSize() };
 
         // Create the input layout
-        static D3D12_INPUT_ELEMENT_DESC local_layout[] = {
+        static D3D12_INPUT_ELEMENT_DESC local_layout[] =
+        {
             { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,   0, (UINT)IM_OFFSETOF(ImDrawVert, pos), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,   0, (UINT)IM_OFFSETOF(ImDrawVert, uv),  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             { "COLOR",    0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, (UINT)IM_OFFSETOF(ImDrawVert, col), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -535,10 +536,12 @@ bool    ImGui_ImplDX12_CreateDeviceObjects()
               return out_col; \
             }";
 
-        D3DCompile(pixelShader, strlen(pixelShader), NULL, NULL, NULL, "main", "ps_5_0", 0, 0, &g_pPixelShaderBlob, NULL);
-        if (g_pPixelShaderBlob == NULL)  // NB: Pass ID3D10Blob* pErrorBlob to D3DCompile() to get error showing in (const char*)pErrorBlob->GetBufferPointer(). Make sure to Release() the blob!
-            return false;
-        psoDesc.PS = { g_pPixelShaderBlob->GetBufferPointer(), g_pPixelShaderBlob->GetBufferSize() };
+        if (FAILED(D3DCompile(pixelShader, strlen(pixelShader), NULL, NULL, NULL, "main", "ps_5_0", 0, 0, &pixelShaderBlob, NULL)))
+        {
+            vertexShaderBlob->Release();
+            return false; // NB: Pass ID3D10Blob* pErrorBlob to D3DCompile() to get error showing in (const char*)pErrorBlob->GetBufferPointer(). Make sure to Release() the blob!
+        }
+        psoDesc.PS = { pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize() };
     }
 
     // Create the blending setup
@@ -583,7 +586,10 @@ bool    ImGui_ImplDX12_CreateDeviceObjects()
         desc.BackFace = desc.FrontFace;
     }
 
-    if (g_pd3dDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&g_pPipelineState)) != S_OK)
+    HRESULT result_pipeline_state = g_pd3dDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&g_pPipelineState));
+    vertexShaderBlob->Release();
+    pixelShaderBlob->Release();
+    if (result_pipeline_state != S_OK)
         return false;
 
     ImGui_ImplDX12_CreateFontsTexture();
@@ -596,8 +602,6 @@ void    ImGui_ImplDX12_InvalidateDeviceObjects()
     if (!g_pd3dDevice)
         return;
 
-    SafeRelease(g_pVertexShaderBlob);
-    SafeRelease(g_pPixelShaderBlob);
     SafeRelease(g_pRootSignature);
     SafeRelease(g_pPipelineState);
     SafeRelease(g_pFontTextureResource);

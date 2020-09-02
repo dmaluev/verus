@@ -109,7 +109,7 @@ void GeometryVulkan::CreateVertexBuffer(int count, int binding)
 	}
 }
 
-void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, PBaseCommandBuffer pCB)
+void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, PBaseCommandBuffer pCB, INT64 size, INT64 offset)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
@@ -117,11 +117,13 @@ void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, PBaseCommand
 	if (((_instBindingsMask | _dynBindingsMask) >> binding) & 0x1)
 	{
 		auto& vb = _vVertexBuffers[binding];
+		const int elementSize = _vStrides[binding];
+		size = size ? size * elementSize : vb._bufferSize;
 		void* pData = nullptr;
 		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), vb._vmaAllocation, &pData)))
 			throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
 		BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererVulkan->GetRingBufferIndex() * vb._bufferSize;
-		memcpy(pMappedData, p, vb._bufferSize);
+		memcpy(pMappedData + offset * elementSize, p, size);
 		vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), vb._vmaAllocation);
 	}
 	else
@@ -156,30 +158,52 @@ void GeometryVulkan::CreateIndexBuffer(int count)
 	const int elementSize = _32BitIndices ? sizeof(UINT32) : sizeof(UINT16);
 	_indexBuffer._bufferSize = count * elementSize;
 
-	pRendererVulkan->CreateBuffer(_indexBuffer._bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
-		_indexBuffer._buffer, _indexBuffer._vmaAllocation);
+	if ((_dynBindingsMask >> 31) & 0x1)
+	{
+		pRendererVulkan->CreateBuffer(_indexBuffer._bufferSize * BaseRenderer::s_ringBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,
+			_indexBuffer._buffer, _indexBuffer._vmaAllocation);
+	}
+	else
+	{
+		pRendererVulkan->CreateBuffer(_indexBuffer._bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
+			_indexBuffer._buffer, _indexBuffer._vmaAllocation);
+	}
 }
 
-void GeometryVulkan::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB)
+void GeometryVulkan::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, INT64 size, INT64 offset)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
-	if (VK_NULL_HANDLE == _stagingIndexBuffer._buffer)
+	if ((_dynBindingsMask >> 31) & 0x1)
 	{
-		pRendererVulkan->CreateBuffer(_indexBuffer._bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY,
-			_stagingIndexBuffer._buffer, _stagingIndexBuffer._vmaAllocation);
+		const int elementSize = _32BitIndices ? sizeof(UINT32) : sizeof(UINT16);
+		size = size ? size * elementSize : _indexBuffer._bufferSize;
+		void* pData = nullptr;
+		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), _indexBuffer._vmaAllocation, &pData)))
+			throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
+		BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererVulkan->GetRingBufferIndex() * _indexBuffer._bufferSize;
+		memcpy(pMappedData + offset * elementSize, p, size);
+		vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), _indexBuffer._vmaAllocation);
 	}
+	else
+	{
+		if (VK_NULL_HANDLE == _stagingIndexBuffer._buffer)
+		{
+			pRendererVulkan->CreateBuffer(_indexBuffer._bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY,
+				_stagingIndexBuffer._buffer, _stagingIndexBuffer._vmaAllocation);
+		}
 
-	void* pData = nullptr;
-	if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), _stagingIndexBuffer._vmaAllocation, &pData)))
-		throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
-	memcpy(pData, p, _indexBuffer._bufferSize);
-	vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), _stagingIndexBuffer._vmaAllocation);
+		void* pData = nullptr;
+		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), _stagingIndexBuffer._vmaAllocation, &pData)))
+			throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
+		memcpy(pData, p, _indexBuffer._bufferSize);
+		vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), _stagingIndexBuffer._vmaAllocation);
 
-	pRendererVulkan->CopyBuffer(_stagingIndexBuffer._buffer, _indexBuffer._buffer, _indexBuffer._bufferSize, pCB);
+		pRendererVulkan->CopyBuffer(_stagingIndexBuffer._buffer, _indexBuffer._buffer, _indexBuffer._bufferSize, pCB);
 
-	Schedule();
+		Schedule();
+	}
 }
 
 Continue GeometryVulkan::Scheduled_Update()
@@ -253,6 +277,17 @@ VkDeviceSize GeometryVulkan::GetVkVertexBufferOffset(int binding) const
 		VERUS_QREF_RENDERER_VULKAN;
 		auto& vb = _vVertexBuffers[binding];
 		return pRendererVulkan->GetRingBufferIndex() * vb._bufferSize;
+	}
+	else
+		return 0;
+}
+
+VkDeviceSize GeometryVulkan::GetVkIndexBufferOffset() const
+{
+	if ((_dynBindingsMask >> 31) & 0x1)
+	{
+		VERUS_QREF_RENDERER_VULKAN;
+		return pRendererVulkan->GetRingBufferIndex() * _indexBuffer._bufferSize;
 	}
 	else
 		return 0;

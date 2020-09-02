@@ -7,11 +7,20 @@ namespace verus
 		class Forest : public Object, public ScatterDelegate, public Math::OctreeDelegate
 		{
 #include "../Shaders/DS_Forest.inc.hlsl"
+#include "../Shaders/SimpleForest.inc.hlsl"
+
+			enum SHADER
+			{
+				SHADER_MAIN,
+				SHADER_SIMPLE,
+				SHADER_COUNT
+			};
 
 			enum PIPE
 			{
 				PIPE_MAIN,
 				PIPE_DEPTH,
+				PIPE_REFLECTION,
 				PIPE_COUNT
 			};
 
@@ -40,11 +49,20 @@ namespace verus
 			class BakedChunk
 			{
 			public:
+				Math::Bounds   _bounds;
 				Vector<Vertex> _vSprites;
 				int            _vbOffset = 0;
 				bool           _visible = false;
 			};
 			VERUS_TYPEDEFS(BakedChunk);
+
+			class StaticRigidBody
+			{
+			public:
+				btScaledBvhTriangleMeshShape* _pScaledShape = nullptr;
+				btRigidBody* _pBody = nullptr;
+			};
+			VERUS_TYPEDEFS(StaticRigidBody);
 
 			class Plant
 			{
@@ -62,11 +80,14 @@ namespace verus
 				MaterialPwn                 _material;
 				CGI::TexturePwns<TEX_COUNT> _tex;
 				CGI::CSHandle               _csh;
+				CGI::CSHandle               _cshSimple;
 				Vector<BakedChunk>          _vBakedChunks;
+				Vector<StaticRigidBody>     _vRigidBodies;
 				Vector<float>               _vScales;
 				float                       _alignToNormal = 1;
 				float                       _maxScale = 0;
 				float                       _maxSize = 0;
+				float                       _windBending = 1;
 				float                       _aoSize = 1;
 				char                        _allowedNormal = 116;
 
@@ -95,13 +116,16 @@ namespace verus
 				float   _scale = 1;
 				float   _angle = 0;
 				float   _distToEyeSq = 0;
+				float   _windBending = 0;
 				int     _plantIndex = 0;
 			};
 			VERUS_TYPEDEFS(DrawPlant);
 
-			static CGI::ShaderPwn s_shader;
-			static UB_ForestVS    s_ubForestVS;
-			static UB_ForestFS    s_ubForestFS;
+			static CGI::ShaderPwns<SHADER_COUNT> s_shader;
+			static UB_ForestVS                   s_ubForestVS;
+			static UB_ForestFS                   s_ubForestFS;
+			static UB_SimpleForestVS             s_ubSimpleForestVS;
+			static UB_SimpleForestFS             s_ubSimpleForestFS;
 
 			PTerrain                      _pTerrain = nullptr;
 			CGI::GeometryPwn              _geo;
@@ -115,6 +139,8 @@ namespace verus
 			float                         _maxDist = 100;
 			float                         _tessDist = 50;
 			float                         _maxSizeAll = 0;
+			float                         _phaseY = 0;
+			float                         _phaseXZ = 0;
 			int                           _capacity = 4000;
 			int                           _visibleCount = 0;
 			bool                          _async_initPlants = false;
@@ -127,14 +153,16 @@ namespace verus
 				float _alignToNormal = 1;
 				float _minScale = 0.5f;
 				float _maxScale = 1.5f;
+				float _windBending = 1;
 				char  _allowedNormal = 116;
 
-				void Set(CSZ url, float alignToNormal = 1, float minScale = 0.5f, float maxScale = 1.5f, char allowedNormal = 116)
+				void Set(CSZ url, float alignToNormal = 1, float minScale = 0.5f, float maxScale = 1.5f, float windBending = 1, char allowedNormal = 116)
 				{
 					_url = url;
 					_alignToNormal = alignToNormal;
 					_minScale = minScale;
 					_maxScale = maxScale;
+					_windBending = windBending;
 					_allowedNormal = allowedNormal;
 				}
 			};
@@ -160,13 +188,17 @@ namespace verus
 
 			void ResetInstanceCount();
 			void Update();
-			void Layout();
+			void Layout(bool reflection = false);
 			void Draw(bool allowTess = true);
 			VERUS_P(void DrawModels(bool allowTess));
 			VERUS_P(void DrawSprites());
 			void DrawAO();
+			void DrawReflection();
+
+			void UpdateCollision();
 
 			PTerrain SetTerrain(PTerrain p) { return Utils::Swap(_pTerrain, p); }
+			void OnTerrainModified();
 
 			void SetLayer(int layer, RcLayerDesc desc);
 			VERUS_P(int FindPlant(CSZ url) const);

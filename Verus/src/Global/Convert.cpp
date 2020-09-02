@@ -431,4 +431,7 @@ void Convert::Test()
 	const Vector<BYTE> vMd5 = ToMd5(vBin);
 	const String md5 = ToMd5String(vBin);
 	VERUS_RT_ASSERT(md5 == "C84AAFD3D09E719514977BF3624F4D85");
+
+	const double someNum = fast_atof("1.097");
+	VERUS_RT_ASSERT(1.097 == someNum);
 }

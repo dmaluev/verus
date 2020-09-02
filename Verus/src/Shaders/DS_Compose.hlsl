@@ -128,6 +128,12 @@ FSO2 mainFS(VSO si)
 	so.target0.rgb = lerp(colorWithFog, albedo, floor(rawDepth));
 	so.target0.a = 1.0;
 
+	// <BackgroundColor>
+	const float2 normalWasSet = ceil(rawGBuffer1.rg);
+	const float bg = 1.0 - saturate(normalWasSet.r + normalWasSet.g);
+	so.target0.rgb = lerp(so.target0.rgb, g_ubComposeFS._backgroundColor.rgb, bg * g_ubComposeFS._backgroundColor.a);
+	// </BackgroundColor>
+
 	so.target1 = so.target0;
 
 	return so;
@@ -143,26 +149,21 @@ FSO mainFS(VSO si)
 	const float4 rawGBuffer2 = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.0);
 	const float4 rawComposed = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0);
 
-	const float3 exposedComposed = rawComposed.rgb * g_ubComposeFS._ambientColor_exposure.a;
+	const float gray = Grayscale(rawComposed.rgb);
+	const float3 exposedComposed = Desaturate(rawComposed.rgb, saturate(1.0 - gray * 0.03)) * g_ubComposeFS._ambientColor_exposure.a;
 	so.color.rgb = VerusToneMapping(exposedComposed, 0.5);
 	so.color.a = 1.0;
 
 	// SolidColor (using special value 1.0 for emission):
 	so.color.rgb = lerp(so.color.rgb, rawGBuffer0.rgb, floor(rawGBuffer1.b));
 
-	// <BackgroundColor>
-	const float2 normalWasSet = ceil(rawGBuffer1.rg);
-	const float bg = 1.0 - saturate(normalWasSet.r + normalWasSet.g);
-	so.color.rgb = lerp(so.color.rgb, g_ubComposeFS._backgroundColor.rgb, bg * g_ubComposeFS._backgroundColor.a);
-	// </BackgroundColor>
-
 	const float3 bloom = rawGBuffer2.rgb;
 	so.color.rgb += bloom * (1.0 - so.color.rgb);
 
 	if (false)
 	{
-		const float gray = Grayscale(rawComposed.rgb);
-		so.color.r = saturate((gray - 25.0) * 0.001);
+		const float gray = dot(rawComposed.rgb, 1.0 / 3.0);
+		so.color.r = saturate((gray - 2000.0) * 0.001);
 		so.color.gb *= 0.5;
 	}
 

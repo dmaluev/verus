@@ -44,9 +44,6 @@ struct VSO
 	float4 lightDirWV_invConeDelta     : TEXCOORD3;
 #endif
 	float4 color_coneOut               : TEXCOORD4;
-#ifdef DEF_DIR
-	float3 dirZenithWV                 : TEXCOORD5;
-#endif
 };
 
 #ifdef _VS
@@ -66,12 +63,6 @@ VSO mainVS(VSI si)
 	const mataff matW = g_ubPerObject._matW;
 	const float3 color = g_ubPerObject.rgb;
 	const float coneIn = g_ubPerObject.a;
-#endif
-
-#ifdef DEF_DIR
-	const float glossScale = 0.5;
-#else
-	const float glossScale = 1.0;
 #endif
 
 	const matrix matWV = mul(ToFloat4x4(matW), ToFloat4x4(g_ubPerFrame._matV));
@@ -100,11 +91,10 @@ VSO mainVS(VSI si)
 	const float4 posOrigin = float4(0, 0, 0, 1);
 	so.lightPosWV = mul(posOrigin, matWV).xyz;
 #endif
-	so.color_coneOut = float4(color, glossScale);
+	so.color_coneOut = float4(color, 0);
 #ifdef DEF_DIR
 	const float3 posUnit = mul(float3(0, 0, 1), matWV33); // Assume no scale in matWV33.
 	so.lightDirWV_invConeDelta = float4(posUnit, 1);
-	so.dirZenithWV = mul(float3(0, 1, 0), matV33);
 #elif DEF_SPOT
 	so.lightDirWV_invConeDelta.xyz = normalize(mul(float3(0, 0, 1), matWV33));
 	const float3 posCone = mul(float3(0, 1, 1), matW33);
@@ -145,17 +135,10 @@ DS_ACC_FSO mainFS(VSO si)
 	// For Dir & Spot: light's direction & cone:
 #ifdef DEF_DIR
 	const float3 lightDirWV = si.lightDirWV_invConeDelta.xyz;
-	const float3 dirZenithWV = si.dirZenithWV;
 #elif DEF_SPOT
 	const float3 lightDirWV = si.lightDirWV_invConeDelta.xyz;
 	const float invConeDelta = si.lightDirWV_invConeDelta.w;
 	const float coneOut = si.color_coneOut.a;
-#endif
-
-#ifdef DEF_SPOT
-	const float glossScale = 0.5;
-#else
-	const float glossScale = si.color_coneOut.a;
 #endif
 
 	// GBuffer1:
@@ -188,25 +171,19 @@ DS_ACC_FSO mainFS(VSO si)
 		const float2 lamScaleBias = DS_GetLamScaleBias(rawGBuffer2);
 		const float2 metal = DS_GetMetallicity(rawGBuffer2);
 		const float gloss64 = rawGBuffer2.a * 64.0;
-		const float gloss64Scaled = gloss64 * glossScale;
 
 		// Special:
 		const float skinMask = emission.y;
 		const float hairMask = metal.y;
 		const float eyeMask = saturate(1.0 - gloss64);
-		const float eyeGloss = 25.0 * glossScale;
+		const float eyeGloss = 25.0;
 		const float2 lamScaleBiasWithHair = lerp(lamScaleBias, float2(1, 0.4), hairMask);
 
-		const float gloss = lerp(gloss64Scaled * gloss64Scaled * gloss64Scaled, eyeGloss * eyeGloss * eyeGloss, eyeMask);
+		const float gloss = lerp(gloss64 * gloss64, eyeGloss * eyeGloss, eyeMask);
 
 #ifdef DEF_DIR
 		const float3 dirToLightWV = -lightDirWV;
 		const float lightFalloff = 1.0;
-
-		const float3 reflectWV = reflect(-dirToEyeWV, normalWV);
-		const float zenith = dot(dirZenithWV, reflectWV);
-		const float zenithMask = saturate(zenith * gloss64Scaled * 0.15);
-		const float3 skyColor = 1.0;
 #else
 		const float3 toLightWV = lightPosWV - posWV;
 		const float3 dirToLightWV = normalize(toLightWV);
@@ -270,22 +247,15 @@ DS_ACC_FSO mainFS(VSO si)
 		const float3 hdrMaxDiff = hdrLightColorSSS * diffLightMask;
 		const float3 hdrMaxSpec = hdrLightColorSSS * specLightMask * specHue * FresnelSchlick(spec, maxSpecAdd, litRet.w);
 
-#ifdef DEF_DIR
 		so.target0.rgb = hdrMaxDiff * litRet.y;
 		so.target1.rgb = hdrMaxSpec * litRet.z;
-#else
-		so.target0.rgb = hdrMaxDiff * litRet.y;
-		so.target1.rgb = hdrMaxSpec * litRet.z;
-#endif
-		//so.target0.rgb = max(so.target0.rgb, emission.x);
-		//so.target1.rgb = min(so.target1.rgb, 1.0 - emission.x);
 		so.target0.a = 1.0;
 		so.target1.a = 1.0;
 	}
 #if defined(DEF_OMNI) || defined(DEF_SPOT)
 	else
 	{
-		clip(-1.0);
+		discard;
 	}
 #endif
 

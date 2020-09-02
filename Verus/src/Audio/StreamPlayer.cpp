@@ -276,7 +276,7 @@ void StreamPlayer::ThreadProc()
 	{
 		D::Log::I().Write(e.what(), e.GetThreadID(), e.GetFile(), e.GetLine(), D::Log::Severity::error);
 	}
-	catch (const std::exception & e)
+	catch (const std::exception& e)
 	{
 		VERUS_LOG_ERROR(e.what());
 	}
@@ -337,4 +337,9 @@ void StreamPlayer::FadeOut(float time)
 void StreamPlayer::Mute()
 {
 	_fade.Set(0, 0);
+}
+
+void StreamPlayer::SetGain(float gain)
+{
+	_gain = gain;
 }

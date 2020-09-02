@@ -15,7 +15,7 @@
     <ProjectGuid>{B154D670-E4B1-4D8A-885C-69546A5BD833}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>Verus</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -133,6 +133,7 @@
     <ClInclude Include="src\Effects\Bloom.h" />
     <ClInclude Include="src\Effects\Blur.h" />
     <ClInclude Include="src\Effects\Effects.h" />
+    <ClInclude Include="src\Effects\Particles.h" />
     <ClInclude Include="src\Effects\Ssao.h" />
     <ClInclude Include="src\Extra\Extra.h" />
     <ClInclude Include="src\Extra\FileParser.h" />
@@ -317,6 +318,7 @@
     <ClCompile Include="src\Effects\Bloom.cpp" />
     <ClCompile Include="src\Effects\Blur.cpp" />
     <ClCompile Include="src\Effects\Effects.cpp" />
+    <ClCompile Include="src\Effects\Particles.cpp" />
     <ClCompile Include="src\Effects\Ssao.cpp" />
     <ClCompile Include="src\Extra\Extra.cpp" />
     <ClCompile Include="src\Extra\FileParser.cpp" />
@@ -761,6 +763,22 @@
       <FileType>Document</FileType>
     </None>
     <None Include="src\Shaders\DS_Forest.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\SimpleForest.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\SimpleForest.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\Particles.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\Particles.inc.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

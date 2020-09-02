@@ -183,6 +183,7 @@ void DeferredShading::InitGBuffers(int w, int h)
 
 	// GB0:
 	texDesc._clearValue = Vector4(0);
+	texDesc._name = "DeferredShading.GBuffer0";
 	texDesc._format = Format::srgbR8G8B8A8;
 	texDesc._width = w;
 	texDesc._height = h;
@@ -191,6 +192,7 @@ void DeferredShading::InitGBuffers(int w, int h)
 
 	// GB1:
 	texDesc._clearValue = Vector4(0);
+	texDesc._name = "DeferredShading.GBuffer1";
 	texDesc._format = Format::unormR10G10B10A2;
 	texDesc._width = w;
 	texDesc._height = h;
@@ -199,6 +201,7 @@ void DeferredShading::InitGBuffers(int w, int h)
 
 	// GB2:
 	texDesc._clearValue = Vector4(0);
+	texDesc._name = "DeferredShading.GBuffer2";
 	texDesc._format = Format::unormR8G8B8A8;
 	texDesc._width = w;
 	texDesc._height = h;
@@ -316,9 +319,13 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 		texDesc._width = renderer.GetSwapChainWidth();
 		texDesc._height = renderer.GetSwapChainHeight();
 		texDesc._flags = TextureDesc::Flags::colorAttachment;
+		texDesc._name = "DeferredShading.LightAccDiff";
 		_tex[TEX_LIGHT_ACC_DIFF].Init(texDesc);
+		texDesc._name = "DeferredShading.LightAccSpec";
 		_tex[TEX_LIGHT_ACC_SPEC].Init(texDesc);
+		texDesc._name = "DeferredShading.ComposedA";
 		_tex[TEX_COMPOSED_A].Init(texDesc);
+		texDesc._name = "DeferredShading.ComposedB";
 		_tex[TEX_COMPOSED_B].Init(texDesc);
 
 		_fbh = renderer->CreateFramebuffer(_rph,
@@ -577,7 +584,7 @@ void DeferredShading::EndAmbientOcclusion()
 	renderer.GetCommandBuffer()->EndRenderPass();
 }
 
-void DeferredShading::BeginCompose()
+void DeferredShading::BeginCompose(RcVector4 bgColor)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
@@ -593,6 +600,7 @@ void DeferredShading::BeginCompose()
 	s_ubComposeFS._matInvV = sm.GetCamera()->GetMatrixVi().UniformBufferFormat();
 	s_ubComposeFS._matInvVP = matInvVP.UniformBufferFormat();
 	s_ubComposeFS._ambientColor_exposure = float4(atmo.GetAmbientColor().GLM(), renderer.GetExposure());
+	s_ubComposeFS._backgroundColor = bgColor.GLM();
 	s_ubComposeFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubComposeFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
 	s_ubComposeFS._waterDiffColorShallow = float4(water.GetDiffuseColorShallow().GLM(), water.GetFogDensity());
@@ -630,7 +638,7 @@ void DeferredShading::EndCompose()
 	renderer.GetCommandBuffer()->EndRenderPass();
 }
 
-void DeferredShading::ToneMapping(RcVector4 bgColor)
+void DeferredShading::ToneMapping()
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
@@ -642,7 +650,6 @@ void DeferredShading::ToneMapping(RcVector4 bgColor)
 	s_ubComposeVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 	s_ubComposeFS._matInvV = sm.GetCamera()->GetMatrixVi().UniformBufferFormat();
 	s_ubComposeFS._ambientColor_exposure = float4(atmo.GetAmbientColor().GLM(), renderer.GetExposure());
-	s_ubComposeFS._backgroundColor = bgColor.GLM();
 	s_ubComposeFS._fogColor = Vector4(0.5f, 0.5f, 0.5f, 0.002f).GLM();
 	s_ubComposeFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
 

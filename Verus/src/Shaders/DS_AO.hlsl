@@ -122,7 +122,7 @@ FSO mainFS(VSO si)
 	}
 	else
 	{
-		clip(-1.0);
+		discard;
 	}
 
 	return so;

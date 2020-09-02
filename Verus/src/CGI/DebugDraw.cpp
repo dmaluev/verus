@@ -25,6 +25,7 @@ void DebugDraw::Init()
 	_shader->CreatePipelineLayout();
 
 	GeometryDesc geoDesc;
+	geoDesc._name = "DebugDraw.Geo";
 	const VertexInputAttrDesc viaDesc[] =
 	{
 		{0, offsetof(Vertex, _pos),   ViaType::floats, 3, ViaUsage::position, 0},

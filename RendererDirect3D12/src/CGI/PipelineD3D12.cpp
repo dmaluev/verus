@@ -180,6 +180,7 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 
 	if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(&_pPipelineState))))
 		throw VERUS_RUNTIME_ERROR << "CreateGraphicsPipelineState(), hr=" << VERUS_HR(hr);
+	_pPipelineState->SetName(_C(Str::Utf8ToWide(String("PipelineState (") + _C(shader.GetSourceName()) + ", " + desc._shaderBranch + ")")));
 }
 
 void PipelineD3D12::Done()
@@ -209,6 +210,7 @@ void PipelineD3D12::InitCompute(RcPipelineDesc desc)
 
 	if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateComputePipelineState(&cpsDesc, IID_PPV_ARGS(&_pPipelineState))))
 		throw VERUS_RUNTIME_ERROR << "CreateComputePipelineState(), hr=" << VERUS_HR(hr);
+	_pPipelineState->SetName(_C(Str::Utf8ToWide(String("PipelineState (") + _C(shader.GetSourceName()) + ", " + desc._shaderBranch + ")")));
 }
 
 D3D12_SHADER_BYTECODE PipelineD3D12::ToBytecode(ID3DBlob* pBlob)

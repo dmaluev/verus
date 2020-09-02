@@ -79,8 +79,8 @@ void QuadtreeIntegral::Done()
 
 void QuadtreeIntegral::AllocNodes()
 {
-	const int maxDepth = Math::HighestBit(_mapSide / _limit);
-	const int depthCount = maxDepth + 1;
+	_maxDepth = Math::HighestBit(_mapSide / _limit);
+	const int depthCount = _maxDepth + 1;
 	_nodeCount = 0;
 	VERUS_FOR(i, depthCount)
 		_nodeCount += (1 << i) * (1 << i);
@@ -90,7 +90,6 @@ void QuadtreeIntegral::AllocNodes()
 void QuadtreeIntegral::InitNodes(int currentNode, int depth)
 {
 	RNode node = _vNodes[currentNode];
-	const int maxDepth = Math::HighestBit(_mapSide / _limit);
 	if (!currentNode)
 	{
 		node.PrepareMinMax(_mapSide / 2);
@@ -127,7 +126,7 @@ void QuadtreeIntegral::InitNodes(int currentNode, int depth)
 	node.PrepareOffsetIJ(_mapSide >> 1);
 	node.PrepareBounds2D();
 
-	if (depth < maxDepth)
+	if (depth < _maxDepth)
 	{
 		VERUS_FOR(i, 4)
 		{
@@ -151,8 +150,10 @@ void QuadtreeIntegral::InitNodes(int currentNode, int depth)
 	node.SetSphere(node.GetBounds().GetSphere());
 }
 
-void QuadtreeIntegral::TraverseVisible(int currentNode)
+void QuadtreeIntegral::TraverseVisible(int currentNode, int depth)
 {
+	VERUS_QREF_SM;
+
 	if (!currentNode)
 	{
 		_testCount = 0;
@@ -161,7 +162,22 @@ void QuadtreeIntegral::TraverseVisible(int currentNode)
 
 	_testCount++;
 
-	if (Relation::outside == Scene::SceneManager::I().GetCamera()->GetFrustum().ContainsAabb(_vNodes[currentNode].GetBounds()))
+	bool testFrustum = true;
+	if (_distCoarseMode && depth + 2 >= _maxDepth)
+	{
+		RcPoint3 eyePos = sm.GetMainCamera()->GetEyePosition();
+		RcPoint3 nodePos = _vNodes[currentNode].GetSphere().GetCenter();
+		const float distSq = VMath::distSqr(eyePos, nodePos);
+		if (_maxDepth == depth && distSq >= 500 * 500.f)
+			testFrustum = false;
+		else if (_maxDepth == depth + 1 && distSq >= 1000 * 1000.f)
+			testFrustum = false;
+		else if (_maxDepth == depth + 2 && distSq >= 1500 * 1500.f && (currentNode & 0x1))
+			testFrustum = false;
+	}
+
+	RFrustum frustum = sm.GetCamera()->GetFrustum();
+	if (testFrustum && Relation::outside == frustum.ContainsAabb(_vNodes[currentNode].GetBounds()))
 		return;
 
 	// Yes, it is visible:
@@ -170,7 +186,7 @@ void QuadtreeIntegral::TraverseVisible(int currentNode)
 		VERUS_FOR(i, 4)
 		{
 			const int childIndex = Node::GetChildIndex(currentNode, i);
-			TraverseVisible(childIndex);
+			TraverseVisible(childIndex, depth + 1);
 		}
 	}
 	else // Smallest node -> update it:

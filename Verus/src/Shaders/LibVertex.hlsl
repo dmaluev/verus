@@ -3,6 +3,8 @@
 float3 DequantizeUsingDeq3D(float3 v, float3 scale, float3 bias) { return v * scale + bias; }
 float2 DequantizeUsingDeq2D(float2 v, float2 scale, float2 bias) { return v * scale + bias; }
 
+float3 NormalizePosition(float3 v) { return v * (1.0 / 65535.0) + 0.5; }
+
 mataff GetInstMatrix(float4 part0, float4 part1, float4 part2)
 {
 	return mataff(transpose(float3x4(

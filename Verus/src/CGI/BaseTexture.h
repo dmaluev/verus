@@ -43,6 +43,7 @@ namespace verus
 
 			Vector4       _clearValue = Vector4(0);
 			PcSamplerDesc _pSamplerDesc = nullptr;
+			CSZ           _name = nullptr;
 			CSZ           _url = nullptr;
 			CSZ* _urls = nullptr;
 			Format        _format = Format::unormR8G8B8A8;

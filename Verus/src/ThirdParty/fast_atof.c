@@ -15,7 +15,7 @@
 
 double fast_atof (const char *p)
 {
-    int frac = 0;
+    int frac;
     double sign, value, scale;
 
     // Skip leading white space, if any.
@@ -37,10 +37,8 @@ double fast_atof (const char *p)
 
     // Get digits before decimal point or exponent, if any.
 
-    value = 0.0;
-    while (valid_digit(*p)) {
+    for (value = 0.0; valid_digit(*p); p += 1) {
         value = value * 10.0 + (*p - '0');
-        p += 1;
     }
 
     // Get digits after decimal point, if any.
@@ -48,7 +46,6 @@ double fast_atof (const char *p)
     if (*p == '.') {
         double pow10 = 10.0;
         p += 1;
-
         while (valid_digit(*p)) {
             value += (*p - '0') / pow10;
             pow10 *= 10.0;
@@ -58,14 +55,14 @@ double fast_atof (const char *p)
 
     // Handle exponent, if any.
 
+    frac = 0;
     scale = 1.0;
     if ((*p == 'e') || (*p == 'E')) {
         unsigned int expon;
-        p += 1;
 
         // Get sign of exponent, if any.
 
-        frac = 0;
+        p += 1;
         if (*p == '-') {
             frac = 1;
             p += 1;
@@ -76,10 +73,8 @@ double fast_atof (const char *p)
 
         // Get digits of exponent, if any.
 
-        expon = 0;
-        while (valid_digit(*p)) {
+        for (expon = 0; valid_digit(*p); p += 1) {
             expon = expon * 10 + (*p - '0');
-            p += 1;
         }
         if (expon > 308) expon = 308;
 

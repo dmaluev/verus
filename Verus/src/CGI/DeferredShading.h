@@ -123,9 +123,9 @@ namespace verus
 			void EndLightingPass();
 			void BeginAmbientOcclusion();
 			void EndAmbientOcclusion();
-			void BeginCompose();
+			void BeginCompose(RcVector4 bgColor = Vector4(0));
 			void EndCompose();
-			void ToneMapping(RcVector4 bgColor = Vector4(0));
+			void ToneMapping();
 
 			static bool IsLightUrl(CSZ url);
 			void OnNewLightType(CommandBufferPtr cb, LightType type, bool wireframe = false);

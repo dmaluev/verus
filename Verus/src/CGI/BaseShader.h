@@ -33,8 +33,9 @@ namespace verus
 			};
 
 		protected:
+			String _sourceName;
 			CSZ* _ignoreList = nullptr;
-			bool _saveCompiled = false;
+			bool   _saveCompiled = false;
 
 			BaseShader() = default;
 			virtual ~BaseShader() = default;
@@ -62,6 +63,8 @@ namespace verus
 
 			virtual void BeginBindDescriptors() = 0;
 			virtual void EndBindDescriptors() = 0;
+
+			Str GetSourceName() const { return _C(_sourceName); }
 
 			void SetIgnoreList(CSZ* list) { _ignoreList = list; }
 			bool IsInIgnoreList(CSZ name) const;

@@ -33,10 +33,6 @@ namespace verus
 				TEX_GEN_NORMALS,
 				TEX_REFLECTION,
 				TEX_REFLECTION_DEPTH,
-
-				TEX_REFRACT,
-				TEX_REFLECT,
-				TEX_REFLECT_DEPTH,
 				TEX_COUNT
 			};
 
@@ -54,8 +50,8 @@ namespace verus
 			static UB_GenHeightmapFS s_ubGenHeightmapFS;
 			static UB_GenNormalsFS   s_ubGenNormalsFS;
 
-			Vector3                       _diffuseColorShallow = Vector3(0.02f, 0.42f, 0.52f);
-			Vector3                       _diffuseColorDeep = Vector3(0.01f, 0.01f, 0.06f);
+			Vector3                       _diffuseColorShallow = Vector3(0.02f, 0.4f, 0.5f);
+			Vector3                       _diffuseColorDeep = Vector3(0.01f, 0.01f, 0.05f);
 			PTerrain                      _pTerrain = nullptr;
 			CGI::GeometryPwn              _geo;
 			CGI::ShaderPwns<SHADER_COUNT> _shader;
@@ -72,7 +68,7 @@ namespace verus
 			CGI::RPHandle                 _rphReflection;
 			CGI::FBHandle                 _fbhReflection;
 			Camera                        _camera;
-			PCamera                       _pSceneCamera = nullptr;
+			PCamera                       _pPrevCamera = nullptr;
 			const int                     _genSide = 1024;
 			int                           _gridWidth = 128;
 			int                           _gridHeight = 512;
@@ -105,8 +101,6 @@ namespace verus
 
 			// Caustics are highlights on ocean floor.
 			CGI::TexturePtr GetCausticsTexture() const;
-
-			PCamera GetSceneCamera() { return _pSceneCamera; }
 
 			VERUS_P(void CreateWaterPlane());
 

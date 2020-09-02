@@ -134,7 +134,7 @@ void CommandBufferVulkan::BindIndexBuffer(GeometryPtr geo)
 {
 	auto& geoVulkan = static_cast<RGeometryVulkan>(*geo);
 	VkBuffer buffer = geoVulkan.GetVkIndexBuffer();
-	VkDeviceSize offset = 0;
+	VkDeviceSize offset = geoVulkan.GetVkIndexBufferOffset();
 	vkCmdBindIndexBuffer(GetVkCommandBuffer(), buffer, offset, geoVulkan.Has32BitIndices() ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16);
 }
 
