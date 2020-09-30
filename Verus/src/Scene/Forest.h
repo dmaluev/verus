@@ -56,13 +56,40 @@ namespace verus
 			};
 			VERUS_TYPEDEFS(BakedChunk);
 
-			class StaticRigidBody
+			class CollisionPlant
 			{
 			public:
-				btScaledBvhTriangleMeshShape* _pScaledShape = nullptr;
-				btRigidBody* _pBody = nullptr;
+				int _id = -1;
+				int _poolBlockIndex = -1;
+
+				int GetID() const { return _id; }
 			};
-			VERUS_TYPEDEFS(StaticRigidBody);
+			VERUS_TYPEDEFS(CollisionPlant);
+
+			class alignas(VERUS_MEMORY_ALIGNMENT) CollisionPoolBlock
+			{
+			public:
+				BYTE _data[sizeof(btScaledBvhTriangleMeshShape) + sizeof(btDefaultMotionState) + sizeof(btRigidBody)];
+				bool _reserved = 0;
+
+				bool IsReserved() const { return _reserved; }
+				void Reserve() { _reserved = true; }
+				void Free() { _reserved = false; }
+
+				btScaledBvhTriangleMeshShape* GetScaledBvhTriangleMeshShape()
+				{
+					return reinterpret_cast<btScaledBvhTriangleMeshShape*>(&_data[0]);
+				}
+				btDefaultMotionState* GetDefaultMotionState()
+				{
+					return reinterpret_cast<btDefaultMotionState*>(&_data[sizeof(btScaledBvhTriangleMeshShape)]);
+				}
+				btRigidBody* GetRigidBody()
+				{
+					return reinterpret_cast<btRigidBody*>(&_data[sizeof(btScaledBvhTriangleMeshShape) + sizeof(btDefaultMotionState)]);
+				}
+			};
+			VERUS_TYPEDEFS(CollisionPoolBlock);
 
 			class Plant
 			{
@@ -75,21 +102,20 @@ namespace verus
 					TEX_COUNT
 				};
 
-				String                      _url;
-				Mesh                        _mesh;
-				MaterialPwn                 _material;
-				CGI::TexturePwns<TEX_COUNT> _tex;
-				CGI::CSHandle               _csh;
-				CGI::CSHandle               _cshSimple;
-				Vector<BakedChunk>          _vBakedChunks;
-				Vector<StaticRigidBody>     _vRigidBodies;
-				Vector<float>               _vScales;
-				float                       _alignToNormal = 1;
-				float                       _maxScale = 0;
-				float                       _maxSize = 0;
-				float                       _windBending = 1;
-				float                       _aoSize = 1;
-				char                        _allowedNormal = 116;
+				String                       _url;
+				Mesh                         _mesh;
+				MaterialPwn                  _material;
+				CGI::TexturePwns<TEX_COUNT>  _tex;
+				CGI::CSHandle                _csh;
+				CGI::CSHandle                _cshSimple;
+				Vector<BakedChunk>           _vBakedChunks;
+				Vector<float>                _vScales;
+				float                        _alignToNormal = 1;
+				float                        _maxScale = 0;
+				float                        _maxSize = 0;
+				float                        _windBending = 1;
+				float                        _aoSize = 1;
+				char                         _allowedNormal = 116;
 
 				float GetSize() const;
 			};
@@ -127,23 +153,26 @@ namespace verus
 			static UB_SimpleForestVS             s_ubSimpleForestVS;
 			static UB_SimpleForestFS             s_ubSimpleForestFS;
 
-			PTerrain                      _pTerrain = nullptr;
-			CGI::GeometryPwn              _geo;
-			CGI::PipelinePwns<PIPE_COUNT> _pipe;
-			Math::Octree                  _octree;
-			Scatter                       _scatter;
-			Vector<Plant>                 _vPlants;
-			Vector<LayerPlants>           _vLayerPlants;
-			Vector<DrawPlant>             _vDrawPlants;
-			const float                   _margin = 1.1f;
-			float                         _maxDist = 100;
-			float                         _tessDist = 50;
-			float                         _maxSizeAll = 0;
-			float                         _phaseY = 0;
-			float                         _phaseXZ = 0;
-			int                           _capacity = 4000;
-			int                           _visibleCount = 0;
-			bool                          _async_initPlants = false;
+			PTerrain                         _pTerrain = nullptr;
+			CGI::GeometryPwn                 _geo;
+			CGI::PipelinePwns<PIPE_COUNT>    _pipe;
+			Math::Octree                     _octree;
+			Scatter                          _scatter;
+			Vector<Plant>                    _vPlants;
+			Vector<LayerPlants>              _vLayerPlants;
+			Vector<DrawPlant>                _vDrawPlants;
+			DifferenceVector<CollisionPlant> _vCollisionPlants;
+			Pool<CollisionPoolBlock>         _vCollisionPool;
+			const float                      _margin = 1.1f;
+			float                            _maxDist = 100;
+			float                            _tessDist = 50;
+			float                            _maxSizeAll = 0;
+			float                            _phaseY = 0;
+			float                            _phaseXZ = 0;
+			int                              _capacity = 4000;
+			int                              _visibleCount = 0;
+			int                              _totalPlantCount = 0;
+			bool                             _async_initPlants = false;
 
 		public:
 			class PlantDesc
@@ -195,10 +224,11 @@ namespace verus
 			void DrawAO();
 			void DrawReflection();
 
-			void UpdateCollision();
+			void UpdateCollision(const Vector<Vector4>& vZones);
 
 			PTerrain SetTerrain(PTerrain p) { return Utils::Swap(_pTerrain, p); }
 			void OnTerrainModified();
+			float GetMinHeight(const int ij[2], float h) const;
 
 			void SetLayer(int layer, RcLayerDesc desc);
 			VERUS_P(int FindPlant(CSZ url) const);

@@ -8,6 +8,7 @@ namespace verus
 		{
 			pugi::xml_document _doc;
 			String             _pathname;
+			Vector<BYTE>       _vData;
 
 		public:
 			Xml();

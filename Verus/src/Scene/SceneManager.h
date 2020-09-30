@@ -12,10 +12,13 @@ namespace verus
 		};
 
 		typedef StoreUnique<String, Model> TStoreModels;
+		typedef StoreUnique<String, Site> TStoreSites;
 		typedef Store<Block> TStoreBlocks;
 		typedef Store<Light> TStoreLights;
+		typedef Store<Prefab> TStorePrefabs;
 		class SceneManager : public Singleton<SceneManager>, public Object, public Math::OctreeDelegate,
-			private TStoreModels, private TStoreBlocks, private TStoreLights
+			private TStoreModels, private TStoreSites,
+			private TStoreBlocks, private TStoreLights, private TStorePrefabs
 		{
 			Math::Octree       _octree;
 			PCamera            _pCamera = nullptr;
@@ -23,6 +26,7 @@ namespace verus
 			Vector<PSceneNode> _vVisibleNodes;
 			int                _visibleCount = 0;
 			int                _visibleCountPerType[+NodeType::count];
+			int                _mapSide = 0;
 
 		public:
 			struct Desc
@@ -40,6 +44,7 @@ namespace verus
 				CSZ      _blockMesh = nullptr;
 				CSZ      _blockMaterial = nullptr;
 				NodeType _type = NodeType::unknown;
+				int      _selected = -1;
 
 				void Reset() { *this = Query(); }
 			};
@@ -57,6 +62,7 @@ namespace verus
 			void Layout();
 			void Draw();
 			void DrawLights();
+			void DrawBounds();
 
 			// Camera:
 			PCamera GetCamera() const { return _pCamera; }
@@ -74,6 +80,12 @@ namespace verus
 			void DeleteModel(CSZ url);
 			void DeleteAllModels();
 
+			// Sites:
+			PSite InsertSite(CSZ name);
+			PSite FindSite(CSZ name);
+			void DeleteSite(CSZ name);
+			void DeleteAllSites();
+
 			// Blocks:
 			PBlock InsertBlock();
 			void DeleteBlock(PBlock p);
@@ -84,27 +96,49 @@ namespace verus
 			void DeleteLight(PLight p);
 			void DeleteAllLights();
 
+			// Prefabs:
+			PPrefab InsertPrefab();
+			void DeletePrefab(PPrefab p);
+			void DeleteAllPrefabs();
+
 			template<typename T>
 			void ForEachNode(RcQuery query, const T& fn)
 			{
+				auto MatchName = [&query](RSceneNode node)
+				{
+					return !query._name || node.GetName() == query._name;
+				};
+				auto MatchSelected = [&query](RSceneNode node)
+				{
+					return -1 == query._selected || !!query._selected == node.IsSelected();
+				};
+				auto MatchNotBlockQuery = [&query]()
+				{
+					return !query._blockMesh && !query._blockMaterial;
+				};
+
 				// Visit PBLE:
-				//if (NodeType::unknown == query._type || NodeType::prefab == query._type)
-				//{
-				//	VERUS_FOREACH_X(TStorePrefabs::TList, TStorePrefabs::_list, it)
-				//	{
-				//		auto& prefab = *it++;
-				//		if (!query._name || prefab.GetName() == query._name)
-				//			if (Continue::yes != fn(prefab))
-				//				return;
-				//	}
-				//}
+				if (NodeType::unknown == query._type || NodeType::prefab == query._type)
+				{
+					VERUS_FOREACH_X(TStorePrefabs::TList, TStorePrefabs::_list, it)
+					{
+						auto& prefab = *it++;
+						if (
+							MatchName(prefab) &&
+							MatchSelected(prefab) &&
+							MatchNotBlockQuery())
+							if (Continue::yes != fn(prefab))
+								return;
+					}
+				}
 				if (NodeType::unknown == query._type || NodeType::block == query._type)
 				{
 					VERUS_FOREACH_X(TStoreBlocks::TList, TStoreBlocks::_list, it)
 					{
 						auto& block = *it++;
 						if (
-							(!query._name || block.GetName() == query._name) &&
+							MatchName(block) &&
+							MatchSelected(block) &&
 							(!query._blockMesh || block.GetModel()->GetMesh().GetUrl() == query._blockMesh) &&
 							(!query._blockMaterial || block.GetMaterial()->_name == query._blockMaterial))
 							if (Continue::yes != fn(block))
@@ -116,7 +150,10 @@ namespace verus
 					VERUS_FOREACH_X(TStoreLights::TList, TStoreLights::_list, it)
 					{
 						auto& light = *it++;
-						if (!query._name || light.GetName() == query._name)
+						if (
+							MatchName(light) &&
+							MatchSelected(light) &&
+							MatchNotBlockQuery())
 							if (Continue::yes != fn(light))
 								return;
 					}
@@ -144,6 +181,9 @@ namespace verus
 				}
 			}
 
+			void ClearSelection();
+			int GetSelectedCount();
+
 			// Octree (Acceleration Structure):
 			Math::ROctree GetOctree() { return _octree; }
 			virtual Continue Octree_ProcessNode(void* pToken, void* pUser) override;
@@ -151,6 +191,9 @@ namespace verus
 			bool RayCastingTest(RcPoint3 pointA, RcPoint3 pointB, PBlockPtr pBlock = nullptr,
 				PPoint3 pPoint = nullptr, PVector3 pNormal = nullptr, const float* pRadius = nullptr,
 				Physics::Group mask = Physics::Group::immovable | Physics::Group::terrain);
+
+			void Serialize(IO::RSeekableStream stream);
+			void Deserialize(IO::RStream stream);
 		};
 		VERUS_TYPEDEFS(SceneManager);
 	}

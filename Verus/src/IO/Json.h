@@ -18,6 +18,7 @@ namespace verus
 			void SetFilename(CSZ name);
 			void Load(bool fromCache = false);
 			void Save();
+			void Clear();
 
 			void Set(CSZ name, CSZ v, bool ifNull = false);
 			void Set(CSZ name, int v, bool ifNull = false);

@@ -25,6 +25,7 @@ namespace verus
 			TMapCommandAllocators             _mapCommandAllocators[s_ringBufferSize];
 			ComPtr<ID3D12Fence>               _pFence;
 			HANDLE                            _hFence = INVALID_HANDLE_VALUE;
+			HANDLE                            _hFrameLatencyWaitableObject = INVALID_HANDLE_VALUE;
 			UINT64                            _nextFenceValue = 1;
 			UINT64                            _fenceValues[s_ringBufferSize] = {};
 			Vector<D3D12_STATIC_SAMPLER_DESC> _vSamplers;
@@ -43,11 +44,12 @@ namespace verus
 
 		private:
 			static void EnableDebugLayer();
-			static ComPtr<IDXGIFactory6> CreateDXGIFactory();
-			static ComPtr<IDXGIAdapter4> GetAdapter(ComPtr<IDXGIFactory6> pFactory);
-			static bool CheckFeatureSupportAllowTearing(ComPtr<IDXGIFactory6> pFactory);
+			static ComPtr<IDXGIFactory7> CreateDXGIFactory();
+			static ComPtr<IDXGIAdapter4> GetAdapter(ComPtr<IDXGIFactory7> pFactory);
+			static bool CheckFeatureSupportAllowTearing(ComPtr<IDXGIFactory7> pFactory);
 			void CreateSwapChainBuffersRTVs();
 			void InitD3D();
+			void WaitForFrameLatencyWaitableObject();
 
 		public:
 			ComPtr<ID3D12CommandQueue>         CreateCommandQueue(D3D12_COMMAND_LIST_TYPE type);
@@ -77,6 +79,7 @@ namespace verus
 			virtual void BeginFrame(bool present) override;
 			virtual void EndFrame(bool present) override;
 			virtual void Present() override;
+			virtual void Sync(bool present) override;
 			virtual void WaitIdle() override;
 
 			// Resources:

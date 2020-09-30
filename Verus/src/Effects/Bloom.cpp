@@ -66,6 +66,8 @@ void Bloom::Done()
 
 void Bloom::OnSwapChainResized()
 {
+	if (!IsInitialized())
+		return;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_ATMO;
 	{

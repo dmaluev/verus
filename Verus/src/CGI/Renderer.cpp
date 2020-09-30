@@ -28,8 +28,8 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	VERUS_INIT();
 	VERUS_QREF_CONST_SETTINGS;
 
-	_swapChainWidth = settings._screenSizeWidth;
-	_swapChainHeight = settings._screenSizeHeight;
+	_swapChainWidth = settings._displaySizeWidth;
+	_swapChainHeight = settings._displaySizeHeight;
 
 	_pRendererDelegate = pDelegate;
 
@@ -53,7 +53,7 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	_commandBuffer.Init();
 
 	// Draw directly to swap chain buffer:
-	const RP::Attachment::LoadOp loadOp = settings._screenOffscreenDraw ? RP::Attachment::LoadOp::dontCare : RP::Attachment::LoadOp::clear;
+	const RP::Attachment::LoadOp loadOp = settings._displayOffscreenDraw ? RP::Attachment::LoadOp::dontCare : RP::Attachment::LoadOp::clear;
 	_rphSwapChain = _pBaseRenderer->CreateRenderPass(
 		{
 			RP::Attachment("Color", Format::srgbB8G8R8A8).SetLoadOp(loadOp).Layout(ImageLayout::undefined, ImageLayout::presentSrc)
@@ -133,7 +133,7 @@ void Renderer::Init(PRendererDelegate pDelegate)
 		PipelineDesc pipeDesc(_shader[SHADER_GENERATE_MIPS], "#Exposure");
 		_pipe[PIPE_GENERATE_MIPS_EXPOSURE].Init(pipeDesc);
 	}
-	if (App::Settings::I()._screenOffscreenDraw)
+	if (App::Settings::I()._displayOffscreenDraw)
 	{
 		PipelineDesc pipeDesc(_geoQuad, _shader[SHADER_QUAD], "#", _rphSwapChainWithDepth);
 		pipeDesc._topology = PrimitiveTopology::triangleStrip;
@@ -277,7 +277,7 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 		VERUS_QREF_CONST_SETTINGS;
 
 		TextureDesc texDesc;
-		if (settings._screenOffscreenDraw)
+		if (settings._displayOffscreenDraw)
 		{
 			texDesc._name = "Renderer.OffscreenColor";
 			texDesc._format = Format::srgbB8G8R8A8;
@@ -304,7 +304,7 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 		VERUS_FOR(i, _fbhSwapChainWithDepth.size())
 			_fbhSwapChainWithDepth[i] = _pBaseRenderer->CreateFramebuffer(_rphSwapChainWithDepth, { _tex[TEX_DEPTH_STENCIL] }, _swapChainWidth, _swapChainHeight, i);
 
-		if (settings._screenOffscreenDraw)
+		if (settings._displayOffscreenDraw)
 		{
 			_fbhOffscreen = _pBaseRenderer->CreateFramebuffer(_rphSwapChain, { _tex[TEX_OFFSCREEN_COLOR] }, _swapChainWidth, _swapChainHeight);
 			_fbhOffscreenWithDepth = _pBaseRenderer->CreateFramebuffer(_rphSwapChainWithDepth, { _tex[TEX_OFFSCREEN_COLOR], _tex[TEX_DEPTH_STENCIL] }, _swapChainWidth, _swapChainHeight);
@@ -324,7 +324,7 @@ void Renderer::DrawQuad(PBaseCommandBuffer pCB)
 
 void Renderer::DrawOffscreenColor(PBaseCommandBuffer pCB, bool endRenderPass)
 {
-	if (!App::Settings::I()._screenOffscreenDraw)
+	if (!App::Settings::I()._displayOffscreenDraw)
 		return;
 
 	if (!pCB)
@@ -351,7 +351,7 @@ void Renderer::DrawOffscreenColor(PBaseCommandBuffer pCB, bool endRenderPass)
 
 void Renderer::DrawOffscreenColorSwitchRenderPass(PBaseCommandBuffer pCB)
 {
-	if (!App::Settings::I()._screenOffscreenDraw)
+	if (!App::Settings::I()._displayOffscreenDraw)
 		return;
 
 	if (!pCB)
@@ -480,7 +480,7 @@ void Renderer::ImGuiUpdateStyle()
 	colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.50f);
 	colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.50f);
 
-	if (settings._screenAllowHighDPI)
+	if (settings._displayAllowHighDPI)
 		style.ScaleAllSizes(settings._highDpiScale);
 }
 
@@ -506,12 +506,12 @@ RPHandle Renderer::GetRenderPassHandle_OffscreenWithDepth() const
 
 RPHandle Renderer::GetRenderPassHandle_Auto() const
 {
-	return App::Settings::I()._screenOffscreenDraw ? _rphOffscreen : _rphSwapChain;
+	return App::Settings::I()._displayOffscreenDraw ? _rphOffscreen : _rphSwapChain;
 }
 
 RPHandle Renderer::GetRenderPassHandle_AutoWithDepth() const
 {
-	return App::Settings::I()._screenOffscreenDraw ? _rphOffscreenWithDepth : _rphSwapChainWithDepth;
+	return App::Settings::I()._displayOffscreenDraw ? _rphOffscreenWithDepth : _rphSwapChainWithDepth;
 }
 
 FBHandle Renderer::GetFramebufferHandle_SwapChain(int index) const
@@ -536,12 +536,12 @@ FBHandle Renderer::GetFramebufferHandle_OffscreenWithDepth(int index) const
 
 FBHandle Renderer::GetFramebufferHandle_Auto(int index) const
 {
-	return App::Settings::I()._screenOffscreenDraw ? _fbhOffscreen : _fbhSwapChain[index];
+	return App::Settings::I()._displayOffscreenDraw ? _fbhOffscreen : _fbhSwapChain[index];
 }
 
 FBHandle Renderer::GetFramebufferHandle_AutoWithDepth(int index) const
 {
-	return App::Settings::I()._screenOffscreenDraw ? _fbhOffscreenWithDepth : _fbhSwapChainWithDepth[index];
+	return App::Settings::I()._displayOffscreenDraw ? _fbhOffscreenWithDepth : _fbhSwapChainWithDepth[index];
 }
 
 ShaderPtr Renderer::GetShaderGenerateMips() const

@@ -4,6 +4,47 @@ namespace verus
 {
 	namespace Physics
 	{
+		class alignas(btDefaultMotionState) alignas(btRigidBody) LocalRigidBody
+		{
+			BYTE _data[sizeof(btDefaultMotionState) + sizeof(btRigidBody)] = {};
+			btRigidBody* _p = nullptr;
+
+		public:
+			void operator=(btRigidBody* p)
+			{
+				_p = p;
+			}
+
+			btRigidBody* operator->() const
+			{
+				return _p;
+			}
+			btRigidBody* Get()
+			{
+				return _p;
+			}
+
+			BYTE* GetDefaultMotionStateData()
+			{
+				return &_data[0];
+			}
+			BYTE* GetRigidBodyData()
+			{
+				return &_data[sizeof(btDefaultMotionState)];
+			}
+
+			void Delete()
+			{
+				if (_p)
+				{
+					_p->getMotionState()->~btMotionState();
+					_p->~btRigidBody();
+					_p = nullptr;
+				}
+			}
+		};
+		VERUS_TYPEDEFS(LocalRigidBody);
+
 		enum class Material : int
 		{
 			brick,
@@ -27,16 +68,16 @@ namespace verus
 		{
 			static const int s_defaultMaxSubSteps = 8;
 
-			btDispatcher* _pDispatcher = nullptr;
-			btBroadphaseInterface* _pBroadphaseInterface = nullptr;
-			btConstraintSolver* _pConstraintSolver = nullptr;
-			btCollisionConfiguration* _pCollisionConfiguration = nullptr;
-			btDiscreteDynamicsWorld* _pDiscreteDynamicsWorld = nullptr;
-			btStaticPlaneShape* _pStaticPlaneShape = nullptr;
-			btRigidBody* _pStaticPlaneRigidBody = nullptr;
-			btGhostPairCallback _ghostPairCallback;
-			BulletDebugDraw _debugDraw;
-			bool _pauseSimulation = false;
+			LocalPtr<btDefaultCollisionConfiguration>     _pCollisionConfiguration;
+			LocalPtr<btCollisionDispatcher>               _pDispatcher;
+			LocalPtr<btDbvtBroadphase>                    _pBroadphaseInterface;
+			LocalPtr<btSequentialImpulseConstraintSolver> _pConstraintSolver;
+			LocalPtr<btDiscreteDynamicsWorld>             _pDiscreteDynamicsWorld;
+			LocalPtr<btStaticPlaneShape>                  _pStaticPlaneShape;
+			LocalRigidBody                                _pStaticPlaneRigidBody;
+			btGhostPairCallback                           _ghostPairCallback;
+			BulletDebugDraw                               _debugDraw;
+			bool                                          _pauseSimulation = false;
 
 		public:
 			Bullet();
@@ -45,15 +86,26 @@ namespace verus
 			void Init();
 			void Done();
 
-			btDiscreteDynamicsWorld* GetWorld() { return _pDiscreteDynamicsWorld; }
+			btDiscreteDynamicsWorld* GetWorld() { return _pDiscreteDynamicsWorld.Get(); }
 
 			btRigidBody* AddNewRigidBody(
 				float mass,
 				const btTransform& startTransform,
 				btCollisionShape* pShape,
-				short group = 1,
-				short mask = -1,
+				Group group = Group::general,
+				Group mask = Group::all,
+				const btTransform* pCenterOfMassOffset = nullptr,
+				void* pPlacementMotionState = nullptr,
+				void* pPlacementRigidBody = nullptr);
+			btRigidBody* AddNewRigidBody(
+				RLocalRigidBody localRigidBody,
+				float mass,
+				const btTransform& startTransform,
+				btCollisionShape* pShape,
+				Group group = Group::general,
+				Group mask = Group::all,
 				const btTransform* pCenterOfMassOffset = nullptr);
+
 			void DeleteAllCollisionObjects();
 
 			void Simulate();

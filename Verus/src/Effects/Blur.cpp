@@ -113,6 +113,8 @@ void Blur::Done()
 
 void Blur::OnSwapChainResized()
 {
+	if (!IsInitialized())
+		return;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_BLOOM;
 	VERUS_QREF_SSAO;

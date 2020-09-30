@@ -83,10 +83,21 @@ void Forest::Init(PTerrain pTerrain)
 	_vPlants.reserve(16);
 	_vLayerPlants.reserve(16);
 	_vDrawPlants.resize(_capacity);
+
+	_vCollisionPool.Resize(1000);
 }
 
 void Forest::Done()
 {
+	_vCollisionPool.ForEachReserved([](RCollisionPoolBlock block)
+		{
+			VERUS_QREF_BULLET;
+			bullet.GetWorld()->removeRigidBody(block.GetRigidBody());
+			block.GetDefaultMotionState()->~btDefaultMotionState();
+			block.GetRigidBody()->~btRigidBody();
+			block.GetScaledBvhTriangleMeshShape()->~btScaledBvhTriangleMeshShape();
+			block.Free();
+		});
 	for (auto& plant : _vPlants)
 	{
 		s_shader[SHADER_SIMPLE]->FreeDescriptorSet(plant._cshSimple);
@@ -256,8 +267,6 @@ void Forest::Update()
 			}
 		}
 	}
-
-	UpdateCollision();
 }
 
 void Forest::Layout(bool reflection)
@@ -562,85 +571,111 @@ void Forest::DrawReflection()
 	s_shader[SHADER_SIMPLE]->EndBindDescriptors();
 }
 
-void Forest::UpdateCollision()
+void Forest::UpdateCollision(const Vector<Vector4>& vZones)
 {
-	VERUS_QREF_BULLET;
+	const int mapSide = _pTerrain->GetMapSide();
+	const int mapHalf = _pTerrain->GetMapSide() / 2;
 
-	for (auto& plant : _vPlants)
+	for (auto& zone : vZones)
 	{
-		for (auto& rigidBody : plant._vRigidBodies)
+		const int centerIJ[2] =
 		{
-			if (rigidBody._pBody)
+			static_cast<int>(zone.getZ() + mapHalf + 0.5f),
+			static_cast<int>(zone.getX() + mapHalf + 0.5f)
+		};
+		const int r = static_cast<int>(zone.getW() + 0.5f);
+		const int r2 = r * r;
+		const int iRange[2] = { Math::Clamp(centerIJ[0] - r, 0, mapSide), Math::Clamp(centerIJ[0] + r, 0, mapSide) };
+		const int jRange[2] = { Math::Clamp(centerIJ[1] - r, 0, mapSide), Math::Clamp(centerIJ[1] + r, 0, mapSide) };
+		for (int i = iRange[0]; i < iRange[1]; ++i)
+		{
+			const int offsetI = centerIJ[0] - i;
+			const int offsetI2 = offsetI * offsetI;
+			for (int j = jRange[0]; j < jRange[1]; ++j)
 			{
-				bullet.GetWorld()->removeRigidBody(rigidBody._pBody);
-				delete rigidBody._pBody->getMotionState();
-				delete rigidBody._pBody;
-			}
-			if (rigidBody._pScaledShape)
-			{
-				delete rigidBody._pScaledShape;
+				const int ij[] = { i, j };
+				const int offsetJ = centerIJ[1] - j;
+				const int offsetJ2 = offsetJ * offsetJ;
+				if (offsetI2 + offsetJ2 > r2)
+					continue;
+
+				Scatter::RcInstance instance = _scatter.GetInstanceAt(ij);
+				const int type = instance._type;
+
+				if (type >= 0)
+				{
+					VERUS_QREF_SM;
+
+					const int layer = _pTerrain->GetMainLayerAt(ij);
+					if (layer >= _vLayerPlants.size())
+						continue;
+					const int plantIndex = _vLayerPlants[layer]._plants[type];
+					if (plantIndex < 0)
+						continue;
+					RPlant plant = _vPlants[plantIndex];
+					if (!plant._mesh.IsLoaded())
+						continue;
+					if (_pTerrain->GetNormalAt(ij)[1] < plant._allowedNormal)
+						continue;
+
+					CollisionPlant cp;
+					cp._id = (ij[0] << 15) | ij[1];
+					_vCollisionPlants.PushBack(cp);
+				}
 			}
 		}
-		plant._vRigidBodies.clear();
 	}
 
-	const int half = _pTerrain->GetMapSide() / 2;
-
-	VERUS_FOR(i, 32)
-	{
-		VERUS_FOR(j, 32)
+	_vCollisionPlants.HandleDifference(
+		[this, mapHalf](RCollisionPlant cp)
 		{
-			const int ij[] = { i, j };
+			cp._poolBlockIndex = _vCollisionPool.Reserve();
+			if (cp._poolBlockIndex < 0)
+				return;
+
+			const int ij[] = { (cp._id >> 15) & SHRT_MAX, cp._id & SHRT_MAX };
+
 			Scatter::RcInstance instance = _scatter.GetInstanceAt(ij);
 			const int type = instance._type;
+			const int layer = _pTerrain->GetMainLayerAt(ij);
+			const int plantIndex = _vLayerPlants[layer]._plants[type];
+			RPlant plant = _vPlants[plantIndex];
 
-			if (type >= 0)
-			{
-				VERUS_QREF_SM;
+			const float h = _pTerrain->GetHeightAt(ij);
+			const float hMin = GetMinHeight(ij, h);
 
-				const int layer = _pTerrain->GetMainLayerAt(ij);
-				if (layer >= _vLayerPlants.size())
-					continue;
-				const int plantIndex = _vLayerPlants[layer]._plants[type];
-				if (plantIndex < 0)
-					continue;
+			const int xOffset = ij[1] & ~0xF;
+			const int zOffset = ij[0] & ~0xF;
+			const Point3 pos(
+				xOffset - mapHalf + instance._x,
+				hMin,
+				zOffset - mapHalf + instance._z);
 
-				RPlant plant = _vPlants[plantIndex];
-				if (!plant._mesh.IsLoaded())
-					continue;
+			const float scale = plant._vScales[instance._rand % plant._vScales.size()];
 
-				if (_pTerrain->GetNormalAt(ij)[1] < plant._allowedNormal)
-					continue;
-
-				const float h = _pTerrain->GetHeightAt(ij);
-
-				int ij4[2] = { ij[0], ij[1] };
-				float h4[4];
-				h4[0] = h;
-				ij4[0]++; h4[1] = _pTerrain->GetHeightAt(ij4);
-				ij4[1]++; h4[2] = _pTerrain->GetHeightAt(ij4);
-				ij4[0]--; h4[3] = _pTerrain->GetHeightAt(ij4);
-				const float hMin = *std::min_element(h4 + 0, h4 + 4);
-
-				const int xOffset = ij[1] & ~0xF;
-				const int zOffset = ij[0] & ~0xF;
-
-				const float scale = plant._vScales[instance._rand % plant._vScales.size()];
-
-				const Point3 pos(
-					xOffset - half + instance._x,
-					hMin,
-					zOffset - half + instance._z);
-
-				StaticRigidBody staticRigidBody;
-				const Matrix3 matBasis = _pTerrain->GetBasisAt(ij);
-				const Transform3 matW = Transform3(matBasis * Matrix3::rotationY(instance._angle), Vector3(pos));
-				staticRigidBody._pScaledShape = new btScaledBvhTriangleMeshShape(plant._mesh.GetShape(), btVector3(scale, scale, scale));
-				staticRigidBody._pBody = bullet.AddNewRigidBody(0, matW.Bullet(), staticRigidBody._pScaledShape);
-				plant._vRigidBodies.push_back(staticRigidBody);
-			}
-		}
-	}
+			VERUS_QREF_BULLET;
+			RCollisionPoolBlock block = _vCollisionPool.GetBlockAt(cp._poolBlockIndex);
+			const float t = (plant._alignToNormal - 0.1f) / 0.8f;
+			const Matrix3 matBasis = Matrix3::Lerp(Matrix3::identity(), _pTerrain->GetBasisAt(ij), t);
+			const Transform3 matW = Transform3(matBasis * Matrix3::rotationY(instance._angle), Vector3(pos));
+			btScaledBvhTriangleMeshShape* pShape = new(block.GetScaledBvhTriangleMeshShape())
+				btScaledBvhTriangleMeshShape(plant._mesh.GetShape(), btVector3(scale, scale, scale));
+			btRigidBody* pRigidBody = bullet.AddNewRigidBody(0, matW.Bullet(), pShape, Physics::Group::immovable, Physics::Group::all, nullptr,
+				block.GetDefaultMotionState(),
+				block.GetRigidBody());
+			pRigidBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::stone));
+			pRigidBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::stone));
+		},
+		[this](RCollisionPlant cp)
+		{
+			VERUS_QREF_BULLET;
+			RCollisionPoolBlock block = _vCollisionPool.GetBlockAt(cp._poolBlockIndex);
+			bullet.GetWorld()->removeRigidBody(block.GetRigidBody());
+			block.GetDefaultMotionState()->~btDefaultMotionState();
+			block.GetRigidBody()->~btRigidBody();
+			block.GetScaledBvhTriangleMeshShape()->~btScaledBvhTriangleMeshShape();
+			block.Free();
+		});
 }
 
 void Forest::OnTerrainModified()
@@ -663,6 +698,17 @@ void Forest::OnTerrainModified()
 
 	_pipe.Done();
 	_geo.Done();
+}
+
+float Forest::GetMinHeight(const int ij[2], float h) const
+{
+	int ij4[2] = { ij[0], ij[1] };
+	float h4[4];
+	h4[0] = h;
+	ij4[0]++; h4[1] = _pTerrain->GetHeightAt(ij4);
+	ij4[1]++; h4[2] = _pTerrain->GetHeightAt(ij4);
+	ij4[0]--; h4[3] = _pTerrain->GetHeightAt(ij4);
+	return *std::min_element(h4 + 0, h4 + 4);
 }
 
 void Forest::SetLayer(int layer, RcLayerDesc desc)
@@ -698,6 +744,10 @@ void Forest::SetLayer(int layer, RcLayerDesc desc)
 				VERUS_FOR(i, count)
 					plant._vScales[i] = plantDesc._minScale + ds * (i * i * i) / (count * count * count);
 				std::shuffle(plant._vScales.begin(), plant._vScales.end(), random.GetGenerator());
+
+				//plant._vShapePool.resize(2000 * sizeof(btScaledBvhTriangleMeshShape));
+				//plant._vMotionStatePool.resize(2000 * sizeof(btDefaultMotionState));
+				//plant._vRigidBodyPool.resize(2000 * sizeof(btRigidBody));
 			}
 		}
 	}
@@ -716,10 +766,10 @@ int Forest::FindPlant(CSZ url) const
 void Forest::BakeChunks(RPlant plant)
 {
 	const int side = 8;
-	const int half = _pTerrain->GetMapSide() / 2;
+	const int mapHalf = _pTerrain->GetMapSide() / 2;
 	const int chunkSide = _pTerrain->GetMapSide() / side;
 
-	auto BakeChunk = [this, side, half, chunkSide](int ic, int jc, RPlant plant)
+	auto BakeChunk = [this, side, mapHalf, chunkSide](int ic, int jc, RPlant plant)
 	{
 		RBakedChunk bc = plant._vBakedChunks[ic * side + jc];
 		const int iOffset = ic * chunkSide;
@@ -746,24 +796,18 @@ void Forest::BakeChunks(RPlant plant)
 						if (type == instance._type)
 						{
 							const float h = _pTerrain->GetHeightAt(ij);
-
-							int ij4[2] = { ij[0], ij[1] };
-							float h4[4];
-							h4[0] = h;
-							ij4[0]++; h4[1] = _pTerrain->GetHeightAt(ij4);
-							ij4[1]++; h4[2] = _pTerrain->GetHeightAt(ij4);
-							ij4[0]--; h4[3] = _pTerrain->GetHeightAt(ij4);
-							const float hMin = *std::min_element(h4 + 0, h4 + 4);
+							const float hMin = GetMinHeight(ij, h);
 
 							const int xOffset = ij[1] & ~0xF;
 							const int zOffset = ij[0] & ~0xF;
+							const Point3 pos(
+								xOffset - mapHalf + instance._x,
+								hMin,
+								zOffset - mapHalf + instance._z);
 
 							const float scale = plant._vScales[instance._rand % plant._vScales.size()];
 							const float psize = plant.GetSize() * scale * _margin;
-							const Point3 pos(
-								xOffset - half + instance._x,
-								hMin,
-								zOffset - half + instance._z);
+
 							Vertex v;
 							v._pos = pos.GLM();
 							v._tc[0] = Math::Clamp<int>(static_cast<int>(psize * 500), 0, SHRT_MAX);
@@ -772,12 +816,7 @@ void Forest::BakeChunks(RPlant plant)
 							if (!bc._vSprites.capacity())
 								bc._vSprites.reserve(256);
 							bc._vSprites.push_back(v);
-
-							//VERUS_QREF_BULLET;
-							//const Matrix3 matBasis = _pTerrain->GetBasisAt(ij);
-							//const Transform3 matW = Transform3(matBasis * Matrix3::rotationY(instance._angle), Vector3(pos));
-							//btScaledBvhTriangleMeshShape* pScaledShape = new btScaledBvhTriangleMeshShape(plant._mesh.GetShape(), btVector3(scale, scale, scale));
-							//bullet.AddNewRigidBody(0, matW.Bullet(), pScaledShape);
+							_totalPlantCount++;
 						}
 					}
 				}
@@ -1038,13 +1077,7 @@ void Forest::Scatter_AddInstance(const int ij[2], int type, float x, float z, fl
 	if (_pTerrain->GetNormalAt(ij)[1] < plant._allowedNormal)
 		return;
 
-	int ij4[2] = { ij[0], ij[1] };
-	float h4[4];
-	h4[0] = h;
-	ij4[0]++; h4[1] = _pTerrain->GetHeightAt(ij4);
-	ij4[1]++; h4[2] = _pTerrain->GetHeightAt(ij4);
-	ij4[0]--; h4[3] = _pTerrain->GetHeightAt(ij4);
-	pos.setY(*std::min_element(h4 + 0, h4 + 4));
+	pos.setY(GetMinHeight(ij, h));
 
 	const float distFractionSq = distSq / maxDistSq;
 	const float alignToNormal = (1 - distFractionSq) * plant._alignToNormal;

@@ -1,5 +1,11 @@
 #include "verus.h"
 
+VERUS_CT_ASSERT(sizeof(glm::vec2) == 8);
+VERUS_CT_ASSERT(sizeof(glm::vec3) == 12);
+VERUS_CT_ASSERT(sizeof(glm::vec4) == 16);
+VERUS_CT_ASSERT(sizeof(glm::mat4) == 64);
+VERUS_CT_ASSERT(sizeof(glm::mat4x3) == 48);
+
 using namespace verus;
 
 bool Math::IsPowerOfTwo(int x)
@@ -187,17 +193,18 @@ Transform3 Math::BoundsDrawMatrix(RcPoint3 mn, RcPoint3 mx)
 	return VMath::appendScale(Transform3::translation(c - Point3(0, d.getY() * 0.5f, 0)), d);
 }
 
-float Math::ComputeOnePixelDistance(float size, float screenHeight, float fovY)
+float Math::ComputeOnePixelDistance(float objectSize, float viewportHeightInPixels, float fovY)
 {
-	const float viewSliceSize = size * screenHeight;
-	return viewSliceSize / (tan(fovY * 0.5f) * 2);
+	// Assume that object occupies one pixel, then the whole viewport height will be:
+	const float viewportHeightInMeters = objectSize * viewportHeightInPixels;
+	return (0.5f * viewportHeightInMeters) / tan(0.5f * fovY);
 }
 
-float Math::ComputeDistToMipScale(float texSize, float screenSize, float realSize, float fovY)
+float Math::ComputeDistToMipScale(float texHeight, float viewportHeightInPixels, float objectSize, float fovY)
 {
-	const float fillScreenScale = screenSize / texSize;
-	const float a = realSize * fillScreenScale * 0.5f;
-	return tan(fovY * 0.5f) / a;
+	const float fillScreenScale = viewportHeightInPixels / texHeight;
+	const float viewportHeightInMeters = objectSize * fillScreenScale;
+	return tan(0.5f * fovY) / (0.5f * viewportHeightInMeters); // Scale distance by this value.
 }
 
 void Math::Quadrant(const int** ppSrcMinMax, int** ppDestMinMax, int half, int id)

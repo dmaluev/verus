@@ -6,6 +6,8 @@ namespace verus
 	{
 		class Stream
 		{
+			UINT32 _version = 0;
+
 		public:
 			static const int s_bufferSize = UCHAR_MAX + 1;
 
@@ -58,6 +60,9 @@ namespace verus
 				Read(&x, sizeof(T));
 				return *this;
 			}
+
+			UINT32 GetVersion() const { return _version; }
+			void SetVersion(UINT32 version) { _version = version; }
 		};
 		VERUS_TYPEDEFS(Stream);
 

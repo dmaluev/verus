@@ -6,6 +6,7 @@ namespace verus
 	{
 		enum class Group : short
 		{
+			none = 0,
 			general = (1 << 0),
 			immovable = (1 << 1),
 			kinematic = (1 << 2),

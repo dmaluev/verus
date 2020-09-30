@@ -26,6 +26,8 @@ void Block::Init(RcDesc desc)
 	modelDesc._url = desc._model;
 	modelDesc._mat = desc._modelMat;
 	_model.Init(modelDesc);
+	if (1 == _model->GetRefCount())
+		_model->AddRef(); // Models must be owned by blocks and scene manager.
 
 	if (desc._blockMat)
 	{
@@ -40,7 +42,7 @@ void Block::Init(RcDesc desc)
 	Vector<BYTE> vData;
 	IO::FileSystem::I().LoadResourceFromCache(_C(url), vData, false);
 	if (vData.size() > 1)
-		LoadExtra(reinterpret_cast<CSZ>(vData.data()));
+		LoadExtra(reinterpret_cast<SZ>(vData.data()));
 }
 
 void Block::Done()
@@ -53,60 +55,58 @@ void Block::Done()
 	_vEmitters.clear();
 }
 
-void Block::LoadExtra(CSZ xml)
+void Block::LoadExtra(SZ xml)
 {
-	//tinyxml2::XMLDocument doc;
-	//doc.Parse(xml);
-	//if (doc.Error())
-	//	return;
-	//tinyxml2::XMLElement* pRoot = doc.FirstChildElement();
-	//if (!pRoot)
-	//	return;
-	//
-	//int numLights = 0;
-	//for (pugi::xml_node node = pRoot->FirstChildElement("light"); pElem; pElem = pElem->NextSiblingElement("light"))
-	//{
-	//	CSZ mat = pElem->Attribute("mat");
-	//	if (!mat || atoi(mat) == _matIndex)
-	//		numLights++;
-	//}
-	//int numEmitters = 0;
-	//for (pugi::xml_node node = pRoot->FirstChildElement("emit"); pElem; pElem = pElem->NextSiblingElement("emit"))
-	//	numEmitters++;
-	//
-	//_vLights.resize(numLights);
-	//_vEmitters.resize(numEmitters);
-	//
-	//int i = 0;
-	//for (pugi::xml_node node = pRoot->FirstChildElement("light"); pElem; pElem = pElem->NextSiblingElement("light"))
-	//{
-	//	CSZ mat = pElem->Attribute("mat");
-	//	if (!mat || atoi(mat) == _matIndex)
-	//	{
-	//		RLightPwn light = _vLights[i]._light;
-	//
-	//		Light::Desc descLight;
-	//		descLight._pLoadXML = pElem;
-	//		light.Init(descLight);
-	//		_vLights[i]._tr = light->GetTransform();
-	//		light->SetTransform(GetTransform() * _vLights[i]._tr);
-	//
-	//		i++;
-	//	}
-	//}
-	//i = 0;
-	//for (pugi::xml_node node = pRoot->FirstChildElement("emit"); pElem; pElem = pElem->NextSiblingElement("emit"))
-	//{
-	//	REmitterPwn emitter = _vEmitters[i]._emitter;
-	//
-	//	CEmitter::Desc descEmitter;
-	//	descEmitter._pLoadXML = pElem;
-	//	emitter.Init(descEmitter);
-	//	_vEmitters[i]._tr = emitter->GetTransform();
-	//	emitter->SetTransform(GetTransform() * _vEmitters[i]._tr);
-	//
-	//	i++;
-	//}
+	pugi::xml_document doc;
+	const pugi::xml_parse_result result = doc.load_buffer_inplace(xml, strlen(xml));
+	if (!result)
+		throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+	pugi::xml_node root = doc.first_child();
+
+	int lightCount = 0;
+	for (auto node : root.children("light"))
+	{
+		auto matAttr = node.attribute("mat");
+		if (!matAttr || matAttr.as_int() == _matIndex)
+			lightCount++;
+	}
+	int emitterCount = 0;
+	for (auto node : root.children("emit"))
+		emitterCount++;
+
+	_vLights.resize(lightCount);
+	_vEmitters.resize(emitterCount);
+
+	int i = 0;
+	for (auto node : root.children("light"))
+	{
+		auto matAttr = node.attribute("mat");
+		if (!matAttr || matAttr.as_int() == _matIndex)
+		{
+			RLightPwn light = _vLights[i]._light;
+
+			Light::Desc lightDesc;
+			lightDesc._node = node;
+			light.Init(lightDesc);
+			_vLights[i]._tr = light->GetTransform();
+			light->SetTransform(GetTransform() * _vLights[i]._tr);
+
+			i++;
+		}
+	}
+	i = 0;
+	for (auto node : root.children("emit"))
+	{
+		//REmitterPwn emitter = _vEmitters[i]._emitter;
+
+		//CEmitter::Desc descEmitter;
+		//descEmitter._pLoadXML = pElem;
+		//emitter.Init(descEmitter);
+		//_vEmitters[i]._tr = emitter->GetTransform();
+		//emitter->SetTransform(GetTransform() * _vEmitters[i]._tr);
+
+		i++;
+	}
 }
 
 void Block::Update()
@@ -118,7 +118,7 @@ void Block::Update()
 		{
 			VERUS_QREF_BULLET;
 			const btTransform tr = GetTransform().Bullet();
-			_pBody = bullet.AddNewRigidBody(0, tr, _model->GetMesh().GetShape(), +Physics::Group::immovable);
+			_pBody = bullet.AddNewRigidBody(0, tr, _model->GetMesh().GetShape(), Physics::Group::immovable);
 			_pBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::stone));
 			_pBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::stone));
 			_pBody->setUserPointer(this);
@@ -170,6 +170,43 @@ void Block::UpdateBounds()
 	//	x._emitter->SetTransform(GetTransform() * x._tr);
 }
 
+void Block::Serialize(IO::RSeekableStream stream)
+{
+	SceneNode::Serialize(stream);
+
+	stream.WriteString(_C(GetUrl()));
+	stream.WriteString(_material ? _C(_material->_name) : "");
+	stream << _userColor.GLM();
+}
+
+void Block::Deserialize(IO::RStream stream)
+{
+	SceneNode::Deserialize(stream);
+	const String savedName = _C(GetName());
+	PreventNameCollision();
+
+	if (stream.GetVersion() >= IO::Xxx::MakeVersion(3, 0))
+	{
+		char url[IO::Stream::s_bufferSize] = {};
+		char material[IO::Stream::s_bufferSize] = {};
+		glm::vec4 userColor;
+
+		stream.ReadString(url);
+		stream.ReadString(material);
+		stream >> userColor;
+
+		_userColor = userColor;
+
+		Desc desc;
+		desc._name = _C(savedName);
+		desc._model = url;
+		desc._blockMat = strlen(material) > 0 ? material : nullptr;
+		if (desc._blockMat)
+			desc._matIndex = atoi(strrchr(desc._blockMat, '.') - 1);
+		Init(desc);
+	}
+}
+
 void Block::SaveXML(pugi::xml_node node)
 {
 	SceneNode::SaveXML(node);
@@ -184,7 +221,7 @@ void Block::SaveXML(pugi::xml_node node)
 void Block::LoadXML(pugi::xml_node node)
 {
 	SceneNode::LoadXML(node);
-	_name.clear();
+	PreventNameCollision();
 
 	_userColor = Vector4(0);
 	if (auto attr = node.attribute("color"))
@@ -193,7 +230,8 @@ void Block::LoadXML(pugi::xml_node node)
 	Desc desc;
 	desc._name = node.attribute("name").value();
 	desc._model = node.attribute("url").value();
-	desc._blockMat = node.attribute("mat").value();
+	if (auto attr = node.attribute("mat"))
+		desc._blockMat = attr.value();
 	if (desc._blockMat)
 		desc._matIndex = atoi(strrchr(desc._blockMat, '.') - 1);
 	Init(desc);

@@ -31,17 +31,17 @@ void CharacterController::Init(RcPoint3 pos, RcDesc desc)
 	btTransform tr;
 	tr.setIdentity();
 	tr.setOrigin(pos.Bullet() + btVector3(0, _offset, 0));
-	_pCapsule = new btCapsuleShape(1, 1);
-	_pGhostObject = new btPairCachingGhostObject();
+	_pCapsule = new(_pCapsule.GetData()) btCapsuleShape(1, 1);
+	_pGhostObject = new(_pGhostObject.GetData()) btPairCachingGhostObject();
 	_pGhostObject->setWorldTransform(tr);
-	_pGhostObject->setCollisionShape(_pCapsule);
+	_pGhostObject->setCollisionShape(_pCapsule.Get());
 	_pGhostObject->setCollisionFlags(btCollisionObject::CF_CHARACTER_OBJECT);
 	_pGhostObject->setUserPointer(this);
-	_pKCC = new KinematicCharacterController(_pGhostObject, _pCapsule, stepHeight);
+	_pKCC = new(_pKCC.GetData()) KinematicCharacterController(_pGhostObject.Get(), _pCapsule.Get(), stepHeight);
 	_pKCC->setGravity(-bullet.GetWorld()->getGravity().getY());
 	_pKCC->setMaxSlope(btRadians(48));
-	bullet.GetWorld()->addCollisionObject(_pGhostObject, +Group::character, -1);
-	bullet.GetWorld()->addAction(_pKCC);
+	bullet.GetWorld()->addCollisionObject(_pGhostObject.Get(), +Group::character, -1);
+	bullet.GetWorld()->addAction(_pKCC.Get());
 	UpdateScaling();
 }
 
@@ -49,33 +49,24 @@ void CharacterController::Done()
 {
 	VERUS_QREF_BULLET;
 
-	if (_pKCC)
+	if (_pKCC.Get())
 	{
-		bullet.GetWorld()->removeAction(_pKCC);
-		delete _pKCC;
-		_pKCC = nullptr;
+		bullet.GetWorld()->removeAction(_pKCC.Get());
+		_pKCC.Delete();
 	}
-
-	if (_pGhostObject)
+	if (_pGhostObject.Get())
 	{
-		bullet.GetWorld()->removeCollisionObject(_pGhostObject);
-		delete _pGhostObject;
-		_pGhostObject = nullptr;
+		bullet.GetWorld()->removeCollisionObject(_pGhostObject.Get());
+		_pGhostObject.Delete();
 	}
-
-	if (_pCapsule)
-	{
-		delete _pCapsule;
-		_pCapsule = nullptr;
-	}
+	_pCapsule.Delete();
 
 	VERUS_DONE(CharacterController);
 }
 
 int CharacterController::UserPtr_GetType()
 {
-	return 0;
-	//return +Scene::NodeType::character;
+	return +Scene::NodeType::character;
 }
 
 void CharacterController::SetRadius(float r)
@@ -101,27 +92,27 @@ void CharacterController::SetHeight(float h)
 void CharacterController::UpdateScaling()
 {
 	_offset = _radius + _height * 0.5f;
-	if (_pCapsule)
+	if (_pCapsule.Get())
 		_pCapsule->setLocalScaling(btVector3(_radius, _height, _radius));
 }
 
 void CharacterController::Move(RcVector3 velocity)
 {
 	VERUS_QREF_TIMER;
-	if (_pKCC)
+	if (_pKCC.Get())
 		_pKCC->setVelocityForTimeInterval(velocity.Bullet(), dt);
 }
 
 Point3 CharacterController::GetPosition()
 {
-	if (_pGhostObject)
+	if (_pGhostObject.Get())
 		return _pGhostObject->getWorldTransform().getOrigin() - btVector3(0, _offset, 0);
 	return Point3(0);
 }
 
 void CharacterController::MoveTo(RcPoint3 pos)
 {
-	if (_pKCC)
+	if (_pKCC.Get())
 		_pKCC->warp(pos.Bullet() + btVector3(0, _offset, 0));
 }
 

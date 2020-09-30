@@ -112,15 +112,15 @@ void Particles::Init(CSZ url)
 	if (auto node = root.child("beginColor"))
 	{
 		Vector4 mn, mx;
-		mn.FromColorString(node.attribute("min").as_string());
-		mx.FromColorString(node.attribute("max").as_string());
+		mn.FromColorString(node.attribute("min").value());
+		mx.FromColorString(node.attribute("max").value());
 		SetBeginColor(mn, mx);
 	}
 	if (auto node = root.child("endColor"))
 	{
 		Vector4 mn, mx;
-		mn.FromColorString(node.attribute("min").as_string());
-		mx.FromColorString(node.attribute("max").as_string());
+		mn.FromColorString(node.attribute("min").value());
+		mx.FromColorString(node.attribute("max").value());
 		SetEndColor(mn, mx);
 	}
 

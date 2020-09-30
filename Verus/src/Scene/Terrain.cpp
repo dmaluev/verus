@@ -24,7 +24,7 @@ void TerrainPhysics::Init(Physics::PUserPtr p, int w, int h, const void* pData, 
 {
 	VERUS_QREF_BULLET;
 
-	_pShape = new btHeightfieldTerrainShape(
+	_pShape = new(_pShape.GetData()) btHeightfieldTerrainShape(
 		w,
 		h,
 		pData,
@@ -40,7 +40,7 @@ void TerrainPhysics::Init(Physics::PUserPtr p, int w, int h, const void* pData, 
 	btTransform tr;
 	tr.setIdentity();
 	tr.setOrigin(btVector3(-0.5f, 0, -0.5f));
-	_pRigidBody = bullet.AddNewRigidBody(0, tr, _pShape, +Physics::Group::terrain);
+	_pRigidBody = bullet.AddNewRigidBody(_pRigidBody, 0, tr, _pShape.Get(), Physics::Group::terrain);
 	_pRigidBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::wood));
 	_pRigidBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::wood));
 	_pRigidBody->setUserPointer(p);
@@ -50,15 +50,13 @@ void TerrainPhysics::Init(Physics::PUserPtr p, int w, int h, const void* pData, 
 
 void TerrainPhysics::Done()
 {
-	if (_pRigidBody)
+	if (_pRigidBody.Get())
 	{
 		VERUS_QREF_BULLET;
-		bullet.GetWorld()->removeRigidBody(_pRigidBody);
-		delete _pRigidBody->getMotionState();
-		delete _pRigidBody;
-		_pRigidBody = nullptr;
+		bullet.GetWorld()->removeRigidBody(_pRigidBody.Get());
+		_pRigidBody.Delete();
 	}
-	VERUS_SMART_DELETE(_pShape);
+	_pShape.Delete();
 }
 
 void TerrainPhysics::EnableDebugDraw(bool b)
@@ -1149,7 +1147,7 @@ void Terrain::LoadLayersFromFile(CSZ url)
 	for (auto node : root.children("layer"))
 	{
 		const int id = node.attribute("id").as_int();
-		InsertLayerUrl(id, node.attribute("url").as_string());
+		InsertLayerUrl(id, node.attribute("url").value());
 	}
 	LoadLayerTextures();
 }

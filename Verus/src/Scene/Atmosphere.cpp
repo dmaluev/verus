@@ -113,6 +113,12 @@ void Atmosphere::UpdateSun(float time)
 	// Reduce light's intensity when near horizon:
 	_sun._alpha = Math::Clamp<float>(abs(_sun._dirTo.getY()) * 5, 0, 1);
 	_sun._color *= _sun._alpha;
+
+	if (_sun._light)
+	{
+		_sun._light->SetColor(Vector4(_sun._color, 1));
+		_sun._light->SetDirection(-_sun._dirTo);
+	}
 }
 
 void Atmosphere::UpdateWind()
@@ -395,6 +401,18 @@ RcVector3 Atmosphere::GetSunColor() const
 float Atmosphere::GetSunAlpha() const
 {
 	return _sun._alpha;
+}
+
+void Atmosphere::OnSceneResetInitSunLight()
+{
+	// This should be called every time new scene is initialized.
+	if (_sun._light)
+		_sun._light.Detach(); // Clear dangling pointer from the old scene.
+	Light::Desc lightDesc;
+	lightDesc._name = "Sun";
+	lightDesc._data._lightType = CGI::LightType::dir;
+	lightDesc._data._dir = -_sun._dirTo;
+	_sun._light.Init(lightDesc);
 }
 
 RcMatrix3 Atmosphere::GetPlantBendingMatrix() const

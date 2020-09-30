@@ -25,6 +25,9 @@ namespace verus
 			bool           _hidden = false;
 			bool           _dynamic = false;
 			bool           _octreeBindOnce = false; //!< Don't rebind this node after every bounds change.
+			bool           _selected = false;
+
+			void PreventNameCollision();
 
 		public:
 			SceneNode();
@@ -38,6 +41,7 @@ namespace verus
 			void DrawBounds();
 
 			Str GetName() const { return _C(_name); }
+			void Rename(CSZ name);
 			NodeType GetType() const { return _type; }
 			virtual String GetUrl() { return ""; }
 			IO::RDictionary GetDictionary() { return _dict; }
@@ -47,6 +51,9 @@ namespace verus
 
 			virtual void SetDynamic(bool mode) { _dynamic = mode; }
 			bool IsDynamic() const { return _dynamic; }
+
+			void Select(bool select = true) { _selected = select; }
+			bool IsSelected() const { return _selected; }
 
 			virtual Vector4 GetColor() { return Vector4(0); }
 			virtual void SetColor(RcVector4 color) {}
@@ -72,6 +79,8 @@ namespace verus
 			virtual void MoveRigidBody();
 
 			// Serialization:
+			virtual void Serialize(IO::RSeekableStream stream);
+			virtual void Deserialize(IO::RStream stream);
 			virtual void SaveXML(pugi::xml_node node);
 			virtual void LoadXML(pugi::xml_node node);
 

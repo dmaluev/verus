@@ -74,8 +74,8 @@ namespace verus
 
 		// Scene:
 		Transform3 BoundsDrawMatrix(RcPoint3 mn, RcPoint3 mx);
-		float ComputeOnePixelDistance(float size, float screenHeight = 120, float fovY = VERUS_PI / 4);
-		float ComputeDistToMipScale(float texSize, float screenSize, float realSize, float fovY);
+		float ComputeOnePixelDistance(float objectSize, float viewportHeightInPixels = 135, float fovY = VERUS_PI / 4);
+		float ComputeDistToMipScale(float texHeight, float viewportHeightInPixels, float objectSize, float fovY);
 		void Quadrant(const int** ppSrcMinMax, int** ppDestMinMax, int half, int id);
 
 		int ComputeMipLevels(int w, int h, int d = 1);

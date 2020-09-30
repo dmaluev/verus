@@ -53,7 +53,7 @@ namespace verus
 				if (vertCount)
 				{
 					if (!pCB)
-						pCB = &(*renderer.GetCommandBuffer());
+						pCB = renderer.GetCommandBuffer().Get();
 					(*this)->UpdateVertexBuffer(_vVB.data(), 0);
 					pCB->Draw(vertCount, 1, _firstVertex);
 				}

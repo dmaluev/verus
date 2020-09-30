@@ -17,7 +17,7 @@ void Xxx::Serialize(CSZ path)
 	file << version;
 
 	mm.Serialize(file);
-	//sm.Serialize(file);
+	sm.Serialize(file);
 }
 
 void Xxx::Deserialize(CSZ path, RString error, bool keepExisting)
@@ -247,6 +247,8 @@ Xxx::~Xxx()
 
 void Xxx::Async_Run(CSZ url, RcBlob blob)
 {
+	VERUS_QREF_SM;
+
 	IO::StreamPtr sp(blob);
 
 	UINT32 temp;
@@ -258,6 +260,9 @@ void Xxx::Async_Run(CSZ url, RcBlob blob)
 	sp >> temp;
 	sp.ReadString(buffer);
 	VERUS_RT_ASSERT(!strcmp(buffer, "3.0"));
+	UINT32 verMajor = 0, verMinor = 0;
+	sscanf(buffer, "%d.%d", &verMajor, &verMinor);
+	sp.SetVersion(MakeVersion(verMajor, verMinor));
 
 	while (!sp.IsEnd())
 	{
@@ -274,6 +279,11 @@ void Xxx::Async_Run(CSZ url, RcBlob blob)
 				sp.Advance(blockSize);
 		}
 		break;
+		case '>MS<':
+		{
+			sm.Deserialize(sp);
+		}
+		break;
 		default:
 		{
 			sp.Advance(blockSize);
@@ -288,6 +298,8 @@ void Xxx::SerializeXXX3(CSZ url)
 	if (!file.Open(url, "wb"))
 		return;
 
+	VERUS_QREF_SM;
+
 	file.WriteText("<XXX>");
 
 	file.WriteText(VERUS_CRNL VERUS_CRNL "<VN>");
@@ -295,6 +307,8 @@ void Xxx::SerializeXXX3(CSZ url)
 
 	if (_pTerrain)
 		_pTerrain->Serialize(file);
+
+	sm.Serialize(file);
 }
 
 void Xxx::DeserializeXXX3(CSZ url, bool sync)
@@ -307,4 +321,9 @@ void Xxx::DeserializeXXX3(CSZ url, bool sync)
 	}
 	else
 		Async::I().Load(url, this);
+}
+
+UINT32 Xxx::MakeVersion(UINT32 verMajor, UINT32 verMinor)
+{
+	return (verMajor << 16) | (verMinor & 0xFFFF);
 }

@@ -73,7 +73,9 @@ namespace verus
 		btTransform Bullet() const;
 
 		Transform3(const glm::mat4& that);
+		Transform3(const glm::mat4x3& that);
 		glm::mat4 GLM() const;
+		glm::mat4x3 GLM4x3() const;
 
 		mataff UniformBufferFormat() const;
 		static mataff UniformBufferFormatIdentity();

@@ -84,17 +84,11 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
 	VERUS_QREF_SETTINGS;
 	settings.ParseCommandLineArgs(argc, argv);
 	settings.Load();
+	settings.HandleHighDpi();
+	settings.HandleCommandLineArgs();
 	settings.Validate();
 	settings.Save();
 	BaseGame_UpdateSettings();
-
-	if (settings._screenAllowHighDPI)
-	{
-		HRESULT hr = 0;
-		if (FAILED(hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)))
-			throw VERUS_RUNTIME_ERROR << "SetProcessDpiAwareness(), hr=" << VERUS_HR(hr);
-		settings.UpdateHighDpiScale();
-	}
 
 	// Allocate memory:
 	_engineInit.Make();
@@ -121,6 +115,7 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
 	mm.InitCmd();
 	BaseGame_LoadContent();
 	renderer->EndFrame(false); // End recording a command buffer.
+	renderer->Sync(false);
 }
 
 void BaseGame::Run(bool relativeMouseMode)
@@ -158,16 +153,15 @@ void BaseGame::Run(bool relativeMouseMode)
 				break;
 				case SDL_MOUSEBUTTONDOWN:
 				{
-					if (1 == event.button.clicks)
-						BaseGame_SDL_OnMouseButtonDown(event.button.button);
-					else if (2 == event.button.clicks)
+					if (2 == event.button.clicks)
 						BaseGame_SDL_OnMouseDoubleClick(event.button.button);
+					else
+						BaseGame_SDL_OnMouseButtonDown(event.button.button);
 				}
 				break;
 				case SDL_MOUSEBUTTONUP:
 				{
-					if (1 == event.button.clicks)
-						BaseGame_SDL_OnMouseButtonUp(event.button.button);
+					BaseGame_SDL_OnMouseButtonUp(event.button.button);
 				}
 				break;
 				case SDL_MOUSEWHEEL:
@@ -281,6 +275,7 @@ void BaseGame::Run(bool relativeMouseMode)
 		km.ResetClickState();
 		renderer->EndFrame();
 		renderer.Present();
+		renderer->Sync();
 
 		// Show FPS:
 		if (_p->_showFPS && timer.IsEventEvery(500))

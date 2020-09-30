@@ -28,6 +28,7 @@ namespace verus
 			struct Desc
 			{
 				pugi::xml_node _node;
+				CSZ            _name = nullptr;
 				CSZ            _urlIntShaker = nullptr;
 				float          _intShakerScale = 0.25f;
 				LightData      _data;

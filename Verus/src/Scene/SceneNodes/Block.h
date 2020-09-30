@@ -52,7 +52,7 @@ namespace verus
 			void Init(RcDesc desc);
 			void Done();
 
-			VERUS_P(void LoadExtra(CSZ xml));
+			VERUS_P(void LoadExtra(SZ xml));
 
 			virtual void Update() override;
 			virtual void Draw() override;
@@ -72,6 +72,8 @@ namespace verus
 			virtual void UpdateBounds() override;
 
 			// Serialization:
+			virtual void Serialize(IO::RSeekableStream stream) override;
+			virtual void Deserialize(IO::RStream stream) override;
 			virtual void SaveXML(pugi::xml_node node) override;
 			virtual void LoadXML(pugi::xml_node node) override;
 		};

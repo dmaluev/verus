@@ -61,6 +61,8 @@ void Ssao::Done()
 
 void Ssao::OnSwapChainResized()
 {
+	if (!IsInitialized())
+		return;
 	VERUS_QREF_RENDERER;
 	{
 		_shader->FreeDescriptorSet(_csh);

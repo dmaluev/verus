@@ -29,11 +29,11 @@ void Xml::SetFilename(CSZ name)
 
 void Xml::Load(bool fromCache)
 {
-	Vector<BYTE> vData;
+	_vData.clear();
 	if (fromCache)
 	{
-		IO::FileSystem::I().LoadResourceFromCache(_C(_pathname), vData);
-		const pugi::xml_parse_result result = _doc.load_buffer_inplace(vData.data(), vData.size());
+		FileSystem::I().LoadResourceFromCache(_C(_pathname), _vData);
+		const pugi::xml_parse_result result = _doc.load_buffer_inplace(_vData.data(), _vData.size());
 		if (!result)
 			throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
 	}
@@ -43,10 +43,25 @@ void Xml::Load(bool fromCache)
 		ss << "Load() url=" << _pathname;
 		VERUS_LOG_INFO(_C(ss.str()));
 
-		IO::FileSystem::LoadResource(_C(_pathname), vData, IO::FileSystem::LoadDesc(true));
-		const pugi::xml_parse_result result = _doc.load_buffer_inplace(vData.data(), vData.size());
-		if (!result)
-			throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+		const size_t pakPos = FileSystem::FindPosForPAK(_C(_pathname));
+		if (pakPos != String::npos)
+		{
+			FileSystem::LoadResource(_C(_pathname), _vData, FileSystem::LoadDesc(true));
+			const pugi::xml_parse_result result = _doc.load_buffer_inplace(_vData.data(), _vData.size());
+			if (!result)
+				throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+		}
+		else
+		{
+			File file;
+			if (file.Open(_C(_pathname)))
+			{
+				file.ReadAll(_vData, true);
+				const pugi::xml_parse_result result = _doc.load_buffer_inplace(_vData.data(), _vData.size());
+				if (!result)
+					throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+			}
+		}
 	}
 }
 
@@ -54,7 +69,7 @@ void Xml::Save()
 {
 	StringStream ss;
 	ss << "Save() url=" << _pathname;
-	IO::File file;
+	File file;
 	if (file.Open(_C(_pathname), "w"))
 	{
 		pugi::xml_writer_file writer(file.GetFile());
@@ -66,11 +81,11 @@ void Xml::Save()
 
 pugi::xml_node Xml::GetRoot()
 {
-	pugi::xml_node ret = _doc.root();
+	pugi::xml_node ret = _doc.first_child();
 	if (!ret)
 	{
 		_doc.append_child("root");
-		ret = _doc.root();
+		ret = _doc.first_child();
 	}
 	return ret;
 }

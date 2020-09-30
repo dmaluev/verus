@@ -117,11 +117,11 @@ void Warp::LoadFromPtr(SZ p)
 	for (auto node : root.children("z"))
 	{
 		Zone zone;
-		zone._name = node.attribute("name").as_string();
-		zone._bone = node.attribute("bone").as_string();
-		zone._pos.FromString(node.attribute("pos").as_string());
+		zone._name = node.attribute("name").value();
+		zone._bone = node.attribute("bone").value();
+		zone._pos.FromString(node.attribute("pos").value());
 		zone._radius = node.attribute("r").as_float();
-		zone._type = node.attribute("type").as_string()[0];
+		zone._type = node.attribute("type").value()[0];
 		zone._spring = node.attribute("spring").as_float();
 		zone._damping = node.attribute("damping").as_float(5);
 		zone._maxOffset = node.attribute("maxOffset").as_float(0.03f);
@@ -130,9 +130,9 @@ void Warp::LoadFromPtr(SZ p)
 		RZone zref = _vZones.back();
 		for (auto offsetNode : node.children("o"))
 		{
-			CSZ name = offsetNode.attribute("name").as_string();
+			CSZ name = offsetNode.attribute("name").value();
 			Vector3 d;
-			d.FromString(offsetNode.attribute("d").as_string());
+			d.FromString(offsetNode.attribute("d").value());
 			zref._mapOffsets[name] = d;
 		}
 	}

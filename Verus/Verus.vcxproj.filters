@@ -663,14 +663,26 @@
     <ClInclude Include="src\Scene\SceneNodes\SceneNodes.h">
       <Filter>src\Scene\SceneNodes</Filter>
     </ClInclude>
-    <ClInclude Include="src\Scene\SceneNodes\TransformGizmo.h">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClInclude>
     <ClInclude Include="src\Scene\SceneNodes\Types.h">
       <Filter>src\Scene\SceneNodes</Filter>
     </ClInclude>
     <ClInclude Include="src\Effects\Particles.h">
       <Filter>src\Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\DifferenceVector.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Pool.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\LocalPtr.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\SceneNodes\Site.h">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\SceneNodes\Prefab.h">
+      <Filter>src\Scene\SceneNodes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1136,11 +1148,14 @@
     <ClCompile Include="src\Scene\SceneNodes\SceneNodes.cpp">
       <Filter>src\Scene\SceneNodes</Filter>
     </ClCompile>
-    <ClCompile Include="src\Scene\SceneNodes\TransformGizmo.cpp">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClCompile>
     <ClCompile Include="src\Effects\Particles.cpp">
       <Filter>src\Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\SceneNodes\Site.cpp">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\SceneNodes\Prefab.cpp">
+      <Filter>src\Scene\SceneNodes</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

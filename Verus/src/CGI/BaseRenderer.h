@@ -62,6 +62,7 @@ namespace verus
 			virtual void BeginFrame(bool present = true) = 0;
 			virtual void EndFrame(bool present = true) = 0;
 			virtual void Present() = 0;
+			virtual void Sync(bool present = true) = 0;
 			virtual void WaitIdle() = 0;
 
 			// Resources:

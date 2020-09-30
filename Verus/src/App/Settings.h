@@ -4,12 +4,26 @@ namespace verus
 {
 	namespace App
 	{
+		enum class DisplayMode : int
+		{
+			exclusiveFullscreen,
+			windowed,
+			borderlessWindowed
+		};
+
 		// Capacity is per frame. 3 frames are buffered.
 		class Limits
 		{
 		public:
 			int _d3d12_dhViewsCapacity = 10000; // D3D limit is one million.
 			int _d3d12_dhSamplersCapacity = 500; // D3D limit is 2048.
+			int _ds_ubPerFrameCapacity = 10;
+			int _ds_ubTexturesFSCapacity = 10;
+			int _ds_ubPerMeshVSCapacity = 10;
+			int _ds_ubShadowFSCapacity = 10;
+			int _ds_ubAOPerFrameCapacity = 1;
+			int _ds_ubAOTexturesFSCapacity = 1;
+			int _ds_ubAOPerMeshVSCapacity = 10;
 			int _generateMips_ubCapacity = 100;
 			int _mesh_ubPerFrameCapacity = 100;
 			int _mesh_ubPerMaterialFSCapacity = 1000;
@@ -30,9 +44,10 @@ namespace verus
 		public:
 			struct CommandLine
 			{
-				int _gapi = -1;
-				bool _fullscreen = false;
+				int  _gapi = -1;
+				bool _exclusiveFullscreen = false;
 				bool _windowed = false;
+				bool _borderlessWindowed = false;
 			};
 
 			enum class Quality : int
@@ -63,6 +78,14 @@ namespace verus
 			};
 
 			Quality       _quality = Quality::medium;
+			bool          _displayAllowHighDPI = true;
+			float         _displayFOV = 70;
+			DisplayMode   _displayMode = DisplayMode::windowed;
+			bool          _displayOffscreenDraw = true;
+			float         _displayOffscreenScale = 1;
+			int           _displaySizeHeight = 720;
+			int           _displaySizeWidth = 1280;
+			bool          _displayVSync = true;
 			int           _gapi = 0;
 			int           _gpuAnisotropyLevel = 4;
 			int           _gpuAntialiasingLevel = 0;
@@ -75,16 +98,9 @@ namespace verus
 			bool          _postProcessCinema = false;
 			bool          _postProcessMotionBlur = false;
 			bool          _postProcessSSAO = false;
-			int	          _sceneGrassDensity = 1000;
+			int	          _sceneGrassDensity = 500;
 			ShadowQuality _sceneShadowQuality = ShadowQuality::multisampled;
 			WaterQuality  _sceneWaterQuality = WaterQuality::solidColor;
-			bool          _screenAllowHighDPI = true;
-			float         _screenFOV = 70;
-			bool          _screenOffscreenDraw = true;
-			int           _screenSizeHeight = 720;
-			int           _screenSizeWidth = 1280;
-			bool          _screenVSync = true;
-			bool          _screenWindowed = true;
 			String        _uiLang = "EN";
 			CommandLine   _commandLine;
 			Limits        _limits;
@@ -99,6 +115,8 @@ namespace verus
 			void SetQuality(Quality q);
 
 			void Load();
+			void HandleHighDpi();
+			void HandleCommandLineArgs();
 			void Validate();
 			void Save();
 

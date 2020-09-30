@@ -20,6 +20,9 @@
 #include "Cooldown.h"
 #include "EngineInit.h"
 #include "GlobalVarsClipboard.h"
+#include "DifferenceVector.h"
+#include "Pool.h"
+#include "LocalPtr.h"
 
 namespace verus
 {

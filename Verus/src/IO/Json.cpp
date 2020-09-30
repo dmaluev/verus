@@ -21,9 +21,7 @@ void Json::SetFilename(CSZ name)
 	CSZ pSlash = strchr(name, '/');
 	if (!pSlash)
 	{
-		pathname = _C(Utils::I().GetWritablePath());
-		pathname += "/";
-		pathname += name;
+		pathname = String(_C(Utils::I().GetWritablePath())) + "/" + name;
 		name = _C(pathname);
 	}
 	_pathname = name;
@@ -34,7 +32,7 @@ void Json::Load(bool fromCache)
 	Vector<BYTE> vData;
 	if (fromCache)
 	{
-		IO::FileSystem::I().LoadResourceFromCache(_C(_pathname), vData);
+		FileSystem::I().LoadResourceFromCache(_C(_pathname), vData);
 		_json = nlohmann::json::parse(reinterpret_cast<CSZ>(vData.data()));
 	}
 	else
@@ -46,12 +44,12 @@ void Json::Load(bool fromCache)
 		const size_t pakPos = FileSystem::FindPosForPAK(_C(_pathname));
 		if (pakPos != String::npos)
 		{
-			IO::FileSystem::LoadResource(_C(_pathname), vData, IO::FileSystem::LoadDesc(true));
+			FileSystem::LoadResource(_C(_pathname), vData, FileSystem::LoadDesc(true));
 			_json = nlohmann::json::parse(reinterpret_cast<CSZ>(vData.data()));
 		}
 		else
 		{
-			IO::File file;
+			File file;
 			if (file.Open(_C(_pathname)))
 			{
 				file.ReadAll(vData, true);
@@ -65,7 +63,7 @@ void Json::Save()
 {
 	StringStream ss;
 	ss << "Save() url=" << _pathname;
-	IO::File file;
+	File file;
 	if (file.Open(_C(_pathname), "w"))
 	{
 		const String s = _json.dump(1, '\t');
@@ -73,6 +71,11 @@ void Json::Save()
 		ss << ", OK";
 	}
 	VERUS_LOG_INFO(_C(ss.str()));
+}
+
+void Json::Clear()
+{
+	_json.clear();
 }
 
 void Json::Set(CSZ name, CSZ v, bool ifNull)

@@ -552,9 +552,9 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			pParent->_matToActorSpace = VMath::inverse(matBody);
 			matBody = _matRagdollToWorld * pParent->_matFinal * matBody;
 
-			short group = 1, mask = -1;
+			Physics::Group group = Physics::Group::general, mask = Physics::Group::all;
 			if (pParent->_noCollision)
-				group = mask = 0;
+				group = mask = Physics::Group::none;
 			const btTransform tr = matBody.Bullet();
 			pParent->_pBody = bullet.AddNewRigidBody(pParent->_mass, tr, pParent->_pShape, group, mask);
 			pParent->_pBody->setFriction(pParent->_friction);
@@ -603,9 +603,9 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			pBone->_matToActorSpace = VMath::inverse(matBody);
 			matBody = _matRagdollToWorld * pBone->_matFinal * matBody;
 
-			short group = 1, mask = -1;
+			Physics::Group group = Physics::Group::general, mask = Physics::Group::all;
 			if (pBone->_noCollision)
-				group = mask = 0;
+				group = mask = Physics::Group::none;
 			const btTransform tr = matBody.Bullet();
 			pBone->_pBody = bullet.AddNewRigidBody(pBone->_mass, tr, pBone->_pShape, group, mask);
 			pBone->_pBody->setFriction(pBone->_friction);

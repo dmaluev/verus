@@ -17,6 +17,8 @@ Light::~Light()
 
 void Light::Init(RcDesc desc)
 {
+	VERUS_QREF_SM;
+	_name = sm.EnsureUniqueName(desc._name ? desc._name : "Light");
 	_data = desc._data;
 	//if (desc._urlIntShaker)
 	//{
@@ -242,9 +244,11 @@ void Light::SaveXML(pugi::xml_node node)
 void Light::LoadXML(pugi::xml_node node)
 {
 	SceneNode::LoadXML(node);
-	_name.clear();
+	PreventNameCollision();
 
 	Desc desc;
+	if (auto attr = node.attribute("name"))
+		desc._name = attr.value();
 	const int type = node.attribute("type").as_int(+CGI::LightType::omni);
 	desc._data._lightType = static_cast<CGI::LightType>(type);
 	if (auto attr = node.attribute("color"))

@@ -4,8 +4,8 @@ using namespace verus;
 using namespace verus::Anim;
 
 Orbit::Orbit() :
-	_pitch(0, 4),
-	_yaw(0, 4)
+	_pitch(0, 5),
+	_yaw(0, 5)
 {
 	_matrix = Matrix3::identity();
 }

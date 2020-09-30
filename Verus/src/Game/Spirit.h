@@ -19,6 +19,7 @@ namespace verus
 				Vector3 _frontDir2D = Vector3(0);
 				Vector3 _sideDir = Vector3(0);
 				Vector3 _sideDir2D = Vector3(0);
+				Point3  _jerkyPosition = Point3(0);
 			};
 
 			DerivedVars                _dv;
@@ -70,6 +71,7 @@ namespace verus
 			void SetMaxSpeed(float v = 10) { _maxSpeed = v; }
 
 			Point3       GetPosition(bool smooth = true);
+			RcPoint3     GetJerkyPosition() const { return _dv._jerkyPosition; }
 			virtual void MoveTo(RcPoint3 pos);
 			void         SetRemotePosition(RcPoint3 pos);
 			bool         FitRemotePosition();

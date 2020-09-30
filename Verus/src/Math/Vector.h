@@ -150,7 +150,7 @@ namespace verus
 		glm::vec3 GLM() const { return glm::vec3(getX(), getY(), getZ()); }
 		glm::vec2 GLM2() const { return glm::vec2(getX(), getY()); }
 
-		static Point3 Replicate(float x) { return Point3(x); }
+		static Point3 Replicate(float x) { return VMath::Point3(x); }
 
 		// Pointer:
 		static Point3 MakeFromPointer(const float* p);

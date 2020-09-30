@@ -139,6 +139,7 @@ namespace verus
 			virtual void BeginFrame(bool present) override;
 			virtual void EndFrame(bool present) override;
 			virtual void Present() override;
+			virtual void Sync(bool present) override;
 			virtual void WaitIdle() override;
 
 			// Resources:

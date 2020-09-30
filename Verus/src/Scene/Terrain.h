@@ -15,9 +15,9 @@ namespace verus
 
 		class TerrainPhysics
 		{
-			btHeightfieldTerrainShape* _pShape = nullptr;
-			btRigidBody* _pRigidBody = nullptr;
-			bool _debugDraw = false;
+			LocalPtr<btHeightfieldTerrainShape> _pShape;
+			Physics::LocalRigidBody             _pRigidBody;
+			bool                                _debugDraw = false;
 
 		public:
 			TerrainPhysics();

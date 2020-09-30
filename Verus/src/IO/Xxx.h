@@ -14,7 +14,7 @@ namespace verus
 	{
 		class Xxx : public AsyncCallback
 		{
-			Scene::Terrain* _pTerrain;
+			Scene::Terrain* _pTerrain = nullptr;
 
 		public:
 			static void Serialize(CSZ path);
@@ -27,6 +27,8 @@ namespace verus
 
 			void SerializeXXX3(CSZ url);
 			void DeserializeXXX3(CSZ url, bool sync);
+
+			static UINT32 MakeVersion(UINT32 verMajor, UINT32 verMinor);
 		};
 	}
 }

@@ -40,7 +40,7 @@ void DeferredShading::Init()
 			RP::Attachment("GBuffer2", Format::unormR8G8B8A8).LoadOpClear().Layout(ImageLayout::fsReadOnly),
 			RP::Attachment("LightAccDiff", Format::floatR11G11B10).LoadOpClear().Layout(ImageLayout::fsReadOnly),
 			RP::Attachment("LightAccSpec", Format::floatR11G11B10).LoadOpClear().Layout(ImageLayout::fsReadOnly),
-			RP::Attachment("Depth", Format::unormD24uintS8).LoadOpClear().Layout(ImageLayout::depthStencilAttachment, ImageLayout::depthStencilReadOnly),
+			RP::Attachment("Depth", Format::unormD24uintS8).LoadOpClear().Layout(ImageLayout::depthStencilAttachment, ImageLayout::depthStencilReadOnly)
 		},
 		{
 			RP::Subpass("Sp0").Color(
@@ -58,7 +58,7 @@ void DeferredShading::Init()
 				}).Color(
 				{
 					RP::Ref("LightAccDiff", ImageLayout::colorAttachment),
-					RP::Ref("LightAccSpec", ImageLayout::colorAttachment),
+					RP::Ref("LightAccSpec", ImageLayout::colorAttachment)
 				}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilReadOnly))
 		},
 		{
@@ -70,28 +70,32 @@ void DeferredShading::Init()
 			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilReadOnly)
 		},
 		{
-			RP::Subpass("Sp0").Color(
-				{RP::Ref("Attach", ImageLayout::colorAttachment)}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilReadOnly))
+			RP::Subpass("Sp0").Input(
+				{
+					RP::Ref("Depth", ImageLayout::depthStencilReadOnly)
+				}).Color(
+				{
+					RP::Ref("Attach", ImageLayout::colorAttachment)
+				}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilReadOnly))
 		},
 		{});
 	_rphCompose = renderer->CreateRenderPass(
 		{
 			RP::Attachment("ComposedA", Format::floatR11G11B10).LoadOpDontCare().Layout(ImageLayout::fsReadOnly),
-			RP::Attachment("ComposedB", Format::floatR11G11B10).LoadOpDontCare().Layout(ImageLayout::fsReadOnly),
-			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilReadOnly),
+			RP::Attachment("ComposedB", Format::floatR11G11B10).LoadOpDontCare().Layout(ImageLayout::fsReadOnly)
 		},
 		{
 			RP::Subpass("Sp0").Color(
 				{
 					RP::Ref("ComposedA", ImageLayout::colorAttachment),
-					RP::Ref("ComposedB", ImageLayout::colorAttachment),
-				}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilReadOnly))
+					RP::Ref("ComposedB", ImageLayout::colorAttachment)
+				})
 		},
 		{});
 	_rphExtraCompose = renderer->CreateRenderPass(
 		{
 			RP::Attachment("ComposedA", Format::floatR11G11B10).Layout(ImageLayout::fsReadOnly),
-			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilReadOnly, ImageLayout::depthStencilAttachment),
+			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilReadOnly, ImageLayout::depthStencilAttachment)
 		},
 		{
 			RP::Subpass("Sp0").Color(
@@ -102,8 +106,8 @@ void DeferredShading::Init()
 		{});
 
 	_shader[SHADER_LIGHT].Init("[Shaders]:DS.hlsl");
-	_shader[SHADER_LIGHT]->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame));
-	_shader[SHADER_LIGHT]->CreateDescriptorSet(1, &s_ubTexturesFS, sizeof(s_ubTexturesFS), 1,
+	_shader[SHADER_LIGHT]->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame), settings._limits._ds_ubPerFrameCapacity);
+	_shader[SHADER_LIGHT]->CreateDescriptorSet(1, &s_ubTexturesFS, sizeof(s_ubTexturesFS), settings._limits._ds_ubTexturesFSCapacity,
 		{
 			Sampler::input,
 			Sampler::input,
@@ -112,8 +116,8 @@ void DeferredShading::Init()
 			Sampler::shadow,
 			Sampler::nearestClampMipN
 		}, ShaderStageFlags::fs);
-	_shader[SHADER_LIGHT]->CreateDescriptorSet(2, &s_ubPerMeshVS, sizeof(s_ubPerMeshVS), 1000, {}, ShaderStageFlags::vs);
-	_shader[SHADER_LIGHT]->CreateDescriptorSet(3, &s_ubShadowFS, sizeof(s_ubShadowFS), 1000, {}, ShaderStageFlags::fs);
+	_shader[SHADER_LIGHT]->CreateDescriptorSet(2, &s_ubPerMeshVS, sizeof(s_ubPerMeshVS), settings._limits._ds_ubPerMeshVSCapacity, {}, ShaderStageFlags::vs);
+	_shader[SHADER_LIGHT]->CreateDescriptorSet(3, &s_ubShadowFS, sizeof(s_ubShadowFS), settings._limits._ds_ubShadowFSCapacity, {}, ShaderStageFlags::fs);
 	_shader[SHADER_LIGHT]->CreateDescriptorSet(4, &s_ubPerObject, sizeof(s_ubPerObject), 0);
 	_shader[SHADER_LIGHT]->CreatePipelineLayout();
 
@@ -131,13 +135,13 @@ void DeferredShading::Init()
 	_shader[SHADER_COMPOSE]->CreatePipelineLayout();
 
 	_shader[SHADER_AO].Init("[Shaders]:DS_AO.hlsl");
-	_shader[SHADER_AO]->CreateDescriptorSet(0, &s_ubAOPerFrame, sizeof(s_ubAOPerFrame));
-	_shader[SHADER_AO]->CreateDescriptorSet(1, &s_ubAOTexturesFS, sizeof(s_ubAOTexturesFS), 1,
+	_shader[SHADER_AO]->CreateDescriptorSet(0, &s_ubAOPerFrame, sizeof(s_ubAOPerFrame), settings._limits._ds_ubAOPerFrameCapacity);
+	_shader[SHADER_AO]->CreateDescriptorSet(1, &s_ubAOTexturesFS, sizeof(s_ubAOTexturesFS), settings._limits._ds_ubAOTexturesFSCapacity,
 		{
-			Sampler::nearestClampMipN,
+			Sampler::input,
 			Sampler::nearestClampMipN
 		}, ShaderStageFlags::fs);
-	_shader[SHADER_AO]->CreateDescriptorSet(2, &s_ubAOPerMeshVS, sizeof(s_ubAOPerMeshVS), 1000, {}, ShaderStageFlags::vs);
+	_shader[SHADER_AO]->CreateDescriptorSet(2, &s_ubAOPerMeshVS, sizeof(s_ubAOPerMeshVS), settings._limits._ds_ubAOPerMeshVSCapacity, {}, ShaderStageFlags::vs);
 	_shader[SHADER_AO]->CreateDescriptorSet(3, &s_ubAOPerObject, sizeof(s_ubAOPerObject), 0);
 	_shader[SHADER_AO]->CreatePipelineLayout();
 
@@ -262,8 +266,8 @@ void DeferredShading::InitBySsao(TexturePtr tex)
 
 	_cshAO = _shader[SHADER_AO]->BindDescriptorSetTextures(1,
 		{
-			_tex[TEX_GBUFFER_1],
 			renderer.GetTexDepthStencil(),
+			_tex[TEX_GBUFFER_1],
 		});
 	_cshCompose = _shader[SHADER_COMPOSE]->BindDescriptorSetTextures(1,
 		{
@@ -342,8 +346,7 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 		_fbhCompose = renderer->CreateFramebuffer(_rphCompose,
 			{
 				_tex[TEX_COMPOSED_A],
-				_tex[TEX_COMPOSED_B],
-				renderer.GetTexDepthStencil()
+				_tex[TEX_COMPOSED_B]
 			},
 			renderer.GetSwapChainWidth(),
 			renderer.GetSwapChainHeight());
@@ -610,8 +613,7 @@ void DeferredShading::BeginCompose(RcVector4 bgColor)
 	cb->BeginRenderPass(_rphCompose, _fbhCompose,
 		{
 			_tex[TEX_COMPOSED_A]->GetClearValue(),
-			_tex[TEX_COMPOSED_B]->GetClearValue(),
-			renderer.GetTexDepthStencil()->GetClearValue()
+			_tex[TEX_COMPOSED_B]->GetClearValue()
 		});
 
 	cb->BindPipeline(_pipe[PIPE_COMPOSE]);

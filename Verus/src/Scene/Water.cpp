@@ -276,6 +276,8 @@ void Water::Draw()
 
 void Water::OnSwapChainResized()
 {
+	if (!IsInitialized())
+		return;
 	if (!_tex[TEX_FOAM]->IsLoaded())
 		return;
 

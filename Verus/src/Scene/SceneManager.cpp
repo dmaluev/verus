@@ -19,6 +19,7 @@ void SceneManager::Init(RcDesc desc)
 
 	SetCamera(desc._pMainCamera);
 
+	_mapSide = desc._mapSide;
 	const float hf = desc._mapSide * 0.5f;
 	Math::Bounds bounds;
 	bounds.Set(
@@ -32,8 +33,9 @@ void SceneManager::Init(RcDesc desc)
 
 void SceneManager::Done()
 {
+	DeleteAllSites();
 	{ // PBLE:
-		//DeleteAllPrefabs();
+		DeleteAllPrefabs();
 		DeleteAllBlocks();
 		DeleteAllLights();
 		//DeleteAllEmitters();
@@ -51,11 +53,11 @@ void SceneManager::ResetInstanceCount()
 void SceneManager::Update()
 {
 	VERUS_UPDATE_ONCE_CHECK;
-	//for (auto& x : TStoreSites::_map)
-	//	x.second.Update();
+	for (auto& x : TStoreSites::_map)
+		x.second.Update();
 	{ // PBLE:
-		//for (auto& x : TStorePrefabs::_list)
-		//	x.Update();
+		for (auto& x : TStorePrefabs::_list)
+			x.Update();
 		for (auto& x : TStoreBlocks::_list)
 			x.Update();
 		for (auto& x : TStoreLights::_list)
@@ -86,10 +88,10 @@ void SceneManager::Layout()
 
 	// Allocate enough space:
 	int countAll = 0;
-	//countAll += TStorePrefabs::_list.size();
+	countAll += Utils::Cast32(TStorePrefabs::_list.size());
 	countAll += Utils::Cast32(TStoreBlocks::_list.size());
 	countAll += Utils::Cast32(TStoreLights::_list.size());
-	//countAll += TStoreSites::_map.size();
+	countAll += Utils::Cast32(TStoreSites::_map.size());
 	if (_vVisibleNodes.size() != countAll)
 		_vVisibleNodes.resize(countAll);
 
@@ -177,7 +179,7 @@ void SceneManager::Draw()
 	bool bindPipeline = true;
 
 	auto cb = renderer.GetCommandBuffer();
-	auto shader = Scene::Mesh::GetShader();
+	auto shader = Mesh::GetShader();
 
 	const int begin = 0;
 	const int end = _visibleCountPerType[+NodeType::block];
@@ -299,6 +301,16 @@ void SceneManager::DrawLights()
 	}
 }
 
+void SceneManager::DrawBounds()
+{
+	VERUS_FOR(i, _visibleCount)
+	{
+		PSceneNode pSN = _vVisibleNodes[i];
+		if (pSN->IsSelected())
+			pSN->DrawBounds();
+	}
+}
+
 bool SceneManager::IsDrawingDepth(DrawDepth dd)
 {
 	if (DrawDepth::automatic == dd)
@@ -325,7 +337,7 @@ String SceneManager::EnsureUniqueName(CSZ name)
 	do
 	{
 		test = (id < 0) ? String(s, e) : String(s, e) + "_" + std::to_string(id);
-		//for (auto& it : TStorePrefabs::_list)	if (it.GetName() == _C(test)) test.clear();
+		for (auto& it : TStorePrefabs::_list)	if (it.GetName() == _C(test)) test.clear();
 		for (auto& it : TStoreBlocks::_list)	if (it.GetName() == _C(test)) test.clear();
 		for (auto& it : TStoreLights::_list)	if (it.GetName() == _C(test)) test.clear();
 		//for (auto& it : TStoreEmitters::_list)	if (it.GetName() == _C(test)) test.clear();
@@ -353,6 +365,26 @@ void SceneManager::DeleteModel(CSZ url)
 void SceneManager::DeleteAllModels()
 {
 	TStoreModels::DeleteAll();
+}
+
+PSite SceneManager::InsertSite(CSZ name)
+{
+	return TStoreSites::Insert(name);
+}
+
+PSite SceneManager::FindSite(CSZ name)
+{
+	return TStoreSites::Find(name);
+}
+
+void SceneManager::DeleteSite(CSZ name)
+{
+	TStoreSites::Delete(name);
+}
+
+void SceneManager::DeleteAllSites()
+{
+	TStoreSites::DeleteAll();
 }
 
 PBlock SceneManager::InsertBlock()
@@ -383,6 +415,45 @@ void SceneManager::DeleteLight(PLight p)
 void SceneManager::DeleteAllLights()
 {
 	TStoreLights::DeleteAll();
+}
+
+PPrefab SceneManager::InsertPrefab()
+{
+	return TStorePrefabs::Insert();
+}
+
+void SceneManager::DeletePrefab(PPrefab p)
+{
+	TStorePrefabs::Delete(p);
+}
+
+void SceneManager::DeleteAllPrefabs()
+{
+	TStorePrefabs::DeleteAll();
+}
+
+void SceneManager::ClearSelection()
+{
+	Query query;
+	query._selected = 1;
+	ForEachNode(query, [](RSceneNode node)
+		{
+			node.Select(false);
+			return Continue::yes;
+		});
+}
+
+int SceneManager::GetSelectedCount()
+{
+	int ret = 0;
+	Query query;
+	query._selected = 1;
+	ForEachNode(query, [&ret](RSceneNode node)
+		{
+			ret++;
+			return Continue::yes;
+		});
+	return ret;
 }
 
 Continue SceneManager::Octree_ProcessNode(void* pToken, void* pUser)
@@ -472,4 +543,72 @@ bool SceneManager::RayCastingTest(RcPoint3 pointA, RcPoint3 pointB, PBlockPtr pB
 			return false;
 	}
 	return false;
+}
+
+void SceneManager::Serialize(IO::RSeekableStream stream)
+{
+	stream.WriteText(VERUS_CRNL VERUS_CRNL "<SM>");
+	stream.BeginBlock();
+
+	stream.WriteString(_C(std::to_string(_mapSide)));
+
+	stream.WriteString(_C(std::to_string(TStoreModels::GetStoredCount())));
+	for (auto& x : TStoreModels::_map)
+		stream.WriteString(_C(x.first));
+
+	stream.WriteString(_C(std::to_string(TStoreBlocks::GetStoredCount())));
+	for (auto& x : TStoreBlocks::_list)
+		x.Serialize(stream);
+
+	stream.WriteString(_C(std::to_string(TStoreLights::GetStoredCount())));
+	for (auto& x : TStoreLights::_list)
+		x.Serialize(stream);
+
+	stream.EndBlock();
+}
+
+void SceneManager::Deserialize(IO::RStream stream)
+{
+	char buffer[IO::Stream::s_bufferSize] = {};
+	int count = 0;
+
+	if (stream.GetVersion() >= IO::Xxx::MakeVersion(3, 0))
+	{
+		stream.ReadString(buffer);
+		const int mapSide = atoi(buffer);
+
+		Desc desc;
+		desc._mapSide = mapSide;
+		PCamera     pCamera = _pCamera;
+		PMainCamera pMainCamera = _pMainCamera;
+		Done();
+		Init(desc);
+		_pCamera = pCamera;
+		_pMainCamera = pMainCamera;
+
+		stream.ReadString(buffer);
+		count = atoi(buffer);
+		VERUS_FOR(i, count)
+		{
+			stream.ReadString(buffer);
+			PModel p = InsertModel(buffer);
+			p->Init(buffer);
+		}
+
+		stream.ReadString(buffer);
+		count = atoi(buffer);
+		VERUS_FOR(i, count)
+		{
+			PBlock p = InsertBlock();
+			p->Deserialize(stream);
+		}
+
+		stream.ReadString(buffer);
+		count = atoi(buffer);
+		VERUS_FOR(i, count)
+		{
+			PLight p = InsertLight();
+			p->Deserialize(stream);
+		}
+	}
 }

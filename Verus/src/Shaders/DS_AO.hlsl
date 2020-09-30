@@ -14,10 +14,9 @@ ConstantBuffer<UB_AOPerMeshVS>  g_ubAOPerMeshVS  : register(b0, space2);
 VK_PUSH_CONSTANT
 ConstantBuffer<UB_AOPerObject>  g_ubAOPerObject  : register(b0, space3);
 
-Texture2D    g_texGBuffer1    : register(t1, space1);
-SamplerState g_samGBuffer1    : register(s1, space1);
-Texture2D    g_texDepth       : register(t2, space1);
-SamplerState g_samDepth       : register(s2, space1);
+VK_SUBPASS_INPUT(0, g_texDepth, g_samDepth, t1, s1, space1);
+Texture2D    g_texGBuffer1 : register(t2, space1);
+SamplerState g_samGBuffer1 : register(s2, space1);
 
 struct VSI
 {
@@ -103,7 +102,7 @@ FSO mainFS(VSO si)
 	const float3 lightPosWV = si.lightPosWV;
 
 	// GBuffer1:
-	const float depth = g_texDepth.SampleLevel(g_samDepth, tc0, 0.0).r;
+	const float depth = VK_SUBPASS_LOAD(g_texDepth, g_samDepth, tc0).r;
 	const float3 posWV = DS_GetPosition(depth, g_ubAOPerFrame._matInvP, ndcPos.xy);
 
 	if (posWV.z <= lightPosWV.z + radius)

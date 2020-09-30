@@ -17,20 +17,20 @@ void Bullet::Init()
 	VERUS_INIT();
 	VERUS_QREF_CONST_SETTINGS;
 
-	_pCollisionConfiguration = new btDefaultCollisionConfiguration();
-	_pDispatcher = new btCollisionDispatcher(_pCollisionConfiguration);
-	_pBroadphaseInterface = new btDbvtBroadphase();
-	_pConstraintSolver = new btSequentialImpulseConstraintSolver();
+	_pCollisionConfiguration = new(_pCollisionConfiguration.GetData()) btDefaultCollisionConfiguration();
+	_pDispatcher = new(_pDispatcher.GetData()) btCollisionDispatcher(_pCollisionConfiguration.Get());
+	_pBroadphaseInterface = new(_pBroadphaseInterface.GetData()) btDbvtBroadphase();
+	_pConstraintSolver = new(_pConstraintSolver.GetData()) btSequentialImpulseConstraintSolver();
 
 	_pBroadphaseInterface->getOverlappingPairCache()->setInternalGhostPairCallback(&_ghostPairCallback);
 
-	_pDiscreteDynamicsWorld = new btDiscreteDynamicsWorld(
-		_pDispatcher,
-		_pBroadphaseInterface,
-		_pConstraintSolver,
-		_pCollisionConfiguration);
+	_pDiscreteDynamicsWorld = new(_pDiscreteDynamicsWorld.GetData()) btDiscreteDynamicsWorld(
+		_pDispatcher.Get(),
+		_pBroadphaseInterface.Get(),
+		_pConstraintSolver.Get(),
+		_pCollisionConfiguration.Get());
 
-	_pStaticPlaneShape = new btStaticPlaneShape(btVector3(0, 1, 0), 0);
+	_pStaticPlaneShape = new(_pStaticPlaneShape.GetData()) btStaticPlaneShape(btVector3(0, 1, 0), 0);
 
 	if (settings._physicsSupportDebugDraw)
 	{
@@ -44,14 +44,15 @@ void Bullet::Init()
 
 void Bullet::Done()
 {
+	EnableDebugPlane(false);
 	DeleteAllCollisionObjects();
 
-	VERUS_SMART_DELETE(_pStaticPlaneShape);
-	VERUS_SMART_DELETE(_pDiscreteDynamicsWorld);
-	VERUS_SMART_DELETE(_pConstraintSolver);
-	VERUS_SMART_DELETE(_pBroadphaseInterface);
-	VERUS_SMART_DELETE(_pDispatcher);
-	VERUS_SMART_DELETE(_pCollisionConfiguration);
+	_pStaticPlaneShape.Delete();
+	_pDiscreteDynamicsWorld.Delete();
+	_pConstraintSolver.Delete();
+	_pBroadphaseInterface.Delete();
+	_pDispatcher.Delete();
+	_pCollisionConfiguration.Delete();
 
 	VERUS_DONE(Bullet);
 }
@@ -60,8 +61,47 @@ btRigidBody* Bullet::AddNewRigidBody(
 	float mass,
 	const btTransform& startTransform,
 	btCollisionShape* pShape,
-	short group,
-	short mask,
+	Group group,
+	Group mask,
+	const btTransform* pCenterOfMassOffset,
+	void* pPlacementMotionState,
+	void* pPlacementRigidBody)
+{
+	btAssert(!pShape || pShape->getShapeType() != INVALID_SHAPE_PROXYTYPE);
+
+	const bool dynamic = (mass != 0);
+
+	btVector3 localInertia(0, 0, 0);
+	if (dynamic)
+		pShape->calculateLocalInertia(mass, localInertia);
+
+	btDefaultMotionState* pMotionState = nullptr;
+	if (pPlacementMotionState)
+		pMotionState = new(pPlacementMotionState) btDefaultMotionState(startTransform, pCenterOfMassOffset ? *pCenterOfMassOffset : btTransform::getIdentity());
+	else
+		pMotionState = new btDefaultMotionState(startTransform, pCenterOfMassOffset ? *pCenterOfMassOffset : btTransform::getIdentity());
+	btRigidBody::btRigidBodyConstructionInfo rbci(mass, pMotionState, pShape, localInertia);
+	rbci.m_linearDamping = 0.01f;
+	rbci.m_angularDamping = 0.01f;
+	rbci.m_rollingFriction = 0.001f;
+	rbci.m_spinningFriction = 0.001f;
+	btRigidBody* pRigidBody = nullptr;
+	if (pPlacementRigidBody)
+		pRigidBody = new(pPlacementRigidBody) btRigidBody(rbci);
+	else
+		pRigidBody = new btRigidBody(rbci);
+	_pDiscreteDynamicsWorld->addRigidBody(pRigidBody, +group, +mask);
+
+	return pRigidBody;
+}
+
+btRigidBody* Bullet::AddNewRigidBody(
+	RLocalRigidBody localRigidBody,
+	float mass,
+	const btTransform& startTransform,
+	btCollisionShape* pShape,
+	Group group,
+	Group mask,
 	const btTransform* pCenterOfMassOffset)
 {
 	btAssert(!pShape || pShape->getShapeType() != INVALID_SHAPE_PROXYTYPE);
@@ -72,21 +112,22 @@ btRigidBody* Bullet::AddNewRigidBody(
 	if (dynamic)
 		pShape->calculateLocalInertia(mass, localInertia);
 
-	btDefaultMotionState* pMotionState = new btDefaultMotionState(startTransform, pCenterOfMassOffset ? *pCenterOfMassOffset : btTransform::getIdentity());
+	btDefaultMotionState* pMotionState = new(localRigidBody.GetDefaultMotionStateData())
+		btDefaultMotionState(startTransform, pCenterOfMassOffset ? *pCenterOfMassOffset : btTransform::getIdentity());
 	btRigidBody::btRigidBodyConstructionInfo rbci(mass, pMotionState, pShape, localInertia);
 	rbci.m_linearDamping = 0.01f;
 	rbci.m_angularDamping = 0.01f;
 	rbci.m_rollingFriction = 0.001f;
 	rbci.m_spinningFriction = 0.001f;
-	btRigidBody* pBody = new btRigidBody(rbci);
-	_pDiscreteDynamicsWorld->addRigidBody(pBody, group, mask);
+	btRigidBody* pRigidBody = new(localRigidBody.GetRigidBodyData()) btRigidBody(rbci);
+	_pDiscreteDynamicsWorld->addRigidBody(pRigidBody, +group, +mask);
 
-	return pBody;
+	return pRigidBody;
 }
 
 void Bullet::DeleteAllCollisionObjects()
 {
-	if (!_pDiscreteDynamicsWorld)
+	if (!_pDiscreteDynamicsWorld.Get())
 		return;
 
 	for (int i = _pDiscreteDynamicsWorld->getNumCollisionObjects() - 1; i >= 0; --i)
@@ -102,7 +143,7 @@ void Bullet::DeleteAllCollisionObjects()
 
 void Bullet::Simulate()
 {
-	if (!_pDiscreteDynamicsWorld)
+	if (!_pDiscreteDynamicsWorld.Get())
 		return;
 	VERUS_UPDATE_ONCE_CHECK;
 
@@ -112,7 +153,7 @@ void Bullet::Simulate()
 
 void Bullet::DebugDraw()
 {
-	if (!_pDiscreteDynamicsWorld || !_pDiscreteDynamicsWorld->getDebugDrawer())
+	if (!_pDiscreteDynamicsWorld.Get() || !_pDiscreteDynamicsWorld->getDebugDrawer())
 		return;
 
 	VERUS_QREF_DD;
@@ -147,23 +188,21 @@ void Bullet::SetDebugDrawMode(DebugDrawMode mode)
 
 void Bullet::EnableDebugPlane(bool b)
 {
-	if (b == !!_pStaticPlaneRigidBody)
+	if (b == !!_pStaticPlaneRigidBody.Get())
 		return;
 
 	if (b)
 	{
 		btTransform tr;
 		tr.setIdentity();
-		_pStaticPlaneRigidBody = AddNewRigidBody(0, tr, _pStaticPlaneShape, +Physics::Group::sceneBounds);
-		_pStaticPlaneRigidBody->setFriction(GetFriction(Physics::Material::wood));
-		_pStaticPlaneRigidBody->setRestitution(GetRestitution(Physics::Material::wood));
+		_pStaticPlaneRigidBody = AddNewRigidBody(_pStaticPlaneRigidBody, 0, tr, _pStaticPlaneShape.Get(), Group::sceneBounds);
+		_pStaticPlaneRigidBody->setFriction(GetFriction(Material::wood));
+		_pStaticPlaneRigidBody->setRestitution(GetRestitution(Material::wood));
 	}
 	else
 	{
-		_pDiscreteDynamicsWorld->removeRigidBody(_pStaticPlaneRigidBody);
-		delete _pStaticPlaneRigidBody->getMotionState();
-		delete _pStaticPlaneRigidBody;
-		_pStaticPlaneRigidBody = nullptr;
+		_pDiscreteDynamicsWorld->removeRigidBody(_pStaticPlaneRigidBody.Get());
+		_pStaticPlaneRigidBody.Delete();
 	}
 }
 

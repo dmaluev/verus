@@ -7,8 +7,8 @@ const float Spirit::s_defaultMaxPitch = VERUS_PI * (44.5f / 90.f);
 
 Spirit::Spirit() :
 	_smoothPosition(Point3(0), 10),
-	_pitch(0, 10),
-	_yaw(0, 10)
+	_pitch(0, 15),
+	_yaw(0, 15)
 {
 	ComputeDerivedVars();
 }
@@ -27,6 +27,8 @@ void Spirit::ComputeDerivedVars(float smoothSpeed)
 	_dv._frontDir2D = _dv._matYaw * Vector3(0, 0, 1);
 	_dv._sideDir = VMath::normalizeApprox(VMath::cross(_dv._frontDir, Vector3(0, 1, 0)));
 	_dv._sideDir2D = VMath::normalizeApprox(VMath::cross(_dv._frontDir2D, Vector3(0, 1, 0)));
+	if (VMath::distSqr(_position, _dv._jerkyPosition) > 5 * 5.f)
+		_dv._jerkyPosition = _position;
 }
 
 void Spirit::MoveFront(float x)

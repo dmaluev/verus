@@ -58,6 +58,6 @@ void Cursor::MoveBy(float x, float y)
 		return;
 
 	VERUS_QREF_CONST_SETTINGS;
-	_x = Math::Clamp<float>(_x + x * (100.f / settings._screenSizeWidth), 0, 1);
-	_y = Math::Clamp<float>(_y + y * (100.f / settings._screenSizeHeight), 0, 1);
+	_x = Math::Clamp<float>(_x + x * (100.f / settings._displaySizeWidth), 0, 1);
+	_y = Math::Clamp<float>(_y + y * (100.f / settings._displaySizeHeight), 0, 1);
 }

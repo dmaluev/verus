@@ -215,11 +215,26 @@ Transform3::Transform3(const glm::mat4& that)
 	memcpy(this, &that, sizeof(*this));
 }
 
+Transform3::Transform3(const glm::mat4x3& that)
+{
+	*this = Transform3::identity();
+	VERUS_FOR(i, 4)
+		memcpy(&(*this)[i], &that[i], sizeof(float) * 3);
+}
+
 glm::mat4 Transform3::GLM() const
 {
 	glm::mat4 m;
 	const Matrix4 m2(*this);
 	memcpy(&m, &m2, sizeof(m));
+	return m;
+}
+
+glm::mat4x3 Transform3::GLM4x3() const
+{
+	glm::mat4x3 m;
+	VERUS_FOR(i, 4)
+		memcpy(&m[i], &(*this)[i], sizeof(float) * 3);
 	return m;
 }
 

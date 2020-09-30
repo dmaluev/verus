@@ -20,6 +20,8 @@ namespace verus
 			{
 				CSZ _url = nullptr;
 				CSZ _mat = nullptr;
+
+				Desc(CSZ url = nullptr) : _url(url) {}
 			};
 			VERUS_TYPEDEFS(Desc);
 
@@ -32,6 +34,7 @@ namespace verus
 			bool IsLoaded() const { return _mesh.IsLoaded(); }
 
 			void AddRef() { _refCount++; }
+			int GetRefCount() const { return _refCount; }
 
 			void MarkFirstInstance();
 			void Draw(CGI::CommandBufferPtr cb);

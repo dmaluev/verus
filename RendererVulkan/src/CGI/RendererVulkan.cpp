@@ -476,7 +476,7 @@ void RendererVulkan::CreateSwapChain(VkSwapchainKHR oldSwapchain)
 
 	VkResult res = VK_SUCCESS;
 
-	_swapChainBufferCount = settings._screenVSync ? 3 : 2;
+	_swapChainBufferCount = settings._displayVSync ? 3 : 2;
 
 	const SwapChainInfo swapChainInfo = GetSwapChainInfo(_physicalDevice);
 
@@ -492,7 +492,7 @@ void RendererVulkan::CreateSwapChain(VkSwapchainKHR oldSwapchain)
 	vksci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 	vksci.preTransform = swapChainInfo._surfaceCapabilities.currentTransform;
 	vksci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-	vksci.presentMode = settings._screenVSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
+	vksci.presentMode = settings._displayVSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
 	vksci.clipped = VK_TRUE;
 	vksci.oldSwapchain = oldSwapchain;
 	const uint32_t queueFamilyIndicesArray[] =
@@ -752,7 +752,7 @@ void RendererVulkan::ImGuiInit(RPHandle renderPassHandle)
 	info.PipelineCache = nullptr;
 	info.DescriptorPool = _descriptorPoolImGui;
 	info.Allocator = GetAllocator();
-	info.MinImageCount = settings._screenVSync ? 3 : 2;
+	info.MinImageCount = settings._displayVSync ? 3 : 2;
 	info.ImageCount = s_ringBufferSize;
 	info.CheckVkResultFn = ImGuiCheckVkResultFn;
 	ImGui_ImplVulkan_Init(&info, _vRenderPasses[renderPassHandle.Get()]);
@@ -791,27 +791,24 @@ void RendererVulkan::BeginFrame(bool present)
 	VERUS_QREF_RENDERER;
 	VkResult res = VK_SUCCESS;
 
-	ImGui_ImplVulkan_NewFrame();
-	ImGui_ImplSDL2_NewFrame(renderer.GetMainWindow()->GetSDL());
-	ImGui::NewFrame();
-
-	if (VK_SUCCESS != (res = vkWaitForFences(_device, 1, &_queueSubmitFences[_ringBufferIndex], VK_TRUE, UINT64_MAX)))
-		throw VERUS_RUNTIME_ERROR << "vkWaitForFences(), res=" << res;
 	if (VK_SUCCESS != (res = vkResetFences(_device, 1, &_queueSubmitFences[_ringBufferIndex])))
 		throw VERUS_RUNTIME_ERROR << "vkResetFences(), res=" << res;
-
-	vmaSetCurrentFrameIndex(_vmaAllocator, static_cast<uint32_t>(renderer.GetFrameCount()));
-
 	if (present)
 	{
 		if (VK_SUCCESS != (res = vkAcquireNextImageKHR(_device, _swapChain, UINT64_MAX, _acquireNextImageSemaphores[_ringBufferIndex], VK_NULL_HANDLE, &_swapChainBufferIndex)))
 			throw VERUS_RUNTIME_ERROR << "vkAcquireNextImageKHR(), res=" << res;
 	}
 
+	vmaSetCurrentFrameIndex(_vmaAllocator, static_cast<uint32_t>(renderer.GetFrameCount()));
+
 	if (VK_SUCCESS != (res = vkResetCommandPool(_device, _commandPools[_ringBufferIndex], VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT)))
 		throw VERUS_RUNTIME_ERROR << "vkResetCommandPool(), res=" << res;
 
 	renderer.GetCommandBuffer()->Begin();
+
+	ImGui_ImplVulkan_NewFrame();
+	ImGui_ImplSDL2_NewFrame(renderer.GetMainWindow()->GetSDL());
+	ImGui::NewFrame();
 }
 
 void RendererVulkan::EndFrame(bool present)
@@ -819,13 +816,17 @@ void RendererVulkan::EndFrame(bool present)
 	VERUS_QREF_RENDERER;
 	VkResult res = VK_SUCCESS;
 
-	renderer.GetCommandBuffer()->End();
+	UpdateScheduled();
+
+	ImGui::EndFrame();
+
+	auto cb = renderer.GetCommandBuffer();
+	cb->End();
 
 	const VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	_acquireNextImageSemaphore = _acquireNextImageSemaphores[_ringBufferIndex];
 	_queueSubmitSemaphore = _queueSubmitSemaphores[_ringBufferIndex];
-
-	VkCommandBuffer commandBuffer = static_cast<CommandBufferVulkan*>(renderer.GetCommandBuffer().Get())->GetVkCommandBuffer();
+	VkCommandBuffer commandBuffer = static_cast<CommandBufferVulkan*>(cb.Get())->GetVkCommandBuffer();
 	VkSubmitInfo vksi = {};
 	vksi.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	if (present)
@@ -843,12 +844,6 @@ void RendererVulkan::EndFrame(bool present)
 	}
 	if (VK_SUCCESS != (res = vkQueueSubmit(_graphicsQueue, 1, &vksi, _queueSubmitFences[_ringBufferIndex])))
 		throw VERUS_RUNTIME_ERROR << "vkQueueSubmit(), res=" << res;
-
-	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
-
-	ImGui::EndFrame();
-
-	UpdateScheduled();
 }
 
 void RendererVulkan::Present()
@@ -869,6 +864,16 @@ void RendererVulkan::Present()
 	vkpi.pImageIndices = &_swapChainBufferIndex;
 	if (VK_SUCCESS != (res = vkQueuePresentKHR(_presentQueue, &vkpi)))
 		throw VERUS_RUNTIME_ERROR << "vkQueuePresentKHR(), res=" << res;
+}
+
+void RendererVulkan::Sync(bool present)
+{
+	VkResult res = VK_SUCCESS;
+
+	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
+
+	if (VK_SUCCESS != (res = vkWaitForFences(_device, 1, &_queueSubmitFences[_ringBufferIndex], VK_TRUE, UINT64_MAX)))
+		throw VERUS_RUNTIME_ERROR << "vkWaitForFences(), res=" << res;
 }
 
 void RendererVulkan::WaitIdle()

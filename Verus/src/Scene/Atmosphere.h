@@ -55,11 +55,12 @@ namespace verus
 
 			struct Sun
 			{
-				Matrix3 _matTilt;
-				Vector3 _dirTo = Vector3(0, 1, 0);
-				Vector3 _color = Vector3(0);
-				float   _alpha = 1;
-				float   _latitude = 0.7f;
+				Matrix3  _matTilt;
+				Vector3  _dirTo = Vector3(0, 1, 0);
+				Vector3  _color = Vector3(0);
+				LightPwn _light;
+				float    _alpha = 1;
+				float    _latitude = 0.7f;
 			};
 
 			struct Wind
@@ -135,6 +136,7 @@ namespace verus
 			RcVector3 GetDirToSun() const;
 			RcVector3 GetSunColor() const;
 			float GetSunAlpha() const;
+			void OnSceneResetInitSunLight();
 
 			// Wind:
 			RcMatrix3 GetPlantBendingMatrix() const;

@@ -6,12 +6,12 @@ namespace verus
 	{
 		class CharacterController : public Object, public UserPtr
 		{
-			btCapsuleShape* _pCapsule = nullptr;
-			KinematicCharacterController* _pKCC = nullptr; // Action.
-			btPairCachingGhostObject* _pGhostObject = nullptr; // CollisionObject.
-			float _radius = 1;
-			float _height = 1;
-			float _offset = 0;
+			LocalPtr<btCapsuleShape>               _pCapsule;
+			LocalPtr<KinematicCharacterController> _pKCC; // Action.
+			LocalPtr<btPairCachingGhostObject>     _pGhostObject; // CollisionObject.
+			float                                  _radius = 1;
+			float                                  _height = 1;
+			float                                  _offset = 0;
 
 		public:
 			class Desc
@@ -38,8 +38,8 @@ namespace verus
 			void SetHeight(float h);
 			VERUS_P(void UpdateScaling());
 
-			KinematicCharacterController* GetKCC() { return _pKCC; }
-			const KinematicCharacterController* GetKCC() const { return _pKCC; }
+			KinematicCharacterController* GetKCC() { return _pKCC.Get(); }
+			const KinematicCharacterController* GetKCC() const { return _pKCC.Get(); }
 
 			void Move(RcVector3 velocity);
 

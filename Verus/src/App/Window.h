@@ -11,14 +11,14 @@ namespace verus
 		public:
 			struct Desc
 			{
-				CSZ    _title = nullptr;
-				int    _width = 0;
-				int    _height = 0;
-				Uint32 _flags = 0;
-				bool   _fullscreen = false;
-				bool   _resizable = false;
-				bool   _maximized = false;
-				bool   _useSettings = true;
+				CSZ         _title = nullptr;
+				int         _width = 0;
+				int         _height = 0;
+				Uint32      _flags = 0;
+				DisplayMode _displayMode = DisplayMode::windowed;
+				bool        _resizable = false;
+				bool        _maximized = false;
+				bool        _useSettings = true;
 
 				void ApplySettings();
 			};

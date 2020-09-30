@@ -8,9 +8,9 @@ using namespace verus::App;
 void Window::Desc::ApplySettings()
 {
 	VERUS_QREF_CONST_SETTINGS;
-	_width = settings._screenSizeWidth;
-	_height = settings._screenSizeHeight;
-	_fullscreen = !settings._screenWindowed;
+	_width = settings._displaySizeWidth;
+	_height = settings._displaySizeHeight;
+	_displayMode = settings._displayMode;
 }
 
 // Window:
@@ -34,13 +34,15 @@ void Window::Init(RcDesc constDesc)
 		desc.ApplySettings();
 
 	Uint32 flags = desc._flags;
-	if (desc._fullscreen)
-		flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+	if (DisplayMode::exclusiveFullscreen == desc._displayMode)
+		flags |= SDL_WINDOW_FULLSCREEN;
+	if (DisplayMode::borderlessWindowed == desc._displayMode)
+		flags |= SDL_WINDOW_BORDERLESS;
 	if (desc._resizable)
 		flags |= SDL_WINDOW_RESIZABLE;
 	if (desc._maximized)
 		flags |= SDL_WINDOW_MAXIMIZED;
-	if (settings._screenAllowHighDPI)
+	if (settings._displayAllowHighDPI)
 		flags |= SDL_WINDOW_ALLOW_HIGHDPI;
 	if (0 == settings._gapi)
 		flags |= SDL_WINDOW_VULKAN;
@@ -55,8 +57,18 @@ void Window::Init(RcDesc constDesc)
 	if (!_pWnd)
 		throw VERUS_RECOVERABLE << "SDL_CreateWindow(), " << SDL_GetError();
 
-	if (desc._fullscreen)
-		SDL_GetWindowSize(_pWnd, &settings._screenSizeWidth, &settings._screenSizeHeight);
+	if (DisplayMode::exclusiveFullscreen == desc._displayMode || DisplayMode::borderlessWindowed == desc._displayMode)
+	{
+		if (DisplayMode::exclusiveFullscreen == desc._displayMode)
+			VERUS_LOG_INFO("Window is using Exclusive Fullscreen display mode");
+		if (DisplayMode::borderlessWindowed == desc._displayMode)
+			VERUS_LOG_INFO("Window is using Borderless Windowed display mode");
+		const int prevW = settings._displaySizeWidth;
+		const int prevH = settings._displaySizeHeight;
+		SDL_GetWindowSize(_pWnd, &settings._displaySizeWidth, &settings._displaySizeHeight);
+		if (prevW != settings._displaySizeWidth || prevH != settings._displaySizeHeight)
+			VERUS_LOG_INFO("Window has adjusted resolution from " << prevW << "x" << prevH << " to " << settings._displaySizeWidth << "x" << settings._displaySizeHeight);
+	}
 }
 
 void Window::Done()

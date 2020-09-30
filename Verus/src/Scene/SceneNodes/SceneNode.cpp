@@ -5,6 +5,11 @@ using namespace verus::Scene;
 
 // SceneNode:
 
+void SceneNode::PreventNameCollision()
+{
+	_name.clear();
+}
+
 SceneNode::SceneNode()
 {
 }
@@ -25,6 +30,14 @@ void SceneNode::DrawBounds()
 		VERUS_QREF_HELPERS;
 		helpers.DrawBox(&_bounds.GetDrawTransform());
 	}
+}
+
+void SceneNode::Rename(CSZ name)
+{
+	if (_name == name)
+		return;
+	VERUS_QREF_SM;
+	_name = sm.EnsureUniqueName(name);
 }
 
 void SceneNode::SetTransform(RcTransform3 tr)
@@ -110,6 +123,35 @@ void SceneNode::MoveRigidBody()
 		VERUS_QREF_BULLET;
 		_pBody->setWorldTransform(_tr.Bullet());
 		bullet.GetWorld()->updateSingleAabb(_pBody);
+	}
+}
+
+void SceneNode::Serialize(IO::RSeekableStream stream)
+{
+	stream.WriteString(_C(_name));
+	stream << _uiRotation.GLM();
+	stream << _uiScale.GLM();
+	stream << _tr.GLM4x3();
+}
+
+void SceneNode::Deserialize(IO::RStream stream)
+{
+	if (stream.GetVersion() >= IO::Xxx::MakeVersion(3, 0))
+	{
+		char name[IO::Stream::s_bufferSize] = {};
+		glm::vec3 uiRotation;
+		glm::vec3 uiScale;
+		glm::mat4x3 tr;
+
+		stream.ReadString(name);
+		stream >> uiRotation;
+		stream >> uiScale;
+		stream >> tr;
+
+		_name = name;
+		_uiRotation = uiRotation;
+		_uiScale = uiScale;
+		_tr = tr;
 	}
 }
 
