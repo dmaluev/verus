@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -63,11 +64,6 @@ void Window::Init(RcDesc constDesc)
 			VERUS_LOG_INFO("Window is using Exclusive Fullscreen display mode");
 		if (DisplayMode::borderlessWindowed == desc._displayMode)
 			VERUS_LOG_INFO("Window is using Borderless Windowed display mode");
-		const int prevW = settings._displaySizeWidth;
-		const int prevH = settings._displaySizeHeight;
-		SDL_GetWindowSize(_pWnd, &settings._displaySizeWidth, &settings._displaySizeHeight);
-		if (prevW != settings._displaySizeWidth || prevH != settings._displaySizeHeight)
-			VERUS_LOG_INFO("Window has adjusted resolution from " << prevW << "x" << prevH << " to " << settings._displaySizeWidth << "x" << settings._displaySizeHeight);
 	}
 }
 

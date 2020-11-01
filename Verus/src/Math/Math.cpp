@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 VERUS_CT_ASSERT(sizeof(glm::vec2) == 8);

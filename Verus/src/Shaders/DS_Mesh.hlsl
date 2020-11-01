@@ -1,4 +1,4 @@
-// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 #include "Lib.hlsl"
 #include "LibColor.hlsl"
@@ -328,6 +328,7 @@ DS_FSO mainFS(VSO si)
 	const float gray = Grayscale(rawAlbedo.rgb);
 	// </Albedo>
 
+	// <Pick>
 	const float2 alpha_spec = AlphaSwitch(rawAlbedo, tc0, mm_alphaSwitch);
 	const float emitAlpha = PickAlpha(rawAlbedo.rgb, mm_emissionPick, 16.0);
 	const float eyeAlpha = PickAlphaRound(mm_eyePick, tc0);
@@ -335,7 +336,8 @@ DS_FSO mainFS(VSO si)
 	const float hairAlpha = round(PickAlpha(rawAlbedo.rgb, mm_hairPick, 16.0));
 	const float metalAlpha = PickAlpha(rawAlbedo.rgb, mm_metalPick, 16.0);
 	const float skinAlpha = PickAlpha(rawAlbedo.rgb, mm_skinPick, 16.0);
-	const float userAlpha = PickAlphaHue(rawAlbedo.rgb, mm_userPick, 32.0);
+	const float userAlpha = PickAlpha(rawAlbedo.rgb, mm_userPick, 16.0);
+	// </Pick>
 
 #ifdef DEF_PLANT
 	rawAlbedo.rgb *= si.color0.rgb;

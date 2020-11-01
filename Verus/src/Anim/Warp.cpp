@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -61,15 +62,14 @@ void Warp::Update(RSkeleton skeleton)
 	}
 }
 
-void Warp::Draw() const
+void Warp::DrawLines() const
 {
-	VERUS_QREF_HELPERS;
 	VERUS_QREF_DD;
 
 	dd.Begin(CGI::DebugDraw::Type::lines, nullptr, false);
 	for (const auto& zone : _vZones)
 	{
-		VERUS_IF_FOUND_IN(TMapOffsets, zone._mapOffsets, _now, it)
+		VERUS_IF_FOUND_IN(TMapOffsets, zone._mapOffsets, _preview, it)
 		{
 			dd.AddLine(
 				zone._pos,
@@ -78,6 +78,12 @@ void Warp::Draw() const
 		}
 	}
 	dd.End();
+}
+
+void Warp::DrawZones() const
+{
+	VERUS_QREF_HELPERS;
+	VERUS_QREF_RENDERER;
 
 	for (const auto& zone : _vZones)
 	{
@@ -88,7 +94,7 @@ void Warp::Draw() const
 		case 'g': color = VERUS_COLOR_RGBA(0, 255, 0, 255); break;
 		case 'b': color = VERUS_COLOR_RGBA(0, 0, 255, 255); break;
 		}
-		helpers.DrawSphere(zone._pos, zone._radius, color);
+		helpers.DrawSphere(zone._pos, zone._radius, color, renderer.GetCommandBuffer());
 	}
 }
 
@@ -107,8 +113,9 @@ void Warp::LoadFromPtr(SZ p)
 		throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
 	pugi::xml_node root = doc.first_child();
 
-	if (auto node = root.child("now"))
-		_now = node.text().as_string();
+	if (auto node = root.child("preview"))
+		_preview = node.text().as_string();
+	_jawScale = root.child("jaw").text().as_float(1);
 
 	_vZones.clear();
 	_vZones.reserve(16);
@@ -168,7 +175,7 @@ void Warp::Fill(PVector4 p)
 			p[pos] = Vector4(Vector3(zone._pos), 1 / zone._radius);
 			p[pos].setW(p[pos].getW() * p[pos].getW());
 			p[pos + 1] = Vector4(zone._off, 0);
-			VERUS_IF_FOUND_IN(TMapOffsets, zone._mapOffsets, _now, it)
+			VERUS_IF_FOUND_IN(TMapOffsets, zone._mapOffsets, _preview, it)
 			{
 				p[pos + 1] = Vector4(it->second, 0);
 			}
@@ -202,7 +209,7 @@ void Warp::ApplyMotion(RMotion motion, float time)
 	}
 }
 
-void Warp::ComputeLipSyncFromAudio(RcBlob blob, RMotion motion)
+void Warp::ComputeLipSyncFromAudio(RcBlob blob, RMotion motion, float jawScale)
 {
 	const int sampleRate = 44100;
 	const int byteDepth = sizeof(short);
@@ -283,7 +290,7 @@ void Warp::ComputeLipSyncFromAudio(RcBlob blob, RMotion motion)
 			accO += abs(pLetterO[index]);
 			accS += abs(pLetterS[index]);
 		}
-		float jaw = acc * scale * -0.09f;
+		float jaw = acc * scale * -0.1f * jawScale;
 		float letterO = Math::Min(accO * scale, 1.f);
 		float letterS = Math::Min(accS * scale * 5.5f, 1.f);
 		if (abs(jaw) < 0.05f)

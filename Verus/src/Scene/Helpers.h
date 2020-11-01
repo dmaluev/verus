@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -45,7 +46,7 @@ namespace verus
 			Vector<Vertex> _vCircle;
 			Vector<Vertex> _vBox;
 			Vector<Vertex> _vLight;
-			Mesh           _meshSphere;
+			Mesh           _sphere;
 			DeferredLights _deferredLights;
 
 		public:
@@ -60,7 +61,7 @@ namespace verus
 			void DrawCircle(RcPoint3 pos, float radius, UINT32 color, RTerrain terrain);
 			void    DrawBox(PcTransform3 pMat = nullptr, UINT32 color = 0);
 			void  DrawLight(RcPoint3 pos, UINT32 color = 0, PcPoint3 pTarget = nullptr);
-			void DrawSphere(RcPoint3 pos, float r, UINT32 color);
+			void DrawSphere(RcPoint3 pos, float r, UINT32 color, CGI::CommandBufferPtr cb);
 
 			static UINT32 GetBasisColorX(bool linear = false, int alpha = 255);
 			static UINT32 GetBasisColorY(bool linear = false, int alpha = 255);

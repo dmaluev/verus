@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -16,7 +17,7 @@ namespace verus
 		{
 		public:
 			Transform3 _tr = Transform3::identity();
-			//CEmitterPwn _emitter;
+			EmitterPwn _emitter;
 		};
 		VERUS_TYPEDEFS(BlockEmitter);
 
@@ -55,7 +56,6 @@ namespace verus
 			VERUS_P(void LoadExtra(SZ xml));
 
 			virtual void Update() override;
-			virtual void Draw() override;
 
 			virtual String GetUrl() override { return _C(_model->GetMesh().GetUrl()); }
 

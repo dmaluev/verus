@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 #include "Elastic.h"
@@ -6,6 +7,7 @@
 #include "Animation.h"
 #include "Warp.h"
 #include "Orbit.h"
+#include "Shaker.h"
 
 namespace verus
 {

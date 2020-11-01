@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -405,14 +406,20 @@ float Atmosphere::GetSunAlpha() const
 
 void Atmosphere::OnSceneResetInitSunLight()
 {
+	VERUS_QREF_SM;
 	// This should be called every time new scene is initialized.
+
 	if (_sun._light)
 		_sun._light.Detach(); // Clear dangling pointer from the old scene.
-	Light::Desc lightDesc;
-	lightDesc._name = "Sun";
-	lightDesc._data._lightType = CGI::LightType::dir;
-	lightDesc._data._dir = -_sun._dirTo;
-	_sun._light.Init(lightDesc);
+
+	sm.DeleteNode(NodeType::light, "Sun"); // Remove any existing light.
+
+	Light::Desc desc;
+	desc._name = "Sun";
+	desc._data._lightType = CGI::LightType::dir;
+	desc._data._dir = -_sun._dirTo;
+	_sun._light.Init(desc);
+	_sun._light->SetTransient();
 }
 
 RcMatrix3 Atmosphere::GetPlantBendingMatrix() const

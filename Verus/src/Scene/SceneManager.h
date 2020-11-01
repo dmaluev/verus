@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -12,13 +13,15 @@ namespace verus
 		};
 
 		typedef StoreUnique<String, Model> TStoreModels;
+		typedef StoreUnique<String, SceneParticles> TStoreSceneParticles;
 		typedef StoreUnique<String, Site> TStoreSites;
 		typedef Store<Block> TStoreBlocks;
 		typedef Store<Light> TStoreLights;
+		typedef Store<Emitter> TStoreEmitters;
 		typedef Store<Prefab> TStorePrefabs;
 		class SceneManager : public Singleton<SceneManager>, public Object, public Math::OctreeDelegate,
-			private TStoreModels, private TStoreSites,
-			private TStoreBlocks, private TStoreLights, private TStorePrefabs
+			private TStoreModels, private TStoreSceneParticles, private TStoreSites,
+			private TStoreBlocks, private TStoreLights, private TStoreEmitters, private TStorePrefabs
 		{
 			Math::Octree       _octree;
 			PCamera            _pCamera = nullptr;
@@ -43,6 +46,7 @@ namespace verus
 				CSZ      _name = nullptr;
 				CSZ      _blockMesh = nullptr;
 				CSZ      _blockMaterial = nullptr;
+				CSZ      _particlesUrl = nullptr;
 				NodeType _type = NodeType::unknown;
 				int      _selected = -1;
 
@@ -61,6 +65,8 @@ namespace verus
 			void UpdateParts();
 			void Layout();
 			void Draw();
+			void DrawReflection();
+			void DrawTransparent();
 			void DrawLights();
 			void DrawBounds();
 
@@ -79,12 +85,48 @@ namespace verus
 			PModel FindModel(CSZ url);
 			void DeleteModel(CSZ url);
 			void DeleteAllModels();
+			template<typename T>
+			void ForEachModel(const T& fn)
+			{
+				VERUS_FOREACH_X(TStoreModels::TMap, TStoreModels::_map, it)
+				{
+					auto& model = *it++;
+					if (Continue::yes != fn(model.second))
+						return;
+				}
+			}
+
+			// SceneParticles:
+			PSceneParticles InsertSceneParticles(CSZ url);
+			PSceneParticles FindSceneParticles(CSZ url);
+			void DeleteSceneParticles(CSZ url);
+			void DeleteAllSceneParticles();
+			template<typename T>
+			void ForEachParticles(const T& fn)
+			{
+				VERUS_FOREACH_X(TStoreSceneParticles::TMap, TStoreSceneParticles::_map, it)
+				{
+					auto& particles = *it++;
+					if (Continue::yes != fn(particles.second))
+						return;
+				}
+			}
 
 			// Sites:
 			PSite InsertSite(CSZ name);
 			PSite FindSite(CSZ name);
 			void DeleteSite(CSZ name);
 			void DeleteAllSites();
+			template<typename T>
+			void ForEachSite(const T& fn)
+			{
+				VERUS_FOREACH_X(TStoreSites::TMap, TStoreSites::_map, it)
+				{
+					auto& site = *it++;
+					if (Continue::yes != fn(site.second))
+						return;
+				}
+			}
 
 			// Blocks:
 			PBlock InsertBlock();
@@ -95,6 +137,11 @@ namespace verus
 			PLight InsertLight();
 			void DeleteLight(PLight p);
 			void DeleteAllLights();
+
+			// Emitters:
+			PEmitter InsertEmitter();
+			void DeleteEmitter(PEmitter p);
+			void DeleteAllEmitters();
 
 			// Prefabs:
 			PPrefab InsertPrefab();
@@ -139,7 +186,7 @@ namespace verus
 						if (
 							MatchName(block) &&
 							MatchSelected(block) &&
-							(!query._blockMesh || block.GetModel()->GetMesh().GetUrl() == query._blockMesh) &&
+							(!query._blockMesh || block.GetUrl() == query._blockMesh) &&
 							(!query._blockMaterial || block.GetMaterial()->_name == query._blockMaterial))
 							if (Continue::yes != fn(block))
 								return;
@@ -158,28 +205,23 @@ namespace verus
 								return;
 					}
 				}
-				//if (NodeType::unknown == query._type || NodeType::emitter == query._type)
-				//{
-				//	VERUS_FOREACH_X(TStoreEmitters::TList, TStoreEmitters::_list, it)
-				//	{
-				//		auto& emitter = *it++;
-				//		if (!query._name || emitter.GetName() == query._name)
-				//			if (Continue::yes != fn(emitter))
-				//				return;
-				//	}
-				//}
-			}
-
-			template<typename T>
-			void ForEachModel(const T& fn)
-			{
-				VERUS_FOREACH_X(TStoreModels::TMap, TStoreModels::_map, it)
+				if (NodeType::unknown == query._type || NodeType::emitter == query._type)
 				{
-					auto& model = *it++;
-					if (Continue::yes != fn(model.second))
-						return;
+					VERUS_FOREACH_X(TStoreEmitters::TList, TStoreEmitters::_list, it)
+					{
+						auto& emitter = *it++;
+						if (
+							MatchName(emitter) &&
+							MatchSelected(emitter) &&
+							MatchNotBlockQuery() &&
+							(!query._particlesUrl || emitter.GetUrl() == query._particlesUrl))
+							if (Continue::yes != fn(emitter))
+								return;
+					}
 				}
 			}
+
+			void DeleteNode(NodeType type, CSZ name);
 
 			void ClearSelection();
 			int GetSelectedCount();

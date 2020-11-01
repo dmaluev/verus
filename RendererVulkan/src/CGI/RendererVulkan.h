@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -102,6 +103,7 @@ namespace verus
 			bool CheckRequiredValidationLayers();
 			Vector<CSZ> GetRequiredExtensions();
 			void CreateInstance();
+			void FillDebugUtilsMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& vkdumci);
 			void CreateDebugUtilsMessenger();
 			void CreateSurface();
 			bool CheckRequiredDeviceExtensions(VkPhysicalDevice device);

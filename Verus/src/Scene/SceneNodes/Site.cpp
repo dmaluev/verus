@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -52,7 +53,7 @@ void Draft::Init(Site* p, RcDesc desc)
 		if (desc._matIndex)
 		{
 			mat = desc._url;
-			Str::ReplaceExtension(mat, _C(std::to_string(desc._matIndex) + ".mat"));
+			Str::ReplaceExtension(mat, _C(std::to_string(desc._matIndex) + ".xmt"));
 			blockDesc._blockMat = _C(mat);
 		}
 		_block.Init(blockDesc);

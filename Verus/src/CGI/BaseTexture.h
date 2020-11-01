@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -38,7 +39,8 @@ namespace verus
 				generateMips = (1 << 5), // Allows GenerateMips calls.
 				forceArrayTexture = (1 << 6), // Create array texture even if arrayLayers=1.
 				sync = (1 << 7),
-				exposureMips = (1 << 8)
+				exposureMips = (1 << 8),
+				cubeMap = (1 << 9)
 			};
 
 			Vector4       _clearValue = Vector4(0);

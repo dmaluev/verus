@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -85,9 +86,10 @@ void Block::LoadExtra(SZ xml)
 		{
 			RLightPwn light = _vLights[i]._light;
 
-			Light::Desc lightDesc;
-			lightDesc._node = node;
-			light.Init(lightDesc);
+			Light::Desc desc;
+			desc._node = node;
+			light.Init(desc);
+			light->SetTransient();
 			_vLights[i]._tr = light->GetTransform();
 			light->SetTransform(GetTransform() * _vLights[i]._tr);
 
@@ -97,13 +99,14 @@ void Block::LoadExtra(SZ xml)
 	i = 0;
 	for (auto node : root.children("emit"))
 	{
-		//REmitterPwn emitter = _vEmitters[i]._emitter;
+		REmitterPwn emitter = _vEmitters[i]._emitter;
 
-		//CEmitter::Desc descEmitter;
-		//descEmitter._pLoadXML = pElem;
-		//emitter.Init(descEmitter);
-		//_vEmitters[i]._tr = emitter->GetTransform();
-		//emitter->SetTransform(GetTransform() * _vEmitters[i]._tr);
+		Emitter::Desc desc;
+		desc._node = node;
+		emitter.Init(desc);
+		emitter->SetTransient();
+		_vEmitters[i]._tr = emitter->GetTransform();
+		emitter->SetTransform(GetTransform() * _vEmitters[i]._tr);
 
 		i++;
 	}
@@ -126,11 +129,6 @@ void Block::Update()
 		}
 		UpdateBounds();
 	}
-}
-
-void Block::Draw()
-{
-	//_model->Draw(&_tr, _material);
 }
 
 void Block::SetDynamic(bool mode)
@@ -166,8 +164,8 @@ void Block::UpdateBounds()
 
 	for (auto& x : _vLights)
 		x._light->SetTransform(GetTransform() * x._tr);
-	//for (auto& x : _vEmitters)
-	//	x._emitter->SetTransform(GetTransform() * x._tr);
+	for (auto& x : _vEmitters)
+		x._emitter->SetTransform(GetTransform() * x._tr);
 }
 
 void Block::Serialize(IO::RSeekableStream stream)
@@ -190,7 +188,6 @@ void Block::Deserialize(IO::RStream stream)
 		char url[IO::Stream::s_bufferSize] = {};
 		char material[IO::Stream::s_bufferSize] = {};
 		glm::vec4 userColor;
-
 		stream.ReadString(url);
 		stream.ReadString(material);
 		stream >> userColor;
@@ -200,7 +197,7 @@ void Block::Deserialize(IO::RStream stream)
 		Desc desc;
 		desc._name = _C(savedName);
 		desc._model = url;
-		desc._blockMat = strlen(material) > 0 ? material : nullptr;
+		desc._blockMat = (strlen(material) > 0) ? material : nullptr;
 		if (desc._blockMat)
 			desc._matIndex = atoi(strrchr(desc._blockMat, '.') - 1);
 		Init(desc);

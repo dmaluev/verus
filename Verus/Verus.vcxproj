@@ -95,6 +95,7 @@
     <ClInclude Include="src\Anim\Animation.h" />
     <ClInclude Include="src\Anim\Elastic.h" />
     <ClInclude Include="src\Anim\Orbit.h" />
+    <ClInclude Include="src\Anim\Shaker.h" />
     <ClInclude Include="src\Anim\Warp.h" />
     <ClInclude Include="src\Anim\Motion.h" />
     <ClInclude Include="src\Anim\Skeleton.h" />
@@ -146,6 +147,7 @@
     <ClInclude Include="src\Global\AlignedAllocator.h" />
     <ClInclude Include="src\Global\AllocatorAware.h" />
     <ClInclude Include="src\Global\BaseAllocator.h" />
+    <ClInclude Include="src\Global\BaseCircularBuffer.h" />
     <ClInclude Include="src\Global\Basic.h" />
     <ClInclude Include="src\Global\Blob.h" />
     <ClInclude Include="src\Global\Convert.h" />
@@ -216,6 +218,7 @@
     <ClInclude Include="src\Math\Vector.h" />
     <ClInclude Include="src\Net\Addr.h" />
     <ClInclude Include="src\Net\HttpFile.h" />
+    <ClInclude Include="src\Net\Multiplayer.h" />
     <ClInclude Include="src\Net\Net.h" />
     <ClInclude Include="src\Net\Socket.h" />
     <ClInclude Include="src\Physics\Bullet.h" />
@@ -226,6 +229,7 @@
     <ClInclude Include="src\Physics\Physics.h" />
     <ClInclude Include="src\Physics\Spring.h" />
     <ClInclude Include="src\Physics\UserPtr.h" />
+    <ClInclude Include="src\Physics\Vehicle.h" />
     <ClInclude Include="src\Scene\Atmosphere.h" />
     <ClInclude Include="src\Scene\BaseMesh.h" />
     <ClInclude Include="src\Scene\Camera.h" />
@@ -240,11 +244,13 @@
     <ClInclude Include="src\Scene\Scene.h" />
     <ClInclude Include="src\Scene\SceneManager.h" />
     <ClInclude Include="src\Scene\SceneNodes\Block.h" />
+    <ClInclude Include="src\Scene\SceneNodes\Emitter.h" />
     <ClInclude Include="src\Scene\SceneNodes\Light.h" />
     <ClInclude Include="src\Scene\SceneNodes\Model.h" />
     <ClInclude Include="src\Scene\SceneNodes\Prefab.h" />
     <ClInclude Include="src\Scene\SceneNodes\SceneNode.h" />
     <ClInclude Include="src\Scene\SceneNodes\SceneNodes.h" />
+    <ClInclude Include="src\Scene\SceneNodes\SceneParticles.h" />
     <ClInclude Include="src\Scene\SceneNodes\Site.h" />
     <ClInclude Include="src\Scene\SceneNodes\Types.h" />
     <ClInclude Include="src\Scene\ShadowMap.h" />
@@ -291,6 +297,7 @@
     <ClCompile Include="src\Anim\Anim.cpp" />
     <ClCompile Include="src\Anim\Animation.cpp" />
     <ClCompile Include="src\Anim\Orbit.cpp" />
+    <ClCompile Include="src\Anim\Shaker.cpp" />
     <ClCompile Include="src\Anim\Warp.cpp" />
     <ClCompile Include="src\Anim\Motion.cpp" />
     <ClCompile Include="src\Anim\Skeleton.cpp" />
@@ -383,6 +390,7 @@
     <ClCompile Include="src\Math\Vector.cpp" />
     <ClCompile Include="src\Net\Addr.cpp" />
     <ClCompile Include="src\Net\HttpFile.cpp" />
+    <ClCompile Include="src\Net\Multiplayer.cpp" />
     <ClCompile Include="src\Net\Net.cpp" />
     <ClCompile Include="src\Net\Socket.cpp" />
     <ClCompile Include="src\Physics\Bullet.cpp" />
@@ -394,6 +402,7 @@
     </ClCompile>
     <ClCompile Include="src\Physics\Physics.cpp" />
     <ClCompile Include="src\Physics\Spring.cpp" />
+    <ClCompile Include="src\Physics\Vehicle.cpp" />
     <ClCompile Include="src\Scene\Atmosphere.cpp" />
     <ClCompile Include="src\Scene\BaseMesh.cpp" />
     <ClCompile Include="src\Scene\Camera.cpp" />
@@ -408,11 +417,13 @@
     <ClCompile Include="src\Scene\Scene.cpp" />
     <ClCompile Include="src\Scene\SceneManager.cpp" />
     <ClCompile Include="src\Scene\SceneNodes\Block.cpp" />
+    <ClCompile Include="src\Scene\SceneNodes\Emitter.cpp" />
     <ClCompile Include="src\Scene\SceneNodes\Light.cpp" />
     <ClCompile Include="src\Scene\SceneNodes\Model.cpp" />
     <ClCompile Include="src\Scene\SceneNodes\Prefab.cpp" />
     <ClCompile Include="src\Scene\SceneNodes\SceneNode.cpp" />
     <ClCompile Include="src\Scene\SceneNodes\SceneNodes.cpp" />
+    <ClCompile Include="src\Scene\SceneNodes\SceneParticles.cpp" />
     <ClCompile Include="src\Scene\SceneNodes\Site.cpp" />
     <ClCompile Include="src\Scene\ShadowMap.cpp" />
     <ClCompile Include="src\Scene\Terrain.cpp" />
@@ -784,6 +795,14 @@
       <FileType>Document</FileType>
     </None>
     <None Include="src\Shaders\Particles.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\SimpleMesh.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\SimpleMesh.inc.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

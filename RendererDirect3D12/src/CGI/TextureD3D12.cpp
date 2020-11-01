@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "stdafx.h"
 
 using namespace verus;
@@ -34,6 +35,9 @@ void TextureD3D12::Init(RcTextureDesc desc)
 	const bool renderTarget = (_desc._flags & TextureDesc::Flags::colorAttachment);
 	const bool depthFormat = IsDepthFormat(desc._format);
 	const bool depthSampled = _desc._flags & (TextureDesc::Flags::depthSampledR | TextureDesc::Flags::depthSampledW);
+	const bool cubeMap = (_desc._flags & TextureDesc::Flags::cubeMap);
+	if (cubeMap)
+		_desc._arrayLayers = 6;
 	if (_desc._flags & TextureDesc::Flags::anyShaderResource)
 		_mainLayout = ImageLayout::xsReadOnly;
 
@@ -130,9 +134,10 @@ void TextureD3D12::Init(RcTextureDesc desc)
 		{
 			D3D12MA::ALLOCATION_DESC allocDesc = {};
 			allocDesc.HeapType = D3D12_HEAP_TYPE_READBACK;
+			const auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 			if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
 				&allocDesc,
-				&CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
+				&resDesc,
 				D3D12_RESOURCE_STATE_COPY_DEST,
 				nullptr,
 				&x._pMaAllocation,
@@ -170,8 +175,14 @@ void TextureD3D12::Init(RcTextureDesc desc)
 	}
 	else
 	{
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvCubeDesc = {};
+		srvCubeDesc.Format = ToNativeFormat(_desc._format, false);
+		srvCubeDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+		srvCubeDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvCubeDesc.TextureCube.MostDetailedMip = 0;
+		srvCubeDesc.TextureCube.MipLevels = _desc._mipLevels;
 		_dhSRV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-		pRendererD3D12->GetD3DDevice()->CreateShaderResourceView(_resource._pResource.Get(), nullptr, _dhSRV.AtCPU(0));
+		pRendererD3D12->GetD3DDevice()->CreateShaderResourceView(_resource._pResource.Get(), cubeMap ? &srvCubeDesc : nullptr, _dhSRV.AtCPU(0));
 	}
 
 	if (_desc._pSamplerDesc)
@@ -226,9 +237,10 @@ void TextureD3D12::UpdateSubresource(const void* p, int mipLevel, int arrayLayer
 	{
 		D3D12MA::ALLOCATION_DESC allocDesc = {};
 		allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+		const auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
 			&allocDesc,
-			&CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
+			&resDesc,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			&sb._pMaAllocation,
@@ -291,10 +303,12 @@ bool TextureD3D12::ReadbackSubresource(void* p, bool recordCopyCommand, PBaseCom
 		footprint.Footprint.Depth = 1;
 		footprint.Footprint.RowPitch = rowPitch;
 		const UINT subresource = D3D12CalcSubresource(_desc._readbackMip, 0, 0, _desc._mipLevels, _desc._arrayLayers);
+		const auto dstCopyLoc = CD3DX12_TEXTURE_COPY_LOCATION(rb._pResource.Get(), footprint);
+		const auto srcCopyLoc = CD3DX12_TEXTURE_COPY_LOCATION(_resource._pResource.Get(), subresource);
 		pCmdList->CopyTextureRegion(
-			&CD3DX12_TEXTURE_COPY_LOCATION(rb._pResource.Get(), footprint),
+			&dstCopyLoc,
 			0, 0, 0,
-			&CD3DX12_TEXTURE_COPY_LOCATION(_resource._pResource.Get(), subresource),
+			&srcCopyLoc,
 			nullptr);
 		pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::transferSrc, _mainLayout, _desc._readbackMip, 0);
 	}
@@ -396,10 +410,12 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 		{
 			const int subUAV = srcMip + mip;
 			const int subSRV = subUAV + 1;
+			const auto dstCopyLoc = CD3DX12_TEXTURE_COPY_LOCATION(_resource._pResource.Get(), subSRV);
+			const auto srcCopyLoc = CD3DX12_TEXTURE_COPY_LOCATION(_uaResource._pResource.Get(), subUAV);
 			pCmdList->CopyTextureRegion(
-				&CD3DX12_TEXTURE_COPY_LOCATION(_resource._pResource.Get(), subSRV),
+				&dstCopyLoc,
 				0, 0, 0,
-				&CD3DX12_TEXTURE_COPY_LOCATION(_uaResource._pResource.Get(), subUAV),
+				&srcCopyLoc,
 				nullptr);
 		}
 		// Transition state for next Dispatch():

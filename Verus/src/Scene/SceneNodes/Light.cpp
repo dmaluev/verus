@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -20,13 +21,13 @@ void Light::Init(RcDesc desc)
 	VERUS_QREF_SM;
 	_name = sm.EnsureUniqueName(desc._name ? desc._name : "Light");
 	_data = desc._data;
-	//if (desc._urlIntShaker)
-	//{
-	//	_shaker.Load(desc._urlIntShaker);
-	//	_shaker.Randomize();
-	//	_shaker.SetScaleBias(0.5f * desc._intShakerScale, 1 - 0.5f * desc._intShakerScale);
-	//	_intMax = GetIntensity();
-	//}
+	if (desc._urlIntShaker)
+	{
+		_shaker.Load(desc._urlIntShaker);
+		_shaker.Randomize();
+		_shaker.SetScaleBias(0.5f * desc._intShakerScale, 1 - 0.5f * desc._intShakerScale);
+		_baseIntensity = GetIntensity();
+	}
 }
 
 void Light::Done()
@@ -47,15 +48,11 @@ void Light::Update()
 		}
 	}
 
-	//if (_shaker.IsLoaded())
-	//{
-	//	_shaker.Update();
-	//	SetIntensity(_shaker.Get() * _intMax);
-	//}
-}
-
-void Light::Draw()
-{
+	if (_shaker.IsLoaded())
+	{
+		_shaker.Update();
+		SetIntensity(_shaker.Get() * _baseIntensity);
+	}
 }
 
 void Light::SetLightType(CGI::LightType type)
@@ -223,6 +220,38 @@ void Light::UpdateBounds()
 	}
 }
 
+void Light::Serialize(IO::RSeekableStream stream)
+{
+	SceneNode::Serialize(stream);
+
+	stream << _data._lightType;
+	stream << _data._color;
+	stream << _data._dir;
+	stream << _data._radius;
+	stream << _data._coneIn;
+	stream << _data._coneOut;
+}
+
+void Light::Deserialize(IO::RStream stream)
+{
+	SceneNode::Deserialize(stream);
+	const String savedName = _C(GetName());
+	PreventNameCollision();
+
+	if (stream.GetVersion() >= IO::Xxx::MakeVersion(3, 0))
+	{
+		Desc desc;
+		desc._name = _C(savedName);
+		stream >> desc._data._lightType;
+		stream >> desc._data._color;
+		stream >> desc._data._dir;
+		stream >> desc._data._radius;
+		stream >> desc._data._coneIn;
+		stream >> desc._data._coneOut;
+		Init(desc);
+	}
+}
+
 void Light::SaveXML(pugi::xml_node node)
 {
 	SceneNode::SaveXML(node);
@@ -258,6 +287,9 @@ void Light::LoadXML(pugi::xml_node node)
 	desc._data._radius = node.attribute("radius").as_float(desc._data._radius);
 	desc._data._coneIn = node.attribute("coneIn").as_float(desc._data._coneIn);
 	desc._data._coneOut = node.attribute("coneOut").as_float(desc._data._coneOut);
+	desc._intShakerScale = node.attribute("intShakerScale").as_float(desc._intShakerScale);
+	if (auto attr = node.attribute("urlIntShaker"))
+		desc._urlIntShaker = attr.value();
 	Init(desc);
 }
 

@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -28,7 +29,8 @@ void SceneNode::DrawBounds()
 	if (!_bounds.IsNull())
 	{
 		VERUS_QREF_HELPERS;
-		helpers.DrawBox(&_bounds.GetDrawTransform());
+		const Transform3 tr = _bounds.GetDrawTransform();
+		helpers.DrawBox(&tr);
 	}
 }
 
@@ -108,7 +110,7 @@ void SceneNode::SetCollisionGroup(Physics::Group g)
 {
 	if (_pBody && _pBody->getBroadphaseHandle()->m_collisionFilterGroup != +g)
 	{
-		// http://bulletphysics.org/Bullet/phpBB3/viewtopic.php?t=7538
+		// https://pybullet.org/Bullet/phpBB3/viewtopic.php?t=7538
 		VERUS_QREF_BULLET;
 		bullet.GetWorld()->removeRigidBody(_pBody);
 		bullet.GetWorld()->addRigidBody(_pBody, +g, -1);
@@ -119,7 +121,7 @@ void SceneNode::MoveRigidBody()
 {
 	if (_pBody)
 	{
-		// http://bulletphysics.org/Bullet/phpBB3/viewtopic.php?t=6729
+		// https://pybullet.org/Bullet/phpBB3/viewtopic.php?t=6729
 		VERUS_QREF_BULLET;
 		_pBody->setWorldTransform(_tr.Bullet());
 		bullet.GetWorld()->updateSingleAabb(_pBody);
@@ -160,7 +162,7 @@ void SceneNode::SaveXML(pugi::xml_node node)
 	node.append_attribute("name") = _C(_name);
 	node.append_attribute("uiR") = _C(_uiRotation.ToString(true));
 	node.append_attribute("uiS") = _C(_uiScale.ToString(true));
-	node.append_attribute("m") = _C(_tr.ToString());
+	node.append_attribute("tr") = _C(_tr.ToString());
 }
 
 void SceneNode::LoadXML(pugi::xml_node node)
@@ -169,7 +171,7 @@ void SceneNode::LoadXML(pugi::xml_node node)
 		_name = attr.value();
 	_uiRotation.FromString(node.attribute("uiR").value());
 	_uiScale.FromString(node.attribute("uiS").value());
-	_tr.FromString(node.attribute("m").value());
+	_tr.FromString(node.attribute("tr").value());
 }
 
 float SceneNode::GetDistToEyeSq() const

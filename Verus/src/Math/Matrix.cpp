@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -234,7 +235,10 @@ glm::mat4x3 Transform3::GLM4x3() const
 {
 	glm::mat4x3 m;
 	VERUS_FOR(i, 4)
-		memcpy(&m[i], &(*this)[i], sizeof(float) * 3);
+	{
+		const auto v = (*this)[i];
+		memcpy(&m[i], &v, sizeof(float) * 3);
+	}
 	return m;
 }
 

@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -21,12 +22,12 @@ void Texture::Init(CSZ url, bool streamParts, bool sync, CGI::PcSamplerDesc pSam
 
 	_streamParts = streamParts;
 	if (_streamParts)
-		_requestedPart = FLT_MAX;
+		_requestedPart = FLT_MAX; // Start with tiny texture.
 
 	CGI::TextureDesc texDesc;
+	texDesc._pSamplerDesc = pSamplerDesc;
 	texDesc._url = url;
 	texDesc._texturePart = _streamParts ? 512 : 0;
-	texDesc._pSamplerDesc = pSamplerDesc;
 	if (sync)
 		texDesc._flags = CGI::TextureDesc::Flags::sync;
 	_texTiny.Init(texDesc);
@@ -46,45 +47,80 @@ bool Texture::Done()
 
 void Texture::Update()
 {
-	const bool hugeReady = (_texHuge && _texHuge->IsLoaded());
-	if (_streamParts && (!_texHuge || hugeReady))
+	if (_streamParts)
 	{
-		const int maxPart = _texTiny->GetPart();
-		if (maxPart > 0) // Must have at least two parts: 0 and 1.
+		VERUS_QREF_RENDERER;
+
+		// Check if the next huge texture is loaded:
+		const int nextHuge = (_currentHuge + 1) & 0x1;
+		if (_loading && _texHuge[nextHuge] && _texHuge[nextHuge]->IsLoaded())
 		{
-			const float reqPart = Math::Min<float>(_requestedPart, SHRT_MAX);
+			_loading = false;
+			_currentHuge = nextHuge; // Use it.
+			_nextSafeFrame = renderer.GetFrameCount() + CGI::BaseRenderer::s_ringBufferSize + 1;
+		}
 
-			const int part = hugeReady ? _texHuge->GetPart() : maxPart;
-			int newPart = part;
+		const bool safeFrame = !_loading && (renderer.GetFrameCount() >= _nextSafeFrame);
+		if (safeFrame)
+		{
+			const int prevHuge = (_currentHuge + 1) & 0x1;
+			if (_texHuge[prevHuge]) // Garbage collection (next huge texture must be empty).
+				_texHuge[prevHuge].Done();
 
-			if (part > reqPart)
-				newPart = static_cast<int>(reqPart);
-			if (part + 1.5f < reqPart)
-				newPart = static_cast<int>(reqPart);
-
-			newPart = Math::Clamp(newPart, 0, maxPart);
-
-			if (_texHuge && (newPart == maxPart)) // Unload texture?
+			const int maxPart = _texTiny->GetPart();
+			if (maxPart > 0) // Must have at least two parts: 0 and 1.
 			{
-				_texHuge.Done();
-			}
-			else if (newPart != part) // Change part?
-			{
-				_texHuge.Done();
-				CGI::TextureDesc texDesc;
-				texDesc._url = _C(_texTiny->GetName());
-				texDesc._texturePart = newPart;
-				_texHuge.Init(texDesc);
+				const float reqPart = Math::Min<float>(_requestedPart, SHRT_MAX);
+
+				const bool hugeReady = (_texHuge[_currentHuge] && _texHuge[_currentHuge]->IsLoaded());
+				const int currentPart = hugeReady ? _texHuge[_currentHuge]->GetPart() : maxPart;
+				int newPart = currentPart;
+
+				if (reqPart < currentPart) // Increase texture?
+					newPart = static_cast<int>(reqPart);
+				if (reqPart > currentPart + 1.5f) // Decrease texture?
+					newPart = static_cast<int>(reqPart);
+
+				newPart = Math::Clamp(newPart, 0, maxPart);
+
+				if (_texHuge[_currentHuge] && (newPart == maxPart)) // Unload huge texture, use tiny?
+				{
+					_currentHuge = (_currentHuge + 1) & 0x1; // Go to empty huge texture.
+					_nextSafeFrame = renderer.GetFrameCount() + CGI::BaseRenderer::s_ringBufferSize;
+				}
+				else if (newPart != currentPart) // Change part?
+				{
+					_loading = true;
+					const int nextHuge = (_currentHuge + 1) & 0x1;
+
+					CGI::TextureDesc texDesc;
+					texDesc._url = _C(_texTiny->GetName());
+					texDesc._texturePart = newPart;
+					_texHuge[nextHuge].Init(texDesc);
+				}
 			}
 		}
 	}
 }
 
+CGI::TexturePtr Texture::GetTex() const
+{
+	return _texHuge[_currentHuge] ? _texHuge[_currentHuge] : _texTiny;
+}
+
+CGI::TexturePtr Texture::GetTinyTex() const
+{
+	return _texTiny;
+}
+
+CGI::TexturePtr Texture::GetHugeTex() const
+{
+	return _texHuge[_currentHuge];
+}
+
 int Texture::GetPart() const
 {
-	if (_texHuge && _texHuge->IsLoaded())
-		return _texHuge->GetPart();
-	return _texTiny->GetPart();
+	return _texHuge[_currentHuge] ? _texHuge[_currentHuge]->GetPart() : _texTiny->GetPart();
 }
 
 // TexturePtr:
@@ -248,6 +284,7 @@ bool Material::Done()
 	_refCount--;
 	if (_refCount <= 0)
 	{
+		Mesh::GetSimpleShader()->FreeDescriptorSet(_cshSimple);
 		Mesh::GetShader()->FreeDescriptorSet(_cshTemp);
 		Mesh::GetShader()->FreeDescriptorSet(_cshTiny);
 		Mesh::GetShader()->FreeDescriptorSet(_csh);
@@ -284,8 +321,8 @@ void Material::Update()
 
 	// Request BindDescriptorSetTextures call by clearing _csh:
 	const bool partChanged =
-		_albedoPart != _texAlbedo->GetPart() ||
-		_normalPart != _texNormal->GetPart();
+		_texAlbedo && (_albedoPart != _texAlbedo->GetPart()) ||
+		_texNormal && (_normalPart != _texNormal->GetPart());
 	if (partChanged && !_cshTemp.IsSet())
 	{
 		_albedoPart = _texAlbedo->GetPart();
@@ -302,16 +339,11 @@ void Material::Update()
 
 bool Material::IsLoaded() const
 {
-	if (IsMissing())
+	if (!_texAlbedo || !_texNormal)
 		return false;
 	return
 		_texAlbedo->GetTex()->IsLoaded() &&
 		_texNormal->GetTex()->IsLoaded();
-}
-
-bool Material::IsMissing() const
-{
-	return !_texAlbedo || !_texNormal;
 }
 
 void Material::LoadTextures(bool streamParts)
@@ -401,13 +433,21 @@ CGI::CSHandle Material::GetComplexSetHandle() const
 	return _cshTiny;
 }
 
+CGI::CSHandle Material::GetComplexSetHandleSimple() const
+{
+	return _cshSimple;
+}
+
 void Material::BindDescriptorSetTextures()
 {
 	VERUS_RT_ASSERT(!_csh.IsSet());
 	VERUS_RT_ASSERT(IsLoaded());
 	VERUS_QREF_MM;
+	VERUS_QREF_ATMO;
 	if (!_cshTiny.IsSet())
 		_cshTiny = Mesh::GetShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTinyTex(), _texNormal->GetTinyTex(), mm.GetDetailTexture(), mm.GetStrassTexture() });
+	if (!_cshSimple.IsSet())
+		_cshSimple = Mesh::GetSimpleShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTinyTex(), atmo.GetShadowMap().GetTexture() });
 	_csh = Mesh::GetShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTex(), _texNormal->GetTex(), mm.GetDetailTexture(), mm.GetStrassTexture() });
 }
 
@@ -429,6 +469,43 @@ bool Material::UpdateMeshUniformBuffer(float motionBlur)
 	ub._glossScaleBias_specScaleBias = float4(_glossScaleBias, _specScaleBias);
 	ub._hairPick = _hairPick;
 	ub._lamScaleBias_lightPass_motionBlur = float4(_lamScaleBias, _lightPass, motionBlur);
+	ub._metalPick = _metalPick;
+	ub._skinPick = _skinPick;
+	ub._tc0ScaleBias = _tc0ScaleBias;
+	ub._texEnableAlbedo = _texEnableAlbedo;
+	ub._texEnableNormal = _texEnableNormal;
+	ub._userColor = _userColor;
+	ub._userPick = _userPick;
+	if (_texAlbedo)
+	{
+		ub._detailScale_strassScale = float4(
+			_texAlbedo->GetTex()->GetSize().getX() / 256 * 4,
+			_texAlbedo->GetTex()->GetSize().getY() / 256 * 4,
+			_texAlbedo->GetTex()->GetSize().getX() / 256 * 8,
+			_texAlbedo->GetTex()->GetSize().getY() / 256 * 8);
+	}
+
+	return 0 != memcmp(&ubPrev, &ub, sizeof(Mesh::UB_PerMaterialFS));
+}
+
+bool Material::UpdateMeshUniformBufferSimple()
+{
+	Mesh::UB_SimplePerMaterialFS& ub = Mesh::GetUbSimplePerMaterialFS();
+	Mesh::UB_SimplePerMaterialFS ubPrev;
+	memcpy(&ubPrev, &ub, sizeof(Mesh::UB_PerMaterialFS));
+
+	ub._alphaSwitch_anisoSpecDir = float4(_alphaSwitch, _anisoSpecDir);
+	ub._detail_emission_gloss_hairDesat.x = _detail;
+	ub._detail_emission_gloss_hairDesat.y = _emission;
+	ub._detail_emission_gloss_hairDesat.z = _gloss;
+	ub._detail_emission_gloss_hairDesat.w = _hairDesat;
+	ub._detailScale_strassScale = float4(1, 1, 1, 1);
+	ub._emissionPick = _emissionPick;
+	ub._eyePick = _eyePick;
+	ub._glossPick = _glossPick;
+	ub._glossScaleBias_specScaleBias = float4(_glossScaleBias, _specScaleBias);
+	ub._hairPick = _hairPick;
+	ub._lamScaleBias_lightPass_motionBlur = float4(_lamScaleBias, _lightPass, 0);
 	ub._metalPick = _metalPick;
 	ub._skinPick = _skinPick;
 	ub._tc0ScaleBias = _tc0ScaleBias;

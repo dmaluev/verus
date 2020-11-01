@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -8,6 +9,14 @@ namespace verus
 		{
 		public:
 #include "../Shaders/DS_Mesh.inc.hlsl"
+#include "../Shaders/SimpleMesh.inc.hlsl"
+
+			enum SHADER
+			{
+				SHADER_MAIN,
+				SHADER_SIMPLE,
+				SHADER_COUNT
+			};
 
 			enum PIPE
 			{
@@ -40,6 +49,11 @@ namespace verus
 				PIPE_WIREFRAME_ROBOTIC,
 				PIPE_WIREFRAME_SKINNED,
 
+				PIPE_SIMPLE_REF,
+				PIPE_SIMPLE_REF_INSTANCED,
+				PIPE_SIMPLE_REF_ROBOTIC,
+				PIPE_SIMPLE_REF_SKINNED,
+
 				PIPE_COUNT
 			};
 
@@ -52,13 +66,18 @@ namespace verus
 			};
 
 		private:
-			static CGI::ShaderPwn                s_shader;
+			static CGI::ShaderPwns<SHADER_COUNT> s_shader;
 			static CGI::PipelinePwns<PIPE_COUNT> s_pipe;
 			static UB_PerFrame                   s_ubPerFrame;
 			static UB_PerMaterialFS              s_ubPerMaterialFS;
 			static UB_PerMeshVS                  s_ubPerMeshVS;
 			static UB_SkeletonVS                 s_ubSkeletonVS;
 			static UB_PerObject                  s_ubPerObject;
+			static UB_SimplePerFrame             s_ubSimplePerFrame;
+			static UB_SimplePerMaterialFS        s_ubSimplePerMaterialFS;
+			static UB_SimplePerMeshVS            s_ubSimplePerMeshVS;
+			static UB_SimpleSkeletonVS           s_ubSimpleSkeletonVS;
+			static UB_SimplePerObject            s_ubSimplePerObject;
 
 			CGI::GeometryPwn        _geo;
 			Vector<PerInstanceData> _vInstanceBuffer;
@@ -82,8 +101,12 @@ namespace verus
 			struct DrawDesc
 			{
 				Transform3    _matW = Transform3::identity();
+				Vector4       _userColor = Vector4(0);
 				CGI::CSHandle _cshMaterial;
+				PIPE          _pipe = PIPE_COUNT;
 				bool          _allowTess = true;
+				bool          _bindMaterial = true;
+				bool          _bindSkeleton = true;
 			};
 			VERUS_TYPEDEFS(DrawDesc);
 
@@ -97,20 +120,24 @@ namespace verus
 			void Done();
 
 			void Draw(RcDrawDesc dd, CGI::CommandBufferPtr cb);
+			void DrawSimple(RcDrawDesc dd, CGI::CommandBufferPtr cb);
 
 			void BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb);
 			void BindPipeline(CGI::CommandBufferPtr cb, bool allowTess = true);
 			void BindPipelineInstanced(CGI::CommandBufferPtr cb, bool allowTess = true, bool plant = false);
-			void BindGeo(CGI::CommandBufferPtr cb);
-			void BindGeo(CGI::CommandBufferPtr cb, UINT32 bindingsFilter);
+			void BindGeo(CGI::CommandBufferPtr cb, UINT32 bindingsFilter = 0);
 
-			static CGI::ShaderPtr GetShader() { return s_shader; }
+			static CGI::ShaderPtr GetShader() { return s_shader[SHADER_MAIN]; }
 			static UB_PerMaterialFS& GetUbPerMaterialFS() { return s_ubPerMaterialFS; }
 			void UpdateUniformBufferPerFrame(float invTessDist = 0);
 			void UpdateUniformBufferPerMeshVS();
 			void UpdateUniformBufferSkeletonVS();
 			void UpdateUniformBufferPerObject(RcTransform3 tr, RcVector4 color = Vector4(0.5f, 0.5f, 0.5f, 1));
-			void UpdateUniformBufferPerObject(Point3 pos, RcVector4 color = Vector4(0.5f, 0.5f, 0.5f, 1));
+
+			static CGI::ShaderPtr GetSimpleShader() { return s_shader[SHADER_SIMPLE]; }
+			static UB_SimplePerMaterialFS& GetUbSimplePerMaterialFS() { return s_ubSimplePerMaterialFS; }
+			void UpdateUniformBufferSimplePerFrame();
+			void UpdateUniformBufferSimpleSkeletonVS();
 
 			CGI::GeometryPtr GetGeometry() const { return _geo; }
 			virtual void CreateDeviceBuffers() override;

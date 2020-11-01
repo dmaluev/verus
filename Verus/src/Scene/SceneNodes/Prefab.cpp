@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -66,16 +67,17 @@ void Prefab::LoadPrefab(SZ xml)
 		{
 			matFrag = _url;
 			Str::ReplaceFilename(matFrag, mat);
-			matFrag += ".mat";
+			matFrag += ".xmt";
 		}
 
-		Block::Desc descBlock;
-		descBlock._model = _C(urlFrag);
-		descBlock._modelMat = _C(matFrag);
-		descBlock._collide = _collide;
-		f._block.Init(descBlock);
-		CSZ m = node.attribute("m").value();
-		f._matrix.FromString(m);
+		Block::Desc desc;
+		desc._model = _C(urlFrag);
+		desc._modelMat = _C(matFrag);
+		desc._collide = _collide;
+		f._block.Init(desc);
+		f._block->SetTransient();
+		CSZ tr = node.attribute("tr").value();
+		f._tr.FromString(tr);
 
 		i++;
 	}
@@ -130,8 +132,8 @@ void Prefab::UpdateBounds()
 	{
 		if (f._block) // Async loaded?
 		{
-			const Transform3 mat = GetTransform() * f._matrix;
-			f._block->SetTransform(mat);
+			const Transform3 tr = GetTransform() * f._tr;
+			f._block->SetTransform(tr);
 		}
 	}
 	if (_async_loadedAllBlocks)
@@ -152,6 +154,30 @@ void Prefab::MoveRigidBody()
 {
 	for (auto& f : _vFragments)
 		f._block->MoveRigidBody();
+}
+
+void Prefab::Serialize(IO::RSeekableStream stream)
+{
+	SceneNode::Serialize(stream);
+
+	stream.WriteString(_C(GetUrl()));
+}
+
+void Prefab::Deserialize(IO::RStream stream)
+{
+	SceneNode::Deserialize(stream);
+	const String savedName = _C(GetName());
+	PreventNameCollision();
+
+	if (stream.GetVersion() >= IO::Xxx::MakeVersion(3, 0))
+	{
+		char url[IO::Stream::s_bufferSize] = {};
+		stream.ReadString(url);
+
+		Desc desc;
+		desc._url = url;
+		Init(desc);
+	}
 }
 
 void Prefab::SaveXML(pugi::xml_node node)

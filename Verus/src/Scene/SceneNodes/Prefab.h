@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -7,7 +8,7 @@ namespace verus
 		class Fragment
 		{
 		public:
-			Transform3 _matrix = Transform3::identity();
+			Transform3 _tr = Transform3::identity();
 			BlockPwn   _block;
 		};
 		VERUS_TYPEDEFS(Fragment);
@@ -51,6 +52,8 @@ namespace verus
 			virtual void MoveRigidBody() override;
 
 			// Serialization:
+			virtual void Serialize(IO::RSeekableStream stream) override;
+			virtual void Deserialize(IO::RStream stream) override;
 			virtual void SaveXML(pugi::xml_node node) override;
 			virtual void LoadXML(pugi::xml_node node) override;
 		};

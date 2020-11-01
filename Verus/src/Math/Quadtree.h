@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -83,7 +84,7 @@ namespace verus
 
 			Continue TraverseVisible(RcPoint3 point, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr) const;
 
-			VERUS_P(static void ChildIndices(RcPoint3 point, RcPoint3 center, BYTE childIndices[4]));
+			VERUS_P(static void RemapChildIndices(RcPoint3 point, RcPoint3 center, BYTE childIndices[4]));
 
 			RcBounds GetBounds() const { return _bounds; }
 		};

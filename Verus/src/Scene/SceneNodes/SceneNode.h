@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -9,7 +10,6 @@ namespace verus
 		//! * can be parent or child
 		//! * has generic parameters
 		//! * has bounds
-		//! * can be transformed using the gizmo
 		class SceneNode : public AllocatorAware, public Physics::UserPtr
 		{
 		protected:
@@ -22,10 +22,11 @@ namespace verus
 			String         _parent;
 			btRigidBody* _pBody = nullptr;
 			NodeType       _type = NodeType::unknown;
-			bool           _hidden = false;
 			bool           _dynamic = false;
+			bool           _hidden = false;
 			bool           _octreeBindOnce = false; //!< Don't rebind this node after every bounds change.
 			bool           _selected = false;
+			bool           _transient = false;
 
 			void PreventNameCollision();
 
@@ -46,14 +47,17 @@ namespace verus
 			virtual String GetUrl() { return ""; }
 			IO::RDictionary GetDictionary() { return _dict; }
 
-			void Hide(bool hide = true) { _hidden = hide; }
-			bool IsHidden() const { return _hidden; }
-
-			virtual void SetDynamic(bool mode) { _dynamic = mode; }
 			bool IsDynamic() const { return _dynamic; }
+			virtual void SetDynamic(bool mode) { _dynamic = mode; }
 
-			void Select(bool select = true) { _selected = select; }
+			bool IsHidden() const { return _hidden; }
+			void Hide(bool hide = true) { _hidden = hide; }
+
 			bool IsSelected() const { return _selected; }
+			void Select(bool select = true) { _selected = select; }
+
+			bool IsTransient() const { return _transient; }
+			void SetTransient(bool transient = true) { _transient = transient; }
 
 			virtual Vector4 GetColor() { return Vector4(0); }
 			virtual void SetColor(RcVector4 color) {}

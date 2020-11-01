@@ -1,4 +1,4 @@
-// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 float SinAcos(float x)
 {
@@ -38,10 +38,10 @@ float4 VerusLit(float3 dirToLight, float3 normal, float3 dirToEye, float gloss,
 float ComputePointLightIntensity(float distSq, float radiusSq, float invRadiusSq)
 {
 	const float scaleFivePercent = 19.0 * invRadiusSq;
-	const float invSquareLaw = 1.0 / (1.0 + distSq * scaleFivePercent);
+	const float invSquareLaw = 1.0 / max(0.1, distSq * scaleFivePercent);
 	const float x = max(0.0, radiusSq - distSq); // Zero at radius.
 	const float limit = x * x * invRadiusSq * invRadiusSq;
-	return saturate(min(invSquareLaw, limit));
+	return min(invSquareLaw, limit);
 }
 
 float ComputeSpotLightConeIntensity(float3 dirToLight, float3 lightDir, float coneOut, float invConeDelta)

@@ -1,16 +1,22 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
 using namespace verus::Scene;
 
-CGI::ShaderPwn                      Mesh::s_shader;
+CGI::ShaderPwns<Mesh::SHADER_COUNT> Mesh::s_shader;
 CGI::PipelinePwns<Mesh::PIPE_COUNT> Mesh::s_pipe;
 
-Mesh::UB_PerFrame      Mesh::s_ubPerFrame;
-Mesh::UB_PerMaterialFS Mesh::s_ubPerMaterialFS;
-Mesh::UB_PerMeshVS     Mesh::s_ubPerMeshVS;
-Mesh::UB_SkeletonVS    Mesh::s_ubSkeletonVS;
-Mesh::UB_PerObject     Mesh::s_ubPerObject;
+Mesh::UB_PerFrame            Mesh::s_ubPerFrame;
+Mesh::UB_PerMaterialFS       Mesh::s_ubPerMaterialFS;
+Mesh::UB_PerMeshVS           Mesh::s_ubPerMeshVS;
+Mesh::UB_SkeletonVS          Mesh::s_ubSkeletonVS;
+Mesh::UB_PerObject           Mesh::s_ubPerObject;
+Mesh::UB_SimplePerFrame      Mesh::s_ubSimplePerFrame;
+Mesh::UB_SimplePerMaterialFS Mesh::s_ubSimplePerMaterialFS;
+Mesh::UB_SimplePerMeshVS     Mesh::s_ubSimplePerMeshVS;
+Mesh::UB_SimpleSkeletonVS    Mesh::s_ubSimpleSkeletonVS;
+Mesh::UB_SimplePerObject     Mesh::s_ubSimplePerObject;
 
 // Mesh:
 
@@ -27,19 +33,31 @@ void Mesh::InitStatic()
 {
 	VERUS_QREF_CONST_SETTINGS;
 
-	s_shader.Init("[Shaders]:DS_Mesh.hlsl");
-	s_shader->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame), settings.GetLimits()._mesh_ubPerFrameCapacity, {}, CGI::ShaderStageFlags::vs_hs_ds_fs);
-	s_shader->CreateDescriptorSet(1, &s_ubPerMaterialFS, sizeof(s_ubPerMaterialFS), settings.GetLimits()._mesh_ubPerMaterialFSCapacity,
+	s_shader[SHADER_MAIN].Init("[Shaders]:DS_Mesh.hlsl");
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame), settings.GetLimits()._mesh_ubPerFrameCapacity, {}, CGI::ShaderStageFlags::vs_hs_ds_fs);
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(1, &s_ubPerMaterialFS, sizeof(s_ubPerMaterialFS), settings.GetLimits()._mesh_ubPerMaterialFSCapacity,
 		{
 			CGI::Sampler::aniso,
 			CGI::Sampler::aniso,
 			CGI::Sampler::aniso,
 			CGI::Sampler::custom
 		}, CGI::ShaderStageFlags::fs);
-	s_shader->CreateDescriptorSet(2, &s_ubPerMeshVS, sizeof(s_ubPerMeshVS), settings.GetLimits()._mesh_ubPerMeshVSCapacity, {}, CGI::ShaderStageFlags::vs);
-	s_shader->CreateDescriptorSet(3, &s_ubSkeletonVS, sizeof(s_ubSkeletonVS), settings.GetLimits()._mesh_ubSkinningVSCapacity, {}, CGI::ShaderStageFlags::vs);
-	s_shader->CreateDescriptorSet(4, &s_ubPerObject, sizeof(s_ubPerObject), 0);
-	s_shader->CreatePipelineLayout();
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(2, &s_ubPerMeshVS, sizeof(s_ubPerMeshVS), settings.GetLimits()._mesh_ubPerMeshVSCapacity, {}, CGI::ShaderStageFlags::vs);
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(3, &s_ubSkeletonVS, sizeof(s_ubSkeletonVS), settings.GetLimits()._mesh_ubSkinningVSCapacity, {}, CGI::ShaderStageFlags::vs);
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(4, &s_ubPerObject, sizeof(s_ubPerObject), 0);
+	s_shader[SHADER_MAIN]->CreatePipelineLayout();
+
+	s_shader[SHADER_SIMPLE].Init("[Shaders]:SimpleMesh.hlsl");
+	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(0, &s_ubSimplePerFrame, sizeof(s_ubSimplePerFrame), settings.GetLimits()._mesh_ubPerFrameCapacity);
+	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(1, &s_ubSimplePerMaterialFS, sizeof(s_ubSimplePerMaterialFS), settings.GetLimits()._mesh_ubPerMaterialFSCapacity,
+		{
+			CGI::Sampler::linearMipN,
+			CGI::Sampler::shadow
+		}, CGI::ShaderStageFlags::fs);
+	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(2, &s_ubSimplePerMeshVS, sizeof(s_ubSimplePerMeshVS), settings.GetLimits()._mesh_ubPerMeshVSCapacity, {}, CGI::ShaderStageFlags::vs);
+	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(3, &s_ubSimpleSkeletonVS, sizeof(s_ubSimpleSkeletonVS), settings.GetLimits()._mesh_ubSkinningVSCapacity, {}, CGI::ShaderStageFlags::vs);
+	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(4, &s_ubSimplePerObject, sizeof(s_ubSimplePerObject), 0);
+	s_shader[SHADER_SIMPLE]->CreatePipelineLayout();
 }
 
 void Mesh::DoneStatic()
@@ -71,19 +89,57 @@ void Mesh::Done()
 
 void Mesh::Draw(RcDrawDesc dd, CGI::CommandBufferPtr cb)
 {
-	BindPipeline(cb, dd._allowTess);
+	auto shader = GetShader();
+
+	if (dd._pipe != PIPE_COUNT)
+		BindPipeline(dd._pipe, cb);
+	else
+		BindPipeline(cb, dd._allowTess);
 	BindGeo(cb);
 
 	UpdateUniformBufferPerFrame();
-	cb->BindDescriptors(GetShader(), 0);
-	// Material buffer should already be updated. For example call Material::UpdateMeshUniformBuffer.
-	cb->BindDescriptors(GetShader(), 1, dd._cshMaterial);
+	cb->BindDescriptors(shader, 0);
+	if (dd._bindMaterial)
+	{
+		// Material buffer should already be updated. For example call Material::UpdateMeshUniformBuffer.
+		cb->BindDescriptors(shader, 1, dd._cshMaterial);
+	}
 	UpdateUniformBufferPerMeshVS();
-	cb->BindDescriptors(GetShader(), 2);
-	UpdateUniformBufferSkeletonVS();
-	cb->BindDescriptors(GetShader(), 3);
-	UpdateUniformBufferPerObject(dd._matW);
-	cb->BindDescriptors(GetShader(), 4);
+	cb->BindDescriptors(shader, 2);
+	if (dd._bindSkeleton)
+	{
+		UpdateUniformBufferSkeletonVS();
+		cb->BindDescriptors(shader, 3);
+	}
+	UpdateUniformBufferPerObject(dd._matW, dd._userColor);
+	cb->BindDescriptors(shader, 4);
+
+	cb->DrawIndexed(GetIndexCount());
+}
+
+void Mesh::DrawSimple(RcDrawDesc dd, CGI::CommandBufferPtr cb)
+{
+	auto shader = GetSimpleShader();
+
+	BindPipeline(dd._pipe, cb);
+	BindGeo(cb);
+
+	UpdateUniformBufferSimplePerFrame();
+	cb->BindDescriptors(shader, 0);
+	if (dd._bindMaterial)
+	{
+		// Material buffer should already be updated. For example call Material::UpdateMeshUniformBuffer.
+		cb->BindDescriptors(shader, 1, dd._cshMaterial);
+	}
+	UpdateUniformBufferPerMeshVS();
+	cb->BindDescriptors(shader, 2);
+	if (dd._bindSkeleton)
+	{
+		UpdateUniformBufferSimpleSkeletonVS();
+		cb->BindDescriptors(shader, 3);
+	}
+	UpdateUniformBufferPerObject(dd._matW, dd._userColor);
+	cb->BindDescriptors(shader, 4);
 
 	cb->DrawIndexed(GetIndexCount());
 }
@@ -143,81 +199,98 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 			"#SolidColor",
 			"#SolidColorInstanced",
 			"#SolidColorRobotic",
-			"#SolidColorSkinned"
+			"#SolidColorSkinned",
+
+			"#",
+			"#Instanced",
+			"#Robotic",
+			"#Skinned"
 		};
 
-		CGI::PipelineDesc pipeDesc(_geo, s_shader, branches[pipe], renderer.GetDS().GetRenderPassHandle());
-
-		auto SetBlendEqsForDS = [&pipeDesc]()
+		if (pipe >= PIPE_SIMPLE_REF)
 		{
+			VERUS_QREF_WATER;
+			CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], branches[pipe], water.GetRenderPassHandle());
 			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
-			pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
-			pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
-		};
+			pipeDesc._rasterizationState._cullMode = CGI::CullMode::front;
+			pipeDesc._vertexInputBindingsFilter = _bindingsMask;
+			s_pipe[pipe].Init(pipeDesc);
+		}
+		else
+		{
+			CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], branches[pipe], renderer.GetDS().GetRenderPassHandle());
 
-		switch (pipe)
-		{
-		case PIPE_MAIN:
-		case PIPE_INSTANCED:
-		case PIPE_PLANT:
-		case PIPE_ROBOTIC:
-		case PIPE_SKINNED:
-		{
-			SetBlendEqsForDS();
+			auto SetBlendEqsForDS = [&pipeDesc]()
+			{
+				pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+				pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
+				pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
+			};
+
+			switch (pipe)
+			{
+			case PIPE_MAIN:
+			case PIPE_INSTANCED:
+			case PIPE_PLANT:
+			case PIPE_ROBOTIC:
+			case PIPE_SKINNED:
+			{
+				SetBlendEqsForDS();
+			}
+			break;
+			case PIPE_TESS:
+			case PIPE_TESS_INSTANCED:
+			case PIPE_TESS_PLANT:
+			case PIPE_TESS_ROBOTIC:
+			case PIPE_TESS_SKINNED:
+			{
+				SetBlendEqsForDS();
+				if (settings._gpuTessellation)
+					pipeDesc._topology = CGI::PrimitiveTopology::patchList3;
+			}
+			break;
+			case PIPE_DEPTH:
+			case PIPE_DEPTH_INSTANCED:
+			case PIPE_DEPTH_PLANT:
+			case PIPE_DEPTH_ROBOTIC:
+			case PIPE_DEPTH_SKINNED:
+			{
+				pipeDesc._colorAttachBlendEqs[0] = "";
+				pipeDesc._renderPassHandle = atmo.GetShadowMap().GetRenderPassHandle();
+			}
+			break;
+			case PIPE_DEPTH_TESS:
+			case PIPE_DEPTH_TESS_INSTANCED:
+			case PIPE_DEPTH_TESS_PLANT:
+			case PIPE_DEPTH_TESS_ROBOTIC:
+			case PIPE_DEPTH_TESS_SKINNED:
+			{
+				pipeDesc._colorAttachBlendEqs[0] = "";
+				pipeDesc._renderPassHandle = atmo.GetShadowMap().GetRenderPassHandle();
+				if (settings._gpuTessellation)
+					pipeDesc._topology = CGI::PrimitiveTopology::patchList3;
+			}
+			break;
+			case PIPE_WIREFRAME:
+			case PIPE_WIREFRAME_INSTANCED:
+			case PIPE_WIREFRAME_ROBOTIC:
+			case PIPE_WIREFRAME_SKINNED:
+			{
+				SetBlendEqsForDS();
+				pipeDesc._rasterizationState._polygonMode = CGI::PolygonMode::line;
+				pipeDesc._rasterizationState._depthBiasEnable = true;
+				pipeDesc._rasterizationState._depthBiasConstantFactor = -1000;
+				pipeDesc._depthCompareOp = CGI::CompareOp::lessOrEqual;
+			}
+			break;
+			default:
+			{
+				SetBlendEqsForDS();
+			}
+			}
+			pipeDesc._vertexInputBindingsFilter = _bindingsMask;
+			s_pipe[pipe].Init(pipeDesc);
 		}
-		break;
-		case PIPE_TESS:
-		case PIPE_TESS_INSTANCED:
-		case PIPE_TESS_PLANT:
-		case PIPE_TESS_ROBOTIC:
-		case PIPE_TESS_SKINNED:
-		{
-			SetBlendEqsForDS();
-			if (settings._gpuTessellation)
-				pipeDesc._topology = CGI::PrimitiveTopology::patchList3;
-		}
-		break;
-		case PIPE_DEPTH:
-		case PIPE_DEPTH_INSTANCED:
-		case PIPE_DEPTH_PLANT:
-		case PIPE_DEPTH_ROBOTIC:
-		case PIPE_DEPTH_SKINNED:
-		{
-			pipeDesc._colorAttachBlendEqs[0] = "";
-			pipeDesc._renderPassHandle = atmo.GetShadowMap().GetRenderPassHandle();
-		}
-		break;
-		case PIPE_DEPTH_TESS:
-		case PIPE_DEPTH_TESS_INSTANCED:
-		case PIPE_DEPTH_TESS_PLANT:
-		case PIPE_DEPTH_TESS_ROBOTIC:
-		case PIPE_DEPTH_TESS_SKINNED:
-		{
-			pipeDesc._colorAttachBlendEqs[0] = "";
-			pipeDesc._renderPassHandle = atmo.GetShadowMap().GetRenderPassHandle();
-			if (settings._gpuTessellation)
-				pipeDesc._topology = CGI::PrimitiveTopology::patchList3;
-		}
-		break;
-		case PIPE_WIREFRAME:
-		case PIPE_WIREFRAME_INSTANCED:
-		case PIPE_WIREFRAME_ROBOTIC:
-		case PIPE_WIREFRAME_SKINNED:
-		{
-			SetBlendEqsForDS();
-			pipeDesc._rasterizationState._polygonMode = CGI::PolygonMode::line;
-			pipeDesc._rasterizationState._depthBiasEnable = true;
-			pipeDesc._rasterizationState._depthBiasConstantFactor = -1000;
-			pipeDesc._depthCompareOp = CGI::CompareOp::lessOrEqual;
-		}
-		break;
-		default:
-		{
-			SetBlendEqsForDS();
-		}
-		}
-		pipeDesc._vertexInputBindingsFilter = _bindingsMask;
-		s_pipe[pipe].Init(pipeDesc);
 	}
 	cb->BindPipeline(s_pipe[pipe]);
 }
@@ -280,14 +353,9 @@ void Mesh::BindPipelineInstanced(CGI::CommandBufferPtr cb, bool allowTess, bool 
 	}
 }
 
-void Mesh::BindGeo(CGI::CommandBufferPtr cb)
-{
-	BindGeo(cb, _bindingsMask);
-}
-
 void Mesh::BindGeo(CGI::CommandBufferPtr cb, UINT32 bindingsFilter)
 {
-	cb->BindVertexBuffers(_geo, bindingsFilter);
+	cb->BindVertexBuffers(_geo, bindingsFilter ? bindingsFilter : _bindingsMask);
 	cb->BindIndexBuffer(_geo);
 }
 
@@ -312,6 +380,11 @@ void Mesh::UpdateUniformBufferPerMeshVS()
 	memcpy(&s_ubPerMeshVS._posDeqBias, _posDeq + 3, 12);
 	memcpy(&s_ubPerMeshVS._tc0DeqScaleBias, _tc0Deq, 16);
 	memcpy(&s_ubPerMeshVS._tc1DeqScaleBias, _tc1Deq, 16);
+
+	memcpy(&s_ubSimplePerMeshVS._posDeqScale, _posDeq + 0, 12);
+	memcpy(&s_ubSimplePerMeshVS._posDeqBias, _posDeq + 3, 12);
+	memcpy(&s_ubSimplePerMeshVS._tc0DeqScaleBias, _tc0Deq, 16);
+	memcpy(&s_ubSimplePerMeshVS._tc1DeqScaleBias, _tc1Deq, 16);
 }
 
 void Mesh::UpdateUniformBufferSkeletonVS()
@@ -332,13 +405,37 @@ void Mesh::UpdateUniformBufferPerObject(RcTransform3 tr, RcVector4 color)
 {
 	s_ubPerObject._matW = tr.UniformBufferFormat();
 	s_ubPerObject._userColor = color.GLM();
+
+	s_ubSimplePerObject._matW = s_ubPerObject._matW;
+	s_ubSimplePerObject._userColor = s_ubPerObject._userColor;
 }
 
-void Mesh::UpdateUniformBufferPerObject(Point3 pos, RcVector4 color)
+void Mesh::UpdateUniformBufferSimplePerFrame()
 {
-	const Transform3 matT = Transform3::translation(Vector3(pos));
-	s_ubPerObject._matW = matT.UniformBufferFormat();
-	s_ubPerObject._userColor = color.GLM();
+	VERUS_QREF_ATMO;
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_SM;
+	VERUS_QREF_WATER;
+
+	RcPoint3 eyePos = sm.GetMainCamera()->GetEyePosition();
+
+	s_ubSimplePerFrame._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubSimplePerFrame._eyePos_clipDistanceOffset = float4(eyePos.GLM(), static_cast<float>(water.IsUnderwater() ? USHRT_MAX : 0));
+	s_ubSimplePerFrame._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0);
+	s_ubSimplePerFrame._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
+	s_ubSimplePerFrame._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
+	s_ubSimplePerFrame._sunColor = float4(atmo.GetSunColor().GLM(), 0);
+	s_ubSimplePerFrame._matSunShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
+	s_ubSimplePerFrame._matSunShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
+	s_ubSimplePerFrame._matSunShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
+	s_ubSimplePerFrame._matSunShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
+	memcpy(&s_ubSimplePerFrame._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubSimplePerFrame._shadowConfig));
+	s_ubSimplePerFrame._splitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
+}
+
+void Mesh::UpdateUniformBufferSimpleSkeletonVS()
+{
+	_skeleton.UpdateUniformBufferArray(s_ubSimpleSkeletonVS._vMatBones);
 }
 
 void Mesh::CreateDeviceBuffers()

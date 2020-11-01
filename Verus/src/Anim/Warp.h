@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -46,8 +47,9 @@ namespace verus
 
 		private:
 			Vector<Zone> _vZones;
-			String       _now;
+			String       _preview;
 			float        _yMin = FLT_MAX;
+			float        _jawScale = 1;
 
 		public:
 			Warp();
@@ -57,7 +59,8 @@ namespace verus
 			void Done();
 
 			void Update(RSkeleton skeleton);
-			void Draw() const;
+			void DrawLines() const;
+			void DrawZones() const;
 
 			void Load(CSZ url);
 			void LoadFromPtr(SZ p);
@@ -66,7 +69,9 @@ namespace verus
 
 			void ApplyMotion(RMotion motion, float time);
 
-			static void ComputeLipSyncFromAudio(RcBlob blob, RMotion motion);
+			static void ComputeLipSyncFromAudio(RcBlob blob, RMotion motion, float jawScale = 1);
+
+			float GetJawScale() const { return _jawScale; }
 
 			template<typename T>
 			void ForEachZone(const T& fn)
@@ -77,6 +82,8 @@ namespace verus
 						break;
 				}
 			}
+
+			void SetPreview(CSZ preview) { _preview = preview; }
 		};
 		VERUS_TYPEDEFS(Warp);
 	}

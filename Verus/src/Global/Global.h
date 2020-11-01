@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 #define VERUS_MEMORY_ALIGNMENT 16
@@ -23,6 +24,7 @@
 #include "DifferenceVector.h"
 #include "Pool.h"
 #include "LocalPtr.h"
+#include "BaseCircularBuffer.h"
 
 namespace verus
 {

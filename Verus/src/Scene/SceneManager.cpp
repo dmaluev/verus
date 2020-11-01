@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -38,8 +39,9 @@ void SceneManager::Done()
 		DeleteAllPrefabs();
 		DeleteAllBlocks();
 		DeleteAllLights();
-		//DeleteAllEmitters();
+		DeleteAllEmitters();
 	}
+	DeleteAllSceneParticles();
 	DeleteAllModels();
 	VERUS_DONE(SceneManager);
 }
@@ -62,11 +64,11 @@ void SceneManager::Update()
 			x.Update();
 		for (auto& x : TStoreLights::_list)
 			x.Update();
-		//for (auto& x : TStoreEmitters::_list)
-		//	x.Update();
+		for (auto& x : TStoreEmitters::_list)
+			x.Update();
 	}
-	//for (auto& x : TStoreSceneParticles::_map)
-	//	x.second.Update();
+	for (auto& x : TStoreSceneParticles::_map)
+		x.second.Update();
 }
 
 void SceneManager::UpdateParts()
@@ -201,11 +203,15 @@ void SceneManager::Draw()
 		if (!nextModel->IsLoaded() || !nextMaterial->IsLoaded())
 			continue;
 
-		if (nextModel != model)
+		const bool changeModel = nextModel != model;
+		const bool changeMaterial = nextMaterial != material;
+		if (changeModel || changeMaterial)
 		{
 			if (model)
 				model->Draw(cb);
-
+		}
+		if (changeModel)
+		{
 			model = nextModel;
 			model->MarkFirstInstance();
 			if (bindPipeline)
@@ -217,8 +223,9 @@ void SceneManager::Draw()
 			model->BindGeo(cb);
 			cb->BindDescriptors(shader, 2);
 		}
-		if (nextMaterial != material)
+		if (changeMaterial)
 		{
+			model->MarkFirstInstance();
 			material = nextMaterial;
 			material->UpdateMeshUniformBuffer();
 			cb->BindDescriptors(shader, 1, material->GetComplexSetHandle());
@@ -228,6 +235,80 @@ void SceneManager::Draw()
 			model->PushInstance(pBlock->GetTransform(), pBlock->GetColor());
 	}
 	shader->EndBindDescriptors();
+}
+
+void SceneManager::DrawReflection()
+{
+	if (!_visibleCountPerType[+NodeType::block])
+		return;
+
+	VERUS_QREF_RENDERER;
+
+	ModelPtr model;
+	MaterialPtr material;
+	bool bindPipeline = true;
+
+	auto cb = renderer.GetCommandBuffer();
+	auto shader = Mesh::GetSimpleShader();
+
+	const int begin = 0;
+	const int end = _visibleCountPerType[+NodeType::block];
+	shader->BeginBindDescriptors();
+	for (int i = begin; i <= end; ++i)
+	{
+		if (i == end)
+		{
+			if (model)
+				model->Draw(cb);
+			break;
+		}
+
+		PSceneNode pSN = _vVisibleNodes[i];
+		PBlock pBlock = static_cast<PBlock>(pSN);
+		ModelPtr nextModel = pBlock->GetModel();
+		MaterialPtr nextMaterial = pBlock->GetMaterial();
+
+		if (!nextModel->IsLoaded() || !nextMaterial->IsLoaded())
+			continue;
+
+		const bool changeModel = nextModel != model;
+		const bool changeMaterial = nextMaterial != material;
+		if (changeModel || changeMaterial)
+		{
+			if (model)
+				model->Draw(cb);
+		}
+		if (changeModel)
+		{
+			model = nextModel;
+			model->MarkFirstInstance();
+			if (bindPipeline)
+			{
+				bindPipeline = false;
+				model->BindPipelineReflection(cb);
+				cb->BindDescriptors(shader, 0);
+			}
+			model->BindGeo(cb);
+			cb->BindDescriptors(shader, 2);
+		}
+		if (changeMaterial)
+		{
+			model->MarkFirstInstance();
+			material = nextMaterial;
+			material->UpdateMeshUniformBufferSimple();
+			cb->BindDescriptors(shader, 1, material->GetComplexSetHandleSimple());
+		}
+
+		if (model)
+			model->PushInstance(pBlock->GetTransform(), pBlock->GetColor());
+	}
+	shader->EndBindDescriptors();
+}
+
+void SceneManager::DrawTransparent()
+{
+	for (auto& x : TStoreSceneParticles::_map)
+		x.second.Draw();
 }
 
 void SceneManager::DrawLights()
@@ -340,7 +421,7 @@ String SceneManager::EnsureUniqueName(CSZ name)
 		for (auto& it : TStorePrefabs::_list)	if (it.GetName() == _C(test)) test.clear();
 		for (auto& it : TStoreBlocks::_list)	if (it.GetName() == _C(test)) test.clear();
 		for (auto& it : TStoreLights::_list)	if (it.GetName() == _C(test)) test.clear();
-		//for (auto& it : TStoreEmitters::_list)	if (it.GetName() == _C(test)) test.clear();
+		for (auto& it : TStoreEmitters::_list)	if (it.GetName() == _C(test)) test.clear();
 		id++;
 	} while (test.empty());
 
@@ -365,6 +446,26 @@ void SceneManager::DeleteModel(CSZ url)
 void SceneManager::DeleteAllModels()
 {
 	TStoreModels::DeleteAll();
+}
+
+PSceneParticles SceneManager::InsertSceneParticles(CSZ url)
+{
+	return TStoreSceneParticles::Insert(url);
+}
+
+PSceneParticles SceneManager::FindSceneParticles(CSZ url)
+{
+	return TStoreSceneParticles::Find(url);
+}
+
+void SceneManager::DeleteSceneParticles(CSZ url)
+{
+	TStoreSceneParticles::Delete(url);
+}
+
+void SceneManager::DeleteAllSceneParticles()
+{
+	TStoreSceneParticles::DeleteAll();
 }
 
 PSite SceneManager::InsertSite(CSZ name)
@@ -417,6 +518,21 @@ void SceneManager::DeleteAllLights()
 	TStoreLights::DeleteAll();
 }
 
+PEmitter SceneManager::InsertEmitter()
+{
+	return TStoreEmitters::Insert();
+}
+
+void SceneManager::DeleteEmitter(PEmitter p)
+{
+	TStoreEmitters::Delete(p);
+}
+
+void SceneManager::DeleteAllEmitters()
+{
+	TStoreEmitters::DeleteAll();
+}
+
 PPrefab SceneManager::InsertPrefab()
 {
 	return TStorePrefabs::Insert();
@@ -430,6 +546,23 @@ void SceneManager::DeletePrefab(PPrefab p)
 void SceneManager::DeleteAllPrefabs()
 {
 	TStorePrefabs::DeleteAll();
+}
+
+void SceneManager::DeleteNode(NodeType type, CSZ name)
+{
+	Query query;
+	query._name = name;
+	query._type = type;
+	ForEachNode(query, [this, type](RSceneNode node)
+		{
+			switch (type)
+			{
+			case NodeType::block:  DeleteBlock(static_cast<PBlock>(&node)); break;
+			case NodeType::light:  DeleteLight(static_cast<PLight>(&node)); break;
+			case NodeType::prefab: DeletePrefab(static_cast<PPrefab>(&node)); break;
+			}
+			return Continue::yes;
+		});
 }
 
 void SceneManager::ClearSelection()
@@ -554,15 +687,52 @@ void SceneManager::Serialize(IO::RSeekableStream stream)
 
 	stream.WriteString(_C(std::to_string(TStoreModels::GetStoredCount())));
 	for (auto& x : TStoreModels::_map)
+	{
 		stream.WriteString(_C(x.first));
+		x.second.Serialize(stream);
+	}
 
-	stream.WriteString(_C(std::to_string(TStoreBlocks::GetStoredCount())));
+	auto GetPersistentCount = [this](NodeType type)
+	{
+		int count = 0;
+		Query query;
+		query._type = type;
+		ForEachNode(query, [&count](RSceneNode node)
+			{
+				if (!node.IsTransient())
+					count++;
+				return Continue::yes;
+			});
+		return count;
+	};
+
+	stream.WriteString(_C(std::to_string(GetPersistentCount(NodeType::block))));
 	for (auto& x : TStoreBlocks::_list)
-		x.Serialize(stream);
+	{
+		if (!x.IsTransient())
+			x.Serialize(stream);
+	}
 
-	stream.WriteString(_C(std::to_string(TStoreLights::GetStoredCount())));
+	stream.WriteString(_C(std::to_string(GetPersistentCount(NodeType::light))));
 	for (auto& x : TStoreLights::_list)
-		x.Serialize(stream);
+	{
+		if (!x.IsTransient())
+			x.Serialize(stream);
+	}
+
+	stream.WriteString(_C(std::to_string(GetPersistentCount(NodeType::prefab))));
+	for (auto& x : TStorePrefabs::_list)
+	{
+		if (!x.IsTransient())
+			x.Serialize(stream);
+	}
+
+	stream.WriteString(_C(std::to_string(GetPersistentCount(NodeType::emitter))));
+	for (auto& x : TStoreEmitters::_list)
+	{
+		if (!x.IsTransient())
+			x.Serialize(stream);
+	}
 
 	stream.EndBlock();
 }
@@ -592,7 +762,7 @@ void SceneManager::Deserialize(IO::RStream stream)
 		{
 			stream.ReadString(buffer);
 			PModel p = InsertModel(buffer);
-			p->Init(buffer);
+			p->Deserialize(stream, buffer);
 		}
 
 		stream.ReadString(buffer);
@@ -608,6 +778,22 @@ void SceneManager::Deserialize(IO::RStream stream)
 		VERUS_FOR(i, count)
 		{
 			PLight p = InsertLight();
+			p->Deserialize(stream);
+		}
+
+		stream.ReadString(buffer);
+		count = atoi(buffer);
+		VERUS_FOR(i, count)
+		{
+			PPrefab p = InsertPrefab();
+			p->Deserialize(stream);
+		}
+
+		stream.ReadString(buffer);
+		count = atoi(buffer);
+		VERUS_FOR(i, count)
+		{
+			PEmitter p = InsertEmitter();
 			p->Deserialize(stream);
 		}
 	}

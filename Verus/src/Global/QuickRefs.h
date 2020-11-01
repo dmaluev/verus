@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 #define VERUS_QREF_ASYNC          IO::RAsync              async    = IO::Async::I()

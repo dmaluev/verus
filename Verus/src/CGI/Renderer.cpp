@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -211,7 +212,7 @@ void Renderer::Update()
 		const float target = -0.3f + 0.6f * expScale * expScale; // Dark scene exposure compensation.
 		const float important = (actual - 0.5f * (1 - alpha)) / alpha;
 		const float delta = abs(target - important);
-		const float speed = delta * sqrt(delta) * 30;
+		const float speed = delta * sqrt(delta) * 20;
 
 		if (important < target * 0.95f)
 			_exposure[1] -= speed * dt;

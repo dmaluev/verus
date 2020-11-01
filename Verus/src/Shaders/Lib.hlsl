@@ -1,4 +1,4 @@
-// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 #define VERUS_UBUFFER struct
 #define mataff float4x3

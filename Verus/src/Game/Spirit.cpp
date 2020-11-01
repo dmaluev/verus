@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -7,8 +8,8 @@ const float Spirit::s_defaultMaxPitch = VERUS_PI * (44.5f / 90.f);
 
 Spirit::Spirit() :
 	_smoothPosition(Point3(0), 10),
-	_pitch(0, 15),
-	_yaw(0, 15)
+	_pitch(0, 14),
+	_yaw(0, 14)
 {
 	ComputeDerivedVars();
 }

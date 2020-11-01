@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "stdafx.h"
 
 using namespace verus;
@@ -32,6 +33,9 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	const bool renderTarget = (_desc._flags & TextureDesc::Flags::colorAttachment);
 	const bool depthFormat = IsDepthFormat(desc._format);
 	const bool depthSampled = _desc._flags & (TextureDesc::Flags::depthSampledR | TextureDesc::Flags::depthSampledW);
+	const bool cubeMap = (_desc._flags & TextureDesc::Flags::cubeMap);
+	if (cubeMap)
+		_desc._arrayLayers = 6;
 	if (_desc._flags & TextureDesc::Flags::anyShaderResource)
 		_mainLayout = ImageLayout::xsReadOnly;
 
@@ -63,6 +67,8 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	}
 	if (_desc._flags & TextureDesc::Flags::inputAttachment)
 		vkici.usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+	if (cubeMap)
+		vkici.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 	pRendererVulkan->CreateImage(&vkici, VMA_MEMORY_USAGE_GPU_ONLY, _image, _vmaAllocation);
 
 	if (_desc._flags & TextureDesc::Flags::generateMips)

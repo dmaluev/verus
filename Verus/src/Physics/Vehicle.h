@@ -1,0 +1,94 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+#pragma once
+
+namespace verus
+{
+	namespace Physics
+	{
+		class Vehicle : public Object, public UserPtr
+		{
+			LocalPtr<btBoxShape>                _pChassisShape;
+			LocalPtr<btCompoundShape>           _pCompoundShape;
+			LocalRigidBody                      _pChassis;
+			LocalPtr<btDefaultVehicleRaycaster> _pVehicleRaycaster;
+			LocalPtr<btRaycastVehicle>          _pRaycastVehicle;
+			btRaycastVehicle::btVehicleTuning   _vehicleTuning;
+			int                                 _frontRightWheelIndex = -1;
+			int                                 _wheelCount = 0;
+			float                               _invWheelCount = 0;
+
+		public:
+			struct Steering
+			{
+				float _angle = 0;
+				float _speed = 1;
+				float _maxAngle = Math::ToRadians(25);
+
+				void Update(float stiffness)
+				{
+					VERUS_QREF_TIMER;
+					// Steering torque:
+					const float deviation = abs(_angle / _maxAngle);
+					_angle = Math::Reduce(_angle, (_speed * dt) * deviation * stiffness);
+				}
+
+				void SteerLeft()
+				{
+					VERUS_QREF_TIMER;
+					_angle = Math::Clamp(_angle + _speed * dt, -_maxAngle, _maxAngle);
+				}
+
+				void SteerRight()
+				{
+					VERUS_QREF_TIMER;
+					_angle = Math::Clamp(_angle - _speed * dt, -_maxAngle, _maxAngle);
+				}
+			};
+			VERUS_TYPEDEFS(Steering);
+
+			struct Desc
+			{
+				Transform3           _tr = Transform3::identity();
+				Math::Bounds         _chassis;
+				Vector<Math::Sphere> _vLeftWheels;
+				Vector<Math::Sphere> _vRightWheels;
+				float                _mass = 1200;
+				float                _suspensionRestLength = 0.2f;
+			};
+			VERUS_TYPEDEFS(Desc);
+
+			Vehicle();
+			~Vehicle();
+
+			void Init(RcDesc desc);
+			void Done();
+
+			void Update();
+
+			template<typename T>
+			void ForEachWheel(const T& fn) const
+			{
+				VERUS_FOR(i, _wheelCount)
+				{
+					if (Continue::yes != fn(_pRaycastVehicle->getWheelInfo(i)))
+						return;
+				}
+			}
+
+			Transform3 GetTransform() const;
+
+			btRaycastVehicle* GetRaycastVehicle() { return _pRaycastVehicle.Get(); }
+
+			void ApplyAirForce(float scale = 2);
+			void SetBrake(float amount);
+			void SetEngineForce(float force);
+			void SetSteeringAngle(float angle);
+			void UseHandBrake(float amount);
+
+			virtual int UserPtr_GetType() override;
+
+			float ComputeEnginePitch() const;
+		};
+		VERUS_TYPEDEFS(Vehicle);
+	}
+}

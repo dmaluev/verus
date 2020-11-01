@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #define VERUS_INCLUDE_COMPRESSONATOR
 #include <verus.h>
 
@@ -15,17 +16,17 @@ void Run()
 {
 	int argCount = 0;
 	LPWSTR* argArray = CommandLineToArgvW(GetCommandLine(), &argCount);
-	WideString pathNameW;
+	WideString pathnameW;
 	std::wcout << _T("TextureTool") << std::endl;
 	std::wcout << _T("Copyright (c) 2016-2020 Dmitry Maluev") << std::endl;
 	if (argCount < 2)
 	{
 		std::wcout << _T("Enter file name: ");
-		std::wcin >> pathNameW;
+		std::wcin >> pathnameW;
 	}
 	else
-		pathNameW = argArray[argCount - 1];
-	String pathname = Str::WideToUtf8(pathNameW);
+		pathnameW = argArray[argCount - 1];
+	String pathname = Str::WideToUtf8(pathnameW);
 	bool argDeleteMipmap = false;
 	bool argFade = false;
 	bool argNormalMap = false;
@@ -45,7 +46,7 @@ void Run()
 
 	if (argDeleteMipmap)
 	{
-		DeleteMipmap(_C(pathNameW));
+		DeleteMipmap(_C(pathnameW));
 		return;
 	}
 

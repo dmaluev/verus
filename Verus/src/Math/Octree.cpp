@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -41,11 +42,11 @@ void Octree::Node::UnbindClient(void* pToken)
 
 void Octree::Node::UpdateDynamicClient(RcClient client)
 {
-	for (auto& o : _vClients)
+	for (auto& x : _vClients)
 	{
-		if (o._pToken == client._pToken)
+		if (x._pToken == client._pToken)
 		{
-			o = client;
+			x = client;
 			return;
 		}
 	}
@@ -81,9 +82,9 @@ void Octree::Build(int currentNode, int depth)
 {
 	const Vector3 dim = _bounds.GetDimensions();
 	const Vector3 ratio = VMath::divPerElem(dim, _limit);
-	const int maxDepthX = Math::HighestBit(int(ratio.getX()));
-	const int maxDepthY = Math::HighestBit(int(ratio.getY()));
-	const int maxDepthZ = Math::HighestBit(int(ratio.getZ()));
+	const int maxDepthX = Math::HighestBit(static_cast<int>(ratio.getX()));
+	const int maxDepthY = Math::HighestBit(static_cast<int>(ratio.getY()));
+	const int maxDepthZ = Math::HighestBit(static_cast<int>(ratio.getZ()));
 	const int maxDepth = Math::Max(Math::Max(maxDepthX, maxDepthY), maxDepthZ);
 	if (!currentNode)
 	{

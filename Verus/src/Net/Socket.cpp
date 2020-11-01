@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -245,7 +246,7 @@ void Socket::ThreadProc()
 void Socket::GetLatestClientBuffer(int id, BYTE* p)
 {
 	VERUS_LOCK(*this);
-	if ((int)_vClients.size() > id&& _vClients[id] && _vClients[id]->_pListener)
+	if ((int)_vClients.size() > id && _vClients[id] && _vClients[id]->_pListener)
 		memcpy(p, _vClients[id]->_vBuffer.data(), _clientBufferSize);
 }
 

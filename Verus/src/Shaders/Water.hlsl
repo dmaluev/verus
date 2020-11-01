@@ -1,4 +1,4 @@
-// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 #include "Lib.hlsl"
 #include "LibDepth.hlsl"
@@ -274,7 +274,7 @@ FSO mainFS(VSO si)
 		const float diffuseMask = ToWaterDiffuseMask(landHeight);
 		planktonColor = lerp(g_ubWaterFS._diffuseColorDeep.rgb, g_ubWaterFS._diffuseColorShallow.rgb, diffuseMask);
 		planktonColor *= 0.1 + 0.2 * saturate(shade - wave);
-		refractMask = saturate((diffuseMask - 0.5) * 2.0);
+		refractMask = saturate((diffuseMask - 0.75) * 4.0);
 	}
 	// </Plankton>
 
@@ -312,7 +312,7 @@ FSO mainFS(VSO si)
 		float4(0, 0, 1, 0),
 		1.0);
 
-	const float fresnelTerm = FresnelSchlick(0.03, 0.5 * fresnelDimmer, litRet.w);
+	const float fresnelTerm = FresnelSchlick(0.03, 0.6 * fresnelDimmer, litRet.w);
 
 	const float3 diff = litRet.y * g_ubWaterFS._sunColor.rgb * shadowMask + g_ubWaterFS._ambientColor.rgb;
 	const float3 diffColorFoam = foamColor.rgb * diff;

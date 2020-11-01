@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -32,7 +33,7 @@ void FileParser::Mesh::UberVertex::Add(float weight, UINT32 index)
 	else // No space left - check the smallest weight:
 	{
 		float* pMin = std::min_element(_bw, _bw + 4);
-		if (weight > * pMin)
+		if (weight > *pMin)
 		{
 			const int i = Utils::Cast32(std::distance(_bw, pMin));
 			_bw[i] = weight;

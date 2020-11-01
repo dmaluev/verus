@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -6,12 +7,15 @@ namespace verus
 	{
 		class Texture : public AllocatorAware
 		{
-			UINT64          _date = 0;
-			CGI::TexturePwn _texTiny;
-			CGI::TexturePwn _texHuge;
-			int             _refCount = 0;
-			float           _requestedPart = 0;
-			bool            _streamParts = false;
+			UINT64              _date = 0;
+			UINT64              _nextSafeFrame = 0;
+			CGI::TexturePwn     _texTiny;
+			CGI::TexturePwns<2> _texHuge;
+			int                 _refCount = 0;
+			int                 _currentHuge = 0;
+			float               _requestedPart = 0;
+			bool                _streamParts = false;
+			bool                _loading = false;
 
 		public:
 			Texture();
@@ -23,9 +27,9 @@ namespace verus
 
 			void Update();
 
-			CGI::TexturePtr GetTex() const { return (_texHuge && _texHuge->IsLoaded()) ? _texHuge : _texTiny; }
-			CGI::TexturePtr GetTinyTex() const { return _texTiny; }
-			CGI::TexturePtr GetHugeTex() const { return _texHuge; }
+			CGI::TexturePtr GetTex() const;
+			CGI::TexturePtr GetTinyTex() const;
+			CGI::TexturePtr GetHugeTex() const;
 
 			void ResetPart() { _requestedPart = FLT_MAX; }
 			void IncludePart(float part) { _requestedPart = Math::Min(_requestedPart, part); }
@@ -122,6 +126,7 @@ namespace verus
 			CGI::CSHandle  _csh;
 			CGI::CSHandle  _cshTiny;
 			CGI::CSHandle  _cshTemp;
+			CGI::CSHandle  _cshSimple;
 			int            _albedoPart = -1;
 			int            _normalPart = -1;
 			int            _refCount = 0;
@@ -139,7 +144,6 @@ namespace verus
 			void Update();
 
 			bool IsLoaded() const;
-			bool IsMissing() const;
 			VERUS_P(void LoadTextures(bool streamParts));
 
 			void SetName(CSZ name) { _name = name; }
@@ -149,8 +153,10 @@ namespace verus
 
 			// Mesh interaction:
 			CGI::CSHandle GetComplexSetHandle() const;
+			CGI::CSHandle GetComplexSetHandleSimple() const;
 			void BindDescriptorSetTextures();
 			bool UpdateMeshUniformBuffer(float motionBlur = 1);
+			bool UpdateMeshUniformBufferSimple();
 
 			void IncludePart(float part);
 		};

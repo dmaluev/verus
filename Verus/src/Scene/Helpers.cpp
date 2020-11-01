@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -189,7 +190,7 @@ void Helpers::DrawBasis(PcTransform3 pMat, int axis, bool overlay)
 	CGI::DebugDraw::I().End();
 }
 
-void Helpers::DrawCircle(RcPoint3 pos, float radius, UINT32 color, Scene::RTerrain terrain)
+void Helpers::DrawCircle(RcPoint3 pos, float radius, UINT32 color, RTerrain terrain)
 {
 	CGI::DebugDraw::I().Begin(CGI::DebugDraw::Type::lines, nullptr, false);
 	const int lineCount = Utils::Cast32(_vCircle.size() >> 1);
@@ -241,24 +242,27 @@ void Helpers::DrawLight(RcPoint3 pos, UINT32 color, PcPoint3 pTarget)
 	CGI::DebugDraw::I().End();
 }
 
-void Helpers::DrawSphere(RcPoint3 pos, float r, UINT32 color)
+void Helpers::DrawSphere(RcPoint3 pos, float r, UINT32 color, CGI::CommandBufferPtr cb)
 {
-#if 0
-	if (!_meshSphere.IsInitialized())
-	{
-		_meshSphere.Init(Mesh::CDesc("Models:Sphere.x3d"));
-	}
-	float colorArray[4];
-	Convert::ColorInt32ToFloat(color, colorArray);
-	Vector4 colorF = Vector4::MakeFromPointer(colorArray);
+	if (!_sphere.IsInitialized())
+		_sphere.Init("[Models]:Sphere.x3d");
+	if (!_sphere.IsLoaded())
+		return;
+
+	float floats[4];
+	Convert::ColorInt32ToFloat(color, floats);
+	const Vector4 userColor = Vector4::MakeFromPointer(floats);
+
 	const float d = r * 2;
-	const Transform3 m = VMath::appendScale(Transform3::translation(Vector3(pos)), Vector3(d, d, d));
-	Mesh::DrawDesc dd;
-	dd.m_wireframe = true;
-	dd.m_pMatrixW = &m;
-	dd.m_pAmbientColor = &colorF;
-	_meshSphere.Draw(dd);
-#endif
+	const Transform3 tr = VMath::appendScale(Transform3::translation(Vector3(pos)), Vector3(d, d, d));
+
+	Mesh::DrawDesc drawDesc;
+	drawDesc._matW = tr;
+	drawDesc._userColor = userColor;
+	drawDesc._pipe = Mesh::PIPE_WIREFRAME;
+	drawDesc._bindMaterial = false;
+	drawDesc._bindSkeleton = false;
+	_sphere.Draw(drawDesc, cb);
 }
 
 UINT32 Helpers::GetBasisColorX(bool linear, int alpha)

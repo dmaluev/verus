@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "stdafx.h"
 
 using namespace verus;
@@ -9,7 +10,7 @@ static VkResult CreateDebugUtilsMessengerEXT(
 	const VkAllocationCallbacks* pAllocator,
 	VkDebugUtilsMessengerEXT* pMessenger)
 {
-	auto fn = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+	auto fn = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
 	if (fn)
 		return fn(instance, pCreateInfo, pAllocator, pMessenger);
 	else
@@ -21,7 +22,7 @@ static void DestroyDebugUtilsMessengerEXT(
 	VkDebugUtilsMessengerEXT messenger,
 	const VkAllocationCallbacks* pAllocator)
 {
-	auto fn = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+	auto fn = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
 	if (fn)
 		fn(instance, messenger, pAllocator);
 }
@@ -59,6 +60,7 @@ void RendererVulkan::ReleaseMe()
 void RendererVulkan::Init()
 {
 	VERUS_INIT();
+	VkResult res = VK_SUCCESS;
 
 	_vRenderPasses.reserve(20);
 	_vFramebuffers.reserve(40);
@@ -79,7 +81,8 @@ void RendererVulkan::Init()
 	vmaaci.device = _device;
 	vmaaci.pAllocationCallbacks = GetAllocator();
 	vmaaci.frameInUseCount = s_ringBufferSize;
-	vmaCreateAllocator(&vmaaci, &_vmaAllocator);
+	if (VK_SUCCESS != (res = vmaCreateAllocator(&vmaaci, &_vmaAllocator)))
+		throw VERUS_RUNTIME_ERROR << "vmaCreateAllocator(), res=" << res;
 
 	CreateSwapChain();
 	CreateImageViews();
@@ -255,33 +258,34 @@ void RendererVulkan::CreateInstance()
 	vkvf.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
 	vkvf.enabledValidationFeatureCount = VERUS_COUNT_OF(enabledValidationFeatures);
 	vkvf.pEnabledValidationFeatures = enabledValidationFeatures;
+
 	VkApplicationInfo vkai = {};
 	vkai.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
-	vkai.pNext = &vkvf;
-#endif
 	vkai.pApplicationName = "Game";
 	vkai.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 	vkai.pEngineName = "Verus";
 	vkai.engineVersion = VK_MAKE_VERSION(major, minor, patch);
 	vkai.apiVersion = VK_API_VERSION_1_1;
+
 	VkInstanceCreateInfo vkici = {};
 	vkici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	vkici.pApplicationInfo = &vkai;
+	vkici.enabledExtensionCount = Utils::Cast32(vExtensions.size());
+	vkici.ppEnabledExtensionNames = vExtensions.data();
 #if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
+	vkici.pNext = &vkvf;
+	VkDebugUtilsMessengerCreateInfoEXT vkdumci = {};
+	FillDebugUtilsMessengerCreateInfo(vkdumci);
+	vkvf.pNext = &vkdumci;
 	vkici.enabledLayerCount = VERUS_COUNT_OF(s_requiredValidationLayers);
 	vkici.ppEnabledLayerNames = s_requiredValidationLayers;
 #endif
-	vkici.enabledExtensionCount = Utils::Cast32(vExtensions.size());
-	vkici.ppEnabledExtensionNames = vExtensions.data();
 	if (VK_SUCCESS != (res = vkCreateInstance(&vkici, GetAllocator(), &_instance)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateInstance(), res=" << res;
 }
 
-void RendererVulkan::CreateDebugUtilsMessenger()
+void RendererVulkan::FillDebugUtilsMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& vkdumci)
 {
-	VkResult res = VK_SUCCESS;
-	VkDebugUtilsMessengerCreateInfoEXT vkdumci = {};
 	vkdumci.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 	vkdumci.messageSeverity =
 #if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
@@ -295,6 +299,13 @@ void RendererVulkan::CreateDebugUtilsMessenger()
 		VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
 		VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 	vkdumci.pfnUserCallback = DebugUtilsMessengerCallback;
+}
+
+void RendererVulkan::CreateDebugUtilsMessenger()
+{
+	VkResult res = VK_SUCCESS;
+	VkDebugUtilsMessengerCreateInfoEXT vkdumci = {};
+	FillDebugUtilsMessengerCreateInfo(vkdumci);
 	if (VK_SUCCESS != (res = CreateDebugUtilsMessengerEXT(_instance, &vkdumci, GetAllocator(), &_debugUtilsMessenger)))
 		throw VERUS_RUNTIME_ERROR << "CreateDebugUtilsMessengerEXT(), res=" << res;
 }
@@ -417,6 +428,7 @@ void RendererVulkan::CreateDevice()
 		vkdqci.pQueuePriorities = queuePriorities;
 		vDeviceQueueCreateInfos.push_back(vkdqci);
 	}
+
 	VkPhysicalDeviceFeatures physicalDeviceFeatures = {};
 	physicalDeviceFeatures.geometryShader = VK_TRUE;
 	physicalDeviceFeatures.tessellationShader = settings._gpuTessellation ? VK_TRUE : VK_FALSE;
@@ -425,6 +437,7 @@ void RendererVulkan::CreateDevice()
 	physicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
 	physicalDeviceFeatures.shaderImageGatherExtended = VK_TRUE;
 	physicalDeviceFeatures.shaderClipDistance = VK_TRUE;
+
 	VkDeviceCreateInfo vkdci = {};
 	vkdci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	vkdci.pNext = &lineRasterizationFeatures;
@@ -480,14 +493,20 @@ void RendererVulkan::CreateSwapChain(VkSwapchainKHR oldSwapchain)
 
 	const SwapChainInfo swapChainInfo = GetSwapChainInfo(_physicalDevice);
 
+	// Useful for maximized windows:
+	const uint32_t width = Math::Clamp<uint32_t>(renderer.GetSwapChainWidth(),
+		swapChainInfo._surfaceCapabilities.minImageExtent.width, swapChainInfo._surfaceCapabilities.maxImageExtent.width);
+	const uint32_t height = Math::Clamp<uint32_t>(renderer.GetSwapChainHeight(),
+		swapChainInfo._surfaceCapabilities.minImageExtent.height, swapChainInfo._surfaceCapabilities.maxImageExtent.height);
+
 	VkSwapchainCreateInfoKHR vksci = {};
 	vksci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	vksci.surface = _surface;
 	vksci.minImageCount = _swapChainBufferCount;
 	vksci.imageFormat = VK_FORMAT_B8G8R8A8_SRGB;
 	vksci.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-	vksci.imageExtent.width = renderer.GetSwapChainWidth();
-	vksci.imageExtent.height = renderer.GetSwapChainHeight();
+	vksci.imageExtent.width = width;
+	vksci.imageExtent.height = height;
 	vksci.imageArrayLayers = 1;
 	vksci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 	vksci.preTransform = swapChainInfo._surfaceCapabilities.currentTransform;

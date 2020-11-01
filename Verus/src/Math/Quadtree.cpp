@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -61,8 +62,8 @@ void Quadtree::Build(int currentNode, int level)
 {
 	const Vector3 dim = _bounds.GetDimensions();
 	const Vector3 ratio = VMath::divPerElem(dim, _limit);
-	const int maxLevelX = Math::HighestBit(int(ratio.getX()));
-	const int maxLevelY = Math::HighestBit(int(ratio.getY()));
+	const int maxLevelX = Math::HighestBit(static_cast<int>(ratio.getX()));
+	const int maxLevelY = Math::HighestBit(static_cast<int>(ratio.getY()));
 	const int maxLevel = Math::Max(maxLevelX, maxLevelY);
 	if (!currentNode)
 	{
@@ -202,7 +203,7 @@ Continue Quadtree::TraverseVisible(RcPoint3 point, PResult pResult, int currentN
 		}
 
 		BYTE childIndices[4];
-		ChildIndices(point, _vNodes[currentNode].GetBounds().GetCenter(), childIndices);
+		RemapChildIndices(point, _vNodes[currentNode].GetBounds().GetCenter(), childIndices);
 		VERUS_FOR(i, 4)
 		{
 			const int index = _vNodes[currentNode].GetChildIndex(childIndices[i]);
@@ -216,7 +217,7 @@ Continue Quadtree::TraverseVisible(RcPoint3 point, PResult pResult, int currentN
 	return Continue::yes;
 }
 
-void Quadtree::ChildIndices(RcPoint3 point, RcPoint3 center, BYTE childIndices[4])
+void Quadtree::RemapChildIndices(RcPoint3 point, RcPoint3 center, BYTE childIndices[4])
 {
 	int i =
 		(point.getX() >= center.getX() ? 1 : 0) |

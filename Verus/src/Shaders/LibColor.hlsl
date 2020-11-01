@@ -1,4 +1,4 @@
-// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 // See: https://en.wikipedia.org/wiki/Grayscale
 float Grayscale(float3 color)
@@ -38,14 +38,6 @@ float PickAlpha(float3 albedo, float4 pick, float sharp)
 {
 	const float3 d = albedo - pick.rgb;
 	return saturate(1.0 - dot(d, d) * sharp) * pick.a;
-}
-
-float PickAlphaHue(float3 albedo, float4 pick, float sharp)
-{
-	const float hueA = ConvertRGBtoHCV(albedo).x;
-	const float hueB = ConvertRGBtoHCV(pick.rgb).x;
-	const float d = abs(hueA - hueB);
-	return saturate(1.0 - min(d, 1.0 - d) * sharp) * pick.a;
 }
 
 float PickAlphaRound(float4 pick, float2 tc)

@@ -1,4 +1,4 @@
-// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 #include "Lib.hlsl"
 #include "LibDeferredShading.hlsl"
@@ -133,7 +133,7 @@ FSO mainFS(VSO si)
 
 	// GBuffer0:
 	const float3 albedo = rawGBuffer0.rgb * 0.5;
-	const float spec = rawGBuffer0.a;
+	const float specStrength = rawGBuffer0.a;
 
 	// GBuffer1:
 	const float3 normalWV = DS_GetNormal(rawGBuffer1);
@@ -172,7 +172,7 @@ FSO mainFS(VSO si)
 		float4(0, 0, 1, 0));
 
 	const float3 diffColor = litRet.y * g_ubSimpleForestFS._sunColor.rgb * shadowMask + g_ubSimpleForestFS._ambientColor.rgb;
-	const float3 specColor = litRet.z * g_ubSimpleForestFS._sunColor.rgb * shadowMask * spec;
+	const float3 specColor = litRet.z * g_ubSimpleForestFS._sunColor.rgb * shadowMask * specStrength;
 
 	so.color.rgb = albedo * diffColor + specColor;
 	so.color.a = 1.0;

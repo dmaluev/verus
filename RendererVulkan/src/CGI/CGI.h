@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 #define VERUS_VULKAN_DESTROY(vk, fn) {if (VK_NULL_HANDLE != vk) {fn; vk = VK_NULL_HANDLE;}}

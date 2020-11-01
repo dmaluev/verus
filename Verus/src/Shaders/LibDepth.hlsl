@@ -1,4 +1,4 @@
-// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 // Convert non-linear z-buffer value to positive linear form:
 float ToLinearDepth(float d, float4 zNearFarEx)

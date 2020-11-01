@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -39,11 +40,15 @@ namespace verus
 			void MarkFirstInstance();
 			void Draw(CGI::CommandBufferPtr cb);
 			void BindPipeline(CGI::CommandBufferPtr cb);
+			void BindPipelineReflection(CGI::CommandBufferPtr cb);
 			void BindGeo(CGI::CommandBufferPtr cb);
 			void PushInstance(RcTransform3 matW, RcVector4 instData);
 
 			RMesh GetMesh() { return _mesh; }
 			MaterialPtr GetMaterial() { return _material; }
+
+			void Serialize(IO::RSeekableStream stream);
+			void Deserialize(IO::RStream stream, CSZ url);
 		};
 		VERUS_TYPEDEFS(Model);
 

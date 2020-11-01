@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "stdafx.h"
 
 using namespace verus;
@@ -95,9 +96,10 @@ void GeometryD3D12::CreateVertexBuffer(int count, int binding)
 	{
 		D3D12MA::ALLOCATION_DESC allocDesc = {};
 		allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+		const auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize * BaseRenderer::s_ringBufferSize);
 		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
 			&allocDesc,
-			&CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize * BaseRenderer::s_ringBufferSize),
+			&resDesc,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			&vb._pMaAllocation,
@@ -116,9 +118,10 @@ void GeometryD3D12::CreateVertexBuffer(int count, int binding)
 	{
 		D3D12MA::ALLOCATION_DESC allocDesc = {};
 		allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+		const auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize);
 		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
 			&allocDesc,
-			&CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize),
+			&resDesc,
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			nullptr,
 			&vb._pMaAllocation,
@@ -164,9 +167,10 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, PBaseCommandB
 			revertState = false;
 			D3D12MA::ALLOCATION_DESC allocDesc = {};
 			allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+			const auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize);
 			if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
 				&allocDesc,
-				&CD3DX12_RESOURCE_DESC::Buffer(vb._bufferSize),
+				&resDesc,
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
 				&svb._pMaAllocation,
@@ -212,9 +216,10 @@ void GeometryD3D12::CreateIndexBuffer(int count)
 	{
 		D3D12MA::ALLOCATION_DESC allocDesc = {};
 		allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+		const auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(_indexBuffer._bufferSize * BaseRenderer::s_ringBufferSize);
 		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
 			&allocDesc,
-			&CD3DX12_RESOURCE_DESC::Buffer(_indexBuffer._bufferSize * BaseRenderer::s_ringBufferSize),
+			&resDesc,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			&_indexBuffer._pMaAllocation,
@@ -233,9 +238,10 @@ void GeometryD3D12::CreateIndexBuffer(int count)
 	{
 		D3D12MA::ALLOCATION_DESC allocDesc = {};
 		allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+		const auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(_indexBuffer._bufferSize);
 		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
 			&allocDesc,
-			&CD3DX12_RESOURCE_DESC::Buffer(_indexBuffer._bufferSize),
+			&resDesc,
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			nullptr,
 			&_indexBuffer._pMaAllocation,
@@ -275,9 +281,10 @@ void GeometryD3D12::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, INT
 			revertState = false;
 			D3D12MA::ALLOCATION_DESC allocDesc = {};
 			allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+			const auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(_indexBuffer._bufferSize);
 			if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
 				&allocDesc,
-				&CD3DX12_RESOURCE_DESC::Buffer(_indexBuffer._bufferSize),
+				&resDesc,
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
 				&_stagingIndexBuffer._pMaAllocation,

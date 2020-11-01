@@ -1,4 +1,4 @@
-// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 #include "Lib.hlsl"
 #include "LibDepth.hlsl"
@@ -107,7 +107,6 @@ FSO mainFS(VSO si)
 
 	const float4 layerForChannel = round(si.layerForChannel);
 	const float2 tcLayer = si.tcLayer_tcMap.xy;
-	const float2 tcMap = si.tcLayer_tcMap.zw;
 
 	const float4 rawBlend = g_texBlend.Sample(g_samBlend, si.tcBlend);
 	float4 weights = float4(rawBlend.rgb, 1.0 - dot(rawBlend.rgb, float3(1, 1, 1)));

@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "stdafx.h"
 
 using namespace verus;
@@ -222,10 +223,11 @@ void ShaderD3D12::CreateDescriptorSet(int setNumber, const void* pSrc, int size,
 	{
 		const UINT64 bufferSize = dsd._capacityInBytes * BaseRenderer::s_ringBufferSize;
 		D3D12MA::ALLOCATION_DESC allocDesc = {};
+		const auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 		allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
 		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
 			&allocDesc,
-			&CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
+			&resDesc,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			&dsd._pMaAllocation,

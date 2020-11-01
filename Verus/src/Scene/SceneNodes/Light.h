@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -19,10 +20,10 @@ namespace verus
 		//! Light is a scene node with light's info.
 		class Light : public SceneNode
 		{
-			LightData       _data;
-			//Anim::CShaker _shaker;
-			float           _intMax = 1;
-			bool            _async_loadedMesh = false;
+			LightData    _data;
+			Anim::Shaker _shaker;
+			float        _baseIntensity = 1;
+			bool         _async_loadedMesh = false;
 
 		public:
 			struct Desc
@@ -42,7 +43,6 @@ namespace verus
 			void Done();
 
 			virtual void Update() override;
-			virtual void Draw() override;
 
 			void SetLightType(CGI::LightType type);
 			CGI::LightType GetLightType() const;
@@ -70,6 +70,8 @@ namespace verus
 			virtual void UpdateBounds() override;
 
 			// Serialization:
+			virtual void Serialize(IO::RSeekableStream stream) override;
+			virtual void Deserialize(IO::RStream stream) override;
 			virtual void SaveXML(pugi::xml_node node) override;
 			virtual void LoadXML(pugi::xml_node node) override;
 		};

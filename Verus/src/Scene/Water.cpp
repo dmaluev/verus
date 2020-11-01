@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -308,7 +309,7 @@ void Water::BeginReflection(CGI::PBaseCommandBuffer pCB)
 	if (!pCB)
 		pCB = renderer.GetCommandBuffer().Get();
 
-	_camera = *sm.GetCamera();
+	_camera = *sm.GetMainCamera();
 	if (!IsUnderwater(_camera.GetEyePosition()))
 		_camera.EnableReflectionMode();
 	_pPrevCamera = sm.SetCamera(&_camera);

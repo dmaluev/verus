@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -110,7 +111,7 @@ int DDSHeader::GetPartCount() const
 int DDSHeader::SkipParts(int skipCount)
 {
 	const int partCount = GetPartCount();
-	if (skipCount >= 256)
+	if (skipCount >= 256) // Skip count is actually texture size.
 		skipCount = 8 + partCount - Math::HighestBit(skipCount);
 	skipCount = Math::Clamp(skipCount, 0, partCount - 1);
 	if (skipCount)

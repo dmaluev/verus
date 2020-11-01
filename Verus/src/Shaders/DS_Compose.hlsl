@@ -1,4 +1,4 @@
-// Copyright (C) 2020, Dmitry Maluev (dmaluev@gmail.com)
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 #include "Lib.hlsl"
 #include "LibColor.hlsl"
@@ -153,6 +153,11 @@ FSO mainFS(VSO si)
 	const float3 exposedComposed = Desaturate(rawComposed.rgb, saturate(1.0 - gray * 0.03)) * g_ubComposeFS._ambientColor_exposure.a;
 	so.color.rgb = VerusToneMapping(exposedComposed, 0.5);
 	so.color.a = 1.0;
+
+	// Vignette:
+	const float2 tcOffset = si.tc0 * 1.4 - 0.7;
+	const float lamp = saturate(dot(tcOffset, tcOffset));
+	so.color.rgb = lerp(so.color.rgb, so.color.rgb * float3(0.64, 0.48, 0.36), lamp);
 
 	// SolidColor (using special value 1.0 for emission):
 	so.color.rgb = lerp(so.color.rgb, rawGBuffer0.rgb, floor(rawGBuffer1.b));

@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "stdafx.h"
 
 using namespace verus;
@@ -179,8 +180,8 @@ void RendererD3D12::InitD3D()
 
 	_swapChainBufferCount = settings._displayVSync ? 3 : 2;
 
-	_swapChainDesc.Width = settings._displaySizeWidth;
-	_swapChainDesc.Height = settings._displaySizeHeight;
+	_swapChainDesc.Width = renderer.GetSwapChainWidth();
+	_swapChainDesc.Height = renderer.GetSwapChainHeight();
 	_swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 	_swapChainDesc.Stereo = FALSE;
 	_swapChainDesc.SampleDesc.Count = 1;

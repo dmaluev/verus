@@ -684,6 +684,24 @@
     <ClInclude Include="src\Scene\SceneNodes\Prefab.h">
       <Filter>src\Scene\SceneNodes</Filter>
     </ClInclude>
+    <ClInclude Include="src\Scene\SceneNodes\Emitter.h">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\SceneNodes\SceneParticles.h">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Anim\Shaker.h">
+      <Filter>src\Anim</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Physics\Vehicle.h">
+      <Filter>src\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Net\Multiplayer.h">
+      <Filter>src\Net</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\BaseCircularBuffer.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -1157,6 +1175,21 @@
     <ClCompile Include="src\Scene\SceneNodes\Prefab.cpp">
       <Filter>src\Scene\SceneNodes</Filter>
     </ClCompile>
+    <ClCompile Include="src\Scene\SceneNodes\Emitter.cpp">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\SceneNodes\SceneParticles.cpp">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Anim\Shaker.cpp">
+      <Filter>src\Anim</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Physics\Vehicle.cpp">
+      <Filter>src\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Net\Multiplayer.cpp">
+      <Filter>src\Net</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\Shaders\Lib.hlsl">
@@ -1313,6 +1346,12 @@
       <Filter>src\Shaders</Filter>
     </None>
     <None Include="src\Shaders\Particles.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\SimpleMesh.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\SimpleMesh.inc.hlsl">
       <Filter>src\Shaders</Filter>
     </None>
   </ItemGroup>

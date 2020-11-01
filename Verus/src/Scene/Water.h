@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -67,8 +68,8 @@ namespace verus
 			CGI::CSHandle                 _cshGenNormals;
 			CGI::RPHandle                 _rphReflection;
 			CGI::FBHandle                 _fbhReflection;
-			Camera                        _camera;
-			PCamera                       _pPrevCamera = nullptr;
+			MainCamera                    _camera;
+			PMainCamera                   _pPrevCamera = nullptr;
 			const int                     _genSide = 1024;
 			int                           _gridWidth = 128;
 			int                           _gridHeight = 512;

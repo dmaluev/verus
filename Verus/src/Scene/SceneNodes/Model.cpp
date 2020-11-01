@@ -1,3 +1,4 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -65,6 +66,12 @@ void Model::BindPipeline(CGI::CommandBufferPtr cb)
 	_mesh.UpdateUniformBufferPerFrame();
 }
 
+void Model::BindPipelineReflection(CGI::CommandBufferPtr cb)
+{
+	_mesh.BindPipeline(Mesh::PIPE_SIMPLE_REF_INSTANCED, cb);
+	_mesh.UpdateUniformBufferSimplePerFrame();
+}
+
 void Model::BindGeo(CGI::CommandBufferPtr cb)
 {
 	_mesh.BindGeo(cb);
@@ -74,6 +81,22 @@ void Model::BindGeo(CGI::CommandBufferPtr cb)
 void Model::PushInstance(RcTransform3 matW, RcVector4 instData)
 {
 	_mesh.PushInstance(matW, instData);
+}
+
+void Model::Serialize(IO::RSeekableStream stream)
+{
+	stream.WriteString(_C(_material->_name));
+}
+
+void Model::Deserialize(IO::RStream stream, CSZ url)
+{
+	char mat[IO::Stream::s_bufferSize] = {};
+	stream.ReadString(mat);
+
+	Desc desc;
+	desc._url = url;
+	desc._mat = mat;
+	Init(desc);
 }
 
 // ModelPtr:
