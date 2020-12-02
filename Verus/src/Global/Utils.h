@@ -47,6 +47,8 @@ namespace verus
 
 		static void PushQuitEvent();
 
+		static void OpenUrl(CSZ url);
+
 		static INT32 Cast32(INT64 x);
 		static UINT32 Cast32(UINT64 x);
 

@@ -201,13 +201,29 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 			"#SolidColorRobotic",
 			"#SolidColorSkinned",
 
+			// Simple:
+
 			"#",
 			"#Instanced",
 			"#Robotic",
-			"#Skinned"
+			"#Skinned",
+
+			"#Texture",
+			"#TextureInstanced",
+			"#TextureRobotic",
+			"#TextureSkinned"
 		};
 
-		if (pipe >= PIPE_SIMPLE_REF)
+		if (pipe >= PIPE_SIMPLE_TEX_ADD)
+		{
+			CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], branches[pipe], renderer.GetDS().GetRenderPassHandle_ExtraCompose());
+			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
+			pipeDesc._rasterizationState._cullMode = CGI::CullMode::none;
+			pipeDesc._vertexInputBindingsFilter = _bindingsMask;
+			pipeDesc._depthWriteEnable = false;
+			s_pipe[pipe].Init(pipeDesc);
+		}
+		else if (pipe >= PIPE_SIMPLE_WATER_REF)
 		{
 			VERUS_QREF_WATER;
 			CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], branches[pipe], water.GetRenderPassHandle());

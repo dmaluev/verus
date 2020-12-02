@@ -218,7 +218,7 @@ FSO mainMotionFS(VSO si)
 	FSO so;
 
 	const float3 rand = Rand(si.pos.xy);
-	const float offsetScale = 0.5 + 0.3 * rand.x; // Blur 50% - 80% of frame time.
+	const float offsetScale = 0.3 + 0.2 * rand.x; // Blur 30% - 50% of frame time.
 
 	const int sampleCount = max(4, _ANISOTROPY_LEVEL);
 
@@ -237,7 +237,7 @@ FSO mainMotionFS(VSO si)
 	}
 
 	const float2 stride = (si.tc0 - tcFrom) * offsetScale / (sampleCount - 1);
-	const float2 tcOrigin = lerp(tcFrom, si.tc0, 0.7);
+	const float2 tcOrigin = lerp(tcFrom, si.tc0, 0.8);
 
 	float4 acc = float4(g_tex.SampleLevel(g_sam, si.tc0, 0.0).rgb, 1);
 	[unroll] for (int i = 0; i < sampleCount; i++)

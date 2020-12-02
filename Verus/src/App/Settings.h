@@ -26,10 +26,12 @@ namespace verus
 			int _ds_ubAOTexturesFSCapacity = 1;
 			int _ds_ubAOPerMeshVSCapacity = 10;
 			int _generateMips_ubCapacity = 100;
-			int _mesh_ubPerFrameCapacity = 100;
+			int _mesh_ubPerFrameCapacity = 1000;
 			int _mesh_ubPerMaterialFSCapacity = 1000;
 			int _mesh_ubPerMeshVSCapacity = 10000;
 			int _mesh_ubSkinningVSCapacity = 5000;
+			int _particles_ubVSCapacity = 100;
+			int _particles_ubFSCapacity = 100;
 			int _quad_ubVSCapacity = 100;
 			int _quad_ubFSCapacity = 100;
 			int _terrain_ubDrawDepthCapacity = 100;

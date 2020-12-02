@@ -36,11 +36,13 @@ struct VSI
 struct VSO
 {
 	float4 pos        : SV_Position;
+	float4 color0     : COLOR0;
 	float2 tc0        : TEXCOORD0;
 	float4 posW_depth : TEXCOORD1;
+#if !defined(DEF_TEXTURE)
 	float3 nrmW       : TEXCOORD2;
 	float3 dirToEye   : TEXCOORD3;
-	float4 color0     : COLOR0;
+#endif
 	float clipDistance : SV_ClipDistance;
 };
 
@@ -113,10 +115,12 @@ VSO mainVS(VSI si)
 
 	so.pos = mul(float4(posW, 1), g_ubSimplePerFrame._matVP);
 	so.posW_depth = float4(posW, so.pos.z);
+	so.color0 = userColor;
 	so.tc0 = intactTc0;
+#if !defined(DEF_TEXTURE)
 	so.nrmW = nrmW;
 	so.dirToEye = eyePos - posW;
-	so.color0 = userColor;
+#endif
 	so.clipDistance = posW.y + clipDistanceOffset;
 
 	return so;
@@ -128,6 +132,11 @@ FSO mainFS(VSO si)
 {
 	FSO so;
 
+#ifdef DEF_TEXTURE
+	const float4 rawAlbedo = g_texAlbedo.Sample(g_samAlbedo, si.tc0);
+	so.color.rgb = rawAlbedo.rgb * si.color0.rgb;
+	so.color.a = 1.0;
+#else
 	// <Material>
 	const float2 mm_alphaSwitch = g_ubSimplePerMaterialFS._alphaSwitch_anisoSpecDir.xy;
 	const float mm_emission = g_ubSimplePerMaterialFS._detail_emission_gloss_hairDesat.y;
@@ -227,6 +236,7 @@ FSO mainFS(VSO si)
 	so.color.rgb = lerp(so.color.rgb, g_ubSimplePerFrame._fogColor.rgb, fog);
 
 	clip(alpha_spec.x - 0.5);
+#endif
 
 	return so;
 }
@@ -236,3 +246,8 @@ FSO mainFS(VSO si)
 //@main:#Instanced INSTANCED
 //@main:#Robotic   ROBOTIC
 //@main:#Skinned   SKINNED
+
+//@main:#Texture          TEXTURE
+//@main:#TextureInstanced TEXTURE INSTANCED
+//@main:#TextureRobotic   TEXTURE ROBOTIC
+//@main:#TextureSkinned   TEXTURE SKINNED

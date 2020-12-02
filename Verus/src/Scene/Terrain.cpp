@@ -1266,7 +1266,7 @@ void Terrain::UpdateHeightmapTexture()
 				const int ij[] = { i * step, j * step };
 				short h;
 				GetHeightAt(ij, 0, &h);
-				_vHeightmapSubresData[offset + j] = glm::packHalf1x16(h);
+				_vHeightmapSubresData[offset + j] = glm::packHalf1x16(static_cast<float>(h - 3));
 			}
 		});
 		_tex[TEX_HEIGHTMAP]->UpdateSubresource(_vHeightmapSubresData.data(), lod);

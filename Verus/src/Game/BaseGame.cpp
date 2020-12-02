@@ -309,10 +309,7 @@ void BaseGame::KeyMapper_OnMouseMove(int x, int y)
 	if (!SDL_GetRelativeMouseMode())
 		return;
 
-	VERUS_QREF_CONST_SETTINGS;
-
-	const float rad = (VERUS_2PI / 360.f) / 3.f; // 3 pixels = 1 degree.
-	const float scale = rad * settings._inputMouseSensitivity;
+	const float scale = GetMouseScale();
 	const float fx = x * scale;
 	const float fy = y * scale;
 
@@ -369,4 +366,11 @@ void BaseGame::BulletDebugDraw()
 {
 	VERUS_QREF_BULLET;
 	bullet.DebugDraw();
+}
+
+float BaseGame::GetMouseScale()
+{
+	VERUS_QREF_CONST_SETTINGS;
+	const float rad = (VERUS_2PI / 360.f) / 3.f; // 3 pixels = 1 degree.
+	return rad * settings._inputMouseSensitivity;
 }

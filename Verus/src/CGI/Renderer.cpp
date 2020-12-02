@@ -212,7 +212,7 @@ void Renderer::Update()
 		const float target = -0.3f + 0.6f * expScale * expScale; // Dark scene exposure compensation.
 		const float important = (actual - 0.5f * (1 - alpha)) / alpha;
 		const float delta = abs(target - important);
-		const float speed = delta * sqrt(delta) * 20;
+		const float speed = delta * sqrt(delta) * 15;
 
 		if (important < target * 0.95f)
 			_exposure[1] -= speed * dt;

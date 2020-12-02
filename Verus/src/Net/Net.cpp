@@ -6,9 +6,11 @@ namespace verus
 	void Make_Net()
 	{
 		Net::Socket::Startup();
+		Net::Multiplayer::Make();
 	}
 	void Free_Net()
 	{
+		Net::Multiplayer::Free();
 		Net::Socket::Cleanup();
 	}
 }

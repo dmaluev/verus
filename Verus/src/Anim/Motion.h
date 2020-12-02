@@ -57,6 +57,7 @@ namespace verus
 						next = null;
 						return 0;
 					}
+					time = Math::Max(0.f, time); // Negative time is not allowed.
 					float alpha;
 					const int frame = static_cast<int>(_pMotion->GetFps() * time); // Frame is before or at 'time'.
 					typename TMap::const_iterator it = m.upper_bound(frame); // Find frame after 'time'.

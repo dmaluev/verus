@@ -140,6 +140,7 @@
     <ClInclude Include="src\Extra\FileParser.h" />
     <ClInclude Include="src\Game\BaseGame.h" />
     <ClInclude Include="src\Game\BaseCharacter.h" />
+    <ClInclude Include="src\Game\ChainAward.h" />
     <ClInclude Include="src\Game\Spirit.h" />
     <ClInclude Include="src\Game\Game.h" />
     <ClInclude Include="src\Game\State.h" />
@@ -171,6 +172,7 @@
     <ClInclude Include="src\Global\Utils.h" />
     <ClInclude Include="src\GUI\Animator.h" />
     <ClInclude Include="src\GUI\Button.h" />
+    <ClInclude Include="src\GUI\Chat.h" />
     <ClInclude Include="src\GUI\Container.h" />
     <ClInclude Include="src\GUI\Cursor.h" />
     <ClInclude Include="src\GUI\Font.h" />
@@ -335,6 +337,7 @@
     <ClCompile Include="src\Extra\FileParser.cpp" />
     <ClCompile Include="src\Game\BaseGame.cpp" />
     <ClCompile Include="src\Game\BaseCharacter.cpp" />
+    <ClCompile Include="src\Game\ChainAward.cpp" />
     <ClCompile Include="src\Game\Spirit.cpp" />
     <ClCompile Include="src\Game\State.cpp" />
     <ClCompile Include="src\Game\StateMachine.cpp" />
@@ -351,6 +354,7 @@
     <ClCompile Include="src\Global\Utils.cpp" />
     <ClCompile Include="src\GUI\Animator.cpp" />
     <ClCompile Include="src\GUI\Button.cpp" />
+    <ClCompile Include="src\GUI\Chat.cpp" />
     <ClCompile Include="src\GUI\Container.cpp" />
     <ClCompile Include="src\GUI\Cursor.cpp" />
     <ClCompile Include="src\GUI\Font.cpp" />

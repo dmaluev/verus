@@ -604,6 +604,8 @@ bool SceneManager::RayCastingTest(RcPoint3 pointA, RcPoint3 pointB, PBlockPtr pB
 {
 	VERUS_RT_ASSERT(!pBlock || *pBlock);
 	VERUS_QREF_BULLET;
+	if (!memcmp(pointA.ToPointer(), pointB.ToPointer(), sizeof(float) * 3))
+		return false;
 	btVector3 from(pointA.Bullet()), to(pointB.Bullet());
 	if (pPoint || pNormal)
 	{

@@ -165,7 +165,6 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 					pVB[i]._nrm[2] * pVB[i]._nrm[2];
 				VERUS_RT_ASSERT(len > 125 * 125);
 #endif
-				Convert::ToDeviceNormal(pVB[i]._nrm, pVB[i]._nrm);
 			}
 		}
 		break;

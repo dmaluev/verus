@@ -43,7 +43,7 @@ void Settings::ParseCommandLineArgs(int argc, char* argv[])
 			_commandLine._gapi = atoi(argv[i + 1]);
 		if (IsArg(i, "--efs") || IsArg(i, "--fullscreen"))
 			_commandLine._exclusiveFullscreen = true;
-		if (IsArg(i, "--windowed"))
+		if (IsArg(i, "--wnd") || IsArg(i, "--windowed"))
 			_commandLine._windowed = true;
 		if (IsArg(i, "--bwnd"))
 			_commandLine._borderlessWindowed = true;

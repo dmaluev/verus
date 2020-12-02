@@ -12,7 +12,7 @@ namespace verus
 			union
 			{
 				UINT32 _addr = 0;
-				BYTE _a[4];
+				BYTE   _a[4];
 			};
 			UINT16 _port = 0;
 
@@ -25,7 +25,7 @@ namespace verus
 			//! Returns localhost address 127.0.0.1.
 			static Addr Localhost(int port = 0);
 
-			bool IsNull() const { return !_port; }
+			bool IsNull() const { return !_addr || !_port; }
 			bool IsLocalhost() const;
 
 			//! Accepts IP:Port or URL, which is resolved using getaddrinfo().

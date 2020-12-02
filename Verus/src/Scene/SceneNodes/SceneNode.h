@@ -48,7 +48,7 @@ namespace verus
 			IO::RDictionary GetDictionary() { return _dict; }
 
 			bool IsDynamic() const { return _dynamic; }
-			virtual void SetDynamic(bool mode) { _dynamic = mode; }
+			void SetDynamic(bool mode);
 
 			bool IsHidden() const { return _hidden; }
 			void Hide(bool hide = true) { _hidden = hide; }

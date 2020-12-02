@@ -18,7 +18,9 @@ namespace verus
 			enum PIPE
 			{
 				PIPE_MAIN,
+				PIPE_MAIN_ADD,
 				PIPE_MASK,
+				PIPE_MASK_ADD,
 				PIPE_SOLID_COLOR,
 				PIPE_COUNT
 			};
@@ -38,6 +40,7 @@ namespace verus
 			CGI::PipelinePwns<PIPE_COUNT> _pipe;
 			CGI::TexturePwns<TEX_COUNT>   _tex;
 			CGI::CSHandle                 _cshDefault;
+			CGI::CSHandle                 _cshDebug;
 			String                        _fadeToView;
 			UB_Gui                        _ubGui;
 			UB_GuiFS                      _ubGuiFS;
@@ -84,6 +87,7 @@ namespace verus
 			UB_GuiFS& GetUbGuiFS() { return _ubGuiFS; }
 			CGI::TexturePtr GetDebugTexture();
 			CGI::CSHandle GetDefaultComplexSetHandle() const { return _cshDefault; }
+			CGI::CSHandle GetDebugComplexSetHandle() const { return _cshDebug; }
 
 			PView GetCurrentParseView() { return _pCurrentParseView; }
 

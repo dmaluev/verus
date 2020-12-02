@@ -21,6 +21,7 @@ void Light::Init(RcDesc desc)
 	VERUS_QREF_SM;
 	_name = sm.EnsureUniqueName(desc._name ? desc._name : "Light");
 	_data = desc._data;
+	_dynamic = desc._dynamic;
 	if (desc._urlIntShaker)
 	{
 		_shaker.Load(desc._urlIntShaker);

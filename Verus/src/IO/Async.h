@@ -51,7 +51,7 @@ namespace verus
 			std::thread             _thread;
 			std::condition_variable _cv;
 			D::RuntimeError         _ex;
-			CSZ                     _queue[64];
+			CSZ                     _queue[256];
 			int                     _cursorRead = 0;
 			int                     _cursorWrite = 0;
 			UINT32                  _order = 0;

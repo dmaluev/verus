@@ -54,7 +54,7 @@ void Table::Draw()
 	}
 
 	// Draw rows:
-	for (int row = _offset; row < int(_vRows.size()); ++row)
+	for (int row = _offset; row < _vRows.size(); ++row)
 	{
 		if (row == _selectedRow)
 		{
@@ -67,7 +67,7 @@ void Table::Draw()
 			vm.BindPipeline(ViewManager::PIPE_SOLID_COLOR, cb);
 			shader->BeginBindDescriptors();
 			cb->BindDescriptors(shader, 0);
-			cb->BindDescriptors(shader, 1);
+			cb->BindDescriptors(shader, 1, vm.GetDefaultComplexSetHandle());
 			shader->EndBindDescriptors();
 			renderer.DrawQuad();
 		}
@@ -137,7 +137,7 @@ void Table::Clear()
 
 void Table::SelectNextRow()
 {
-	if (_selectedRow >= 0 && _selectedRow < int(_vRows.size()) - 1)
+	if (_selectedRow >= 0 && _selectedRow < static_cast<int>(_vRows.size()) - 1)
 		_selectedRow++;
 }
 
@@ -165,7 +165,7 @@ void Table::UpdateRow(int index, int col, CSZ txt, UINT32 color, const void* pUs
 {
 	if (index < 0)
 		index = _selectedRow;
-	if (index >= int(_vRows.size()))
+	if (index >= _vRows.size())
 		return;
 	if (col >= _cols)
 		return;
@@ -212,7 +212,7 @@ bool Table::InvokeOnClick(float x, float y)
 	const bool ret = Label::InvokeOnClick(x, y);
 	const float xLocal = x - GetX();
 	const float yLocal = y - GetY();
-	const int row = int(yLocal / _rowHeight) + _offset - (_header._vCells.empty() ? 0 : 1);
+	const int row = static_cast<int>(yLocal / _rowHeight) + _offset - (_header._vCells.empty() ? 0 : 1);
 	_selectedRow = -1;
 	if (row >= 0 && row < GetRowCount())
 		_selectedRow = row;

@@ -39,6 +39,7 @@ namespace verus
 			Physics::RCharacterController GetController() { return _cc; }
 
 			virtual void MoveTo(RcPoint3 pos) override;
+			virtual bool FitRemotePosition() override;
 
 			// Dimensions:
 			float GetIdleRadius() const { return _idleRadius; }
@@ -75,9 +76,9 @@ namespace verus
 			virtual void BaseCharacter_OnInitRagdoll(RcTransform3 matW) {}
 			virtual void BaseCharacter_OnDoneRagdoll() {}
 
-			void ComputeThirdPersonAim(RPoint3 aimPos, RVector3 aimDir, RcVector3 offset = Vector3(0));
 			virtual void ComputeThirdPersonCameraArgs(RcVector3 offset, RPoint3 eye, RPoint3 at);
 			float ComputeThirdPersonCamera(Scene::RCamera camera, Anim::RcOrbit orbit, RcVector3 offset = Vector3(0));
+			void ComputeThirdPersonAim(RPoint3 aimPos, RVector3 aimDir, RcVector3 offset = Vector3(0));
 			void SetMaxCameraRadius(float r);
 			float GetCameraRadius() const { return _cameraRadius.GetValue(); }
 		};

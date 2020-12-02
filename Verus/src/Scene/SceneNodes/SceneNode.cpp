@@ -42,6 +42,13 @@ void SceneNode::Rename(CSZ name)
 	_name = sm.EnsureUniqueName(name);
 }
 
+void SceneNode::SetDynamic(bool mode)
+{
+	_dynamic = mode;
+	_octreeBindOnce = false;
+	UpdateBounds();
+}
+
 void SceneNode::SetTransform(RcTransform3 tr)
 {
 	_tr = tr;

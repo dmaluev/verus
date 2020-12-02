@@ -131,13 +131,6 @@ void Block::Update()
 	}
 }
 
-void Block::SetDynamic(bool mode)
-{
-	SceneNode::SetDynamic(mode);
-	_octreeBindOnce = false;
-	_async_loadedModel = false;
-}
-
 MaterialPtr Block::GetMaterial(bool orModelMat)
 {
 	if (!_material && orModelMat)

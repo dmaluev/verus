@@ -393,7 +393,7 @@ void Multiplayer::ThreadProc()
 	std::chrono::steady_clock::time_point tpNat = std::chrono::steady_clock::now();
 	while (true)
 	{
-		_cv.wait_for(lock, std::chrono::milliseconds(20)); // ~50 times per second.
+		_cv.wait_for(lock, std::chrono::milliseconds(10)); // ~100 times per second.
 
 		bool resend = false;
 		if (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - tpResend).count() >= 3)
@@ -506,7 +506,7 @@ void Multiplayer::ThreadProc()
 		}
 
 		// Receive reports from the net?
-		while ((res = _socket.RecvFrom(_vReportBuffer.data(), _vReportBuffer.size(), addr)) > 0)
+		while ((res = _socket.RecvFrom(_vReportBuffer.data(), static_cast<int>(_vReportBuffer.size()), addr)) > 0)
 		{
 			// Start analyzing incoming traffic...
 
@@ -717,33 +717,32 @@ void Multiplayer::ThreadProcWeb()
 			} while (ret > 0);
 
 			CSZ p = strstr(_C(data), "\r\n\r\n");
-			//tinyxml2::XMLDocument doc;
-			//doc.Parse(p);
-			//if (doc.Error())
-			//	return;
-			//
-			//tinyxml2::XMLElement* pElem = nullptr;
-			//tinyxml2::XMLElement* pRoot = doc.FirstChildElement(); // <games>.
-			//if (!pRoot)
-			//	return;
-			//
-			//{
-			//	VERUS_LOCK(*this);
-			//	_vGameDesc.clear();
-			//	if (_vGameDesc.capacity() < 16)
-			//		_vGameDesc.reserve(16);
-			//	for (pElem = pRoot->FirstChildElement("game"); pElem; pElem = pElem->NextSiblingElement("game"))
-			//	{
-			//		GameDesc gd;
-			//		gd._addr.FromString(pElem->Attribute("ip"));
-			//		gd._version = atoi(pElem->Attribute("ver"));
-			//		gd._num = atoi(pElem->Attribute("p"));
-			//		gd._map = pElem->Attribute("map");
-			//		gd._name = pElem->GetText();
-			//		_vGameDesc.push_back(gd);
-			//	}
-			//	SetFlag(MultiplayerFlags::activeGamesReady);
-			//}
+
+			pugi::xml_document doc;
+			const pugi::xml_parse_result result = doc.load_buffer(p, strlen(p));
+			if (!result)
+				return;
+			pugi::xml_node root = doc.first_child();
+			if (!root)
+				return;
+
+			{
+				VERUS_LOCK(*this);
+				_vGameDesc.clear();
+				if (_vGameDesc.capacity() < 16)
+					_vGameDesc.reserve(16);
+				for (auto node : root.children("game"))
+				{
+					GameDesc gameDesc;
+					gameDesc._name = node.text().as_string();
+					gameDesc._map = node.attribute("map").value();
+					gameDesc._addr.FromString(node.attribute("ip").value());
+					gameDesc._version = node.attribute("var").as_int();
+					gameDesc._count = node.attribute("p").as_int();
+					_vGameDesc.push_back(gameDesc);
+				}
+				SetFlag(MultiplayerFlags::activeGamesReady);
+			}
 		}
 		else
 		{

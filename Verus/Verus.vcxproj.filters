@@ -702,6 +702,12 @@
     <ClInclude Include="src\Global\BaseCircularBuffer.h">
       <Filter>src\Global</Filter>
     </ClInclude>
+    <ClInclude Include="src\GUI\Chat.h">
+      <Filter>src\GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\ChainAward.h">
+      <Filter>src\Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -1189,6 +1195,12 @@
     </ClCompile>
     <ClCompile Include="src\Net\Multiplayer.cpp">
       <Filter>src\Net</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GUI\Chat.cpp">
+      <Filter>src\GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\ChainAward.cpp">
+      <Filter>src\Game</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

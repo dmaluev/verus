@@ -68,7 +68,7 @@ void Model::BindPipeline(CGI::CommandBufferPtr cb)
 
 void Model::BindPipelineReflection(CGI::CommandBufferPtr cb)
 {
-	_mesh.BindPipeline(Mesh::PIPE_SIMPLE_REF_INSTANCED, cb);
+	_mesh.BindPipeline(Mesh::PIPE_SIMPLE_WATER_REF_INSTANCED, cb);
 	_mesh.UpdateUniformBufferSimplePerFrame();
 }
 

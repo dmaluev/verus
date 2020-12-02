@@ -14,6 +14,8 @@ namespace verus
 			struct Desc
 			{
 				CSZ _url = nullptr;
+
+				Desc(CSZ url = nullptr) : _url(url) {}
 			};
 			VERUS_TYPEDEFS(Desc);
 

@@ -15,6 +15,7 @@
 #include "Cursor.h"
 #include "ViewManager.h"
 #include "ViewController.h"
+#include "Chat.h"
 
 namespace verus
 {

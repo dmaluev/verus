@@ -76,6 +76,12 @@ void Utils::PushQuitEvent()
 	SDL_PushEvent(&event);
 }
 
+void Utils::OpenUrl(CSZ url)
+{
+	const WideString urlW = Str::Utf8ToWide(url);
+	ShellExecute(0, L"open", _C(urlW), 0, 0, SW_SHOWNORMAL);
+}
+
 INT32 Utils::Cast32(INT64 x)
 {
 	if (x < std::numeric_limits<INT32>::min() || x > std::numeric_limits<INT32>::max())

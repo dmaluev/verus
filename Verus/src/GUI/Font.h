@@ -58,6 +58,7 @@ namespace verus
 			TMapKerning                _mapKerning;
 			int                        _lineHeight = 0;
 			int                        _texSize = 0;
+			UINT32                     _overrideColor = 0;
 
 		public:
 			struct DrawDesc

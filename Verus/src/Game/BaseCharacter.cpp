@@ -171,6 +171,16 @@ void BaseCharacter::MoveTo(RcPoint3 pos)
 		_cc.MoveTo(_position);
 }
 
+bool BaseCharacter::FitRemotePosition()
+{
+	const bool warp = Spirit::FitRemotePosition();
+	if (warp)
+		_fallSpeed.ForceTarget(0);
+	if (_cc.IsInitialized())
+		_cc.MoveTo(_position);
+	return warp;
+}
+
 bool BaseCharacter::IsOnGround() const
 {
 	if (_cc.IsInitialized())
@@ -250,39 +260,6 @@ void BaseCharacter::EndRagdoll()
 	InitController();
 }
 
-void BaseCharacter::ComputeThirdPersonAim(RPoint3 aimPos, RVector3 aimDir, RcVector3 offset)
-{
-	VERUS_QREF_SM;
-
-	const float r = 0.1f;
-	Point3 point;
-	Vector3 norm;
-
-	// From unit's origin to it's head:
-	const Point3 pos = _smoothPosition;
-	const float startAt = _cc.GetRadius() + _cc.GetHeight() * 0.5f;
-	Point3 origin = pos + Vector3(0, startAt, 0);
-	Point3 at = pos + GetYawMatrix() * offset;
-	if (sm.RayCastingTest(origin, at, nullptr, &point, &norm, &r))
-		at = point + norm * r;
-	Point3 eye = at - GetFrontDirection() * _cameraRadius.GetValue();
-
-	if (sm.RayCastingTest(at, eye, nullptr, &point, &norm, &r)) // Hitting the wall?
-	{
-		eye = point + norm * r;
-	}
-	else // No collision?
-	{
-	}
-	if (VMath::distSqr(at, eye) < r * r) // Extremely close?
-	{
-		eye = at - GetFrontDirection() * r;
-	}
-
-	aimPos = eye;
-	aimDir = VMath::normalizeApprox(at - eye);
-}
-
 void BaseCharacter::ComputeThirdPersonCameraArgs(RcVector3 offset, RPoint3 eye, RPoint3 at)
 {
 	VERUS_QREF_SM;
@@ -344,6 +321,33 @@ float BaseCharacter::ComputeThirdPersonCamera(Scene::RCamera camera, Anim::RcOrb
 	camera.MoveAtTo(at);
 
 	return ret;
+}
+
+void BaseCharacter::ComputeThirdPersonAim(RPoint3 aimPos, RVector3 aimDir, RcVector3 offset)
+{
+	VERUS_QREF_SM;
+
+	const float r = 0.1f;
+	Point3 point;
+	Vector3 norm;
+
+	Point3 eye, at;
+	ComputeThirdPersonCameraArgs(offset, eye, at);
+
+	if (sm.RayCastingTest(at, eye, nullptr, &point, &norm, &r)) // Hitting the wall?
+	{
+		eye = point + norm * r;
+	}
+	else // No collision?
+	{
+	}
+	if (VMath::distSqr(at, eye) < r * r) // Extremely close?
+	{
+		eye = at - GetFrontDirection() * r;
+	}
+
+	aimPos = eye;
+	aimDir = VMath::normalizeApprox(at - eye);
 }
 
 void BaseCharacter::SetMaxCameraRadius(float r)

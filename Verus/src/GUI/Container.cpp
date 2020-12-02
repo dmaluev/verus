@@ -73,7 +73,7 @@ void Container::ParseWidgets(pugi::xml_node node, CSZ sizerID)
 			if (pWidget->AsInputFocus())
 				vm.GetCurrentParseView()->AddControlToTabList(pWidget);
 		}
-		else if (strcmp(type, "fx"))
+		else if (strcmp(type, "fx") && strcmp(type, "string"))
 		{
 			VERUS_RT_FAIL("Unknown widget type");
 		}
@@ -108,7 +108,7 @@ PWidget Container::GetHovered(float x, float y)
 				return pChild;
 		}
 
-		if (p->IsHovered(x, y))
+		if ((!pContainer || !pContainer->IsSizer()) && p->IsHovered(x, y))
 			return p;
 	}
 	return nullptr;

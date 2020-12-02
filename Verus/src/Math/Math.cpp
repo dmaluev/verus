@@ -9,6 +9,51 @@ VERUS_CT_ASSERT(sizeof(glm::mat4x3) == 48);
 
 using namespace verus;
 
+static CSZ g_easings[] =
+{
+	"",
+
+	"sineIn",
+	"sineOut",
+	"sineInOut",
+
+	"quadIn",
+	"quadOut",
+	"quadInOut",
+
+	"cubicIn",
+	"cubicOut",
+	"cubicInOut",
+
+	"quartIn",
+	"quartOut",
+	"quartInOut",
+
+	"quintIn",
+	"quintOut",
+	"quintInOut",
+
+	"expoIn",
+	"expoOut",
+	"expoInOut",
+
+	"circIn",
+	"circOut",
+	"circInOut",
+
+	"backIn",
+	"backOut",
+	"backInOut",
+
+	"elasticIn",
+	"elasticOut",
+	"elasticInOut",
+
+	"bounceIn",
+	"bounceOut",
+	"bounceInOut"
+};
+
 bool Math::IsPowerOfTwo(int x)
 {
 	if (x <= 0)
@@ -79,6 +124,73 @@ float Math::SmoothStep(float a, float b, float t)
 {
 	const float x = Clamp((t - a) / (b - a), 0.f, 1.f);
 	return x * x * (3 - (x + x));
+}
+
+float Math::ApplyEasing(Easing easing, float x)
+{
+	switch (easing)
+	{
+	case Easing::none: return x;
+
+	case Easing::sineIn: return glm::sineEaseIn(x);
+	case Easing::sineOut: return glm::sineEaseOut(x);
+	case Easing::sineInOut: return glm::sineEaseInOut(x);
+
+	case Easing::quadIn: return glm::quadraticEaseIn(x);
+	case Easing::quadOut: return glm::quadraticEaseOut(x);
+	case Easing::quadInOut: return glm::quadraticEaseInOut(x);
+
+	case Easing::cubicIn: return glm::cubicEaseIn(x);
+	case Easing::cubicOut: return glm::cubicEaseOut(x);
+	case Easing::cubicInOut: return glm::cubicEaseInOut(x);
+
+	case Easing::quartIn: return glm::quarticEaseIn(x);
+	case Easing::quartOut: return glm::quarticEaseOut(x);
+	case Easing::quartInOut: return glm::quarticEaseInOut(x);
+
+	case Easing::quintIn: return glm::quinticEaseIn(x);
+	case Easing::quintOut: return glm::quinticEaseOut(x);
+	case Easing::quintInOut: return glm::quinticEaseInOut(x);
+
+	case Easing::expoIn: return glm::exponentialEaseIn(x);
+	case Easing::expoOut: return glm::exponentialEaseOut(x);
+	case Easing::expoInOut: return glm::exponentialEaseInOut(x);
+
+	case Easing::circIn: return glm::circularEaseIn(x);
+	case Easing::circOut: return glm::circularEaseOut(x);
+	case Easing::circInOut: return glm::circularEaseInOut(x);
+
+	case Easing::backIn: return glm::backEaseIn(x);
+	case Easing::backOut: return glm::backEaseOut(x);
+	case Easing::backInOut: return glm::backEaseInOut(x);
+
+	case Easing::elasticIn: return glm::elasticEaseIn(x);
+	case Easing::elasticOut: return glm::elasticEaseOut(x);
+	case Easing::elasticInOut: return glm::elasticEaseInOut(x);
+
+	case Easing::bounceIn: return glm::bounceEaseIn(x);
+	case Easing::bounceOut: return glm::bounceEaseOut(x);
+	case Easing::bounceInOut: return glm::bounceEaseInOut(x);
+	}
+	VERUS_RT_FAIL("Unknown easing.");
+	return x;
+}
+
+Easing Math::EasingFromString(CSZ s)
+{
+	const int count = VERUS_COUNT_OF(g_easings);
+	VERUS_FOR(i, count)
+	{
+		if (!strcmp(s, g_easings[i]))
+			return static_cast<Easing>(i);
+	}
+	throw VERUS_RECOVERABLE << "Unknown easing string: " << s;
+}
+
+CSZ Math::EasingToString(Easing easing)
+{
+	VERUS_RT_ASSERT(easing >= Easing::none && easing < Easing::count);
+	return g_easings[+easing];
 }
 
 Vector3 Math::TriangleNormal(RcPoint3 a, RcPoint3 b, RcPoint3 c)

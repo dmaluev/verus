@@ -5,15 +5,6 @@ namespace verus
 {
 	namespace GUI
 	{
-		enum class Easing : int
-		{
-			linear,
-			accel,
-			decel,
-			swing,
-			blink
-		};
-
 		template<typename T>
 		struct Animated
 		{
@@ -23,34 +14,7 @@ namespace verus
 			float  _time = 0;
 			float  _invDuration = 0;
 			float  _delay = 0;
-			Easing _easing = Easing::linear;
-
-			float GetRatioWithEasing(float ratio)
-			{
-				switch (_easing)
-				{
-				case Easing::accel:
-				{
-					return ratio * ratio;
-				}
-				case Easing::decel:
-				{
-					const float anti = 1 - ratio;
-					return 1 - anti * anti;
-				}
-				case Easing::swing:
-				{
-					return ratio * ratio * (3 - (ratio + ratio));
-				}
-				case Easing::blink:
-				{
-					const float scale = 0.148148148f;
-					const float anti = 1 - ratio;
-					return 1 - (ratio * anti * anti) / scale;
-				}
-				}
-				return ratio;
-			}
+			Easing _easing = Easing::none;
 
 			T Lerp(const T& a, const T& b, float ratio)
 			{
@@ -64,7 +28,7 @@ namespace verus
 					if (_time >= 0)
 						_time += dt;
 					const float ratio = Math::Clamp<float>((_time - _delay) * _invDuration, 0, 1);
-					const float ratioWithEasing = GetRatioWithEasing(ratio);
+					const float ratioWithEasing = Math::ApplyEasing(_easing, ratio);
 					_current = Lerp(_from, _to, ratioWithEasing);
 					if (dt > 0 && ratio >= 1)
 						_invDuration = -_invDuration;

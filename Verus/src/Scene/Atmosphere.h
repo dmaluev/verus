@@ -101,6 +101,14 @@ namespace verus
 			bool                          _async_loaded = false;
 
 		public:
+			struct Report
+			{
+				float _time;
+				float _speed;
+				float _cloudiness;
+			};
+			VERUS_TYPEDEFS(Report);
+
 			Atmosphere();
 			virtual ~Atmosphere();
 
@@ -153,6 +161,9 @@ namespace verus
 			RCascadedShadowMap GetShadowMap() { return _shadowMap; }
 
 			void CreateCelestialBodyMesh();
+
+			void GetReport(RReport report);
+			void SetReport(RcReport report);
 		};
 		VERUS_TYPEDEFS(Atmosphere);
 	}

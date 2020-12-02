@@ -62,6 +62,8 @@ namespace verus
 			void ShowFPS(bool b);
 
 			void BulletDebugDraw();
+
+			static float GetMouseScale();
 		};
 		VERUS_TYPEDEFS(BaseGame);
 	}

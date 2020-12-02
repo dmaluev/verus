@@ -82,6 +82,12 @@ void RendererD3D12::EnableDebugLayer()
 	ComPtr<ID3D12Debug> pDebug;
 	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&pDebug))))
 		pDebug->EnableDebugLayer();
+
+#if 0
+	ComPtr<ID3D12Debug1> pDebug1;
+	if (SUCCEEDED(pDebug->QueryInterface(IID_PPV_ARGS(&pDebug1))))
+		pDebug1->SetEnableGPUBasedValidation(TRUE);
+#endif
 }
 
 ComPtr<IDXGIFactory7> RendererD3D12::CreateDXGIFactory()

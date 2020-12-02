@@ -75,13 +75,15 @@ namespace verus
 			RcPoint3     GetJerkyPosition() const { return _dv._jerkyPosition; }
 			virtual void MoveTo(RcPoint3 pos);
 			void         SetRemotePosition(RcPoint3 pos);
-			bool         FitRemotePosition();
+			virtual bool FitRemotePosition();
 
 			RcVector3 GetVelocity() const { return _velocity; }
 			void      SetVelocity(RcVector3 v) { _velocity = v; }
 
 			RcVector3 GetFrontDirection() const { return _dv._frontDir; }
+			RcVector3 GetFrontDirection2D() const { return _dv._frontDir2D; }
 			RcVector3 GetSideDirection() const { return _dv._sideDir; }
+			RcVector3 GetSideDirection2D() const { return _dv._sideDir2D; }
 
 			//! Rotates smoothly across multiple frames.
 			void Rotate(RcVector3 front, float speed);

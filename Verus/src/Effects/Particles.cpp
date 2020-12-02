@@ -21,9 +21,11 @@ Particles::~Particles()
 
 void Particles::InitStatic()
 {
+	VERUS_QREF_CONST_SETTINGS;
+
 	s_shader.Init("[Shaders]:Particles.hlsl");
-	s_shader->CreateDescriptorSet(0, &s_ubParticlesVS, sizeof(s_ubParticlesVS), 100, {}, CGI::ShaderStageFlags::vs);
-	s_shader->CreateDescriptorSet(1, &s_ubParticlesFS, sizeof(s_ubParticlesFS), 100,
+	s_shader->CreateDescriptorSet(0, &s_ubParticlesVS, sizeof(s_ubParticlesVS), settings.GetLimits()._particles_ubVSCapacity, {}, CGI::ShaderStageFlags::vs);
+	s_shader->CreateDescriptorSet(1, &s_ubParticlesFS, sizeof(s_ubParticlesFS), settings.GetLimits()._particles_ubFSCapacity,
 		{
 			CGI::Sampler::aniso
 		}, CGI::ShaderStageFlags::fs);
@@ -240,13 +242,8 @@ void Particles::Update()
 
 	_drawCount = 0;
 
-	if (!_csh.IsSet())
-	{
-		if (_tex->IsLoaded())
-			_csh = s_shader->BindDescriptorSetTextures(1, { _tex });
-		else
-			return;
-	}
+	if (!_csh.IsSet() && _tex->IsLoaded())
+		_csh = s_shader->BindDescriptorSetTextures(1, { _tex });
 
 	VERUS_QREF_TIMER;
 
@@ -375,16 +372,24 @@ void Particles::Draw()
 
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
+	VERUS_QREF_ATMO;
 
-	if (!_drawCount)
+	if (!_drawCount || !_csh.IsSet())
 		return;
+
+	float brightness = _brightness;
+	if (brightness < 0)
+	{
+		const glm::vec3 gray = glm::saturation(0.f, atmo.GetSunColor().GLM() + atmo.GetAmbientColor().GLM());
+		brightness = gray.x * abs(brightness);
+	}
 
 	auto cb = renderer.GetCommandBuffer();
 
 	s_ubParticlesVS._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
 	s_ubParticlesVS._matWVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubParticlesVS._viewportSize = cb->GetViewportSize().GLM();
-	s_ubParticlesVS._brightness.x = _brightness;
+	s_ubParticlesVS._brightness.x = brightness;
 	s_ubParticlesFS._tilesetSize = _tilesetSize.GLM();
 
 	switch (_billboardType)
@@ -585,8 +590,8 @@ int Particles::Add(RcPoint3 pos, RcVector3 dir, float scale, PcVector4 pUserColo
 	particle._beginSize = scale * (_beginSizeRange.getX() + _beginSizeRange.getZ() * random.NextFloat());
 	particle._endSize = scale * (_endSizeRange.getX() + _endSizeRange.getZ() * random.NextFloat());
 
-	particle._beginSpin = scale * (_beginSpinRange.getX() + _beginSpinRange.getZ() * random.NextFloat());
-	particle._endSpin = scale * (_endSpinRange.getX() + _endSpinRange.getZ() * random.NextFloat());
+	particle._beginSpin = _beginSpinRange.getX() + _beginSpinRange.getZ() * random.NextFloat();
+	particle._endSpin = _endSpinRange.getX() + _endSpinRange.getZ() * random.NextFloat();
 
 	if (_decal)
 		particle._endSpin = particle._beginSpin;
@@ -628,20 +633,32 @@ bool Particles::TimeCorrectedVerletIntegration(RParticle particle, RPoint3 point
 	}
 
 	const Vector3 accel = _gravity * _gravityStrength + wind * _windStrength;
-	const Point3 posCurrent = particle._position;
-	particle._position += (posCurrent - particle._prevPosition) * timer.GetVerletValue() + accel * timer.GetDeltaTimeSq();
-	particle._prevPosition = posCurrent;
-	particle._velocity = (particle._position - posCurrent) * timer.GetDeltaTimeInv();
+	const Point3 currentPos = particle._position;
+	particle._position += (currentPos - particle._prevPosition) * timer.GetVerletValue() + accel * timer.GetDeltaTimeSq();
+	particle._prevPosition = currentPos;
+	particle._velocity = (particle._position - currentPos) * timer.GetDeltaTimeInv();
 
 	if (_collide)
 	{
-		VERUS_QREF_SM;
-		if (sm.RayCastingTest(particle._prevPosition, particle._position, nullptr, &point, &normal))
+		if (particle._inContact && VMath::lengthSqr(particle._velocity) < 0.15 * 0.15f)
 		{
-			hit = true;
-			particle._velocity = particle._velocity.Reflect(normal) * _bounceStrength;
-			particle._prevPosition = point;
-			particle._position = point + particle._velocity * timer.GetDeltaTime();
+			particle._velocity = Vector3(0);
+			particle._position = currentPos;
+			particle._prevPosition = currentPos;
+		}
+		else
+		{
+			VERUS_QREF_SM;
+			if (sm.RayCastingTest(particle._prevPosition, particle._position, nullptr, &point, &normal))
+			{
+				hit = true;
+				particle._inContact = normal.getY() > 0.7071f;
+				particle._velocity = particle._velocity.Reflect(normal) * _bounceStrength;
+				particle._prevPosition = point;
+				particle._position = point + particle._velocity * timer.GetDeltaTime();
+			}
+			else
+				particle._inContact = false;
 		}
 	}
 

@@ -6,3 +6,4 @@
 #include "Spirit.h"
 #include "BaseCharacter.h"
 #include "BaseGame.h"
+#include "ChainAward.h"

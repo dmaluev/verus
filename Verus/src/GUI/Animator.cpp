@@ -85,24 +85,6 @@ void Animator::Parse(pugi::xml_node node, PcWidget pWidget)
 	_angle = Math::ToRadians(node.attribute("angle").as_float());
 	_postAngle = Math::ToRadians(node.attribute("postAngle").as_float());
 
-	auto ParseEasing = [](CSZ txt)
-	{
-		if (!txt || !strlen(txt))
-			return Easing::linear;
-		if (!strcmp(txt, "linear"))
-			return Easing::linear;
-		if (!strcmp(txt, "accel"))
-			return Easing::accel;
-		if (!strcmp(txt, "decel"))
-			return Easing::decel;
-		if (!strcmp(txt, "swing"))
-			return Easing::swing;
-		if (!strcmp(txt, "blink"))
-			return Easing::blink;
-		VERUS_RT_FAIL("Easing FAIL.");
-		return Easing::linear;
-	};
-
 	for (auto fxNode : node.children("fx"))
 	{
 		if (!strcmp(fxNode.attribute("mode").value(), "color"))
@@ -112,7 +94,7 @@ void Animator::Parse(pugi::xml_node node, PcWidget pWidget)
 			_animatedColor._current = _animatedColor._from;
 			_animatedColor._invDuration = fxNode.attribute("duration").as_float();
 			_animatedColor._delay = fxNode.attribute("delay").as_float();
-			_animatedColor._easing = ParseEasing(fxNode.attribute("easing").value());
+			_animatedColor._easing = Math::EasingFromString(fxNode.attribute("easing").value());
 			if (_animatedColor._invDuration)
 				_animatedColor._invDuration = 1 / _animatedColor._invDuration;
 		}
@@ -145,7 +127,7 @@ void Animator::Parse(pugi::xml_node node, PcWidget pWidget)
 			_animatedRect._current = _animatedRect._from;
 			_animatedRect._invDuration = fxNode.attribute("duration").as_float();
 			_animatedRect._delay = fxNode.attribute("delay").as_float();
-			_animatedRect._easing = ParseEasing(fxNode.attribute("easing").value());
+			_animatedRect._easing = Math::EasingFromString(fxNode.attribute("easing").value());
 			if (_animatedRect._invDuration)
 				_animatedRect._invDuration = 1 / _animatedRect._invDuration;
 		}

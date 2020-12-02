@@ -77,11 +77,8 @@ void View::Draw()
 
 	if (_tex)
 	{
-		if (!_csh.IsSet())
-		{
-			if (_tex->GetTex()->IsLoaded())
-				_csh = shader->BindDescriptorSetTextures(1, { _tex->GetTex() });
-		}
+		if (!_csh.IsSet() && _tex->GetTex()->IsLoaded())
+			_csh = shader->BindDescriptorSetTextures(1, { _tex->GetTex() });
 
 		if (_csh.IsSet())
 		{
@@ -152,7 +149,7 @@ void View::Parse(pugi::xml_node node)
 
 	for (auto stringNode : node.children("string"))
 	{
-		int id = stringNode.attribute("id").as_int(-1);
+		const int id = stringNode.attribute("id").as_int(-1);
 		VERUS_RT_ASSERT(id >= 0);
 		String s, textAttr = String("text") + _locale;
 		if (auto attr = stringNode.attribute(_C(textAttr)))
@@ -211,7 +208,8 @@ void View::OnDoubleClick() // Gets called by ViewManager::Update().
 		_pInputFocus = pHovered->AsInputFocus();
 		if (_pInputFocus)
 			_pInputFocus->InputFocus_OnFocus();
-		pHovered->InvokeOnDoubleClick(cursor.GetX(), cursor.GetY());
+		if (!pHovered->InvokeOnDoubleClick(cursor.GetX(), cursor.GetY()))
+			pHovered->InvokeOnClick(cursor.GetX(), cursor.GetY());
 	}
 	else
 	{

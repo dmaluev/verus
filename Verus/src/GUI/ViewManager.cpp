@@ -49,6 +49,8 @@ void ViewManager::Init(bool hasCursor, bool canDebug)
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_MAIN].Init(pipeDesc);
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
+		_pipe[PIPE_MAIN_ADD].Init(pipeDesc);
 	}
 	{
 		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#Mask", renderer.GetRenderPassHandle_AutoWithDepth());
@@ -56,6 +58,8 @@ void ViewManager::Init(bool hasCursor, bool canDebug)
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_MASK].Init(pipeDesc);
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
+		_pipe[PIPE_MASK_ADD].Init(pipeDesc);
 	}
 	{
 		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#SolidColor", renderer.GetRenderPassHandle_AutoWithDepth());
@@ -73,6 +77,7 @@ void ViewManager::Done()
 
 	_cursor.Done();
 
+	_shader->FreeDescriptorSet(_cshDebug);
 	_shader->FreeDescriptorSet(_cshDefault);
 
 	VERUS_DONE(ViewManager);
@@ -93,6 +98,9 @@ void ViewManager::HandleInput()
 bool ViewManager::Update()
 {
 	VERUS_UPDATE_ONCE_CHECK;
+
+	if (!_cshDebug.IsSet() && _tex[TEX_DEBUG]->IsLoaded())
+		_cshDebug = _shader->BindDescriptorSetTextures(1, { _tex[TEX_DEBUG] });
 
 	for (auto& x : TStoreFonts::_map)
 		x.second.ResetDynamicBuffer();
@@ -159,8 +167,8 @@ void ViewManager::DeleteView(PView pView)
 
 void ViewManager::DeleteAllViews()
 {
-	for (const auto& p : _vViews)
-		delete p;
+	for (const auto& x : _vViews)
+		delete x;
 	_vViews.clear();
 }
 
@@ -204,23 +212,23 @@ void ViewManager::MsgBox(CSZ txt, int data)
 {
 	if (txt) // Display MessageBox:
 	{
-		PView pView = GetViewByName("Menu/MsgBox.xml");
+		PView pView = GetViewByName("UI/MsgBox.xml");
 		pView->Disable(false);
 		pView->Hide(false);
 		pView->SetData();
 		pView->ResetAnimators();
 		pView->SetState(View::State::active);
-		MoveToFront("Menu/MsgBox.xml");
+		MoveToFront("UI/MsgBox.xml");
 		PLabel pLabel = static_cast<PLabel>(pView->GetWidgetById("MsgBoxText"));
 		pLabel->SetText(txt);
 	}
 	else // Restore original view:
 	{
-		PView pView = GetViewByName("Menu/MsgBox.xml");
+		PView pView = GetViewByName("UI/MsgBox.xml");
 		pView->Disable();
 		pView->Hide();
 		pView->SetState(View::State::done);
-		MoveToBack("Menu/MsgBox.xml");
+		MoveToBack("UI/MsgBox.xml");
 	}
 }
 

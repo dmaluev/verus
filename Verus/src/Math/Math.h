@@ -16,10 +16,58 @@ namespace verus
 		inside,
 		intersect
 	};
+
 	enum class Continue : int
 	{
 		no,
 		yes
+	};
+
+	enum class Easing : int
+	{
+		none,
+
+		sineIn,
+		sineOut,
+		sineInOut,
+
+		quadIn,
+		quadOut,
+		quadInOut,
+
+		cubicIn,
+		cubicOut,
+		cubicInOut,
+
+		quartIn,
+		quartOut,
+		quartInOut,
+
+		quintIn,
+		quintOut,
+		quintInOut,
+
+		expoIn,
+		expoOut,
+		expoInOut,
+
+		circIn,
+		circOut,
+		circInOut,
+
+		backIn,
+		backOut,
+		backInOut,
+
+		elasticIn,
+		elasticOut,
+		elasticInOut,
+
+		bounceIn,
+		bounceOut,
+		bounceInOut,
+
+		count
 	};
 
 	typedef glm::vec2 float2;
@@ -62,6 +110,9 @@ namespace verus
 		// Interpolation, splines:
 		float Lerp(float a, float b, float t);
 		float SmoothStep(float a, float b, float t);
+		float ApplyEasing(Easing easing, float x);
+		Easing EasingFromString(CSZ s);
+		CSZ EasingToString(Easing easing);
 
 		// Shapes:
 		Vector3 TriangleNormal(RcPoint3 a, RcPoint3 b, RcPoint3 c);

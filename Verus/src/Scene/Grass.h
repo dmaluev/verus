@@ -90,7 +90,7 @@ namespace verus
 			static void InitStatic();
 			static void DoneStatic();
 
-			void Init(RTerrain terrain);
+			void Init(RTerrain terrain, CSZ atlasUrl = nullptr);
 			void Done();
 
 			void ResetInstanceCount();
@@ -106,6 +106,7 @@ namespace verus
 			void ResetAllTextures();
 			void SetTexture(int layer, CSZ url, CSZ url2 = nullptr);
 			VERUS_P(void OnTextureLoaded(int layer));
+			void SaveTexture(CSZ url);
 
 			int BeginMagnet(RcPoint3 pos, float radius);
 			void EndMagnet(int index);

@@ -55,7 +55,7 @@ void TextBox::Draw()
 		vm.BindPipeline(ViewManager::PIPE_SOLID_COLOR, cb);
 		shader->BeginBindDescriptors();
 		cb->BindDescriptors(shader, 0);
-		cb->BindDescriptors(shader, 1);
+		cb->BindDescriptors(shader, 1, vm.GetDefaultComplexSetHandle());
 		shader->EndBindDescriptors();
 		renderer.DrawQuad();
 	}

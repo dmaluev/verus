@@ -642,9 +642,9 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			{
 				btConeTwistConstraint* pConeC = new btConeTwistConstraint(*pBone->_pBody, *pParent->_pBody, localA, localB);
 				if (!pBone->_cLimits.IsZero())
-					pConeC->setLimit(pBone->_cLimits.getX(), pBone->_cLimits.getY(), pBone->_cLimits.getZ(), 0.9f, 0.1f);
+					pConeC->setLimit(pBone->_cLimits.getX(), pBone->_cLimits.getY(), pBone->_cLimits.getZ(), 0.9f);
 				else
-					pConeC->setLimit(VERUS_PI / 4, VERUS_PI / 4, VERUS_PI / 4, 0.9f, 0.1f);
+					pConeC->setLimit(VERUS_PI / 4, VERUS_PI / 4, VERUS_PI / 4, 0.9f);
 				if (!isLeaf)
 					pConeC->setFixThresh(1);
 				pBone->_pConstraint = pConeC;
@@ -1172,6 +1172,8 @@ void Skeleton::FixateFeet(RMotion motion)
 
 Vector3 Skeleton::GetHighestSpeed(RMotion motion, CSZ name, RcVector3 scale, bool positive)
 {
+	VERUS_RT_ASSERT(!_ragdollMode);
+
 	const int frameCount = motion.GetFrameCount();
 	const float dt = motion.GetFpsInv();
 	const float dti = float(motion.GetFps());

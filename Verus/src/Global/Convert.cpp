@@ -33,33 +33,6 @@ char Convert::Sint16ToSint8(short x) { return x * SCHAR_MAX / SHRT_MAX; }
 void Convert::Sint8ToSint16(const char* pIn, short* pOut, int count) { VERUS_FOR(i, count) pOut[i] = Sint8ToSint16(pIn[i]); }
 void Convert::Sint16ToSint8(const short* pIn, char* pOut, int count) { VERUS_FOR(i, count) pOut[i] = Sint16ToSint8(pIn[i]); }
 
-void Convert::ToDeviceNormal(const char* pIn, char* pOut)
-{
-	// For UBYTE4 type normal:
-	// OpenGL glNormalPointer() only accepts signed bytes (GL_BYTE)
-	// Direct3D 9 only accepts unsigned bytes (D3DDECLTYPE_UBYTE4) So it goes.
-	//VERUS_QREF_RENDER;
-	//if (CGL::RENDERER_DIRECT3D9 == render.GetRenderer())
-	//{
-	//	VERUS_FOR(i, 3)
-	//		pOut[i] = pIn[i] + 127;
-	//}
-}
-
-UINT32 Convert::ToDeviceColor(UINT32 color)
-{
-	// OpenGL stores color as RGBA. Direct3D 9 as BGRA.
-	// See also GL_EXT_vertex_array_bgra.
-	//VERUS_QREF_RENDER;
-	//return (CGL::RENDERER_DIRECT3D9 == render.GetRenderer()) ? VERUS_COLOR_TO_D3D(color) : color;
-	return 0;
-}
-
-float Convert::Byte256ToSFloat(BYTE in)
-{
-	return float(in) * (1 / 128.f) - 1;
-}
-
 UINT16 Convert::Uint8x4ToUint4x4(UINT32 in)
 {
 	int x[4] =
@@ -223,40 +196,6 @@ UINT32 Convert::ColorTextToInt32(CSZ sz)
 	return VERUS_COLOR_RGBA(color[0], color[1], color[2], color[3]);
 }
 
-void Convert::ToCorrectNormal(const char* in, char* out)
-{
-	// For UBYTE4 type normal:
-	// OpenGL glNormalPointer() only accepts signed bytes (GL_BYTE)
-	// Direct3D only accepts unsigned bytes (D3DDECLTYPE_UBYTE4) So it goes.
-	//VERUS_QREF_RENDER;
-	//if (CGL::RENDERER_OPENGL != render.GetRenderer())
-	//{
-	//	VERUS_FOR(i, 3)
-	//		out[i] = in[i] + 125;
-	//}
-}
-
-UINT32 Convert::ToCorrectColor(UINT32 in)
-{
-	// OpenGL stores color as RGBA. Direct3D 9 as BGRA.
-	// See also GL_EXT_vertex_array_bgra.
-	//VERUS_QREF_RENDER;
-	//return (CGL::RENDERER_DIRECT3D9 == render.GetRenderer()) ? VERUS_COLOR_TO_D3D(in) : in;
-	return 0;
-}
-
-void Convert::ByteToChar3(const BYTE* in, char* out)
-{
-	VERUS_FOR(i, 3)
-		out[i] = int(in[i]) - 125;
-}
-
-void Convert::ByteToShort3(const BYTE* in, short* out)
-{
-	VERUS_FOR(i, 3)
-		out[i] = (int(in[i]) << 8) - 32000;
-}
-
 UINT16 Convert::QuantizeFloat(float f, float mn, float mx)
 {
 	const float range = mx - mn;
@@ -326,6 +265,18 @@ String Convert::ToHex(const Vector<BYTE>& vBin)
 		vHex[(i << 1) + 1] = hexval[(vBin[i] >> 0) & 0xF];
 	}
 	return String(vHex.begin(), vHex.end());
+}
+
+String Convert::ToHex(UINT32 color)
+{
+	static const char hexval[] = "0123456789ABCDEF";
+	char hex[8];
+	VERUS_FOR(i, 4)
+	{
+		hex[(i << 1) + 0] = hexval[((color >> (i << 3)) >> 4) & 0xF];
+		hex[(i << 1) + 1] = hexval[((color >> (i << 3)) >> 0) & 0xF];
+	}
+	return String(hex, hex + 8);
 }
 
 Vector<BYTE> Convert::ToBinFromHex(CSZ hex)

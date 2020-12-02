@@ -41,6 +41,13 @@ bool Addr::IsLocalhost() const
 
 void Addr::FromString(CSZ addr)
 {
+	if (!addr || !(*addr))
+	{
+		_addr = 0;
+		_port = 0;
+		return;
+	}
+
 	char addrBuff[40];
 	CSZ pColon = strchr(addr, ':');
 	if (pColon) // "IP:Port" format?
@@ -52,6 +59,7 @@ void Addr::FromString(CSZ addr)
 		addr = addrBuff;
 	}
 
+	_addr = 0;
 	const int ret = inet_pton(AF_INET, addr, &_addr);
 	if (1 != ret)
 	{

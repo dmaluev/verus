@@ -22,6 +22,8 @@ void Cursor::Init()
 
 void Cursor::Done()
 {
+	if (ViewManager::I().GetShader())
+		ViewManager::I().GetShader()->FreeDescriptorSet(_csh);
 	VERUS_DONE(Cursor);
 }
 
@@ -30,21 +32,36 @@ void Cursor::Draw()
 	if (!IsInitialized())
 		return;
 
+	VERUS_QREF_RENDERER;
 	VERUS_QREF_VM;
-	//VERUS_QREF_RENDER;
-	//
-	//gui.GetStateBlockAlphaBlend()->Apply();
-	//
-	//const CVector3 scale(512 / 1920.f, 512 / 1080.f);
-	//
-	//render->SetTextures({ _tex->GetTex(), _tex->GetTex() });
-	//gui.GetCbPerObject().matW = Math::QuadMatrix(m_x - _hotspotX, _y - _hotspotY, scale.getX(), scale.getY()).ConstBufferFormat();
-	//gui.GetCbPerObject().matV = Math::ToUVMatrix(0, 0).ConstBufferFormat();
-	//gui.GetCbPerObject().colorAmbient = Vector4(1, 1, 1, 1);
-	//gui.GetCbPerObject().tcScaleBias = Vector4(1, 1, 0, 0);
-	//gui.GetShader()->Bind("T");
-	//gui.GetShader()->UpdateBuffer(0);
-	//render.DrawQuad();
+
+	if (!_csh.IsSet())
+	{
+		if (_tex->GetTex()->IsLoaded())
+			_csh = vm.GetShader()->BindDescriptorSetTextures(1, { _tex->GetTex() });
+		else
+			return;
+	}
+
+	const Vector3 scale(512 / 1920.f, 512 / 1080.f);
+
+	auto cb = renderer.GetCommandBuffer();
+	auto shader = vm.GetShader();
+	auto& ubGui = vm.GetUbGui();
+	auto& ubGuiFS = vm.GetUbGuiFS();
+
+	ubGui._matW = Math::QuadMatrix(_x - _hotspotX, _y - _hotspotY, scale.getX(), scale.getY()).UniformBufferFormat();
+	ubGui._matV = Math::ToUVMatrix(0, 0).UniformBufferFormat();
+	ubGui._tcScaleBias = Vector4(1, 1, 0, 0).GLM();
+	ubGui._tcMaskScaleBias = Vector4(1, 1, 0, 0).GLM();
+	ubGuiFS._color = Vector4::Replicate(1).GLM();
+
+	vm.BindPipeline(ViewManager::PIPE_MAIN, cb);
+	shader->BeginBindDescriptors();
+	cb->BindDescriptors(shader, 0);
+	cb->BindDescriptors(shader, 1, _csh);
+	shader->EndBindDescriptors();
+	renderer.DrawQuad(cb.Get());
 }
 
 void Cursor::MoveHotspotTo(float x, float y)
@@ -59,6 +76,9 @@ void Cursor::MoveBy(float x, float y)
 		return;
 
 	VERUS_QREF_CONST_SETTINGS;
-	_x = Math::Clamp<float>(_x + x * (100.f / settings._displaySizeWidth), 0, 1);
-	_y = Math::Clamp<float>(_y + y * (100.f / settings._displaySizeHeight), 0, 1);
+
+	const float scale = Game::BaseGame::GetMouseScale();
+	const float invScale = 1 / scale;
+	_x = Math::Clamp<float>(_x + x * (invScale / settings._displaySizeWidth), 0, 1);
+	_y = Math::Clamp<float>(_y + y * (invScale / settings._displaySizeHeight), 0, 1);
 }

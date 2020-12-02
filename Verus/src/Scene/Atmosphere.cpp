@@ -486,3 +486,17 @@ void Atmosphere::CreateCelestialBodyMesh()
 	_geo->CreateVertexBuffer(4, 0);
 	_geo->UpdateVertexBuffer(skyBody, 0);
 }
+
+void Atmosphere::GetReport(RReport report)
+{
+	report._time = _time;
+	report._speed = _timeSpeed;
+	report._cloudiness = _clouds._cloudiness.GetTarget();
+}
+
+void Atmosphere::SetReport(RcReport report)
+{
+	_time = report._time;
+	_timeSpeed = report._speed;
+	_clouds._cloudiness = report._cloudiness;
+}

@@ -26,7 +26,7 @@ namespace verus
 			int         _offset = 0;
 			int         _selectedRow = -1;
 			int         _cols = 0;
-			float       _rowHeight = 0;
+			float       _rowHeight = 0.1f;
 
 		public:
 			Table();

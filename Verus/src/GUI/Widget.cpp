@@ -35,27 +35,33 @@ void Widget::SetText(CSZ text)
 
 void Widget::DrawDebug()
 {
-	//VERUS_QREF_VM;
-	//VERUS_QREF_RENDER;
-	//
-	//PView pOwnerView = GetOwnerView();
-	//
-	//if (!pOwnerView->IsDebug())
-	//	return;
-	//
-	//gui.GetStateBlockAlphaBlend()->Apply();
-	//
-	//float x, y;
-	//GetAbsolutePosition(x, y);
-	//
-	//render->SetTextures({ gui.GetDebugTexture(), gui.GetDebugTexture() });
-	//gui.GetCbPerObject().matW = Math::QuadMatrix(x, y, GetW(), GetH()).ConstBufferFormat();
-	//gui.GetCbPerObject().matV = Math::ToUVMatrix(0, 0).ConstBufferFormat();
-	//gui.GetCbPerObject().colorAmbient = Vector4(1, 1, 1, 1);
-	//gui.GetCbPerObject().tcScaleBias = Vector4(1, 1, 0, 0);
-	//gui.GetShader()->Bind("T");
-	//gui.GetShader()->UpdateBuffer(0);
-	//render.DrawQuad();
+	PView pOwnerView = GetOwnerView();
+	if (!pOwnerView->IsDebug())
+		return;
+
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_VM;
+
+	float x, y;
+	GetAbsolutePosition(x, y);
+
+	auto cb = renderer.GetCommandBuffer();
+	auto shader = vm.GetShader();
+	auto& ubGui = vm.GetUbGui();
+	auto& ubGuiFS = vm.GetUbGuiFS();
+
+	ubGui._matW = Math::QuadMatrix(x, y, GetW(), GetH()).UniformBufferFormat();
+	ubGui._matV = Math::ToUVMatrix(0, 0).UniformBufferFormat();
+	ubGui._tcScaleBias = Vector4(1, 1, 0, 0).GLM();
+	ubGui._tcMaskScaleBias = Vector4(1, 1, 0, 0).GLM();
+	ubGuiFS._color = Vector4::Replicate(1).GLM();
+
+	vm.BindPipeline(ViewManager::PIPE_MAIN, cb);
+	shader->BeginBindDescriptors();
+	cb->BindDescriptors(shader, 0);
+	cb->BindDescriptors(shader, 1, vm.GetDebugComplexSetHandle());
+	shader->EndBindDescriptors();
+	renderer.DrawQuad(cb.Get());
 }
 
 void Widget::DrawInputStyle()
@@ -75,7 +81,7 @@ void Widget::DrawInputStyle()
 	vm.BindPipeline(ViewManager::PIPE_SOLID_COLOR, cb);
 	shader->BeginBindDescriptors();
 	cb->BindDescriptors(shader, 0);
-	cb->BindDescriptors(shader, 1);
+	cb->BindDescriptors(shader, 1, vm.GetDefaultComplexSetHandle());
 	shader->EndBindDescriptors();
 	renderer.DrawQuad();
 }
@@ -109,8 +115,8 @@ void Widget::GetAbsolutePosition(float& x, float& y)
 		PSizer pSizer = static_cast<PSizer>(pView->GetWidgetById(_C(_sizer)));
 		float xFromSizer = 0, yFromSizer = 0;
 		pSizer->GetWidgetAbsolutePosition(this, xFromSizer, yFromSizer);
-		x = xFromSizer;
-		y = yFromSizer;
+		x = GetX() + xFromSizer;
+		y = GetY() + yFromSizer;
 	}
 }
 

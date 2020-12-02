@@ -58,7 +58,7 @@ void Grass::DoneStatic()
 	s_shader.Done();
 }
 
-void Grass::Init(RTerrain terrain)
+void Grass::Init(RTerrain terrain, CSZ atlasUrl)
 {
 	VERUS_INIT();
 	VERUS_QREF_RENDERER;
@@ -120,21 +120,28 @@ void Grass::Init(RTerrain terrain)
 		_pipe[PIPE_BILLBOARDS].Init(pipeDesc);
 	}
 
-	const int texW = 1024;
-	const int texH = 1024;
-	_vTextureSubresData.clear();
-	_vTextureSubresData.resize(texW * texH);
+	if (atlasUrl)
+	{
+		_tex.Init(atlasUrl);
+	}
+	else
+	{
+		const int texW = 1024;
+		const int texH = 1024;
+		_vTextureSubresData.clear();
+		_vTextureSubresData.resize(texW * texH);
 
-	CGI::TextureDesc texDesc;
-	texDesc._name = "Grass.Tex";
-	texDesc._format = CGI::Format::srgbR8G8B8A8;
-	texDesc._width = texW;
-	texDesc._height = texH;
-	texDesc._mipLevels = 0;
-	texDesc._flags = CGI::TextureDesc::Flags::generateMips;
-	_tex.Init(texDesc);
-	_tex->UpdateSubresource(_vTextureSubresData.data());
-	_tex->GenerateMips();
+		CGI::TextureDesc texDesc;
+		texDesc._name = "Grass.Tex";
+		texDesc._format = CGI::Format::srgbR8G8B8A8;
+		texDesc._width = texW;
+		texDesc._height = texH;
+		texDesc._mipLevels = 0;
+		texDesc._flags = CGI::TextureDesc::Flags::generateMips;
+		_tex.Init(texDesc);
+		_tex->UpdateSubresource(_vTextureSubresData.data());
+		_tex->GenerateMips();
+	}
 
 	s_shader->FreeDescriptorSet(_cshVS);
 	_cshVS = s_shader->BindDescriptorSetTextures(0,
@@ -142,11 +149,6 @@ void Grass::Init(RTerrain terrain)
 			_pTerrain->GetHeightmapTexture(),
 			_pTerrain->GetNormalsTexture(),
 			_pTerrain->GetMainLayerTexture(),
-		});
-	s_shader->FreeDescriptorSet(_cshFS);
-	_cshFS = s_shader->BindDescriptorSetTextures(1,
-		{
-			_tex
 		});
 
 	_vMagnets.resize(16);
@@ -172,6 +174,9 @@ void Grass::Update()
 	VERUS_QREF_ATMO;
 	VERUS_QREF_TIMER;
 
+	if (!_cshFS.IsSet() && _tex->IsLoaded())
+		_cshFS = s_shader->BindDescriptorSetTextures(1, { _tex });
+
 	_phase = glm::fract(_phase + dt * 2.3f);
 
 	const float windSpeed = atmo.GetWindSpeed();
@@ -182,10 +187,13 @@ void Grass::Update()
 	_turbulence = turbulence * turbulence;
 
 	// Async texture loading:
-	VERUS_FOR(i, s_maxBushTypes)
+	if (!_vTextureSubresData.empty())
 	{
-		if (_texLoaded[i].IsInitialized() && _texLoaded[i].IsLoaded())
-			OnTextureLoaded(i);
+		VERUS_FOR(i, s_maxBushTypes)
+		{
+			if (_texLoaded[i].IsInitialized() && _texLoaded[i].IsLoaded())
+				OnTextureLoaded(i);
+		}
 	}
 }
 
@@ -210,6 +218,8 @@ void Grass::Layout()
 void Grass::Draw()
 {
 	if (!_visiblePatchCount)
+		return;
+	if (!_cshFS.IsSet())
 		return;
 
 	VERUS_QREF_RENDERER;
@@ -432,10 +442,23 @@ void Grass::ResetAllTextures()
 
 void Grass::SetTexture(int layer, CSZ url, CSZ url2)
 {
+	if (_vTextureSubresData.empty()) // Using DDS?
+	{
+		_bushMask |= (1 << layer);
+		if (layer < 8)
+			_bushMask |= (1 << (layer + 8));
+		return;
+	}
+
 	VERUS_RT_ASSERT(url);
 	_texLoaded[layer].LoadDDS(url);
 	if (layer < 8)
 		SetTexture(layer + 8, url2 ? url2 : url);
+}
+
+void Grass::SaveTexture(CSZ url)
+{
+	IO::FileSystem::SaveImage(url, _vTextureSubresData.data(), 1024, 1024);
 }
 
 void Grass::OnTextureLoaded(int layer)

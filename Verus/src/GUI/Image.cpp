@@ -22,29 +22,28 @@ void Image::Update()
 {
 	Widget::Update();
 
+	VERUS_QREF_VM;
+
+	if (!_solidColor && !_csh.IsSet() && _tex->GetTex()->IsLoaded())
+		_csh = vm.GetShader()->BindDescriptorSetTextures(1, { _tex->GetTex() });
+
 	VERUS_QREF_TIMER_GUI;
 	_tcBias.UpdateUnlimited(dt);
-	//_tcBias.WrapFloat4();
+	_tcBias.WrapFloatV();
 }
 
 void Image::Draw()
 {
-	VERUS_QREF_RENDERER;
-	VERUS_QREF_VM;
-
-	auto cb = renderer.GetCommandBuffer();
-	auto shader = vm.GetShader();
+	if (!GetColor().getW())
+		Widget::DrawDebug();
 
 	if (!GetColor().getW())
 		return;
-
 	if (!_solidColor && !_csh.IsSet())
-	{
-		if (_tex->GetTex()->IsLoaded())
-			_csh = shader->BindDescriptorSetTextures(1, { _tex->GetTex() });
-		else
-			return;
-	}
+		return;
+
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_VM;
 
 	const float pulseScale = GetAnimator().GetPulseScale();
 	const float angle = GetAnimator().GetAngle();
@@ -58,16 +57,14 @@ void Image::Draw()
 	const Transform3 matW = Transform3(matPostR, Vector3(0)) *
 		VMath::appendScale(Math::QuadMatrix(x, y, GetW(), GetH()) * Transform3(matPreR, Vector3(0)), scale);
 
+	auto cb = renderer.GetCommandBuffer();
+	auto shader = vm.GetShader();
 	auto& ubGui = vm.GetUbGui();
 	auto& ubGuiFS = vm.GetUbGuiFS();
 
 	ubGui._matW = matW.UniformBufferFormat();
-	ubGuiFS._color = Vector4::Replicate(1).GLM();
-	if (_solidColor)
-	{
-		ubGuiFS._color = GetColor().GLM();
-	}
-	else
+	ubGuiFS._color = GetColor().GLM();
+	if (!_solidColor)
 	{
 		const Transform3 matV = Math::ToUVMatrix(0, 0);
 		ubGui._matV = matV.UniformBufferFormat();
@@ -87,7 +84,7 @@ void Image::Draw()
 		ubGui._tcMaskScaleBias.y = _tcScaleMask.getY();
 		ubGui._tcMaskScaleBias.z = _tcBiasMask.getX();
 		ubGui._tcMaskScaleBias.w = _tcBiasMask.getY();
-		vm.BindPipeline(ViewManager::PIPE_MASK, cb);
+		vm.BindPipeline(_add ? ViewManager::PIPE_MASK_ADD : ViewManager::PIPE_MASK, cb);
 	}
 	else if (_solidColor)
 	{
@@ -95,12 +92,12 @@ void Image::Draw()
 	}
 	else
 	{
-		vm.BindPipeline(ViewManager::PIPE_MAIN, cb);
+		vm.BindPipeline(_add ? ViewManager::PIPE_MAIN_ADD : ViewManager::PIPE_MAIN, cb);
 	}
 
 	shader->BeginBindDescriptors();
 	cb->BindDescriptors(shader, 0);
-	cb->BindDescriptors(shader, 1, _solidColor ? CGI::CSHandle() : _csh);
+	cb->BindDescriptors(shader, 1, _solidColor ? vm.GetDefaultComplexSetHandle() : _csh);
 	shader->EndBindDescriptors();
 	renderer.DrawQuad();
 }
@@ -132,7 +129,7 @@ void Image::Parse(pugi::xml_node node)
 	}
 
 	_tcScale.setX(ViewManager::ParseCoordX(node.attribute("us").value(), 1));
-	_tcScale.setX(ViewManager::ParseCoordY(node.attribute("vs").value(), 1));
+	_tcScale.setY(ViewManager::ParseCoordY(node.attribute("vs").value(), 1));
 	_tcBias.GetValue().setX(ViewManager::ParseCoordX(node.attribute("ub").value()));
 	_tcBias.GetValue().setY(ViewManager::ParseCoordY(node.attribute("vb").value()));
 	_tcBias.GetSpeed().setX(ViewManager::ParseCoordX(node.attribute("ubSpeed").value()));

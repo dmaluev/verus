@@ -37,11 +37,6 @@ namespace verus
 		static void Sint8ToSint16(const char* pIn, short* pOut, int count);
 		static void Sint16ToSint8(const short* pIn, char* pOut, int count);
 
-		/* ??? */ static void ToDeviceNormal(const char* pIn, char* pOut);
-		/* ??? */ static UINT32 ToDeviceColor(UINT32 color);
-
-		/* ??? */ static float Byte256ToSFloat(BYTE in);
-
 		// 4 bits per channel:
 		static UINT16 Uint8x4ToUint4x4(UINT32 in);
 		static UINT32 Uint4x4ToUint8x4(UINT16 in, bool scaleTo255 = false);
@@ -63,12 +58,6 @@ namespace verus
 		static     BYTE QuantizeFloatToByte(float f, float mn, float mx);
 		static float DequantizeFloatFromByte(BYTE i, float mn, float mx);
 
-		/* ??? */ static void ToCorrectNormal(const char* in, char* out);
-		/* ??? */ static UINT32 ToCorrectColor(UINT32 in);
-
-		/* ??? */ static void ByteToChar3(const BYTE* in, char* out);
-		/* ??? */ static void ByteToShort3(const BYTE* in, short* out);
-
 		// Base64:
 		static String ToBase64(const Vector<BYTE>& vBin);
 		static Vector<BYTE> ToBinFromBase64(CSZ base64);
@@ -76,6 +65,7 @@ namespace verus
 		// Hexadecimal:
 		static String ByteToHex(BYTE b);
 		static String ToHex(const Vector<BYTE>& vBin);
+		static String ToHex(UINT32 color);
 		static Vector<BYTE> ToBinFromHex(CSZ hex);
 
 		// MD5:

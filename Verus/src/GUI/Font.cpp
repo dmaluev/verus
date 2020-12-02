@@ -139,7 +139,8 @@ void Font::Draw(RcDrawDesc dd)
 			return;
 	}
 
-	const wchar_t wrapChars[] = L" \t\r\n-";
+	_overrideColor = 0;
+	const wchar_t wrapChars[] = L" \t\r\n-\\";
 	CWSZ text = dd._text;
 	int lineCount = -dd._skippedLineCount;
 	const float lineHeight = ToFloatY(_lineHeight, dd._scale);
@@ -171,7 +172,34 @@ void Font::Draw(RcDrawDesc dd)
 		int wordLen = static_cast<int>(wcscspn(text, wrapChars)); // First occurrence of wrap chars.
 
 		if (!wordLen && L'-' == *text)
+		{
 			wordLen = 1; // Don't throw away hyphen.
+		}
+		else if (!wordLen && L'\\' == *text)
+		{
+			CWSZ token = L"\\RGB=";
+			const size_t len = wcslen(token);
+			if (!wcsncmp(text, L"\\RGB=", len))
+			{
+				char buffer[7] = {};
+				text += len;
+				VERUS_FOR(i, 6)
+				{
+					if (!(*text) || !isxdigit(*text))
+						break;
+					buffer[i] = static_cast<char>(*text);
+					text++;
+				}
+				_overrideColor = Convert::ColorTextToInt32(buffer);
+				if (!_overrideColor && *text)
+					text++;
+				wordLen = -1;
+			}
+			else
+			{
+				wordLen = 1;
+			}
+		}
 
 		if (wordLen > 0) // Add word:
 		{
@@ -191,17 +219,17 @@ void Font::Draw(RcDrawDesc dd)
 					break; // No more vertical space.
 
 				// 2) draw the word:
-				xoffset += DrawWord(text, wordLen, xoffset, yoffset, lineCount < 0, dd._colorFont, dd._scale);
+				xoffset += DrawWord(text, wordLen, xoffset, yoffset, lineCount < 0, _overrideColor ? _overrideColor : dd._colorFont, dd._scale);
 			}
 			else // Word fits in:
 			{
 				// Draw the word:
-				xoffset += DrawWord(text, wordLen, xoffset, yoffset, lineCount < 0, dd._colorFont, dd._scale);
+				xoffset += DrawWord(text, wordLen, xoffset, yoffset, lineCount < 0, _overrideColor ? _overrideColor : dd._colorFont, dd._scale);
 			}
 
 			text += wordLen; // Next char.
 		}
-		else // Deal with wrap char:
+		else if (!wordLen) // Deal with wrap char:
 		{
 			if (L'\n' == *text) // New line:
 			{

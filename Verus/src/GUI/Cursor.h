@@ -8,6 +8,7 @@ namespace verus
 		class Cursor : public Object
 		{
 			Scene::TexturePwn _tex;
+			CGI::CSHandle     _csh;
 			float             _x = 0.5f;
 			float             _y = 0.5f;
 			float             _hotspotX = 0;

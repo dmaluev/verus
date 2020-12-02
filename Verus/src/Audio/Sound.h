@@ -134,10 +134,11 @@ namespace verus
 
 			RSoundPtr operator[](int i)
 			{
-				if (i < 0)
+				const bool useRand = i < 0;
+				if (useRand)
 					i = Utils::I().GetRandom().Next() & 0xFF; // Only positive.
 				i %= COUNT;
-				if (i == _prev)
+				if (useRand && (i == _prev))
 					i = (i + 1) % COUNT;
 				_prev = i;
 				return _sounds[i];

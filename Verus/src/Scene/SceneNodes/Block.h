@@ -61,8 +61,6 @@ namespace verus
 
 			bool IsLoadedModel() const { return _model->IsLoaded(); }
 
-			virtual void SetDynamic(bool mode) override;
-
 			virtual void SetColor(RcVector4 color) override { _userColor = color; }
 			virtual Vector4 GetColor() override { return _userColor; }
 			ModelPtr GetModel() { return _model; }

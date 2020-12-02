@@ -34,6 +34,7 @@ namespace verus
 			float   _endSize = 0;
 			float   _beginSpin = 0;
 			float   _endSpin = 0;
+			bool    _inContact = false;
 		};
 		VERUS_TYPEDEFS(Particle);
 
@@ -61,8 +62,8 @@ namespace verus
 			{
 				glm::vec4 pos;
 				glm::vec2 tc0;
-				UINT32 color;
-				float psize;
+				UINT32    color;
+				float     psize;
 			};
 			VERUS_TYPEDEFS(Vertex);
 

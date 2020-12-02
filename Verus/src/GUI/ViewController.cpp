@@ -33,6 +33,9 @@ void ViewController::Done()
 
 void ViewController::Reload()
 {
+	VERUS_QREF_RENDERER;
+	renderer->WaitIdle();
+
 	const String url = _C(_pView->GetUrl());
 	Done();
 	Init(_C(url));

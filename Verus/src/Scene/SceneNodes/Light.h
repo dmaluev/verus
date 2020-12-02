@@ -33,6 +33,7 @@ namespace verus
 				CSZ            _urlIntShaker = nullptr;
 				float          _intShakerScale = 0.25f;
 				LightData      _data;
+				bool           _dynamic = false;
 			};
 			VERUS_TYPEDEFS(Desc);
 

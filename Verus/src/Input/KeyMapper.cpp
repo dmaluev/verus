@@ -101,15 +101,15 @@ bool KeyMapper::HandleSdlEvent(SDL_Event& event)
 	{
 		if (ImGui::GetIO().WantCaptureMouse)
 			return false;
-		if (1 == event.button.clicks)
-		{
-			if (event.button.button < VERUS_BUTTON_WHEELUP)
-				OnMouseDown(event.button.button);
-		}
-		else if (2 == event.button.clicks)
+		if (2 == event.button.clicks)
 		{
 			if (event.button.button < VERUS_BUTTON_WHEELUP)
 				OnMouseDoubleClick(event.button.button);
+		}
+		else
+		{
+			if (event.button.button < VERUS_BUTTON_WHEELUP)
+				OnMouseDown(event.button.button);
 		}
 	}
 	break;
@@ -117,11 +117,8 @@ bool KeyMapper::HandleSdlEvent(SDL_Event& event)
 	{
 		if (ImGui::GetIO().WantCaptureMouse)
 			return false;
-		if (1 == event.button.clicks)
-		{
-			if (event.button.button < VERUS_BUTTON_WHEELUP)
-				OnMouseUp(event.button.button);
-		}
+		if (event.button.button < VERUS_BUTTON_WHEELUP)
+			OnMouseUp(event.button.button);
 	}
 	break;
 	case SDL_MOUSEWHEEL:

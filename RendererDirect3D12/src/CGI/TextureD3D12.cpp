@@ -104,7 +104,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
 			&allocDesc,
 			&resDescUAV,
-			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			nullptr,
 			&_uaResource._pMaAllocation,
 			IID_PPV_ARGS(&_uaResource._pResource))))
@@ -400,7 +400,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 			{
 				const int subUAV = srcMip + mip;
 				barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(_uaResource._pResource.Get(),
-					D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE, subUAV);
+					D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE, subUAV);
 			}
 			pCmdList->ResourceBarrier(barrierCount, barriers);
 
@@ -426,7 +426,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 			{
 				const int subUAV = srcMip + mip;
 				barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(_uaResource._pResource.Get(),
-					D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, subUAV);
+					D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, subUAV);
 			}
 			pCmdList->ResourceBarrier(barrierCount, barriers);
 
