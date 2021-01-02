@@ -158,7 +158,8 @@ namespace verus
 			virtual void DeleteTexture(PBaseTexture p) override;
 
 			virtual RPHandle CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) override;
-			virtual FBHandle CreateFramebuffer(RPHandle renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex) override;
+			virtual FBHandle CreateFramebuffer(RPHandle renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h,
+				int swapChainBufferIndex = -1, CubeMapFace cubeMapFace = CubeMapFace::none) override;
 			virtual void DeleteRenderPass(RPHandle handle) override;
 			virtual void DeleteFramebuffer(FBHandle handle) override;
 			int GetNextRenderPassIndex() const;

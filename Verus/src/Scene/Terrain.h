@@ -102,10 +102,12 @@ namespace verus
 
 				PIPE_WIREFRAME_LIST,
 				PIPE_WIREFRAME_STRIP,
-				PIPE_REFLECTION_LIST,
-				PIPE_REFLECTION_STRIP,
-				PIPE_UNDERWATER_LIST,
-				PIPE_UNDERWATER_STRIP,
+				PIPE_SIMPLE_ENV_MAP_LIST,
+				PIPE_SIMPLE_ENV_MAP_STRIP,
+				PIPE_SIMPLE_PLANAR_REF_LIST,
+				PIPE_SIMPLE_PLANAR_REF_STRIP,
+				PIPE_SIMPLE_UNDERWATER_LIST,
+				PIPE_SIMPLE_UNDERWATER_STRIP,
 				PIPE_COUNT
 			};
 
@@ -213,7 +215,7 @@ namespace verus
 			void ResetInstanceCount();
 			void Layout();
 			void Draw(RcDrawDesc dd = DrawDesc());
-			void DrawReflection();
+			void DrawSimple(DrawSimpleMode mode);
 
 			void SortVisiblePatches();
 

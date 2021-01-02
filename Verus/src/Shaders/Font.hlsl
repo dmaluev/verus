@@ -34,7 +34,7 @@ VSO mainVS(VSI si)
 	VSO so;
 
 	so.pos = si.pos;
-	so.tc0 = si.tc0.xy / 32767.0;
+	so.tc0 = si.tc0.xy / 32767.f;
 	so.color = ColorToLinear(si.color);
 
 	return so;

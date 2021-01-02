@@ -630,7 +630,7 @@ void RendererVulkan::CreateSamplers()
 	};
 
 	vksci = init;
-	if (settings._sceneShadowQuality <= App::Settings::ShadowQuality::nearest)
+	if (settings._sceneShadowQuality <= App::Settings::Quality::low)
 	{
 		vksci.magFilter = VK_FILTER_NEAREST;
 		vksci.minFilter = VK_FILTER_NEAREST;
@@ -1161,7 +1161,7 @@ RPHandle RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> 
 	return RPHandle::Make(nextIndex);
 }
 
-FBHandle RendererVulkan::CreateFramebuffer(RPHandle renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex)
+FBHandle RendererVulkan::CreateFramebuffer(RPHandle renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex, CubeMapFace cubeMapFace)
 {
 	VkResult res = VK_SUCCESS;
 
@@ -1179,7 +1179,12 @@ FBHandle RendererVulkan::CreateFramebuffer(RPHandle renderPassHandle, std::initi
 	for (const auto& x : il)
 	{
 		auto& texVulkan = static_cast<RTextureVulkan>(*x);
-		imageViews[count] = texVulkan.GetVkImageViewForFramebuffer();
+		switch (cubeMapFace)
+		{
+		case CubeMapFace::all:  imageViews[count] = texVulkan.GetVkImageViewForFramebuffer(static_cast<CubeMapFace>(count)); break;
+		case CubeMapFace::none: imageViews[count] = texVulkan.GetVkImageViewForFramebuffer(CubeMapFace::none); break;
+		default:                imageViews[count] = texVulkan.GetVkImageViewForFramebuffer(!count ? cubeMapFace : CubeMapFace::none);
+		}
 		count++;
 	}
 	vkfci.attachmentCount = count;

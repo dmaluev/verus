@@ -11,4 +11,5 @@ VERUS_UBUFFER UB_SsaoFS
 {
 	float4 _zNearFarEx;
 	float4 _camScale;
+	float4 _smallRad_largeRad_weightScale_weightBias;
 };

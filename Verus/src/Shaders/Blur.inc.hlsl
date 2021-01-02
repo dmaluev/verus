@@ -8,7 +8,8 @@ VERUS_UBUFFER UB_BlurVS
 
 VERUS_UBUFFER UB_BlurFS
 {
-	float4 _dummy;
+	float3 _radius_invRadius_stride;
+	int    _sampleCount;
 };
 
 VERUS_UBUFFER UB_ExtraBlurFS

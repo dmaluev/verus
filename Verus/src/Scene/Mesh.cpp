@@ -119,12 +119,16 @@ void Mesh::Draw(RcDrawDesc dd, CGI::CommandBufferPtr cb)
 
 void Mesh::DrawSimple(RcDrawDesc dd, CGI::CommandBufferPtr cb)
 {
+	DrawSimpleMode mode = DrawSimpleMode::envMap;
+	if (dd._pipe >= PIPE_SIMPLE_PLANAR_REF && dd._pipe <= PIPE_SIMPLE_PLANAR_REF_SKINNED)
+		mode = DrawSimpleMode::planarReflection;
+
 	auto shader = GetSimpleShader();
 
 	BindPipeline(dd._pipe, cb);
 	BindGeo(cb);
 
-	UpdateUniformBufferSimplePerFrame();
+	UpdateUniformBufferSimplePerFrame(mode);
 	cb->BindDescriptors(shader, 0);
 	if (dd._bindMaterial)
 	{
@@ -149,6 +153,7 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 	VERUS_QREF_ATMO;
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
+	VERUS_QREF_WATER;
 
 	if (!settings._gpuTessellation) // Fallback:
 	{
@@ -208,11 +213,17 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 			"#Robotic",
 			"#Skinned",
 
+			"#",
+			"#Instanced",
+			"#Robotic",
+			"#Skinned",
+
 			"#Texture",
 			"#TextureInstanced",
 			"#TextureRobotic",
 			"#TextureSkinned"
 		};
+		VERUS_CT_ASSERT(VERUS_COUNT_OF(branches) == PIPE_COUNT);
 
 		if (pipe >= PIPE_SIMPLE_TEX_ADD)
 		{
@@ -223,10 +234,17 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 			pipeDesc._depthWriteEnable = false;
 			s_pipe[pipe].Init(pipeDesc);
 		}
-		else if (pipe >= PIPE_SIMPLE_WATER_REF)
+		else if (pipe >= PIPE_SIMPLE_PLANAR_REF)
 		{
-			VERUS_QREF_WATER;
 			CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], branches[pipe], water.GetRenderPassHandle());
+			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+			pipeDesc._rasterizationState._cullMode = CGI::CullMode::front;
+			pipeDesc._vertexInputBindingsFilter = _bindingsMask;
+			s_pipe[pipe].Init(pipeDesc);
+		}
+		else if (pipe >= PIPE_SIMPLE_ENV_MAP)
+		{
+			CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], branches[pipe], atmo.GetCubeMap().GetRenderPassHandle());
 			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
 			pipeDesc._rasterizationState._cullMode = CGI::CullMode::front;
 			pipeDesc._vertexInputBindingsFilter = _bindingsMask;
@@ -426,7 +444,7 @@ void Mesh::UpdateUniformBufferPerObject(RcTransform3 tr, RcVector4 color)
 	s_ubSimplePerObject._userColor = s_ubPerObject._userColor;
 }
 
-void Mesh::UpdateUniformBufferSimplePerFrame()
+void Mesh::UpdateUniformBufferSimplePerFrame(DrawSimpleMode mode)
 {
 	VERUS_QREF_ATMO;
 	VERUS_QREF_RENDERER;
@@ -434,19 +452,21 @@ void Mesh::UpdateUniformBufferSimplePerFrame()
 	VERUS_QREF_WATER;
 
 	RcPoint3 eyePos = sm.GetMainCamera()->GetEyePosition();
+	const float clipDistanceOffset = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? USHRT_MAX : 0;
 
 	s_ubSimplePerFrame._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubSimplePerFrame._eyePos_clipDistanceOffset = float4(eyePos.GLM(), static_cast<float>(water.IsUnderwater() ? USHRT_MAX : 0));
+	s_ubSimplePerFrame._eyePos_clipDistanceOffset = float4(eyePos.GLM(), clipDistanceOffset);
 	s_ubSimplePerFrame._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0);
 	s_ubSimplePerFrame._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubSimplePerFrame._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
 	s_ubSimplePerFrame._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-	s_ubSimplePerFrame._matSunShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
-	s_ubSimplePerFrame._matSunShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
-	s_ubSimplePerFrame._matSunShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
-	s_ubSimplePerFrame._matSunShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
+	s_ubSimplePerFrame._matShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
+	s_ubSimplePerFrame._matShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
+	s_ubSimplePerFrame._matShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
+	s_ubSimplePerFrame._matShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
+	s_ubSimplePerFrame._matScreenCSM = atmo.GetShadowMap().GetScreenMatrixVP().UniformBufferFormat();
+	s_ubSimplePerFrame._csmSplitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
 	memcpy(&s_ubSimplePerFrame._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubSimplePerFrame._shadowConfig));
-	s_ubSimplePerFrame._splitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
 }
 
 void Mesh::UpdateUniformBufferSimpleSkeletonVS()

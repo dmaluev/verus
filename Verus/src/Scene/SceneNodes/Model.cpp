@@ -66,10 +66,14 @@ void Model::BindPipeline(CGI::CommandBufferPtr cb)
 	_mesh.UpdateUniformBufferPerFrame();
 }
 
-void Model::BindPipelineReflection(CGI::CommandBufferPtr cb)
+void Model::BindPipelineSimple(DrawSimpleMode mode, CGI::CommandBufferPtr cb)
 {
-	_mesh.BindPipeline(Mesh::PIPE_SIMPLE_WATER_REF_INSTANCED, cb);
-	_mesh.UpdateUniformBufferSimplePerFrame();
+	switch (mode)
+	{
+	case DrawSimpleMode::envMap:           _mesh.BindPipeline(Mesh::PIPE_SIMPLE_ENV_MAP_INSTANCED, cb); break;
+	case DrawSimpleMode::planarReflection: _mesh.BindPipeline(Mesh::PIPE_SIMPLE_PLANAR_REF_INSTANCED, cb); break;
+	}
+	_mesh.UpdateUniformBufferSimplePerFrame(mode);
 }
 
 void Model::BindGeo(CGI::CommandBufferPtr cb)

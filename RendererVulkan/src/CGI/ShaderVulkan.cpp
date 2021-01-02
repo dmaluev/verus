@@ -100,6 +100,12 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			vDefines.push_back("_ANISOTROPY_LEVEL");
 			vDefines.push_back(defAnisotropyLevel);
 		}
+		char defShaderQuality[64] = {};
+		{
+			sprintf_s(defShaderQuality, "%d", settings._gpuShaderQuality);
+			vDefines.push_back("_SHADER_QUALITY");
+			vDefines.push_back(defShaderQuality);
+		}
 		char defShadowQuality[64] = {};
 		{
 			sprintf_s(defShadowQuality, "%d", settings._sceneShadowQuality);

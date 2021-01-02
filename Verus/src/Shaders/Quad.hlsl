@@ -43,7 +43,7 @@ FSO mainFS(VSO si)
 {
 	FSO so;
 
-	so.color = g_tex.SampleLevel(g_sam, si.tc0, 0.0);
+	so.color = g_tex.SampleLevel(g_sam, si.tc0, 0.f);
 
 	return so;
 }

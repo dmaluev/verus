@@ -46,11 +46,11 @@ void BaseRenderer::UpdateScheduled()
 		}), _vScheduled.end());
 }
 
-RPHandle BaseRenderer::CreateSimpleRenderPass(Format format, ImageLayout layout)
+RPHandle BaseRenderer::CreateSimpleRenderPass(Format format, RP::Attachment::LoadOp loadOp, ImageLayout layout)
 {
 	return CreateRenderPass(
 		{
-			RP::Attachment("Attach", format).LoadOpDontCare().Layout(layout),
+			RP::Attachment("Attach", format).SetLoadOp(loadOp).Layout(layout),
 		},
 		{
 			RP::Subpass("Sp0").Color({RP::Ref("Attach", ImageLayout::colorAttachment)}),

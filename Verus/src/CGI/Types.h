@@ -137,6 +137,19 @@ namespace verus
 			count
 		};
 
+		enum class CubeMapFace : int
+		{
+			posX,
+			negX,
+			posY,
+			negY,
+			posZ,
+			negZ,
+			count,
+			all,
+			none = -1
+		};
+
 		template<typename T>
 		class BaseHandle
 		{

@@ -79,10 +79,11 @@ namespace verus
 			virtual void DeleteShader(PBaseShader p) = 0;
 			virtual void DeleteTexture(PBaseTexture p) = 0;
 
-			RPHandle CreateSimpleRenderPass(Format format, ImageLayout layout = ImageLayout::fsReadOnly);
+			RPHandle CreateSimpleRenderPass(Format format, RP::Attachment::LoadOp loadOp = RP::Attachment::LoadOp::dontCare, ImageLayout layout = ImageLayout::fsReadOnly);
 			RPHandle CreateShadowRenderPass(Format format);
 			virtual RPHandle CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) = 0;
-			virtual FBHandle CreateFramebuffer(RPHandle renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex = -1) = 0;
+			virtual FBHandle CreateFramebuffer(RPHandle renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h,
+				int swapChainBufferIndex = -1, CubeMapFace cubeMapFace = CubeMapFace::none) = 0;
 			virtual void DeleteRenderPass(RPHandle handle) = 0;
 			virtual void DeleteFramebuffer(FBHandle handle) = 0;
 

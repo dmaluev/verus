@@ -19,10 +19,12 @@ VERUS_UBUFFER UB_WaterFS
 	float4 _fogColor;
 	float4 _dirToSun;
 	float4 _sunColor;
-	matrix _matSunShadow;
-	matrix _matSunShadowCSM1;
-	matrix _matSunShadowCSM2;
-	matrix _matSunShadowCSM3;
+
+	matrix _matShadow;
+	matrix _matShadowCSM1;
+	matrix _matShadowCSM2;
+	matrix _matShadowCSM3;
+	matrix _matScreenCSM;
+	float4 _csmSplitRanges;
 	float4 _shadowConfig;
-	float4 _splitRanges;
 };

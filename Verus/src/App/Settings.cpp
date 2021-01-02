@@ -85,29 +85,33 @@ void Settings::SetQuality(Quality q)
 	{
 	case Quality::low:
 		_gpuAnisotropyLevel = 0;
+		_gpuShaderQuality = Quality::low;
 		_gpuTrilinearFilter = false;
-		_sceneShadowQuality = ShadowQuality::linear;
+		_sceneGrassDensity = 500;
+		_sceneShadowQuality = Quality::low;
 		_sceneWaterQuality = WaterQuality::solidColor;
 		break;
 	case Quality::medium:
 		break;
 	case Quality::high:
 		_gpuAnisotropyLevel = 8;
+		_gpuShaderQuality = Quality::high;
 		_postProcessBloom = true;
 		_postProcessCinema = true;
 		_postProcessSSAO = true;
 		_sceneGrassDensity = 1000;
-		_sceneShadowQuality = ShadowQuality::cascaded;
+		_sceneShadowQuality = Quality::high;
 		_sceneWaterQuality = WaterQuality::trueWavesReflection;
 		break;
 	case Quality::ultra:
 		_gpuAnisotropyLevel = 16;
+		_gpuShaderQuality = Quality::ultra;
 		_postProcessBloom = true;
 		_postProcessCinema = true;
 		_postProcessMotionBlur = true;
 		_postProcessSSAO = true;
 		_sceneGrassDensity = 1000;
-		_sceneShadowQuality = ShadowQuality::ultra;
+		_sceneShadowQuality = Quality::ultra;
 		_sceneWaterQuality = WaterQuality::trueWavesRefraction;
 		_displaySizeHeight = 1080;
 		_displaySizeWidth = 1980;
@@ -131,6 +135,7 @@ void Settings::Load()
 	_gapi = GetI("gapi", _gapi);
 	_gpuAnisotropyLevel = GetI("gpuAnisotropyLevel", _gpuAnisotropyLevel);
 	_gpuAntialiasingLevel = GetI("gpuAntialiasingLevel", _gpuAntialiasingLevel);
+	_gpuShaderQuality = static_cast<Quality>(GetI("gpuShaderQuality", +_gpuShaderQuality));
 	_gpuTessellation = GetB("gpuTessellation", _gpuTessellation);
 	_gpuTextureLodLevel = GetI("gpuTextureLodLevel", _gpuTextureLodLevel);
 	_gpuTrilinearFilter = GetB("gpuTrilinearFilter", _gpuTrilinearFilter);
@@ -140,7 +145,7 @@ void Settings::Load()
 	_postProcessMotionBlur = GetB("postProcessMotionBlur", _postProcessMotionBlur);
 	_postProcessSSAO = GetB("postProcessSSAO", _postProcessSSAO);
 	_sceneGrassDensity = GetI("sceneGrassDensity", _sceneGrassDensity);
-	_sceneShadowQuality = static_cast<ShadowQuality>(GetI("sceneShadowQuality", +_sceneShadowQuality));
+	_sceneShadowQuality = static_cast<Quality>(GetI("sceneShadowQuality", +_sceneShadowQuality));
 	_sceneWaterQuality = static_cast<WaterQuality>(GetI("sceneWaterQuality", +_sceneWaterQuality));
 	_uiLang = GetS("uiLang", _C(_uiLang));
 }
@@ -190,9 +195,10 @@ void Settings::Validate()
 	_displaySizeWidth = Math::Clamp(_displaySizeWidth, 480, 0x2000);
 	_gpuAnisotropyLevel = Math::Clamp(_gpuAnisotropyLevel, 0, 16);
 	_gpuAntialiasingLevel = Math::Clamp(_gpuAntialiasingLevel, 0, 16);
+	_gpuShaderQuality = Math::Clamp(_gpuShaderQuality, Quality::low, Quality::ultra);
 	_gpuTextureLodLevel = Math::Clamp(_gpuTextureLodLevel, 0, 4);
 	_sceneGrassDensity = Math::Clamp(_sceneGrassDensity, 100, 1000);
-	_sceneShadowQuality = Math::Clamp(_sceneShadowQuality, ShadowQuality::none, ShadowQuality::ultra);
+	_sceneShadowQuality = Math::Clamp(_sceneShadowQuality, Quality::low, Quality::ultra);
 	_sceneWaterQuality = Math::Clamp(_sceneWaterQuality, WaterQuality::solidColor, WaterQuality::trueWavesRefraction);
 
 	if (_uiLang != "RU" && _uiLang != "EN")
@@ -215,6 +221,7 @@ void Settings::Save()
 	Set("gapi", _gapi);
 	Set("gpuAnisotropyLevel", _gpuAnisotropyLevel);
 	Set("gpuAntialiasingLevel", _gpuAntialiasingLevel);
+	Set("gpuShaderQuality", +_gpuShaderQuality);
 	Set("gpuTessellation", _gpuTessellation);
 	Set("gpuTextureLodLevel", _gpuTextureLodLevel);
 	Set("gpuTrilinearFilter", _gpuTrilinearFilter);

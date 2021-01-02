@@ -98,6 +98,11 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			sprintf_s(defAnisotropyLevel, "%d", settings._gpuAnisotropyLevel);
 			vDefines.push_back({ "_ANISOTROPY_LEVEL", defAnisotropyLevel });
 		}
+		char defShaderQuality[64] = {};
+		{
+			sprintf_s(defShaderQuality, "%d", settings._gpuShaderQuality);
+			vDefines.push_back({ "_SHADER_QUALITY", defShaderQuality });
+		}
 		char defShadowQuality[64] = {};
 		{
 			sprintf_s(defShadowQuality, "%d", settings._sceneShadowQuality);

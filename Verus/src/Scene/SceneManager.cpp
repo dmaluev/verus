@@ -102,7 +102,7 @@ void SceneManager::Layout()
 
 	PCamera pPrevCamera = nullptr;
 	// For CSM we need to create geometry beyond the view frustum (1st slice):
-	if (settings._sceneShadowQuality >= App::Settings::ShadowQuality::cascaded && atmo.GetShadowMap().IsRendering())
+	if (settings._sceneShadowQuality >= App::Settings::Quality::high && atmo.GetShadowMap().IsRendering())
 	{
 		PCamera pCameraCSM = atmo.GetShadowMap().GetCameraCSM();
 		if (pCameraCSM)
@@ -237,7 +237,7 @@ void SceneManager::Draw()
 	shader->EndBindDescriptors();
 }
 
-void SceneManager::DrawReflection()
+void SceneManager::DrawSimple(DrawSimpleMode mode)
 {
 	if (!_visibleCountPerType[+NodeType::block])
 		return;
@@ -285,7 +285,7 @@ void SceneManager::DrawReflection()
 			if (bindPipeline)
 			{
 				bindPipeline = false;
-				model->BindPipelineReflection(cb);
+				model->BindPipelineSimple(mode, cb);
 				cb->BindDescriptors(shader, 0);
 			}
 			model->BindGeo(cb);

@@ -5,10 +5,12 @@ namespace verus
 {
 	void Make_Extra()
 	{
-		Extra::FileParser::Make();
+		Extra::ConvertGLTF::Make();
+		Extra::ConvertX::Make();
 	}
 	void Free_Extra()
 	{
-		Extra::FileParser::Free();
+		Extra::ConvertX::Free();
+		Extra::ConvertGLTF::Free();
 	}
 }

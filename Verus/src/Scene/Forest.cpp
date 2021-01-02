@@ -260,11 +260,18 @@ void Forest::Update()
 				_pipe[PIPE_DEPTH].Init(pipeDesc);
 			}
 			{
+				CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], "#", atmo.GetCubeMap().GetRenderPassHandle());
+				pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+				pipeDesc._rasterizationState._cullMode = CGI::CullMode::none;
+				pipeDesc._topology = CGI::PrimitiveTopology::pointList;
+				_pipe[PIPE_SIMPLE_ENV_MAP].Init(pipeDesc);
+			}
+			{
 				CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], "#", water.GetRenderPassHandle());
 				pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
 				pipeDesc._rasterizationState._cullMode = CGI::CullMode::none;
 				pipeDesc._topology = CGI::PrimitiveTopology::pointList;
-				_pipe[PIPE_REFLECTION].Init(pipeDesc);
+				_pipe[PIPE_SIMPLE_PLANAR_REF].Init(pipeDesc);
 			}
 		}
 	}
@@ -524,7 +531,7 @@ void Forest::DrawAO()
 	}
 }
 
-void Forest::DrawReflection()
+void Forest::DrawSimple(DrawSimpleMode mode)
 {
 	if (!_geo)
 		return;
@@ -534,27 +541,35 @@ void Forest::DrawReflection()
 	VERUS_QREF_SM;
 	VERUS_QREF_WATER;
 
+	const float clipDistanceOffset = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? USHRT_MAX : 0;
+	const float pointSpriteScaleY = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? 1 : -1;
+
 	auto cb = renderer.GetCommandBuffer();
 
 	s_ubSimpleForestVS._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
 	s_ubSimpleForestVS._matWVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubSimpleForestVS._viewportSize = renderer.GetCommandBuffer()->GetViewportSize().GLM();
-	s_ubSimpleForestVS._eyePos = float4(sm.GetCamera()->GetEyePosition().GLM(), 0);
+	s_ubSimpleForestVS._eyePos_clipDistanceOffset = float4(sm.GetCamera()->GetEyePosition().GLM(), clipDistanceOffset);
 	s_ubSimpleForestVS._eyePosScreen = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
-	s_ubSimpleForestVS._pointSpriteScale = float4(1, water.IsUnderwater() ? 1 : -1, 0, 0);
+	s_ubSimpleForestVS._pointSpriteScale = float4(1, pointSpriteScaleY, 0, 0);
 	s_ubSimpleForestFS._matInvV = sm.GetCamera()->GetMatrixVi().UniformBufferFormat();
 	s_ubSimpleForestFS._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0);
 	s_ubSimpleForestFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubSimpleForestFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
 	s_ubSimpleForestFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-	s_ubSimpleForestFS._matSunShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
-	s_ubSimpleForestFS._matSunShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
-	s_ubSimpleForestFS._matSunShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
-	s_ubSimpleForestFS._matSunShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
+	s_ubSimpleForestFS._matShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
+	s_ubSimpleForestFS._matShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
+	s_ubSimpleForestFS._matShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
+	s_ubSimpleForestFS._matShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
+	s_ubSimpleForestFS._matScreenCSM = atmo.GetShadowMap().GetScreenMatrixVP().UniformBufferFormat();
+	s_ubSimpleForestFS._csmSplitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
 	memcpy(&s_ubSimpleForestFS._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubSimpleForestFS._shadowConfig));
-	s_ubSimpleForestFS._splitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
 
-	cb->BindPipeline(_pipe[PIPE_REFLECTION]);
+	switch (mode)
+	{
+	case DrawSimpleMode::envMap:           cb->BindPipeline(_pipe[PIPE_SIMPLE_ENV_MAP]); break;
+	case DrawSimpleMode::planarReflection: cb->BindPipeline(_pipe[PIPE_SIMPLE_PLANAR_REF]); break;
+	}
 	cb->BindVertexBuffers(_geo);
 	s_shader[SHADER_SIMPLE]->BeginBindDescriptors();
 	cb->BindDescriptors(s_shader[SHADER_SIMPLE], 0);

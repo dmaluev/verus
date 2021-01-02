@@ -21,5 +21,7 @@ namespace verus
 
 		CSZ ToNativeSemanticName(ViaUsage usage);
 		DXGI_FORMAT ToNativeFormat(ViaUsage usage, ViaType type, int components);
+
+		UINT ToNativeCubeMapFace(CubeMapFace face);
 	}
 }

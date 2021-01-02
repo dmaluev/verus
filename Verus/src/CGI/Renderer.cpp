@@ -253,6 +253,7 @@ void Renderer::OnWindowResized(int w, int h)
 	Scene::Water::I().OnSwapChainResized();
 	Effects::Bloom::I().OnSwapChainResized();
 	Effects::Ssao::I().OnSwapChainResized();
+	Effects::Ssr::I().OnSwapChainResized();
 	Effects::Blur::I().OnSwapChainResized();
 }
 

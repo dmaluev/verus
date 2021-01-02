@@ -64,7 +64,9 @@ void Ssao::OnSwapChainResized()
 {
 	if (!IsInitialized())
 		return;
+
 	VERUS_QREF_RENDERER;
+
 	{
 		_shader->FreeDescriptorSet(_csh);
 		renderer->DeleteFramebuffer(_fbh);
@@ -79,7 +81,12 @@ void Ssao::OnSwapChainResized()
 		texDesc._flags = CGI::TextureDesc::Flags::colorAttachment;
 		_tex[TEX_GEN_AO].Init(texDesc);
 		_fbh = renderer->CreateFramebuffer(_rph, { _tex[TEX_GEN_AO] }, renderer.GetSwapChainWidth(), renderer.GetSwapChainHeight());
-		_csh = _shader->BindDescriptorSetTextures(1, { _tex[TEX_RAND_NORMALS], renderer.GetDS().GetGBuffer(1), renderer.GetTexDepthStencil() });
+		_csh = _shader->BindDescriptorSetTextures(1,
+			{
+				_tex[TEX_RAND_NORMALS],
+				renderer.GetDS().GetGBuffer(1),
+				renderer.GetTexDepthStencil()
+			});
 	}
 	renderer.GetDS().InitBySsao(_tex[TEX_GEN_AO]);
 }
@@ -88,6 +95,15 @@ void Ssao::Generate()
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
+
+	if (_editMode)
+	{
+		ImGui::DragFloat("SSAO smallRad", &_smallRad, 0.001f);
+		ImGui::DragFloat("SSAO largeRad", &_largeRad, 0.001f);
+		ImGui::DragFloat("SSAO weightScale", &_weightScale, 0.001f);
+		ImGui::DragFloat("SSAO weightBias", &_weightBias, 0.001f);
+		ImGui::Checkbox("SSAO blur", &_blur);
+	}
 
 	Scene::RCamera cam = *sm.GetCamera();
 
@@ -99,6 +115,10 @@ void Ssao::Generate()
 	s_ubSsaoFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
 	s_ubSsaoFS._camScale.x = cam.GetFovScale() / cam.GetAspectRatio();
 	s_ubSsaoFS._camScale.y = -cam.GetFovScale();
+	s_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.x = _smallRad;
+	s_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.y = _largeRad;
+	s_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.z = _weightScale;
+	s_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.w = _weightBias;
 
 	cb->BeginRenderPass(_rph, _fbh, { _tex[TEX_GEN_AO]->GetClearValue() });
 
@@ -111,7 +131,8 @@ void Ssao::Generate()
 
 	cb->EndRenderPass();
 
-	Blur::I().GenerateForSsao();
+	if (_blur)
+		Blur::I().GenerateForSsao();
 }
 
 void Ssao::UpdateRandNormalsTexture()

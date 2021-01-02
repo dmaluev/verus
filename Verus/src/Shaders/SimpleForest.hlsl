@@ -46,32 +46,36 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
-	const float pointSpriteSize = si.tc0.x / 500.0;
-	const float angle = si.tc0.y / 32767.0;
+	const float3 eyePos = g_ubSimpleForestVS._eyePos_clipDistanceOffset.xyz;
+	const float clipDistanceOffset = g_ubSimpleForestVS._eyePos_clipDistanceOffset.w;
 
-	const float3 toEye = g_ubSimpleForestVS._eyePos.xyz - si.pos.xyz;
+	const float pointSpriteSize = si.tc0.x * (1.f / 500.f);
+	const float angle = si.tc0.y * (1.f / 32767.f);
+
+	const float3 toEye = eyePos - si.pos.xyz;
 	const float distToScreen = length(g_ubSimpleForestVS._eyePosScreen.xyz - si.pos.xyz);
 
-	const float farAlpha = 1.0 - saturate((distToScreen - 900.0) * (1.0 / 100.0));
+	const float nearAlpha = saturate((distToScreen - 6.f) * (1.f / 3.f)); // From 6m to 9m.
+	const float farAlpha = 1.f - saturate((distToScreen - 900.f) * (1.f / 100.f)); // From 900m to 1000m.
 
 	so.pos = mul(si.pos, g_ubSimpleForestVS._matWVP);
-	so.tc0 = 0.0;
+	so.tc0 = 0.f;
 	so.dirToEye = toEye;
 	so.posW_depth = float4(si.pos.xyz, so.pos.z);
-	so.color.rgb = RandomColor(si.pos.xz, 0.3, 0.2);
-	so.color.a = farAlpha;
+	so.color.rgb = RandomColor(si.pos.xz, 0.3f, 0.2f);
+	so.color.a = nearAlpha * farAlpha;
 	so.psize = (pointSpriteSize * (g_ubSimpleForestVS._viewportSize.yx * g_ubSimpleForestVS._viewportSize.z)).xyxy;
 	so.psize.xy *= g_ubSimpleForestVS._pointSpriteScale.xy * g_ubSimpleForestVS._matP._m11;
-	so.clipDistance = 0.0;
+	so.clipDistance = clipDistanceOffset;
 
 	float2 param0 = toEye.xy;
 	float2 param1 = toEye.zz;
-	param0.y = max(0.0, param0.y); // Only upper hemisphere.
+	param0.y = max(0.f, param0.y); // Only upper hemisphere.
 	param1.y = length(toEye.xz); // Distance in XZ-plane.
-	so.angles.xy = (atan2(param0, param1) + _PI) * (0.5 / _PI); // atan2(x, z) and atan2(max(0.0, y), length(toEye.xz)). From 0 to 1.
-	so.angles.y = (so.angles.y - 0.5) * 4.0; // Choose this quadrant.
+	so.angles.xy = (atan2(param0, param1) + _PI) * (0.5f / _PI); // atan2(x, z) and atan2(max(0.f, y), length(toEye.xz)). From 0 to 1.
+	so.angles.y = (so.angles.y - 0.5f) * 4.f; // Choose this quadrant.
 	so.angles.xy = saturate(so.angles.xy);
-	so.angles.x = frac(so.angles.x - angle + 0.5); // Turn.
+	so.angles.x = frac(so.angles.x - angle + 0.5f); // Turn.
 
 	return so;
 }
@@ -91,7 +95,7 @@ void mainGS(point VSO si[1], inout TriangleStream<VSO> stream)
 		so.pos.xy = center + _POINT_SPRITE_POS_OFFSETS[i] * so.psize.xy;
 		so.tc0.xy = _POINT_SPRITE_TEX_COORDS[i];
 		so.posW_depth.xy = centerW + _POINT_SPRITE_POS_OFFSETS[i] * so.psize.zw;
-		so.clipDistance = so.posW_depth.y;
+		so.clipDistance += so.posW_depth.y;
 		stream.Append(so);
 	}
 }
@@ -99,21 +103,21 @@ void mainGS(point VSO si[1], inout TriangleStream<VSO> stream)
 
 float2 ComputeTexCoords(float2 tc, float2 angles)
 {
-	const float marginBias = 16.0 / 512.0;
-	const float marginScale = 1.0 - marginBias * 2.0;
+	const float marginBias = 16.f / 512.f;
+	const float marginScale = 1.f - marginBias * 2.f;
 	const float2 tcMargin = tc * marginScale + marginBias;
 
 	const float2 frameCount = float2(16, 16);
-	const float2 frameScale = 1.0 / frameCount;
-	const float2 frameBias = floor(min(angles * frameCount + 0.5, float2(256, frameCount.y - 0.5)));
+	const float2 frameScale = 1.f / frameCount;
+	const float2 frameBias = floor(min(angles * frameCount + 0.5f, float2(256, frameCount.y - 0.5f)));
 	return (tcMargin + frameBias) * frameScale;
 }
 
 float ComputeMask(float2 tc, float alpha)
 {
-	const float2 tcCenter = tc - 0.5;
-	const float rad = saturate(dot(tcCenter, tcCenter) * 4.0);
-	return saturate(rad + (alpha * 2.0 - 1.0));
+	const float2 tcCenter = tc - 0.5f;
+	const float rad = saturate(dot(tcCenter, tcCenter) * 4.f);
+	return saturate(rad + (alpha * 2.f - 1.f));
 }
 
 #ifdef _FS
@@ -132,8 +136,8 @@ FSO mainFS(VSO si)
 	const float4 rawGBuffer2 = g_texGBuffer2.Sample(g_samGBuffer2, tc);
 
 	// GBuffer0:
-	const float3 albedo = rawGBuffer0.rgb * 0.5;
-	const float specStrength = rawGBuffer0.a;
+	const float3 realAlbedo = ToRealAlbedo(rawGBuffer0.rgb);
+	const float specMask = rawGBuffer0.a;
 
 	// GBuffer1:
 	const float3 normalWV = DS_GetNormal(rawGBuffer1);
@@ -142,45 +146,48 @@ FSO mainFS(VSO si)
 
 	// GBuffer2:
 	const float2 lamScaleBias = DS_GetLamScaleBias(rawGBuffer2);
-	const float gloss64 = rawGBuffer2.a * 64.0;
-	const float gloss = gloss64 * gloss64;
+	const float gloss64 = rawGBuffer2.a * 64.f;
+	const float gloss4K = gloss64 * gloss64;
 
 	// <Shadow>
 	float shadowMask;
 	{
-		float4 config = g_ubSimpleForestFS._shadowConfig;
-		const float lamBiasMask = saturate(lamScaleBias.y * config.y);
-		config.y = 1.0 - lamBiasMask; // Keep penumbra blurry.
+		float4 shadowConfig = g_ubSimpleForestFS._shadowConfig;
+		const float lamBiasMask = saturate(lamScaleBias.y * shadowConfig.y);
+		shadowConfig.y = 1.f - lamBiasMask; // Keep penumbra blurry.
 		const float3 posForShadow = AdjustPosForShadow(si.posW_depth.xyz, normal, g_ubSimpleForestFS._dirToSun.xyz, depth);
-		const float4 tcShadow = ShadowCoords(float4(posForShadow, 1), g_ubSimpleForestFS._matSunShadow, depth);
 		shadowMask = SimpleShadowMapCSM(
 			g_texShadowCmp,
 			g_samShadowCmp,
-			tcShadow,
-			config,
-			g_ubSimpleForestFS._splitRanges,
-			g_ubSimpleForestFS._matSunShadow,
-			g_ubSimpleForestFS._matSunShadowCSM1,
-			g_ubSimpleForestFS._matSunShadowCSM2,
-			g_ubSimpleForestFS._matSunShadowCSM3);
+			si.posW_depth.xyz,
+			posForShadow,
+			g_ubSimpleForestFS._matShadow,
+			g_ubSimpleForestFS._matShadowCSM1,
+			g_ubSimpleForestFS._matShadowCSM2,
+			g_ubSimpleForestFS._matShadowCSM3,
+			g_ubSimpleForestFS._matScreenCSM,
+			g_ubSimpleForestFS._csmSplitRanges,
+			shadowConfig);
 	}
 	// </Shadow>
 
 	const float4 litRet = VerusLit(g_ubSimpleForestFS._dirToSun.xyz, normal, dirToEye,
-		gloss,
+		gloss4K,
 		lamScaleBias,
 		float4(0, 0, 1, 0));
 
 	const float3 diffColor = litRet.y * g_ubSimpleForestFS._sunColor.rgb * shadowMask + g_ubSimpleForestFS._ambientColor.rgb;
-	const float3 specColor = litRet.z * g_ubSimpleForestFS._sunColor.rgb * shadowMask * specStrength;
+	const float3 specColor = litRet.z * g_ubSimpleForestFS._sunColor.rgb * shadowMask * specMask;
 
-	so.color.rgb = albedo * diffColor + specColor;
-	so.color.a = 1.0;
+	so.color.rgb = realAlbedo * diffColor + specColor;
+	so.color.a = 1.f;
 
 	const float fog = ComputeFog(depth, g_ubSimpleForestFS._fogColor.a, si.posW_depth.y);
 	so.color.rgb = lerp(so.color.rgb, g_ubSimpleForestFS._fogColor.rgb, fog);
 
-	clip(alpha * mask * step(0.0, si.clipDistance) - 0.53);
+	so.color.rgb = ToSafeHDR(so.color.rgb);
+
+	clip(alpha * mask * step(0.f, si.clipDistance) - 0.53f);
 
 	return so;
 }

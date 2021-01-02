@@ -128,7 +128,14 @@ void CommandBufferD3D12::EndRenderPass()
 		if (_vAttachmentStates[index] != attachment._finalState)
 		{
 			const auto& resources = _pFramebuffer->_vResources[index];
-			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[index], attachment._finalState, 0);
+			UINT subresource = 0;
+			switch (_pFramebuffer->_cubeMapFace)
+			{
+			case CubeMapFace::all:  subresource = ToNativeCubeMapFace(static_cast<CubeMapFace>(index)); break;
+			case CubeMapFace::none: subresource = 0; break;
+			default:                subresource = !index ? ToNativeCubeMapFace(_pFramebuffer->_cubeMapFace) : 0;
+			}
+			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[index], attachment._finalState, subresource);
 		}
 		index++;
 		if (VERUS_MAX_RT == barrierCount)
@@ -313,13 +320,20 @@ void CommandBufferD3D12::PrepareSubpass()
 	CD3DX12_RESOURCE_BARRIER barriers[VERUS_MAX_FB_ATTACH];
 	int resIndex = 0;
 	int barrierCount = 0;
+	UINT subresource = 0;
+	switch (_pFramebuffer->_cubeMapFace)
+	{
+	case CubeMapFace::all:  subresource = ToNativeCubeMapFace(static_cast<CubeMapFace>(resIndex)); break;
+	case CubeMapFace::none: subresource = 0; break;
+	default:                subresource = !resIndex ? ToNativeCubeMapFace(_pFramebuffer->_cubeMapFace) : 0;
+	}
 	VERUS_FOR(i, subpass._vInput.size())
 	{
 		const auto& ref = subpass._vInput[i];
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
 			const auto& resources = fs._vResources[resIndex];
-			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state, 0);
+			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state, subresource);
 			_vAttachmentStates[ref._index] = ref._state;
 		}
 		resIndex++;
@@ -330,7 +344,7 @@ void CommandBufferD3D12::PrepareSubpass()
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
 			const auto& resources = fs._vResources[resIndex];
-			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state, 0);
+			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state, subresource);
 			_vAttachmentStates[ref._index] = ref._state;
 		}
 		resIndex++;
@@ -340,7 +354,7 @@ void CommandBufferD3D12::PrepareSubpass()
 		const auto& ref = subpass._depthStencil;
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
-			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(fs._vResources.back(), _vAttachmentStates[ref._index], ref._state, 0);
+			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(fs._vResources.back(), _vAttachmentStates[ref._index], ref._state, subresource);
 			_vAttachmentStates[ref._index] = ref._state;
 		}
 	}

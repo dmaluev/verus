@@ -4,6 +4,7 @@
 #include "Blur.h"
 #include "Bloom.h"
 #include "Ssao.h"
+#include "Ssr.h"
 #include "Particles.h"
 
 namespace verus

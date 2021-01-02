@@ -41,17 +41,17 @@ void Vehicle::Init(RcDesc desc)
 	Math::Bounds chassis = desc._chassis;
 	chassis.Set(maxHeight - 0.05f, chassis.GetMax().getY(), 1);
 
-	const Vector3 centerOfMassOffset = chassis.GetCenter() - Vector3(0, chassis.GetExtents().getY() * 0.8f, 0);
+	const Vector3 centerOfMassOffset = chassis.GetCenter() - Vector3(0, chassis.GetExtents().getY() * 0.7f, 0);
 	const Transform3 transformCoM = Transform3::translation(-centerOfMassOffset);
 	const float g = bullet.GetWorld()->getGravity().length();
 	const float forcePerWheel = (desc._mass * g) * _invWheelCount;
 	const float k = forcePerWheel / desc._suspensionRestLength; // Hooke's law.
 
 	_vehicleTuning.m_suspensionStiffness = k / desc._mass;
-	_vehicleTuning.m_suspensionCompression = _vehicleTuning.m_suspensionStiffness * 0.2f;
-	_vehicleTuning.m_suspensionDamping = _vehicleTuning.m_suspensionStiffness * 0.35f;
+	_vehicleTuning.m_suspensionCompression = _vehicleTuning.m_suspensionStiffness * 0.15f;
+	_vehicleTuning.m_suspensionDamping = _vehicleTuning.m_suspensionStiffness * 0.3f;
 	_vehicleTuning.m_maxSuspensionTravelCm = 100 * 2 * desc._suspensionRestLength;
-	_vehicleTuning.m_frictionSlip = 2.5f;
+	_vehicleTuning.m_frictionSlip = 1.75f;
 	_vehicleTuning.m_maxSuspensionForce = forcePerWheel * 3;
 
 	averageWheelPos -= centerOfMassOffset;
@@ -107,6 +107,11 @@ void Vehicle::Init(RcDesc desc)
 	};
 	AddWheels(desc._vLeftWheels, desc._suspensionRestLength);
 	AddWheels(desc._vRightWheels, desc._suspensionRestLength);
+
+	if (_frontRightWheelIndex > 0)
+		_invHandBrakeWheelCount = 1.f / (_wheelCount - 2);
+	else
+		_invHandBrakeWheelCount = 1.f / (_wheelCount - 1);
 }
 
 void Vehicle::Done()
@@ -167,18 +172,58 @@ void Vehicle::ApplyAirForce(float scale)
 	}
 }
 
-void Vehicle::SetBrake(float amount)
+void Vehicle::SetBrake(float brake, float handBrake, int index)
 {
-	const float perWheel = amount * _invWheelCount;
-	VERUS_FOR(i, _wheelCount)
-		_pRaycastVehicle->setBrake(perWheel, i);
+	bool setHandBrake = true;
+	if (index >= 0)
+	{
+		_pRaycastVehicle->setBrake(brake, index);
+		setHandBrake = false;
+	}
+	else if (-2 == index) // Front wheel drive?
+	{
+		const float perWheel = brake * (_frontRightWheelIndex > 0 ? 0.5f : 1);
+		_pRaycastVehicle->setBrake(perWheel, 0);
+		if (_frontRightWheelIndex > 0)
+			_pRaycastVehicle->setBrake(perWheel, _frontRightWheelIndex);
+	}
+	else
+	{
+		const float perWheel = brake * _invWheelCount;
+		VERUS_FOR(i, _wheelCount)
+			_pRaycastVehicle->setBrake(perWheel, i);
+	}
+
+	if (setHandBrake)
+	{
+		const float perWheel = handBrake * _invHandBrakeWheelCount;
+		VERUS_FOR(i, _wheelCount)
+		{
+			if (i != 0 && i != _frontRightWheelIndex)
+				_pRaycastVehicle->setBrake(perWheel, i);
+		}
+	}
 }
 
-void Vehicle::SetEngineForce(float force)
+void Vehicle::SetEngineForce(float force, int index)
 {
-	const float perWheel = force * _invWheelCount;
-	VERUS_FOR(i, _wheelCount)
-		_pRaycastVehicle->applyEngineForce(perWheel, i);
+	if (index >= 0)
+	{
+		_pRaycastVehicle->applyEngineForce(force, index);
+	}
+	else if (-2 == index) // Front wheel drive?
+	{
+		const float perWheel = force * (_frontRightWheelIndex > 0 ? 0.5f : 1);
+		_pRaycastVehicle->applyEngineForce(perWheel, 0);
+		if (_frontRightWheelIndex > 0)
+			_pRaycastVehicle->applyEngineForce(perWheel, _frontRightWheelIndex);
+	}
+	else
+	{
+		const float perWheel = force * _invWheelCount;
+		VERUS_FOR(i, _wheelCount)
+			_pRaycastVehicle->applyEngineForce(perWheel, i);
+	}
 }
 
 void Vehicle::SetSteeringAngle(float angle)
@@ -186,19 +231,6 @@ void Vehicle::SetSteeringAngle(float angle)
 	_pRaycastVehicle->setSteeringValue(angle, 0);
 	if (_frontRightWheelIndex > 0)
 		_pRaycastVehicle->setSteeringValue(angle, _frontRightWheelIndex);
-}
-
-void Vehicle::UseHandBrake(float amount)
-{
-	const float perWheel = amount * _invWheelCount;
-	VERUS_FOR(i, _wheelCount)
-	{
-		if (i != 0 && i != _frontRightWheelIndex)
-		{
-			_pRaycastVehicle->setBrake(perWheel, i);
-			_pRaycastVehicle->applyEngineForce(0, i);
-		}
-	}
 }
 
 int Vehicle::UserPtr_GetType()

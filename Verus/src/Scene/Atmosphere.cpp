@@ -24,6 +24,7 @@ void Atmosphere::Init()
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_UTILS;
+	VERUS_QREF_BLOOM;
 
 	_skyDome.Init("[Models]:SkyDome.x3d");
 
@@ -40,11 +41,11 @@ void Atmosphere::Init()
 	_shader->CreateDescriptorSet(3, &s_ubPerObject, sizeof(s_ubPerObject), 100);
 	_shader->CreatePipelineLayout();
 
-	if (settings._sceneShadowQuality > App::Settings::ShadowQuality::none)
-		_shadowMap.Init(4096);
+	_cubeMap.Init(512);
+	_shadowMap.Init(4096);
 
 	renderer.GetDS().InitByAtmosphere(_shadowMap.GetTexture());
-	Effects::Bloom::I().InitByAtmosphere(_shadowMap.GetTexture());
+	bloom.InitByAtmosphere(_shadowMap.GetTexture());
 
 	CreateCelestialBodyMesh();
 
@@ -102,17 +103,18 @@ void Atmosphere::UpdateSun(float time)
 {
 	// Update time and sun's color before calling this method.
 
-	_sun._dirTo = _sun._matTilt * Matrix3::rotationZ(time * VERUS_2PI) * Vector3(0, -1, 0);
+	const float quantTime = time - fmod(time, 1 / 18000.f);
+	_sun._dirTo = _sun._matTilt * Matrix3::rotationZ(quantTime * VERUS_2PI) * Vector3(0, -1, 0);
 	_night = false;
 	if (_sun._dirTo.getY() < 0) // Moon light:
 	{
 		_night = true;
-		_sun._dirTo = _sun._matTilt * Matrix3::rotationZ(time * VERUS_2PI) * Vector3(0, 1, 0);
-		_sun._color = glm::saturation(0.1f, _sun._color.GLM()) * 0.5f;
+		_sun._dirTo = _sun._matTilt * Matrix3::rotationZ(quantTime * VERUS_2PI) * Vector3(0, 1, 0);
+		_sun._color = glm::saturation(0.25f, _sun._color.GLM()) * 0.2f;
 	}
 
 	// Reduce light's intensity when near horizon:
-	_sun._alpha = Math::Clamp<float>(abs(_sun._dirTo.getY()) * 5, 0, 1);
+	_sun._alpha = Math::Clamp<float>(abs(_sun._dirTo.getY()) * 4, 0, 1);
 	_sun._color *= _sun._alpha;
 
 	if (_sun._light)
@@ -220,20 +222,31 @@ void Atmosphere::Update()
 
 	_clouds._cloudiness.Update();
 
-	const float cloudinessSq = sqrt(_clouds._cloudiness);
-	const float cloudScaleAmb = 1 - 0.6f * _clouds._cloudiness * cloudinessSq;
-	const float cloudScaleFog = 1 - 0.9f * _clouds._cloudiness * cloudinessSq;
-	const float cloudScaleSun = 1 - 0.999f * _clouds._cloudiness * cloudinessSq;
-	float color[3];
-	GetColor(208, color, 1); _ambientColor = Vector3::MakeFromPointer(color) * (GetMagnitude(50000, 30000, 1) * cloudScaleAmb);
-	GetColor(100, color, 1); _fog._color = Vector3::MakeFromPointer(color) * (GetMagnitude(30000, 2000, 1) * cloudScaleFog);
-	GetColor(240, color, 1); _sun._color = Vector3::MakeFromPointer(color) * (GetMagnitude(80000, 10000, 1) * cloudScaleSun);
+	const float cloudinessStrength = _clouds._cloudiness * sqrt(_clouds._cloudiness);
+	const float cloudScaleAmb = 1 - 0.6f * cloudinessStrength;
+	const float cloudScaleFog = 1 - 0.9f * cloudinessStrength;
+	const float cloudScaleSun = 1 - 0.999f * cloudinessStrength;
+	const int count = 1;
+	std::stringstream ssDebug;
+	VERUS_FOR(i, count)
+	{
+		const float time = (count > 1) ? (i / 256.f) : _time;
+		float color[3];
+		SampleSkyColor(208, color, 1); _ambientColor = Vector3::MakeFromPointer(color) * (GetMagnitude(time, 32000, 8000, 4000) * cloudScaleAmb);
+		SampleSkyColor(100, color, 1); _fog._color = Vector3::MakeFromPointer(color) * (GetMagnitude(time, 32000, 5000, 300) * cloudScaleFog);
+		SampleSkyColor(240, color, 1); _sun._color = Vector3::MakeFromPointer(color) * (GetMagnitude(time, 40000, 28000, 300) * cloudScaleSun);
+		if (count > 1)
+			ssDebug << static_cast<int>(glm::saturation(0.f, _fog._color.GLM()).x) << ", ";
+	}
+	const String debug = ssDebug.str();
 
+	// <Cloudiness>
 	glm::vec3 ambientColor = _ambientColor.GLM();
 	glm::vec3 fogColor = _fog._color.GLM();
 	_ambientColor = glm::saturation(0.7f - 0.3f * _clouds._cloudiness, ambientColor);
 	_fog._color = glm::saturation(0.8f - 0.2f * _clouds._cloudiness, fogColor);
 	_fog._density[0] = _fog._density[1] * (1 + 9 * _clouds._cloudiness * _clouds._cloudiness);
+	// </Cloudiness>
 
 #ifdef _DEBUG
 	if (abs(_time - 0.5f) < 0.01f && glm::epsilonEqual(static_cast<float>(_clouds._cloudiness), 0.25f, 0.05f))
@@ -241,14 +254,16 @@ void Atmosphere::Update()
 		const glm::vec3 grayAmbient = glm::saturation(0.f, _ambientColor.GLM());
 		const glm::vec3 grayFog = glm::saturation(0.f, _fog._color.GLM());
 		const glm::vec3 graySun = glm::saturation(0.f, _sun._color.GLM());
-		VERUS_RT_ASSERT(glm::epsilonEqual(grayAmbient.x, 6000.f, 640.f));
-		VERUS_RT_ASSERT(glm::epsilonEqual(graySun.x, 32000.f, 3200.f));
+		VERUS_RT_ASSERT(glm::epsilonEqual<float>(grayAmbient.x, 4000, 400));
+		VERUS_RT_ASSERT(glm::epsilonEqual<float>(graySun.x, 16000, 1600));
 	}
 #endif
 
+	// <Clouds>
 	const Vector4 phaseV(_wind._baseVelocity.getX(), _wind._baseVelocity.getZ());
 	_clouds._phaseA = Vector4(_clouds._phaseA - phaseV * (dt * _clouds._speedPhaseA * 0.05f)).Mod(1);
 	_clouds._phaseB = Vector4(_clouds._phaseB - phaseV * (dt * _clouds._speedPhaseB * 0.05f)).Mod(1);
+	// </Clouds>
 
 	UpdateSun(_time);
 }
@@ -354,7 +369,7 @@ void Atmosphere::DrawSky(bool reflection)
 	// </Clouds>
 }
 
-void Atmosphere::GetColor(int level, float* pOut, float scale)
+void Atmosphere::SampleSkyColor(int level, float* pOut, float scale)
 {
 	if (!_texSky.IsLoaded())
 		return;
@@ -380,13 +395,25 @@ void Atmosphere::GetColor(int level, float* pOut, float scale)
 		pOut[i] = Math::Clamp<float>(Math::Lerp(rgbA[i], rgbB[i], fractPart) * 0.5f * scale, 0, 1);
 }
 
-float Atmosphere::GetMagnitude(float noon, float dusk, float midnight) const
+float Atmosphere::GetMagnitude(float time, float noon, float dusk, float midnight)
 {
-	const float time4 = _time * 4;
+	const float time4 = time * 4;
 	const int interval = Math::Clamp(static_cast<int>(time4), 0, 3);
 	const float fractPart = time4 - interval;
-	const float controlPoints[] = { midnight, dusk, noon, dusk, midnight };
-	return Math::Lerp(controlPoints[interval], controlPoints[interval + 1], glm::sineEaseInOut(fractPart));
+	const float cp[] = { midnight, dusk, noon, dusk };
+	const int indices[4][4] =
+	{
+		{3, 0, 1, 2},
+		{0, 1, 2, 3},
+		{1, 2, 3, 0},
+		{2, 3, 0, 1}
+	};
+	return glm::catmullRom(
+		glm::vec1(cp[indices[interval][0]]),
+		glm::vec1(cp[indices[interval][1]]),
+		glm::vec1(cp[indices[interval][2]]),
+		glm::vec1(cp[indices[interval][3]]),
+		fractPart).x;
 }
 
 RcVector3 Atmosphere::GetDirToSun() const

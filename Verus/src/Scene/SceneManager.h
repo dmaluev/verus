@@ -5,13 +5,6 @@ namespace verus
 {
 	namespace Scene
 	{
-		enum class DrawDepth : int
-		{
-			no,
-			yes,
-			automatic
-		};
-
 		typedef StoreUnique<String, Model> TStoreModels;
 		typedef StoreUnique<String, SceneParticles> TStoreSceneParticles;
 		typedef StoreUnique<String, Site> TStoreSites;
@@ -65,7 +58,7 @@ namespace verus
 			void UpdateParts();
 			void Layout();
 			void Draw();
-			void DrawReflection();
+			void DrawSimple(DrawSimpleMode mode);
 			void DrawTransparent();
 			void DrawLights();
 			void DrawBounds();

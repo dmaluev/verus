@@ -21,6 +21,7 @@ namespace verus
 			Transform3       _matV = Transform3::identity();
 			Transform3       _matVi = Transform3::identity();
 			Matrix4          _matP = Matrix4::identity();
+			Matrix4          _matPi = Matrix4::identity();
 			Matrix4          _matVP = Matrix4::identity();
 			VERUS_PD(Point3  _eyePos = Point3(0));
 			VERUS_PD(Point3  _atPos = Point3(0, 0, -1));
@@ -65,6 +66,7 @@ namespace verus
 			RcTransform3 GetMatrixV() const { return _matV; }
 			RcTransform3 GetMatrixVi() const { return _matVi; }
 			RcMatrix4 GetMatrixP() const { return _matP; }
+			RcMatrix4 GetMatrixPi() const { return _matPi; }
 			RcMatrix4 GetMatrixVP() const { return _matVP; }
 
 			// Perspective:

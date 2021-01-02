@@ -71,6 +71,7 @@ namespace verus
 				Vector<D3DFramebufferSubpass> _vSubpasses;
 				int                           _width = 0;
 				int                           _height = 0;
+				CubeMapFace                   _cubeMapFace = CubeMapFace::none;
 			};
 			VERUS_TYPEDEFS(D3DFramebuffer);
 		}

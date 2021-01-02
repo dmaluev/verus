@@ -58,9 +58,12 @@ namespace verus
 			Matrix4 _matShadowCSM[4];
 			Matrix4 _matShadowCSM_DS[4]; // For WV positions in Deferred Shading.
 			Matrix4 _matOffset[4];
+			Matrix4 _matScreenVP;
+			Matrix4 _matScreenP;
 			Vector4 _splitRanges = Vector4(0);
 			Camera  _cameraCSM;
 			int     _currentSplit = -1;
+			float   _depth = 0;
 
 		public:
 			CascadedShadowMap();
@@ -74,6 +77,9 @@ namespace verus
 
 			RcMatrix4 GetShadowMatrix(int split = 0) const;
 			RcMatrix4 GetShadowMatrixDS(int split = 0) const;
+
+			RcMatrix4 GetScreenMatrixVP() const { return _matScreenVP; }
+			RcMatrix4 GetScreenMatrixP() const { return _matScreenP; }
 
 			int GetCurrentSplit() const { return _currentSplit; }
 			RcVector4 GetSplitRanges() const { return _splitRanges; }

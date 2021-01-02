@@ -19,9 +19,18 @@ void Camera::UpdateInternal()
 		}
 		else
 		{
-			_matP = Matrix4::MakePerspective(_fovY, _aspectRatio, _zNear, _zFar);
+			if (_fovY > 0)
+			{
+				_matP = Matrix4::MakePerspective(_fovY, _aspectRatio, _zNear, _zFar);
+			}
+			else
+			{
+				_fovY = -_fovY;
+				_matP = Matrix4::MakePerspective(_fovY, _aspectRatio, _zNear, _zFar, false);
+			}
 			_fovScale = 0.5f / tan(_fovY * 0.5f);
 		}
+		_matPi = VMath::inverse(_matP);
 	}
 }
 

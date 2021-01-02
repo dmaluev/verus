@@ -62,7 +62,7 @@ bool KeyMapper::HandleSdlEvent(SDL_Event& event)
 		if (ImGui::GetIO().WantCaptureKeyboard)
 			return false;
 #if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
-		if (App::DisplayMode::windowed == settings._displayMode && SDL_SCANCODE_KP_ENTER == event.key.keysym.scancode)
+		if (SDL_SCANCODE_KP_ENTER == event.key.keysym.scancode)
 		{
 			const SDL_bool rel = SDL_GetRelativeMouseMode();
 			SDL_SetRelativeMouseMode(rel ? SDL_FALSE : SDL_TRUE);

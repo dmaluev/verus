@@ -150,21 +150,33 @@ void Matrix4::InstFormat(VMath::Vector4* p) const
 	memcpy(p, &m, 3 * sizeof(Vector4));
 }
 
-Matrix4 Matrix4::MakePerspective(float fovY, float aspectRatio, float zNear, float zFar)
+Matrix4 Matrix4::MakePerspective(float fovY, float aspectRatio, float zNear, float zFar, bool rightHanded)
 {
 	VERUS_RT_ASSERT(fovY);
 	VERUS_RT_ASSERT(aspectRatio);
 	VERUS_RT_ASSERT(zNear < zFar);
 	Matrix4 m;
+	memset(&m, 0, sizeof(m));
 	const float yScale = 1 / tan(fovY * 0.5f);
 	const float xScale = yScale / aspectRatio;
-	const float zScale = zFar / (zNear - zFar);
-	memset(&m, 0, sizeof(m));
-	m.setElem(0, 0, xScale);
-	m.setElem(1, 1, yScale);
-	m.setElem(2, 2, zScale);
-	m.setElem(3, 2, zNear * zScale);
-	m.setElem(2, 3, -1);
+	if (rightHanded)
+	{
+		const float zScale = zFar / (zNear - zFar);
+		m.setElem(0, 0, xScale);
+		m.setElem(1, 1, yScale);
+		m.setElem(2, 2, zScale);
+		m.setElem(3, 2, zNear * zScale);
+		m.setElem(2, 3, -1);
+	}
+	else
+	{
+		const float zScale = zFar / (zFar - zNear);
+		m.setElem(0, 0, xScale);
+		m.setElem(1, 1, yScale);
+		m.setElem(2, 2, zScale);
+		m.setElem(3, 2, -zNear * zScale);
+		m.setElem(2, 3, 1);
+	}
 	return m;
 }
 

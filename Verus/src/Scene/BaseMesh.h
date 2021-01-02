@@ -111,14 +111,14 @@ namespace verus
 			Math::Bounds GetBounds() const;
 
 			template<typename T>
-			void ForEachVertex(const T& fn, bool matIndices = false)
+			void ForEachVertex(const T& fn, bool boneIndices = false)
 			{
 				VERUS_FOR(i, _vertCount)
 				{
 					Point3 pos, uv;
 					DequantizeUsingDeq3D(_vBinding0[i]._pos, _posDeq, pos);
 					DequantizeUsingDeq2D(_vBinding0[i]._tc0, _tc0Deq, uv);
-					if (_vBinding1.empty() || !matIndices)
+					if (_vBinding1.empty() || !boneIndices)
 					{
 						if (Continue::no == fn(pos, -1, uv))
 							break;

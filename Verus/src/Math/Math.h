@@ -70,6 +70,9 @@ namespace verus
 		count
 	};
 
+	typedef glm::ivec2 int2;
+	typedef glm::ivec3 int3;
+	typedef glm::ivec4 int4;
 	typedef glm::vec2 float2;
 	typedef glm::vec3 float3;
 	typedef glm::vec4 float4;

@@ -20,6 +20,7 @@
 #define VERUS_QREF_SETTINGS       App::RSettings          settings = App::Settings::I()
 #define VERUS_QREF_SM             Scene::RSceneManager    sm       = Scene::SceneManager::I()
 #define VERUS_QREF_SSAO           Effects::RSsao          ssao     = Effects::Ssao::I()
+#define VERUS_QREF_SSR            Effects::RSsr           ssr      = Effects::Ssr::I()
 #define VERUS_QREF_TIMER          RTimer                  timer    = Timer::I(); const float dt = timer.GetDeltaTime()
 #define VERUS_QREF_TIMER_GUI      RTimer                  timer    = Timer::I(); const float dt = timer.GetDeltaTime(Timer::Type::gui)
 #define VERUS_QREF_UTILS          RUtils                  utils    = Utils::I()

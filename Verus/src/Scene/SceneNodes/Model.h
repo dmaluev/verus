@@ -40,7 +40,7 @@ namespace verus
 			void MarkFirstInstance();
 			void Draw(CGI::CommandBufferPtr cb);
 			void BindPipeline(CGI::CommandBufferPtr cb);
-			void BindPipelineReflection(CGI::CommandBufferPtr cb);
+			void BindPipelineSimple(DrawSimpleMode mode, CGI::CommandBufferPtr cb);
 			void BindGeo(CGI::CommandBufferPtr cb);
 			void PushInstance(RcTransform3 matW, RcVector4 instData);
 

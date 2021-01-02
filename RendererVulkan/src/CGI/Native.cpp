@@ -235,3 +235,17 @@ VkFormat CGI::ToNativeFormat(ViaUsage usage, ViaType type, int components)
 	default: throw VERUS_RECOVERABLE << "ToNativeFormat(), ViaType=?";
 	}
 }
+
+uint32_t CGI::ToNativeCubeMapFace(CubeMapFace face)
+{
+	switch (face)
+	{
+	case CubeMapFace::posX: return 0;
+	case CubeMapFace::negX: return 1;
+	case CubeMapFace::posY: return 2;
+	case CubeMapFace::negY: return 3;
+	case CubeMapFace::posZ: return 4;
+	case CubeMapFace::negZ: return 5;
+	default: throw VERUS_RECOVERABLE << "ToNativeCubeMapFace()";
+	}
+}

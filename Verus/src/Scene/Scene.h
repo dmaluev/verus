@@ -1,6 +1,25 @@
 // Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
+namespace verus
+{
+	namespace Scene
+	{
+		enum class DrawDepth : int
+		{
+			no,
+			yes,
+			automatic
+		};
+
+		enum class DrawSimpleMode : int
+		{
+			envMap,
+			planarReflection
+		};
+	}
+}
+
 #include "Camera.h"
 #include "CameraOrbit.h"
 #include "BaseMesh.h"
@@ -8,6 +27,7 @@
 #include "Terrain.h"
 #include "EditorTerrain.h"
 #include "Grass.h"
+#include "CubeMap.h"
 #include "ShadowMap.h"
 #include "Water.h"
 #include "MaterialManager.h"

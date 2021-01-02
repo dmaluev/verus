@@ -25,6 +25,12 @@ namespace verus
 			CGI::RPHandle               _rph;
 			CGI::FBHandle               _fbh;
 			CGI::CSHandle               _csh;
+			float                       _smallRad = 0.03f;
+			float                       _largeRad = 0.07f;
+			float                       _weightScale = 10;
+			float                       _weightBias = 2.5f;
+			bool                        _blur = true;
+			bool                        _editMode = false;
 
 		public:
 			Ssao();
@@ -41,6 +47,9 @@ namespace verus
 			void UpdateRandNormalsTexture();
 
 			CGI::TexturePtr GetTexture() const;
+
+			bool IsEditMode() const { return _editMode; }
+			void ToggleEditMode() { _editMode = !_editMode; }
 		};
 		VERUS_TYPEDEFS(Ssao);
 	}

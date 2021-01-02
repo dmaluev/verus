@@ -32,6 +32,7 @@ namespace verus
 			Relation ContainsAabb(RcBounds aabb) const;
 			void Draw();
 
+			RcPoint3 GetCorner(int index) const { return _corners[index]; }
 			RcPoint3 GetEyePosition() const { return _corners[8]; }
 
 			Vector4 GetBounds(RcMatrix4 m, float& zNear, float& zFar) const;

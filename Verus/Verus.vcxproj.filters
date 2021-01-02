@@ -76,9 +76,6 @@
     <Filter Include="src\Physics">
       <UniqueIdentifier>{85f1e663-5318-4602-82d3-cd811b5a0141}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\ThirdParty\pugixml-1.10">
-      <UniqueIdentifier>{77a61380-3977-4378-9e5b-fb4f5788aaa3}</UniqueIdentifier>
-    </Filter>
     <Filter Include="src\ThirdParty\imgui">
       <UniqueIdentifier>{3ee2005e-b456-4f4f-95cd-ad3ac11aaccb}</UniqueIdentifier>
     </Filter>
@@ -96,6 +93,12 @@
     </Filter>
     <Filter Include="src\Scene\SceneNodes">
       <UniqueIdentifier>{07af1a9e-5cdc-4264-811b-d958ec70a709}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\ThirdParty\pugixml-1.11">
+      <UniqueIdentifier>{a659491b-ee62-496a-8451-762951446c2f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\ThirdParty\tinygltf-2.5.0">
+      <UniqueIdentifier>{54a71e7f-5bcd-480d-990e-0d5e79d7ded9}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -492,12 +495,6 @@
     <ClInclude Include="src\CGI\RendererParser.h">
       <Filter>src\CGI</Filter>
     </ClInclude>
-    <ClInclude Include="src\ThirdParty\pugixml-1.10\pugiconfig.hpp">
-      <Filter>src\ThirdParty\pugixml-1.10</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\pugixml-1.10\pugixml.hpp">
-      <Filter>src\ThirdParty\pugixml-1.10</Filter>
-    </ClInclude>
     <ClInclude Include="src\IO\Dictionary.h">
       <Filter>src\IO</Filter>
     </ClInclude>
@@ -544,9 +541,6 @@
       <Filter>src\ThirdParty\nativefiledialog</Filter>
     </ClInclude>
     <ClInclude Include="src\Extra\Extra.h">
-      <Filter>src\Extra</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Extra\FileParser.h">
       <Filter>src\Extra</Filter>
     </ClInclude>
     <ClInclude Include="src\Anim\Warp.h">
@@ -707,6 +701,36 @@
     </ClInclude>
     <ClInclude Include="src\Game\ChainAward.h">
       <Filter>src\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\pugixml-1.11\pugiconfig.hpp">
+      <Filter>src\ThirdParty\pugixml-1.11</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\pugixml-1.11\pugixml.hpp">
+      <Filter>src\ThirdParty\pugixml-1.11</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\tinygltf-2.5.0\stb_image.h">
+      <Filter>src\ThirdParty\tinygltf-2.5.0</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\tinygltf-2.5.0\stb_image_write.h">
+      <Filter>src\ThirdParty\tinygltf-2.5.0</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\tinygltf-2.5.0\tiny_gltf.h">
+      <Filter>src\ThirdParty\tinygltf-2.5.0</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Extra\ConvertX.h">
+      <Filter>src\Extra</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Extra\BaseConvert.h">
+      <Filter>src\Extra</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Extra\ConvertGLTF.h">
+      <Filter>src\Extra</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Effects\Ssr.h">
+      <Filter>src\Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\CubeMap.h">
+      <Filter>src\Scene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1007,9 +1031,6 @@
     <ClCompile Include="src\CGI\RendererParser.cpp">
       <Filter>src\CGI</Filter>
     </ClCompile>
-    <ClCompile Include="src\ThirdParty\pugixml-1.10\pugixml.cpp">
-      <Filter>src\ThirdParty\pugixml-1.10</Filter>
-    </ClCompile>
     <ClCompile Include="src\IO\Dictionary.cpp">
       <Filter>src\IO</Filter>
     </ClCompile>
@@ -1053,9 +1074,6 @@
       <Filter>src\ThirdParty\nativefiledialog</Filter>
     </ClCompile>
     <ClCompile Include="src\Extra\Extra.cpp">
-      <Filter>src\Extra</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Extra\FileParser.cpp">
       <Filter>src\Extra</Filter>
     </ClCompile>
     <ClCompile Include="src\ThirdParty\fast_atof.c">
@@ -1201,6 +1219,27 @@
     </ClCompile>
     <ClCompile Include="src\Game\ChainAward.cpp">
       <Filter>src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\pugixml-1.11\pugixml.cpp">
+      <Filter>src\ThirdParty\pugixml-1.11</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\tinygltf-2.5.0\tinygltf.cpp">
+      <Filter>src\ThirdParty\tinygltf-2.5.0</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Extra\ConvertX.cpp">
+      <Filter>src\Extra</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Extra\BaseConvert.cpp">
+      <Filter>src\Extra</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Extra\ConvertGLTF.cpp">
+      <Filter>src\Extra</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Effects\Ssr.cpp">
+      <Filter>src\Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\CubeMap.cpp">
+      <Filter>src\Scene</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1366,16 +1405,22 @@
     <None Include="src\Shaders\SimpleMesh.inc.hlsl">
       <Filter>src\Shaders</Filter>
     </None>
+    <None Include="src\Shaders\Ssr.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\Ssr.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <Natvis Include="src\ThirdParty\pugixml-1.10\pugixml.natvis">
-      <Filter>src\ThirdParty\pugixml-1.10</Filter>
-    </Natvis>
-    <Natvis Include="src\ThirdParty\pugixml-1.10\pugixml_compact.natvis">
-      <Filter>src\ThirdParty\pugixml-1.10</Filter>
-    </Natvis>
     <Natvis Include="src\ThirdParty\imgui\imgui.natvis">
       <Filter>src\ThirdParty\imgui</Filter>
+    </Natvis>
+    <Natvis Include="src\ThirdParty\pugixml-1.11\pugixml.natvis">
+      <Filter>src\ThirdParty\pugixml-1.11</Filter>
+    </Natvis>
+    <Natvis Include="src\ThirdParty\pugixml-1.11\pugixml_compact.natvis">
+      <Filter>src\ThirdParty\pugixml-1.11</Filter>
     </Natvis>
   </ItemGroup>
 </Project>

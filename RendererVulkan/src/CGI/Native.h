@@ -23,5 +23,7 @@ namespace verus
 
 		int ToNativeLocation(ViaUsage usage, int usageIndex);
 		VkFormat ToNativeFormat(ViaUsage usage, ViaType type, int components);
+
+		uint32_t ToNativeCubeMapFace(CubeMapFace face);
 	}
 }

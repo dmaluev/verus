@@ -2,22 +2,16 @@
 
 float SinAcos(float x)
 {
-	return sqrt(saturate(1.0 - x * x));
-}
-
-// See: https://en.wikipedia.org/wiki/Schlick%27s_approximation
-float FresnelSchlick(float minRef, float maxAdd, float power)
-{
-	return saturate(minRef + maxAdd * power);
+	return sqrt(saturate(1.f - x * x));
 }
 
 float EnergyNorm(float gloss)
 {
-	return min(100.0, (gloss + 2.0) * (1.0 / 8.0));
+	return (gloss + 8.f) * (1.f / (8.f * _PI));
 }
 
 float4 VerusLit(float3 dirToLight, float3 normal, float3 dirToEye, float gloss,
-	float2 lamScaleBias, float4 aniso = 0.0, float eyeFresnel = 0.0)
+	float2 lamScaleBias, float4 aniso = 0.f, float eyeFresnel = 0.f)
 {
 	float4 ret = float4(1, 0, 0, 1);
 	const float3 hv = normalize(dirToEye + dirToLight);
@@ -26,26 +20,31 @@ float4 VerusLit(float3 dirToLight, float3 normal, float3 dirToEye, float gloss,
 	const float nDotE = dot(normal, dirToEye);
 	const float nDotH = dot(normal, hv);
 	const float aDotH = SinAcos(dot(aniso.xyz, hv));
-	const float4 spec = float4(EnergyNorm(gloss).xx, 1, 1) *
-		pow(saturate(float4(nDotH, aDotH, 1.0 - nDotL, 1.0 - nDotE)), float4(gloss, gloss * 8.0, 5, 5));
-	ret.x = saturate(nDotLRaw * -4.0); // For subsurface scattering effect.
+
+	const float4 spec = pow(saturate(float4(nDotH, aDotH, 1.f - nDotL, 1.f - nDotE)), float4(gloss, gloss * 8.f, 5, 5));
+
+	const float maxSpec = max(spec.x, spec.y * aniso.w);
+	const float specContrast = 1.f + gloss * (0.5f / 4096.f);
+
+	ret.x = saturate(nDotLRaw * -4.f); // For subsurface scattering effect.
 	ret.y = saturate(nDotL);
-	ret.z = saturate(nDotL * 8.0) * max(spec.x, spec.y * aniso.w);
+	ret.z = saturate(nDotL * 8.f) * saturate((maxSpec - 0.5f) * specContrast + 0.5f) * EnergyNorm(gloss);
 	ret.w = lerp(spec.z, spec.w, eyeFresnel); // For fresnel effect.
+
 	return ret;
 }
 
 float ComputePointLightIntensity(float distSq, float radiusSq, float invRadiusSq)
 {
-	const float scaleFivePercent = 19.0 * invRadiusSq;
-	const float invSquareLaw = 1.0 / max(0.1, distSq * scaleFivePercent);
-	const float x = max(0.0, radiusSq - distSq); // Zero at radius.
+	const float scaleFivePercent = 19.f * invRadiusSq;
+	const float invSquareLaw = 1.f / max(0.1f, distSq * scaleFivePercent);
+	const float x = max(0.f, radiusSq - distSq); // Zero at radius.
 	const float limit = x * x * invRadiusSq * invRadiusSq;
 	return min(invSquareLaw, limit);
 }
 
 float ComputeSpotLightConeIntensity(float3 dirToLight, float3 lightDir, float coneOut, float invConeDelta)
 {
-	const float d = dot(-dirToLight, lightDir);
-	return saturate((d - coneOut) * invConeDelta);
+	const float dp = dot(-dirToLight, lightDir);
+	return saturate((dp - coneOut) * invConeDelta);
 }

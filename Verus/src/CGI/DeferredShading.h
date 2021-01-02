@@ -90,6 +90,7 @@ namespace verus
 			CSHandle                 _cshToneMapping;
 			CSHandle                 _cshQuad[5];
 			CSHandle                 _cshBakeSprites;
+			float                    _lightGlossScale = 1;
 			bool                     _activeGeometryPass = false;
 			bool                     _activeLightingPass = false;
 			bool                     _async_initPipe = false;
@@ -140,7 +141,8 @@ namespace verus
 			void Load();
 
 			TexturePtr GetGBuffer(int index);
-
+			TexturePtr GetLightAccDiffTexture();
+			TexturePtr GetLightAccSpecTexture();
 			TexturePtr GetComposedTextureA();
 			TexturePtr GetComposedTextureB();
 
@@ -150,6 +152,10 @@ namespace verus
 
 			void BakeSprites(TexturePtr texGBufferIn[3], TexturePtr texGBufferOut[3], PBaseCommandBuffer pCB = nullptr);
 			void BakeSpritesCleanup();
+
+			// For Editor:
+			float GetLightGlossScale() const { return _lightGlossScale; }
+			void SetLightGlossScale(float s) { _lightGlossScale = s; }
 		};
 		VERUS_TYPEDEFS(DeferredShading);
 	}

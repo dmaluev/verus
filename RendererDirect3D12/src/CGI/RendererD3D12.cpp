@@ -335,7 +335,7 @@ void RendererD3D12::CreateSamplers()
 	init.MaxLOD = D3D12_FLOAT32_MAX;
 
 	desc = init;
-	desc.Filter = (settings._sceneShadowQuality <= App::Settings::ShadowQuality::nearest) ?
+	desc.Filter = (settings._sceneShadowQuality <= App::Settings::Quality::low) ?
 		D3D12_FILTER_COMPARISON_MIN_MAG_MIP_POINT : D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
 	desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	desc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
@@ -666,12 +666,13 @@ RPHandle RendererD3D12::CreateRenderPass(std::initializer_list<RP::Attachment> i
 	return RPHandle::Make(nextIndex);
 }
 
-FBHandle RendererD3D12::CreateFramebuffer(RPHandle renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex)
+FBHandle RendererD3D12::CreateFramebuffer(RPHandle renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h, int swapChainBufferIndex, CubeMapFace cubeMapFace)
 {
 	RP::RcD3DRenderPass renderPass = GetRenderPass(renderPassHandle);
 	RP::D3DFramebuffer framebuffer;
 	framebuffer._width = w;
 	framebuffer._height = h;
+	framebuffer._cubeMapFace = cubeMapFace;
 
 	const Vector<TexturePtr> vTex(il);
 	auto GetResource = [this, &vTex, swapChainBufferIndex](int index)
@@ -692,7 +693,7 @@ FBHandle RendererD3D12::CreateFramebuffer(RPHandle renderPassHandle, std::initia
 			return texD3D12.GetD3DResource();
 		}
 	};
-	auto GetRTV = [this, &vTex, swapChainBufferIndex](int index)
+	auto GetRTV = [this, &vTex, swapChainBufferIndex, cubeMapFace](int index)
 	{
 		if (swapChainBufferIndex >= 0)
 		{
@@ -707,7 +708,12 @@ FBHandle RendererD3D12::CreateFramebuffer(RPHandle renderPassHandle, std::initia
 		else
 		{
 			auto& texD3D12 = static_cast<RTextureD3D12>(*vTex[index]);
-			return texD3D12.GetDescriptorHeapRTV().AtCPU(0);
+			switch (cubeMapFace)
+			{
+			case CubeMapFace::all:  return texD3D12.GetDescriptorHeapRTV().AtCPU(index); break;
+			case CubeMapFace::none: return texD3D12.GetDescriptorHeapRTV().AtCPU(0); break;
+			default:                return texD3D12.GetDescriptorHeapRTV().AtCPU(!index ? +cubeMapFace : 0);
+			}
 		}
 	};
 	auto GetDSV = [this, &vTex, swapChainBufferIndex](int index)

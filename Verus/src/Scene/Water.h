@@ -93,8 +93,8 @@ namespace verus
 			void OnSwapChainResized();
 
 			CGI::RPHandle GetRenderPassHandle() const { return _rphReflection; }
-			void BeginReflection(CGI::PBaseCommandBuffer pCB = nullptr);
-			void EndReflection(CGI::PBaseCommandBuffer pCB = nullptr);
+			void BeginPlanarReflection(CGI::PBaseCommandBuffer pCB = nullptr);
+			void EndPlanarReflection(CGI::PBaseCommandBuffer pCB = nullptr);
 
 			void GenerateTextures();
 			VERUS_P(void GenerateHeightmapTexture());

@@ -16,13 +16,14 @@ namespace verus
 			int                                 _frontRightWheelIndex = -1;
 			int                                 _wheelCount = 0;
 			float                               _invWheelCount = 0;
+			float                               _invHandBrakeWheelCount = 0;
 
 		public:
 			struct Steering
 			{
 				float _angle = 0;
 				float _speed = 1;
-				float _maxAngle = Math::ToRadians(25);
+				float _maxAngle = Math::ToRadians(36);
 
 				void Update(float stiffness)
 				{
@@ -80,10 +81,9 @@ namespace verus
 			btRaycastVehicle* GetRaycastVehicle() { return _pRaycastVehicle.Get(); }
 
 			void ApplyAirForce(float scale = 2);
-			void SetBrake(float amount);
-			void SetEngineForce(float force);
+			void SetBrake(float brake, float handBrake = 0, int index = -1);
+			void SetEngineForce(float force, int index = -1);
 			void SetSteeringAngle(float angle);
-			void UseHandBrake(float amount);
 
 			virtual int UserPtr_GetType() override;
 

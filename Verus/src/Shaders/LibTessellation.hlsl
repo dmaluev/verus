@@ -35,16 +35,16 @@ struct PCFO
 	so.posWV[2] = ComputeBezierPoint(inputPatch[nextID].pos.xyz, inputPatch[thisID].pos.xyz, inputPatch[nextID].nrmWV.xyz); \
 	so.clipped = ComputeClipping(matP, so.posWV[0], so.posWV[1], so.posWV[2]); \
 	so.oppositeEdgeTessFactor = ComputeEdgeTessFactor(matP, inputPatch[thisID].pos.xyz, inputPatch[nextID].pos.xyz, viewportSize.xy); \
-	const float3 normal = (inputPatch[thisID].nrmWV.xyz + inputPatch[nextID].nrmWV.xyz) * 0.5; \
-	so.oppositeEdgeTessFactor = (normal.z < -0.75) ? 0.0 : max(1.0, so.oppositeEdgeTessFactor * (1.0 - abs(normal.z * 0.75)));
+	const float3 normal = (inputPatch[thisID].nrmWV.xyz + inputPatch[nextID].nrmWV.xyz) * 0.5f; \
+	so.oppositeEdgeTessFactor = (normal.z < -0.75f) ? 0.f : max(1.f, so.oppositeEdgeTessFactor * (1.f - abs(normal.z * 0.75f)));
 
 #define _HS_PNAEN_BODY(nrmWV, matP, viewportSize) \
 	const uint thisID = id; \
 	const uint nextID = (thisID < 2) ? thisID + 1 : 0; \
 	const uint thisEX = 3 + 2 * id; \
 	const uint nextEX = thisEX + 1; \
-	const float kA = max(_SINGULARITY_FIX, 1.0 - dot(inputPatch[thisID].nrmWV.xyz, inputPatch[thisEX].nrmWV.xyz)); \
-	const float kB = max(_SINGULARITY_FIX, 1.0 - dot(inputPatch[nextID].nrmWV.xyz, inputPatch[nextEX].nrmWV.xyz)); \
+	const float kA = max(_SINGULARITY_FIX, 1.f - dot(inputPatch[thisID].nrmWV.xyz, inputPatch[thisEX].nrmWV.xyz)); \
+	const float kB = max(_SINGULARITY_FIX, 1.f - dot(inputPatch[nextID].nrmWV.xyz, inputPatch[nextEX].nrmWV.xyz)); \
 	const float sum = kA + kB; \
 	const float ratio = kB / sum; \
 	float3 myCP, exCP; \
@@ -57,8 +57,8 @@ struct PCFO
 	so.posWV[2] = lerp(myCP, exCP, ratio); \
 	so.clipped = ComputeClipping(matP, so.posWV[0], so.posWV[1], so.posWV[2]); \
 	so.oppositeEdgeTessFactor = ComputeEdgeTessFactor(matP, inputPatch[thisID].pos.xyz, inputPatch[nextID].pos.xyz, viewportSize.xy); \
-	const float3 normal = (inputPatch[thisID].nrmWV.xyz + inputPatch[thisEX].nrmWV.xyz + inputPatch[nextID].nrmWV.xyz + inputPatch[nextEX].nrmWV.xyz) * 0.25; \
-	so.oppositeEdgeTessFactor = (normal.z < -0.75) ? 0.0 : max(1.0, so.oppositeEdgeTessFactor * (1.0 - abs(normal.z * 0.75)));
+	const float3 normal = (inputPatch[thisID].nrmWV.xyz + inputPatch[thisEX].nrmWV.xyz + inputPatch[nextID].nrmWV.xyz + inputPatch[nextEX].nrmWV.xyz) * 0.25f; \
+	so.oppositeEdgeTessFactor = (normal.z < -0.75f) ? 0.f : max(1.f, so.oppositeEdgeTessFactor * (1.f - abs(normal.z * 0.75f)));
 
 // Patch Constant Function, here central bezier control point is calculated:
 #define _HS_PCF_BODY(matP) \
@@ -75,11 +75,11 @@ struct PCFO
 	const float3 b003 = outputPatch[2].posWV[0]; \
 	const float3 b102 = outputPatch[2].posWV[1]; \
 	const float3 b201 = outputPatch[2].posWV[2]; \
-	const float3 e = (b210 + b120 + b021 + b012 + b102 + b201) * (1.0 / 6.0); \
-	const float3 v = (b003 + b030 + b300) * (1.0 / 3.0); \
-	so.b111 = e + (e - v) * 0.5; \
+	const float3 e = (b210 + b120 + b021 + b012 + b102 + b201) * (1.f / 6.f); \
+	const float3 v = (b003 + b030 + b300) * (1.f / 3.f); \
+	so.b111 = e + (e - v) * 0.5f; \
 	const float b111Clipped = IsClipped(ApplyProjection(so.b111, matP)); \
-	if (outputPatch[0].clipped && outputPatch[1].clipped && outputPatch[2].clipped && b111Clipped) { so.tessFactors[0] = 0.0; }
+	if (outputPatch[0].clipped && outputPatch[1].clipped && outputPatch[2].clipped && b111Clipped) { so.tessFactors[0] = 0.f; }
 
 #define _DS_INIT_FLAT_POS \
 	const float3 flatPosWV = \
@@ -90,7 +90,7 @@ struct PCFO
 #define _DS_INIT_SMOOTH_POS \
 	const float3 uvw = domainLocation; \
 	const float3 uvwSq = uvw * uvw; \
-	const float3 uvwSq3 = uvwSq * 3.0; \
+	const float3 uvwSq3 = uvwSq * 3.f; \
 	const float3 smoothPosWV = \
 	outputPatch[0].posWV[0] * uvwSq.x * uvw.x + \
 	outputPatch[1].posWV[0] * uvwSq.y * uvw.y + \
@@ -101,13 +101,13 @@ struct PCFO
 	outputPatch[1].posWV[2] * uvwSq3.z * uvw.y + \
 	outputPatch[2].posWV[1] * uvwSq3.z * uvw.x + \
 	outputPatch[2].posWV[2] * uvwSq3.x * uvw.z + \
-	si.b111 * uvw.x * uvw.y * uvw.z * 6.0
+	si.b111 * uvw.x * uvw.y * uvw.z * 6.f
 
 float3 ComputeBezierPoint(float3 posA, float3 posB, float3 nrmA)
 {
 	// Project a 1/3 midpoint on the plane, which is defined by the nearest vertex and it's normal.
 	const float extrudeLen = dot(posB - posA, nrmA);
-	return (2.0 * posA + posB - extrudeLen * nrmA) * (1.0 / 3.0);
+	return (2.f * posA + posB - extrudeLen * nrmA) * (1.f / 3.f);
 }
 
 // Optimized version of the projection transform:
@@ -126,13 +126,13 @@ float2 ProjectAndScale(float3 posWV, matrix matP, float2 viewportSize)
 {
 	const float4 clipSpacePos = ApplyProjection(posWV, matP);
 	const float2 ndcPos = clipSpacePos.xy / clipSpacePos.w;
-	return ndcPos * viewportSize * (32.0 / 1080.0);
+	return ndcPos * viewportSize * (32.f / 1080.f);
 }
 
 float IsClipped(float4 clipSpacePos)
 {
-	clipSpacePos.w *= 2.0; // Safe area, because patch can have all points outside, but still be visible.
-	return (all(clipSpacePos.xyz >= -clipSpacePos.w) && all(clipSpacePos.xyz <= clipSpacePos.w)) ? 0.0 : 1.0;
+	const float4 absPos = abs(clipSpacePos);
+	return all(absPos.xyz <= absPos.w * 2.f) ? 0.f : 1.f; // Safe area, because patch can have all points outside, but still be visible.
 }
 
 float ComputeClipping(matrix matP, float3 posA, float3 posB, float3 posC)

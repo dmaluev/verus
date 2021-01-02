@@ -7,7 +7,7 @@
 #include "LibTessellation.hlsl"
 #include "DS_Terrain.inc.hlsl"
 
-#define DETAIL_TC_SCALE 8.0
+#define DETAIL_TC_SCALE 8.f
 
 ConstantBuffer<UB_TerrainVS> g_ubTerrainVS : register(b0, space0);
 ConstantBuffer<UB_TerrainFS> g_ubTerrainFS : register(b0, space1);
@@ -48,7 +48,7 @@ struct VSO
 #endif
 };
 
-static const float g_layerScale = 1.0 / 8.0;
+static const float g_layerScale = 1.f / 8.f;
 
 #ifdef _VS
 VSO mainVS(VSI si)
@@ -59,29 +59,29 @@ VSO mainVS(VSI si)
 	const float mapSideInv = g_ubTerrainVS._eyePos_mapSideInv.w;
 
 	const float2 edgeCorrection = si.pos.yw;
-	si.pos.yw = 0.0;
+	si.pos.yw = 0.f;
 	float3 pos = si.pos.xyz + si.posPatch.xyz;
-	const float2 tcMap = pos.xz * mapSideInv + 0.5; // Range [0, 1).
-	const float2 posBlend = pos.xz + edgeCorrection * 0.5;
+	const float2 tcMap = pos.xz * mapSideInv + 0.5f; // Range [0, 1).
+	const float2 posBlend = pos.xz + edgeCorrection * 0.5f;
 
 	// <HeightAndNormal>
 	float3 intactNrm;
 	{
-		const float approxHeight = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + (0.5 * mapSideInv) * 16.0, 4.0).r);
+		const float approxHeight = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + (0.5f * mapSideInv) * 16.f, 4.f).r);
 		pos.y = approxHeight;
 
 		const float distToEye = distance(pos, eyePos);
-		const float geomipsLod = log2(clamp(distToEye * (2.0 / 100.0), 1.0, 18.0));
+		const float geomipsLod = log2(clamp(distToEye * (2.f / 100.f), 1.f, 18.f));
 		const float geomipsLodFrac = frac(geomipsLod);
 		const float geomipsLodBase = floor(geomipsLod);
-		const float geomipsLodNext = geomipsLodBase + 1.0;
-		const float2 texelCenterAB = (0.5 * mapSideInv) * exp2(float2(geomipsLodBase, geomipsLodNext));
+		const float geomipsLodNext = geomipsLodBase + 1.f;
+		const float2 texelCenterAB = (0.5f * mapSideInv) * exp2(float2(geomipsLodBase, geomipsLodNext));
 		const float yA = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + texelCenterAB.xx, geomipsLodBase).r);
 		const float yB = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + texelCenterAB.yy, geomipsLodNext).r);
 		pos.y = lerp(yA, yB, geomipsLodFrac);
 
 		const float4 rawNormal = g_texNormalVS.SampleLevel(g_samNormalVS, tcMap + texelCenterAB.xx, geomipsLodBase);
-		intactNrm = float3(rawNormal.x, 0, rawNormal.y) * 2.0 - 1.0;
+		intactNrm = float3(rawNormal.x, 0, rawNormal.y) * 2.f - 1.f;
 		intactNrm.y = ComputeNormalZ(intactNrm.xz);
 	}
 	// </HeightAndNormal>
@@ -91,10 +91,10 @@ VSO mainVS(VSI si)
 #if !defined(DEF_DEPTH)
 	so.layerForChannel = si.layerForChannel;
 #if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
-	so.tcBlend.xy = posBlend * mapSideInv + 0.5;
+	so.tcBlend.xy = posBlend * mapSideInv + 0.5f;
 	so.tcBlend.z = pos.y;
 	so.tcLayer_tcMap.xy = pos.xz * g_layerScale;
-	so.tcLayer_tcMap.zw = (pos.xz + 0.5) * mapSideInv + 0.5; // Texel's center.
+	so.tcLayer_tcMap.zw = (pos.xz + 0.5f) * mapSideInv + 0.5f; // Texel's center.
 #endif
 #endif
 
@@ -113,7 +113,7 @@ PCFO PatchConstFunc(const OutputPatch<HSO, 3> outputPatch)
 }
 
 [domain("tri")]
-[maxtessfactor(7.0)]
+[maxtessfactor(7.f)]
 [outputcontrolpoints(3)]
 [outputtopology("triangle_cw")]
 [partitioning(_PARTITION_METHOD)]
@@ -159,7 +159,7 @@ VSO mainDS(_IN_DS)
 
 #ifndef DEF_DEPTH
 	// Fade to non-tess mesh at 80 meters. LOD 1 starts at 100 meters.
-	const float tessStrength = saturate((1.0 - saturate(smoothPosWV.z / -80.0)) * 4.0);
+	const float tessStrength = saturate((1.f - saturate(smoothPosWV.z / -80.f)) * 4.f);
 	const float3 posWV = lerp(flatPosWV, smoothPosWV, tessStrength);
 	so.pos = ApplyProjection(posWV, g_ubTerrainVS._matP);
 #endif
@@ -183,13 +183,13 @@ DS_FSO mainFS(VSO si)
 	const float2 tcMap = si.tcLayer_tcMap.zw;
 
 	const float4 rawBlend = g_texBlend.Sample(g_samBlend, si.tcBlend.xy);
-	float4 weights = float4(rawBlend.rgb, 1.0 - dot(rawBlend.rgb, float3(1, 1, 1)));
+	float4 weights = float4(rawBlend.rgb, 1.f - dot(rawBlend.rgb, float3(1, 1, 1)));
 
 	// <Basis>
 	float3 basisTan, basisBin, basisNrm;
 	{
 		const float4 rawBasis = g_texNormal.Sample(g_samNormal, tcMap);
-		const float4 basis = rawBasis * 2.0 - 1.0;
+		const float4 basis = rawBasis * 2.f - 1.f;
 		basisNrm = float3(basis.x, 0, basis.y);
 		basisTan = float3(0, basis.z, basis.w);
 		basisNrm.y = ComputeNormalZ(basisNrm.xz);
@@ -204,7 +204,7 @@ DS_FSO mainFS(VSO si)
 
 	// <Albedo>
 	float4 albedo;
-	float specStrength;
+	float specMask;
 	float detailStrength;
 	{
 		const float4 rawAlbedos[4] =
@@ -218,11 +218,11 @@ DS_FSO mainFS(VSO si)
 			Grayscale(rawAlbedos[0].rgb),
 			Grayscale(rawAlbedos[1].rgb),
 			Grayscale(rawAlbedos[2].rgb),
-			Grayscale(rawAlbedos[3].rgb)) - 0.25) * 8.0 + 0.25);
+			Grayscale(rawAlbedos[3].rgb)) - 0.25f) * 8.f + 0.25f);
 		weights = saturate(weights + weights * mask);
-		const float weightsSum = dot(weights, 1.0);
+		const float weightsSum = dot(weights, 1.f);
 		weights /= weightsSum;
-		float4 accAlbedo = 0.0;
+		float4 accAlbedo = 0.f;
 		accAlbedo += rawAlbedos[0] * weights.r;
 		accAlbedo += rawAlbedos[1] * weights.g;
 		accAlbedo += rawAlbedos[2] * weights.b;
@@ -241,7 +241,7 @@ DS_FSO mainFS(VSO si)
 			vDetailStrength[layerForChannel.g],
 			vDetailStrength[layerForChannel.b],
 			vDetailStrength[layerForChannel.a]);
-		specStrength = dot(specStrengthForChannel, weights) * albedo.a;
+		specMask = albedo.a * dot(specStrengthForChannel, weights);
 		detailStrength = dot(detailStrengthForChannel, weights);
 	}
 	// </Albedo>
@@ -251,26 +251,26 @@ DS_FSO mainFS(VSO si)
 	{
 		const float dryMask = saturate(si.tcBlend.z);
 		const float dryMask3 = dryMask * dryMask * dryMask;
-		const float wetMask = 1.0 - dryMask;
+		const float wetMask = 1.f - dryMask;
 		const float wetMask3 = wetMask * wetMask * wetMask;
-		albedo.rgb *= dryMask3 * 0.5 + 0.5;
-		specStrength = dryMask * saturate(specStrength + wetMask3 * wetMask3 * 0.1);
-		waterGlossBoost = min(32.0, dryMask * wetMask3 * 100.0);
+		albedo.rgb *= dryMask3 * 0.5f + 0.5f;
+		specMask = dryMask * saturate(specMask + wetMask3 * wetMask3 * 0.1f);
+		waterGlossBoost = min(32.f, dryMask * wetMask3 * 100.f);
 	}
 	// </Water>
 
-	const float gloss = lerp(3.3, 15.0, specStrength) + waterGlossBoost;
+	const float gloss = lerp(3.3f, 15.f, specMask) + waterGlossBoost;
 
 	// <Normal>
 	float3 normalWV;
 	float toksvigFactor;
 	{
-		float4 accNormal = 0.0;
+		float4 accNormal = 0.f;
 		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.r)) * weights.r;
 		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.g)) * weights.g;
 		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.b)) * weights.b;
 		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.a)) * weights.a;
-		accNormal = lerp(accNormal, float4(0, 0.5, 0.5, 0.5), 0.5);
+		accNormal = lerp(accNormal, float4(0, 0.5f, 0.5f, 0.5f), 0.5f);
 		const float4 normalAA = NormalMapAA(accNormal);
 		normalWV = normalize(mul(normalAA.xyz, matFromTBN));
 		toksvigFactor = ComputeToksvigFactor(normalAA.a, gloss);
@@ -280,22 +280,31 @@ DS_FSO mainFS(VSO si)
 	// <Detail>
 	{
 		const float3 rawDetail = g_texDetail.Sample(g_samDetail, tcLayer * DETAIL_TC_SCALE).rgb;
-		albedo.rgb = albedo.rgb * lerp(0.5, rawDetail, detailStrength) * 2.0;
+		albedo.rgb = albedo.rgb * lerp(0.5f, rawDetail, detailStrength) * 2.f;
 	}
 	// </Detail>
+
+	// <SpecFresnel>
+	float specMaskWithFresnel;
+	{
+		const float fresnelMask = pow(saturate(1.f - normalWV.z), 5.f);
+		const float maxSpecAdd = (1.f - specMask) * (0.04f + 0.2f * specMask);
+		specMaskWithFresnel = FresnelSchlick(specMask, maxSpecAdd, fresnelMask);
+	}
+	// </SpecFresnel>
 
 	{
 		DS_Reset(so);
 
 		DS_SetAlbedo(so, albedo.rgb);
-		DS_SetSpec(so, specStrength);
+		DS_SetSpecMask(so, specMaskWithFresnel);
 
 		DS_SetNormal(so, normalWV + NormalDither(rand));
-		DS_SetEmission(so, 0.0, 0.0);
-		DS_SetMotionBlur(so, 1.0);
+		DS_SetEmission(so, 0.f, 0.f);
+		DS_SetMotionBlurMask(so, 1.f);
 
 		DS_SetLamScaleBias(so, g_ubTerrainFS._lamScaleBias.xy, float4(0, 0, 1, 0));
-		DS_SetMetallicity(so, 0.05, 0.0);
+		DS_SetMetallicity(so, 0.05f, 0.f);
 		DS_SetGloss(so, gloss * toksvigFactor);
 	}
 #endif

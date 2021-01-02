@@ -37,12 +37,12 @@ void TextureD3D12::Init(RcTextureDesc desc)
 	const bool depthSampled = _desc._flags & (TextureDesc::Flags::depthSampledR | TextureDesc::Flags::depthSampledW);
 	const bool cubeMap = (_desc._flags & TextureDesc::Flags::cubeMap);
 	if (cubeMap)
-		_desc._arrayLayers = 6;
+		_desc._arrayLayers *= +CubeMapFace::count;
 	if (_desc._flags & TextureDesc::Flags::anyShaderResource)
 		_mainLayout = ImageLayout::xsReadOnly;
 
 	D3D12_RESOURCE_DESC resDesc = {};
-	resDesc.Dimension = _desc._depth > 1 ? D3D12_RESOURCE_DIMENSION_TEXTURE3D : D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	resDesc.Dimension = (_desc._depth > 1) ? D3D12_RESOURCE_DIMENSION_TEXTURE3D : D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	resDesc.Width = _desc._width;
 	resDesc.Height = _desc._height;
 	resDesc.DepthOrArraySize = Math::Max(_desc._depth, _desc._arrayLayers);
@@ -149,8 +149,25 @@ void TextureD3D12::Init(RcTextureDesc desc)
 
 	if (renderTarget)
 	{
-		_dhRTV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);
-		pRendererD3D12->GetD3DDevice()->CreateRenderTargetView(_resource._pResource.Get(), nullptr, _dhRTV.AtCPU(0));
+		if (cubeMap)
+		{
+			_dhRTV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, +CubeMapFace::count);
+			D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+			rtvDesc.Format = ToNativeFormat(_desc._format, false);
+			rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+			rtvDesc.Texture2DArray.MipSlice = 0;
+			VERUS_FOR(i, +CubeMapFace::count)
+			{
+				rtvDesc.Texture2DArray.FirstArraySlice = ToNativeCubeMapFace(static_cast<CubeMapFace>(i));
+				rtvDesc.Texture2DArray.ArraySize = 1;
+				pRendererD3D12->GetD3DDevice()->CreateRenderTargetView(_resource._pResource.Get(), &rtvDesc, _dhRTV.AtCPU(i));
+			}
+		}
+		else
+		{
+			_dhRTV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);
+			pRendererD3D12->GetD3DDevice()->CreateRenderTargetView(_resource._pResource.Get(), nullptr, _dhRTV.AtCPU(0));
+		}
 	}
 
 	if (depthFormat)
@@ -175,14 +192,32 @@ void TextureD3D12::Init(RcTextureDesc desc)
 	}
 	else
 	{
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvCubeDesc = {};
-		srvCubeDesc.Format = ToNativeFormat(_desc._format, false);
-		srvCubeDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-		srvCubeDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvCubeDesc.TextureCube.MostDetailedMip = 0;
-		srvCubeDesc.TextureCube.MipLevels = _desc._mipLevels;
-		_dhSRV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-		pRendererD3D12->GetD3DDevice()->CreateShaderResourceView(_resource._pResource.Get(), cubeMap ? &srvCubeDesc : nullptr, _dhSRV.AtCPU(0));
+		if (cubeMap)
+		{
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Format = ToNativeFormat(_desc._format, false);
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			if (_desc._arrayLayers > +CubeMapFace::count)
+			{
+				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
+				srvDesc.TextureCubeArray.MostDetailedMip = 0;
+				srvDesc.TextureCubeArray.MipLevels = _desc._mipLevels;
+				srvDesc.TextureCubeArray.NumCubes = _desc._arrayLayers / +CubeMapFace::count;
+			}
+			else
+			{
+				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+				srvDesc.TextureCube.MostDetailedMip = 0;
+				srvDesc.TextureCube.MipLevels = _desc._mipLevels;
+			}
+			_dhSRV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+			pRendererD3D12->GetD3DDevice()->CreateShaderResourceView(_resource._pResource.Get(), &srvDesc, _dhSRV.AtCPU(0));
+		}
+		else
+		{
+			_dhSRV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+			pRendererD3D12->GetD3DDevice()->CreateShaderResourceView(_resource._pResource.Get(), nullptr, _dhSRV.AtCPU(0));
+		}
 	}
 
 	if (_desc._pSamplerDesc)
@@ -490,7 +525,7 @@ void TextureD3D12::CreateSampler()
 	}
 	else if ('s' == _desc._pSamplerDesc->_filterMagMinMip[0]) // Shadow map:
 	{
-		if (settings._sceneShadowQuality <= App::Settings::ShadowQuality::nearest)
+		if (settings._sceneShadowQuality <= App::Settings::Quality::low)
 			samplerDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_POINT;
 		else
 			samplerDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;

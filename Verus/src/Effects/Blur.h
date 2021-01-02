@@ -11,12 +11,14 @@ namespace verus
 
 			enum PIPE
 			{
-				PIPE_H,
+				PIPE_U,
 				PIPE_V,
-				PIPE_BLOOM_H,
+				PIPE_BLOOM_U,
 				PIPE_BLOOM_V,
-				PIPE_SSAO_H,
+				PIPE_SSAO_U,
 				PIPE_SSAO_V,
+				PIPE_SSR_U,
+				PIPE_SSR_V,
 				PIPE_AA,
 				PIPE_MOTION_BLUR,
 				PIPE_COUNT
@@ -24,11 +26,11 @@ namespace verus
 
 			struct Handles
 			{
-				CGI::RPHandle _rphH;
+				CGI::RPHandle _rphU;
 				CGI::RPHandle _rphV;
-				CGI::FBHandle _fbhH;
+				CGI::FBHandle _fbhU;
 				CGI::FBHandle _fbhV;
-				CGI::CSHandle _cshH;
+				CGI::CSHandle _cshU;
 				CGI::CSHandle _cshV;
 
 				void FreeDescriptorSets(CGI::ShaderPtr shader);
@@ -44,6 +46,8 @@ namespace verus
 			CGI::TexturePwn               _tex;
 			Handles                       _bloomHandles;
 			Handles                       _ssaoHandles;
+			Handles                       _ssrHandles;
+			CGI::CSHandle                 _cshSsrExtra;
 			CGI::RPHandle                 _rphAntiAliasing;
 			CGI::FBHandle                 _fbhAntiAliasing;
 			CGI::CSHandle                 _cshAntiAliasing;
@@ -52,6 +56,9 @@ namespace verus
 			CGI::FBHandle                 _fbhMotionBlur;
 			CGI::CSHandle                 _cshMotionBlur;
 			CGI::CSHandle                 _cshMotionBlurExtra;
+			float                         _bloomRadius = 0.015f;
+			float                         _bloomGodRaysRadius = 0.004f;
+			float                         _ssrRadius = 0.03f;
 
 		public:
 			Blur();
@@ -63,10 +70,13 @@ namespace verus
 			void OnSwapChainResized();
 
 			void Generate();
-			void GenerateForBloom();
+			void GenerateForBloom(bool forGodRays);
 			void GenerateForSsao();
+			void GenerateForSsr();
 			void GenerateForAntiAliasing();
 			void GenerateForMotionBlur();
+
+			void UpdateUniformBuffer(float radius, int sampleCount, int texSize = 0, float samplesPerPixel = 1, int maxSamples = 61);
 		};
 		VERUS_TYPEDEFS(Blur);
 	}

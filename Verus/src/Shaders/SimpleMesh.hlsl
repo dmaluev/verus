@@ -82,11 +82,11 @@ VSO mainVS(VSI si)
 	float3 nrmW;
 	{
 #ifdef DEF_SKINNED
-		const float4 weights = si.bw * (1.0 / 255.0);
+		const float4 weights = si.bw * (1.f / 255.f);
 		const float4 indices = si.bi;
 
-		float3 posSkinned = 0.0;
-		float3 nrmSkinned = 0.0;
+		float3 posSkinned = 0.f;
+		float3 nrmSkinned = 0.f;
 
 		for (int i = 0; i < 4; ++i)
 		{
@@ -135,7 +135,8 @@ FSO mainFS(VSO si)
 #ifdef DEF_TEXTURE
 	const float4 rawAlbedo = g_texAlbedo.Sample(g_samAlbedo, si.tc0);
 	so.color.rgb = rawAlbedo.rgb * si.color0.rgb;
-	so.color.a = 1.0;
+	so.color.rgb = ToSafeHDR(so.color.rgb);
+	so.color.a = 1.f;
 #else
 	// <Material>
 	const float2 mm_alphaSwitch = g_ubSimplePerMaterialFS._alphaSwitch_anisoSpecDir.xy;
@@ -170,30 +171,29 @@ FSO mainFS(VSO si)
 
 	// <Pick>
 	const float2 alpha_spec = AlphaSwitch(rawAlbedo, tc0, mm_alphaSwitch);
-	const float emitAlpha = PickAlpha(rawAlbedo.rgb, mm_emissionPick, 16.0);
+	const float emitAlpha = PickAlpha(rawAlbedo.rgb, mm_emissionPick, 16.f);
 	const float eyeAlpha = PickAlphaRound(mm_eyePick, tc0);
-	const float glossAlpha = PickAlpha(rawAlbedo.rgb, mm_glossPick, 32.0);
-	const float hairAlpha = round(PickAlpha(rawAlbedo.rgb, mm_hairPick, 16.0));
-	const float skinAlpha = PickAlpha(rawAlbedo.rgb, mm_skinPick, 16.0);
-	const float userAlpha = PickAlpha(rawAlbedo.rgb, mm_userPick, 16.0);
+	const float glossAlpha = PickAlpha(rawAlbedo.rgb, mm_glossPick, 32.f);
+	const float hairAlpha = round(PickAlpha(rawAlbedo.rgb, mm_hairPick, 16.f));
+	const float skinAlpha = PickAlpha(rawAlbedo.rgb, mm_skinPick, 16.f);
+	const float userAlpha = PickAlpha(rawAlbedo.rgb, mm_userPick, 16.f);
 	// </Pick>
 
 	rawAlbedo.rgb = lerp(rawAlbedo.rgb, Overlay(gray, si.color0.rgb), userAlpha * si.color0.a);
 	const float3 hairAlbedo = Overlay(alpha_spec.y, Desaturate(rawAlbedo.rgb, hairAlpha * mm_hairDesat));
-	const float3 albedo = lerp(rawAlbedo.rgb, hairAlbedo, hairAlpha);
-	const float specStrength = alpha_spec.y * (1.0 + hairAlpha * 0.75) * mm_specScaleBias.x + mm_specScaleBias.y;
+	const float3 realAlbedo = ToRealAlbedo(lerp(rawAlbedo.rgb, hairAlbedo, hairAlpha));
+	const float specMask = saturate(alpha_spec.y * mm_specScaleBias.x + mm_specScaleBias.y);
 
 	// <Gloss>
-	float gloss = lerp(4.0, 16.0, alpha_spec.y) * mm_glossScaleBias.x + mm_glossScaleBias.y;
+	float gloss = lerp(4.f, 16.f, alpha_spec.y) * mm_glossScaleBias.x + mm_glossScaleBias.y;
 	gloss = lerp(gloss, mm_gloss, glossAlpha);
-	gloss = lerp(gloss, 4.5 + alpha_spec.y, skinAlpha);
-	gloss = lerp(gloss, 0.0, eyeAlpha);
+	gloss = lerp(gloss, 4.f + alpha_spec.y, skinAlpha);
+	gloss = lerp(gloss, 0.f, eyeAlpha);
+	const float gloss4K = gloss * gloss;
 	// </Gloss>
 
-	gloss = gloss * gloss;
-
 	// <LambertianScaleBias>
-	const float2 lamScaleBias = lerp(mm_lamScaleBias, float2(1, 0.45), skinAlpha);
+	const float2 lamScaleBias = lerp(mm_lamScaleBias, float2(1, 0.45f), skinAlpha);
 	// </LambertianScaleBias>
 
 	const float3 normal = normalize(si.nrmW);
@@ -203,39 +203,43 @@ FSO mainFS(VSO si)
 	// <Shadow>
 	float shadowMask;
 	{
-		float4 config = g_ubSimplePerFrame._shadowConfig;
-		const float lamBiasMask = saturate(lamScaleBias.y * config.y);
-		config.y = 1.0 - lamBiasMask; // Keep penumbra blurry.
+		float4 shadowConfig = g_ubSimplePerFrame._shadowConfig;
+		const float lamBiasMask = saturate(lamScaleBias.y * shadowConfig.y);
+		shadowConfig.y = 1.f - lamBiasMask; // Keep penumbra blurry.
 		const float3 posForShadow = AdjustPosForShadow(si.posW_depth.xyz, normal, g_ubSimplePerFrame._dirToSun.xyz, depth);
-		const float4 tcShadow = ShadowCoords(float4(posForShadow, 1), g_ubSimplePerFrame._matSunShadow, depth);
 		shadowMask = SimpleShadowMapCSM(
 			g_texShadowCmp,
 			g_samShadowCmp,
-			tcShadow,
-			config,
-			g_ubSimplePerFrame._splitRanges,
-			g_ubSimplePerFrame._matSunShadow,
-			g_ubSimplePerFrame._matSunShadowCSM1,
-			g_ubSimplePerFrame._matSunShadowCSM2,
-			g_ubSimplePerFrame._matSunShadowCSM3);
+			si.posW_depth.xyz,
+			posForShadow,
+			g_ubSimplePerFrame._matShadow,
+			g_ubSimplePerFrame._matShadowCSM1,
+			g_ubSimplePerFrame._matShadowCSM2,
+			g_ubSimplePerFrame._matShadowCSM3,
+			g_ubSimplePerFrame._matScreenCSM,
+			g_ubSimplePerFrame._csmSplitRanges,
+			shadowConfig);
 	}
 	// </Shadow>
 
 	const float4 litRet = VerusLit(g_ubSimplePerFrame._dirToSun.xyz, normal, dirToEye,
-		gloss,
+		gloss4K,
 		lamScaleBias,
 		float4(0, 0, 1, 0));
 
 	const float3 diffColor = litRet.y * g_ubSimplePerFrame._sunColor.rgb * shadowMask + g_ubSimplePerFrame._ambientColor.rgb;
-	const float3 specColor = litRet.z * g_ubSimplePerFrame._sunColor.rgb * shadowMask * specStrength;
+	const float3 specColor = litRet.z * g_ubSimplePerFrame._sunColor.rgb * shadowMask * specMask;
+	const float emission = emitAlpha * mm_emission;
 
-	so.color.rgb = (albedo * 0.5) * diffColor + specColor;
-	so.color.a = 1.0;
+	so.color.rgb = realAlbedo * (diffColor + emission) + specColor;
+	so.color.a = 1.f;
 
 	const float fog = ComputeFog(depth, g_ubSimplePerFrame._fogColor.a, si.posW_depth.y);
 	so.color.rgb = lerp(so.color.rgb, g_ubSimplePerFrame._fogColor.rgb, fog);
 
-	clip(alpha_spec.x - 0.5);
+	so.color.rgb = ToSafeHDR(so.color.rgb);
+
+	clip(alpha_spec.x - 0.5f);
 #endif
 
 	return so;

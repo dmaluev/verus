@@ -48,7 +48,7 @@ namespace verus
 				_rasterizationState._depthBiasEnable = true;
 				_rasterizationState._depthBiasConstantFactor = 14;
 				_rasterizationState._depthBiasSlopeFactor = 1.1f;
-				if (App::Settings::I()._sceneShadowQuality >= App::Settings::ShadowQuality::cascaded)
+				if (App::Settings::I()._sceneShadowQuality >= App::Settings::Quality::high)
 					_rasterizationState._depthBiasConstantFactor = 50;
 			}
 		};

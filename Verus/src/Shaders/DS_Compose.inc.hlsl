@@ -8,6 +8,7 @@ VERUS_UBUFFER UB_ComposeVS
 
 VERUS_UBUFFER UB_ComposeFS
 {
+	mataff _matV;
 	mataff _matInvV;
 	matrix _matInvVP;
 	float4 _ambientColor_exposure;
@@ -16,4 +17,5 @@ VERUS_UBUFFER UB_ComposeFS
 	float4 _zNearFarEx;
 	float4 _waterDiffColorShallow;
 	float4 _waterDiffColorDeep;
+	float4 _lightGlossScale;
 };

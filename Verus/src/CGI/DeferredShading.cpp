@@ -128,9 +128,9 @@ void DeferredShading::Init()
 		{
 			Sampler::nearestClampMipN,
 			Sampler::nearestClampMipN,
+			Sampler::nearestClampMipN,
+			Sampler::nearestClampMipN,
 			Sampler::linearClampMipN, // For bloom.
-			Sampler::nearestClampMipN,
-			Sampler::nearestClampMipN,
 			Sampler::nearestClampMipN
 		}, ShaderStageFlags::fs);
 	_shader[SHADER_COMPOSE]->CreatePipelineLayout();
@@ -241,9 +241,9 @@ void DeferredShading::InitByBloom(TexturePtr tex)
 		{
 			_tex[TEX_GBUFFER_0],
 			_tex[TEX_GBUFFER_1],
-			tex,
+			_tex[TEX_GBUFFER_2],
 			_tex[TEX_COMPOSED_A],
-			_tex[TEX_LIGHT_ACC_DIFF],
+			tex,
 			_tex[TEX_LIGHT_ACC_SPEC]
 		});
 }
@@ -601,6 +601,7 @@ void DeferredShading::BeginCompose(RcVector4 bgColor)
 
 	s_ubComposeVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubComposeVS._matV = Math::ToUVMatrix().UniformBufferFormat();
+	s_ubComposeFS._matV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
 	s_ubComposeFS._matInvV = sm.GetCamera()->GetMatrixVi().UniformBufferFormat();
 	s_ubComposeFS._matInvVP = matInvVP.UniformBufferFormat();
 	s_ubComposeFS._ambientColor_exposure = float4(atmo.GetAmbientColor().GLM(), renderer.GetExposure());
@@ -609,6 +610,7 @@ void DeferredShading::BeginCompose(RcVector4 bgColor)
 	s_ubComposeFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
 	s_ubComposeFS._waterDiffColorShallow = float4(water.GetDiffuseColorShallow().GLM(), water.GetFogDensity());
 	s_ubComposeFS._waterDiffColorDeep = float4(water.GetDiffuseColorDeep().GLM(), water.IsUnderwater() ? 1.f : 0.f);
+	s_ubComposeFS._lightGlossScale.x = _lightGlossScale;
 
 	// Compose buffers, that is perform "final color = albedo * diffuse + specular" computation. Result is still HDR:
 	cb->BeginRenderPass(_rphCompose, _fbhCompose,
@@ -708,12 +710,13 @@ void DeferredShading::OnNewLightType(CommandBufferPtr cb, LightType type, bool w
 	cb->BindDescriptors(_shader[SHADER_LIGHT], 1, _cshLight);
 
 	// Shadow:
-	s_ubShadowFS._matSunShadow = atmo.GetShadowMap().GetShadowMatrixDS(0).UniformBufferFormat();
-	s_ubShadowFS._matSunShadowCSM1 = atmo.GetShadowMap().GetShadowMatrixDS(1).UniformBufferFormat();
-	s_ubShadowFS._matSunShadowCSM2 = atmo.GetShadowMap().GetShadowMatrixDS(2).UniformBufferFormat();
-	s_ubShadowFS._matSunShadowCSM3 = atmo.GetShadowMap().GetShadowMatrixDS(3).UniformBufferFormat();
+	s_ubShadowFS._matShadow = atmo.GetShadowMap().GetShadowMatrixDS(0).UniformBufferFormat();
+	s_ubShadowFS._matShadowCSM1 = atmo.GetShadowMap().GetShadowMatrixDS(1).UniformBufferFormat();
+	s_ubShadowFS._matShadowCSM2 = atmo.GetShadowMap().GetShadowMatrixDS(2).UniformBufferFormat();
+	s_ubShadowFS._matShadowCSM3 = atmo.GetShadowMap().GetShadowMatrixDS(3).UniformBufferFormat();
+	s_ubShadowFS._matScreenCSM = atmo.GetShadowMap().GetScreenMatrixP().UniformBufferFormat();
+	s_ubShadowFS._csmSplitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
 	memcpy(&s_ubShadowFS._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubShadowFS._shadowConfig));
-	s_ubShadowFS._splitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
 	cb->BindDescriptors(_shader[SHADER_LIGHT], 3);
 }
 
@@ -770,6 +773,16 @@ void DeferredShading::Load()
 TexturePtr DeferredShading::GetGBuffer(int index)
 {
 	return _tex[index];
+}
+
+TexturePtr DeferredShading::GetLightAccDiffTexture()
+{
+	return _tex[TEX_LIGHT_ACC_DIFF];
+}
+
+TexturePtr DeferredShading::GetLightAccSpecTexture()
+{
+	return _tex[TEX_LIGHT_ACC_SPEC];
 }
 
 TexturePtr DeferredShading::GetComposedTextureA()

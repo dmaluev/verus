@@ -598,4 +598,32 @@ void Math::Test()
 		VERUS_RT_ASSERT(glm::epsilonEqual<float>(VMath::length(x), 1, e));
 		VERUS_RT_ASSERT(glm::epsilonEqual<float>(VMath::dot(x, v), d, e));
 	}
+
+	{
+		// Right-handed mode (default):
+		Scene::Camera camera;
+		camera.MoveAtTo(Point3(0, 0, 4));
+		camera.MoveEyeTo(Point3(0, 0, 3));
+		camera.SetFovY(VERUS_PI * 0.25f);
+		camera.SetAspectRatio(1);
+		camera.SetZNear(0.5f);
+		camera.SetZFar(100);
+		camera.Update();
+		Vector4 point = camera.GetMatrixVP() * Point3(3.5f, 0, 3.5f);
+		point /= point.getW();
+		VERUS_RT_ASSERT(glm::epsilonEqual<float>(point.getZ(), 0.f, e));
+		point = camera.GetMatrixVP() * Point3(103, 0, 103);
+		point /= point.getW();
+		VERUS_RT_ASSERT(glm::epsilonEqual<float>(point.getZ(), 1.f, e));
+
+		// Left-handed mode:
+		camera.SetFovY(VERUS_PI * -0.25f);
+		camera.Update();
+		point = camera.GetMatrixVP() * Point3(2.5f, 0, 2.5f);
+		point /= point.getW();
+		VERUS_RT_ASSERT(glm::epsilonEqual<float>(point.getZ(), 0.f, e));
+		point = camera.GetMatrixVP() * Point3(-97, 0, -97);
+		point /= point.getW();
+		VERUS_RT_ASSERT(glm::epsilonEqual<float>(point.getZ(), 1.f, e));
+	}
 }

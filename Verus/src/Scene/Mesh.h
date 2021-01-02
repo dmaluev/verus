@@ -49,10 +49,15 @@ namespace verus
 				PIPE_WIREFRAME_ROBOTIC,
 				PIPE_WIREFRAME_SKINNED,
 
-				PIPE_SIMPLE_WATER_REF,
-				PIPE_SIMPLE_WATER_REF_INSTANCED,
-				PIPE_SIMPLE_WATER_REF_ROBOTIC,
-				PIPE_SIMPLE_WATER_REF_SKINNED,
+				PIPE_SIMPLE_ENV_MAP,
+				PIPE_SIMPLE_ENV_MAP_INSTANCED,
+				PIPE_SIMPLE_ENV_MAP_ROBOTIC,
+				PIPE_SIMPLE_ENV_MAP_SKINNED,
+
+				PIPE_SIMPLE_PLANAR_REF,
+				PIPE_SIMPLE_PLANAR_REF_INSTANCED,
+				PIPE_SIMPLE_PLANAR_REF_ROBOTIC,
+				PIPE_SIMPLE_PLANAR_REF_SKINNED,
 
 				PIPE_SIMPLE_TEX_ADD,
 				PIPE_SIMPLE_TEX_ADD_INSTANCED,
@@ -141,7 +146,7 @@ namespace verus
 
 			static CGI::ShaderPtr GetSimpleShader() { return s_shader[SHADER_SIMPLE]; }
 			static UB_SimplePerMaterialFS& GetUbSimplePerMaterialFS() { return s_ubSimplePerMaterialFS; }
-			void UpdateUniformBufferSimplePerFrame();
+			void UpdateUniformBufferSimplePerFrame(DrawSimpleMode mode);
 			void UpdateUniformBufferSimpleSkeletonVS();
 
 			CGI::GeometryPtr GetGeometry() const { return _geo; }

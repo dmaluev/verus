@@ -21,7 +21,8 @@ namespace verus
 			{
 				PIPE_MAIN,
 				PIPE_DEPTH,
-				PIPE_REFLECTION,
+				PIPE_SIMPLE_ENV_MAP,
+				PIPE_SIMPLE_PLANAR_REF,
 				PIPE_COUNT
 			};
 
@@ -223,7 +224,7 @@ namespace verus
 			VERUS_P(void DrawModels(bool allowTess));
 			VERUS_P(void DrawSprites());
 			void DrawAO();
-			void DrawReflection();
+			void DrawSimple(DrawSimpleMode mode);
 
 			void UpdateCollision(const Vector<Vector4>& vZones);
 

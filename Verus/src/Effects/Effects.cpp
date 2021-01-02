@@ -7,11 +7,13 @@ namespace verus
 	{
 		Effects::Bloom::Make();
 		Effects::Ssao::Make();
+		Effects::Ssr::Make();
 		Effects::Blur::Make();
 	}
 	void Free_Effects()
 	{
 		Effects::Blur::Free();
+		Effects::Ssr::Free();
 		Effects::Ssao::Free();
 		Effects::Bloom::Free();
 	}

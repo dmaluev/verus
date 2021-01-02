@@ -9,18 +9,22 @@ VERUS_UBUFFER UB_BloomVS
 VERUS_UBUFFER UB_BloomFS
 {
 	float4 _exposure;
+	float4 _colorScale_colorBias;
 };
 
 VERUS_UBUFFER UB_BloomGodRaysFS
 {
 	matrix _matInvVP;
-	matrix _matSunShadow;
-	matrix _matSunShadowCSM1;
-	matrix _matSunShadowCSM2;
-	matrix _matSunShadowCSM3;
-	float4 _shadowConfig;
-	float4 _splitRanges;
 	float4 _dirToSun;
 	float4 _sunColor;
 	float4 _eyePos;
+	float4 _maxDist_sunGloss_wideStrength_sunStrength;
+
+	matrix _matShadow;
+	matrix _matShadowCSM1;
+	matrix _matShadowCSM2;
+	matrix _matShadowCSM3;
+	matrix _matScreenCSM;
+	float4 _csmSplitRanges;
+	float4 _shadowConfig;
 };

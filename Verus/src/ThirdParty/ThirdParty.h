@@ -1,7 +1,7 @@
 // Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-// Last updated on 5-Sep-2020
+// Last updated on 3-Jan-2021
 
 // Base64 (https://sourceforge.net/projects/libb64/):
 #ifdef _WIN32
@@ -33,6 +33,7 @@ extern "C"
 #include "glm/glm/gtx/euler_angles.hpp"
 #include "glm/glm/gtx/norm.hpp"
 #include "glm/glm/gtx/normal.hpp"
+#include "glm/glm/gtx/spline.hpp"
 #include "glm/glm/gtx/vector_angle.hpp"
 
 // Dear ImGui (https://github.com/ocornut/imgui):
@@ -62,10 +63,15 @@ static inline ImVec4 operator*(const ImVec4& lhs, const ImVec4& rhs) { return Im
 #include "nativefiledialog/nfd.h"
 
 // pugixml (https://pugixml.org/):
-#include "pugixml-1.10/pugixml.hpp"
+#include "pugixml-1.11/pugixml.hpp"
 
 // Sony Vector Math (https://github.com/glampert/vectormath):
 #include "vectormath/sse/vectormath.hpp"
+
+// TinyGLTF (https://github.com/syoyo/tinygltf):
+#define TINYGLTF_NO_EXTERNAL_IMAGE
+#define TINYGLTF_NO_INCLUDE_JSON
+#include "tinygltf-2.5.0/tiny_gltf.h"
 
 // UTF-8 (https://sourceforge.net/projects/utfcpp/):
 #include "utf8.h"

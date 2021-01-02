@@ -1,7 +1,9 @@
 // Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-#include "FileParser.h"
+#include "BaseConvert.h"
+#include "ConvertGLTF.h"
+#include "ConvertX.h"
 
 namespace verus
 {

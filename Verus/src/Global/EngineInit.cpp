@@ -102,6 +102,7 @@ void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::Rendere
 	{
 		Effects::Bloom::I().Init();
 		Effects::Ssao::I().Init();
+		Effects::Ssr::I().Init();
 		Effects::Blur::I().Init();
 	}
 

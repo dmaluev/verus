@@ -65,8 +65,8 @@ namespace verus
 
 			Transform3 GetTransformNoScale() const;
 			virtual void SetTransform(RcTransform3 mat) override;
-			VERUS_P(Vector3 ComputeScale());
-			VERUS_P(void ComputeTransform());
+			Vector3 ComputeScale();
+			void ComputeTransform();
 
 			virtual void UpdateBounds() override;
 

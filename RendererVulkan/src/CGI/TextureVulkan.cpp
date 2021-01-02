@@ -35,13 +35,13 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	const bool depthSampled = _desc._flags & (TextureDesc::Flags::depthSampledR | TextureDesc::Flags::depthSampledW);
 	const bool cubeMap = (_desc._flags & TextureDesc::Flags::cubeMap);
 	if (cubeMap)
-		_desc._arrayLayers = 6;
+		_desc._arrayLayers *= +CubeMapFace::count;
 	if (_desc._flags & TextureDesc::Flags::anyShaderResource)
 		_mainLayout = ImageLayout::xsReadOnly;
 
 	VkImageCreateInfo vkici = {};
 	vkici.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	vkici.imageType = _desc._depth > 1 ? VK_IMAGE_TYPE_3D : VK_IMAGE_TYPE_2D;
+	vkici.imageType = (_desc._depth > 1) ? VK_IMAGE_TYPE_3D : VK_IMAGE_TYPE_2D;
 	vkici.format = ToNativeFormat(_desc._format);
 	vkici.extent.width = _desc._width;
 	vkici.extent.height = _desc._height;
@@ -124,8 +124,10 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	VkImageViewCreateInfo vkivci = {};
 	vkivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	vkivci.image = _image;
-	vkivci.viewType = _desc._depth > 1 ? VK_IMAGE_VIEW_TYPE_3D : VK_IMAGE_VIEW_TYPE_2D;
-	if (_desc._arrayLayers > 1 || (_desc._flags & TextureDesc::Flags::forceArrayTexture))
+	vkivci.viewType = (_desc._depth > 1) ? VK_IMAGE_VIEW_TYPE_3D : VK_IMAGE_VIEW_TYPE_2D;
+	if (cubeMap)
+		vkivci.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+	else if (_desc._arrayLayers > 1 || (_desc._flags & TextureDesc::Flags::forceArrayTexture))
 		vkivci.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
 	vkivci.format = vkici.format;
 	vkivci.subresourceRange.aspectMask = depthFormat ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
@@ -137,9 +139,23 @@ void TextureVulkan::Init(RcTextureDesc desc)
 		throw VERUS_RUNTIME_ERROR << "vkCreateImageView(), res=" << res;
 	if (renderTarget)
 	{
+		vkivci.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		vkivci.subresourceRange.levelCount = 1;
-		if (VK_SUCCESS != (res = vkCreateImageView(pRendererVulkan->GetVkDevice(), &vkivci, pRendererVulkan->GetAllocator(), &_imageViewLevelZero)))
-			throw VERUS_RUNTIME_ERROR << "vkCreateImageView(LevelZero), res=" << res;
+		vkivci.subresourceRange.layerCount = 1;
+		if (cubeMap)
+		{
+			VERUS_FOR(i, +CubeMapFace::count)
+			{
+				vkivci.subresourceRange.baseArrayLayer = ToNativeCubeMapFace(static_cast<CubeMapFace>(i));
+				if (VK_SUCCESS != (res = vkCreateImageView(pRendererVulkan->GetVkDevice(), &vkivci, pRendererVulkan->GetAllocator(), _imageViewForFramebuffer + i)))
+					throw VERUS_RUNTIME_ERROR << "vkCreateImageView(LevelZero), res=" << res;
+			}
+		}
+		else
+		{
+			if (VK_SUCCESS != (res = vkCreateImageView(pRendererVulkan->GetVkDevice(), &vkivci, pRendererVulkan->GetAllocator(), _imageViewForFramebuffer)))
+				throw VERUS_RUNTIME_ERROR << "vkCreateImageView(LevelZero), res=" << res;
+		}
 	}
 
 	if (_desc._pSamplerDesc)
@@ -149,7 +165,15 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	{
 		CommandBufferVulkan commandBuffer;
 		commandBuffer.InitOneTimeSubmit();
-		commandBuffer.PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, ImageLayout::fsReadOnly, 0, 0);
+		if (cubeMap)
+		{
+			VERUS_FOR(i, +CubeMapFace::count)
+				commandBuffer.PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, ImageLayout::fsReadOnly, 0, i);
+		}
+		else
+		{
+			commandBuffer.PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, ImageLayout::fsReadOnly, 0, 0);
+		}
 		commandBuffer.DoneOneTimeSubmit();
 	}
 	if (depthFormat)
@@ -175,12 +199,16 @@ void TextureVulkan::Done()
 		VERUS_VULKAN_DESTROY(x._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), x._buffer, x._vmaAllocation));
 	_vReadbackBuffers.clear();
 	VERUS_VULKAN_DESTROY(_sampler, vkDestroySampler(pRendererVulkan->GetVkDevice(), _sampler, pRendererVulkan->GetAllocator()));
-	VERUS_VULKAN_DESTROY(_imageViewLevelZero, vkDestroyImageView(pRendererVulkan->GetVkDevice(), _imageViewLevelZero, pRendererVulkan->GetAllocator()));
+
+	VERUS_FOR(i, +CubeMapFace::count)
+		VERUS_VULKAN_DESTROY(_imageViewForFramebuffer[i], vkDestroyImageView(pRendererVulkan->GetVkDevice(), _imageViewForFramebuffer[i], pRendererVulkan->GetAllocator()));
 	VERUS_VULKAN_DESTROY(_imageView, vkDestroyImageView(pRendererVulkan->GetVkDevice(), _imageView, pRendererVulkan->GetAllocator()));
+
 	for (auto view : _vStorageImageViews)
 		VERUS_VULKAN_DESTROY(view, vkDestroyImageView(pRendererVulkan->GetVkDevice(), view, pRendererVulkan->GetAllocator()));
 	_vStorageImageViews.clear();
 	VERUS_VULKAN_DESTROY(_storageImage, vmaDestroyImage(pRendererVulkan->GetVmaAllocator(), _storageImage, _storageVmaAllocation));
+
 	VERUS_VULKAN_DESTROY(_image, vmaDestroyImage(pRendererVulkan->GetVmaAllocator(), _image, _vmaAllocation));
 
 	VERUS_DONE(TextureVulkan);
@@ -420,7 +448,7 @@ void TextureVulkan::CreateSampler()
 	{
 		vksci.compareEnable = VK_TRUE;
 		vksci.compareOp = VK_COMPARE_OP_LESS;
-		if (settings._sceneShadowQuality <= App::Settings::ShadowQuality::nearest)
+		if (settings._sceneShadowQuality <= App::Settings::Quality::low)
 		{
 			vksci.magFilter = VK_FILTER_NEAREST;
 			vksci.minFilter = VK_FILTER_NEAREST;
@@ -489,6 +517,14 @@ void TextureVulkan::CreateSampler()
 		throw VERUS_RUNTIME_ERROR << "vkCreateSampler(), res=" << res;
 
 	_desc._pSamplerDesc = nullptr;
+}
+
+VkImageView TextureVulkan::GetVkImageViewForFramebuffer(CubeMapFace face) const
+{
+	if (CubeMapFace::none == face)
+		return _imageViewForFramebuffer[0] ? _imageViewForFramebuffer[0] : _imageView;
+	else
+		return _imageViewForFramebuffer[+face] ? _imageViewForFramebuffer[+face] : _imageView;
 }
 
 ImageLayout TextureVulkan::GetSubresourceMainLayout(int mipLevel, int arrayLayer) const

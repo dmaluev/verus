@@ -61,16 +61,6 @@ namespace verus
 				ultra
 			};
 
-			enum class ShadowQuality : int
-			{
-				none,
-				nearest,
-				linear,
-				multisampled,
-				cascaded,
-				ultra
-			};
-
 			enum class WaterQuality : int
 			{
 				solidColor,
@@ -92,6 +82,7 @@ namespace verus
 			int           _gapi = 0;
 			int           _gpuAnisotropyLevel = 4;
 			int           _gpuAntialiasingLevel = 0;
+			Quality       _gpuShaderQuality = Quality::medium;
 			bool          _gpuTessellation = true;
 			int	          _gpuTextureLodLevel = 0;
 			bool          _gpuTrilinearFilter = true;
@@ -101,8 +92,8 @@ namespace verus
 			bool          _postProcessCinema = false;
 			bool          _postProcessMotionBlur = false;
 			bool          _postProcessSSAO = false;
-			int	          _sceneGrassDensity = 500;
-			ShadowQuality _sceneShadowQuality = ShadowQuality::multisampled;
+			int	          _sceneGrassDensity = 750;
+			Quality       _sceneShadowQuality = Quality::medium;
 			WaterQuality  _sceneWaterQuality = WaterQuality::solidColor;
 			String        _uiLang = "EN";
 			CommandLine   _commandLine;

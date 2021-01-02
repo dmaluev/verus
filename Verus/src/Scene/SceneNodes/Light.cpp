@@ -291,6 +291,15 @@ void Light::LoadXML(pugi::xml_node node)
 	desc._intShakerScale = node.attribute("intShakerScale").as_float(desc._intShakerScale);
 	if (auto attr = node.attribute("urlIntShaker"))
 		desc._urlIntShaker = attr.value();
+
+	// Normalize:
+	desc._data._dir = VMath::normalize(desc._data._dir);
+	// Convert degrees to cosine:
+	if (desc._data._coneIn > 1)
+		desc._data._coneIn = cos(Math::ToRadians(desc._data._coneIn));
+	if (desc._data._coneOut > 1)
+		desc._data._coneOut = cos(Math::ToRadians(desc._data._coneOut));
+
 	Init(desc);
 }
 

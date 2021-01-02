@@ -23,6 +23,7 @@ void Bloom::Init()
 	VERUS_QREF_RENDERER;
 
 	_rph = renderer->CreateSimpleRenderPass(CGI::Format::srgbR8G8B8A8);
+	_rphGodRays = renderer->CreateSimpleRenderPass(CGI::Format::srgbR8G8B8A8, CGI::RP::Attachment::LoadOp::load);
 
 	_shader.Init("[Shaders]:Bloom.hlsl");
 	_shader->CreateDescriptorSet(0, &s_ubBloomVS, sizeof(s_ubBloomVS), 100, {}, CGI::ShaderStageFlags::vs);
@@ -38,10 +39,17 @@ void Bloom::Init()
 	_shader->CreatePipelineLayout();
 
 	{
-		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#GodRays", _rph);
+		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#", _rph);
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc.DisableDepthTest();
-		_pipe.Init(pipeDesc);
+		_pipe[PIPE_MAIN].Init(pipeDesc);
+	}
+	{
+		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#GodRays", _rphGodRays);
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc.DisableDepthTest();
+		_pipe[PIPE_GOD_RAYS].Init(pipeDesc);
 	}
 
 	OnSwapChainResized();
@@ -69,8 +77,9 @@ void Bloom::OnSwapChainResized()
 {
 	if (!IsInitialized())
 		return;
+
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_ATMO;
+
 	{
 		_shader->FreeDescriptorSet(_cshGodRays);
 		_shader->FreeDescriptorSet(_csh);
@@ -97,43 +106,81 @@ void Bloom::OnSwapChainResized()
 	renderer.GetDS().InitByBloom(_tex[TEX_PING]);
 }
 
-void Bloom::Generate()
+void Bloom::Generate(bool withGodRays)
 {
-	VERUS_QREF_RENDERER;
 	VERUS_QREF_ATMO;
+	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
+
+	if (_editMode)
+	{
+		ImGui::DragFloat("Bloom colorScale", &_colorScale, 0.01f);
+		ImGui::DragFloat("Bloom colorBias", &_colorBias, 0.01f);
+		ImGui::DragFloat("Bloom (god rays) maxDist", &_maxDist, 0.1f);
+		ImGui::DragFloat("Bloom (god rays) sunGloss", &_sunGloss, 0.1f);
+		ImGui::DragFloat("Bloom (god rays) wideStrength", &_wideStrength, 0.01f);
+		ImGui::DragFloat("Bloom (god rays) sunStrength", &_sunStrength, 0.01f);
+		ImGui::Checkbox("Bloom blur", &_blur);
+		ImGui::Checkbox("Bloom (god rays) blur", &_blurGodRays);
+	}
 
 	auto cb = renderer.GetCommandBuffer();
 
 	s_ubBloomVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubBloomVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 	s_ubBloomFS._exposure.x = renderer.GetExposure();
-	s_ubBloomGodRaysFS._matInvVP = Matrix4(VMath::inverse(sm.GetMainCamera()->GetMatrixVP())).UniformBufferFormat();
-	s_ubBloomGodRaysFS._matSunShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
-	s_ubBloomGodRaysFS._matSunShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
-	s_ubBloomGodRaysFS._matSunShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
-	s_ubBloomGodRaysFS._matSunShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
-	memcpy(&s_ubBloomGodRaysFS._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubBloomGodRaysFS._shadowConfig));
-	s_ubBloomGodRaysFS._splitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
-	s_ubBloomGodRaysFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
-	s_ubBloomGodRaysFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-	s_ubBloomGodRaysFS._eyePos = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
+	s_ubBloomFS._colorScale_colorBias.x = _colorScale;
+	s_ubBloomFS._colorScale_colorBias.y = _colorBias;
 
-	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
 	cb->BeginRenderPass(_rph, _fbh, { _tex[TEX_PING]->GetClearValue() });
 
-	cb->BindPipeline(_pipe);
+	cb->BindPipeline(_pipe[PIPE_MAIN]);
 	_shader->BeginBindDescriptors();
 	cb->BindDescriptors(_shader, 0);
 	cb->BindDescriptors(_shader, 1, _csh);
-	cb->BindDescriptors(_shader, 2, _cshGodRays);
 	_shader->EndBindDescriptors();
 	renderer.DrawQuad(cb.Get());
 
 	cb->EndRenderPass();
-	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilReadOnly, CGI::ImageLayout::depthStencilAttachment, 0);
 
-	Blur::I().GenerateForBloom();
+	if (_blur)
+		Blur::I().GenerateForBloom(false);
+
+	if (withGodRays)
+	{
+		s_ubBloomGodRaysFS._matInvVP = Matrix4(VMath::inverse(sm.GetMainCamera()->GetMatrixVP())).UniformBufferFormat();
+		s_ubBloomGodRaysFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
+		s_ubBloomGodRaysFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
+		s_ubBloomGodRaysFS._eyePos = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
+		s_ubBloomGodRaysFS._maxDist_sunGloss_wideStrength_sunStrength.x = _maxDist;
+		s_ubBloomGodRaysFS._maxDist_sunGloss_wideStrength_sunStrength.y = _sunGloss;
+		s_ubBloomGodRaysFS._maxDist_sunGloss_wideStrength_sunStrength.z = _wideStrength;
+		s_ubBloomGodRaysFS._maxDist_sunGloss_wideStrength_sunStrength.w = _sunStrength;
+		s_ubBloomGodRaysFS._matShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
+		s_ubBloomGodRaysFS._matShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
+		s_ubBloomGodRaysFS._matShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
+		s_ubBloomGodRaysFS._matShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
+		s_ubBloomGodRaysFS._matScreenCSM = atmo.GetShadowMap().GetScreenMatrixVP().UniformBufferFormat();
+		s_ubBloomGodRaysFS._csmSplitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
+		memcpy(&s_ubBloomGodRaysFS._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubBloomGodRaysFS._shadowConfig));
+
+		cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
+		cb->BeginRenderPass(_rphGodRays, _fbh, { _tex[TEX_PING]->GetClearValue() });
+
+		cb->BindPipeline(_pipe[PIPE_GOD_RAYS]);
+		_shader->BeginBindDescriptors();
+		cb->BindDescriptors(_shader, 0);
+		cb->BindDescriptors(_shader, 1, _csh);
+		cb->BindDescriptors(_shader, 2, _cshGodRays);
+		_shader->EndBindDescriptors();
+		renderer.DrawQuad(cb.Get());
+
+		cb->EndRenderPass();
+		cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilReadOnly, CGI::ImageLayout::depthStencilAttachment, 0);
+
+		if (_blurGodRays)
+			Blur::I().GenerateForBloom(true);
+	}
 }
 
 CGI::TexturePtr Bloom::GetTexture() const

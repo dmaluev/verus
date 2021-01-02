@@ -432,7 +432,7 @@ void Terrain::Init(RcDesc desc)
 	const int patchSide = _mapSide >> 4;
 	const int patchShift = _mapShift - 4;
 	const int patchCount = patchSide * patchSide;
-	const int maxInstances = patchCount * 8;
+	const int maxInstances = patchCount * 32;
 
 	_vPatches.resize(patchCount);
 	_vPatchTBNs.resize(patchCount * 3);
@@ -586,6 +586,16 @@ void Terrain::Init(RcDesc desc)
 		_pipe[PIPE_WIREFRAME_STRIP].Init(pipeDesc);
 	}
 
+	{
+		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], "#", atmo.GetCubeMap().GetRenderPassHandle());
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._rasterizationState._cullMode = CGI::CullMode::front;
+		_pipe[PIPE_SIMPLE_ENV_MAP_LIST].Init(pipeDesc);
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc._primitiveRestartEnable = true;
+		_pipe[PIPE_SIMPLE_ENV_MAP_STRIP].Init(pipeDesc);
+	}
+
 	CGI::TextureDesc texDesc;
 	texDesc._name = "Terrain.Heightmap";
 	texDesc._format = CGI::Format::floatR16;
@@ -642,18 +652,18 @@ void Terrain::InitByWater()
 		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], "#", water.GetRenderPassHandle());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._rasterizationState._cullMode = CGI::CullMode::front;
-		_pipe[PIPE_REFLECTION_LIST].Init(pipeDesc);
+		_pipe[PIPE_SIMPLE_PLANAR_REF_LIST].Init(pipeDesc);
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc._primitiveRestartEnable = true;
-		_pipe[PIPE_REFLECTION_STRIP].Init(pipeDesc);
+		_pipe[PIPE_SIMPLE_PLANAR_REF_STRIP].Init(pipeDesc);
 	}
 	{
 		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], "#", water.GetRenderPassHandle());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
-		_pipe[PIPE_UNDERWATER_LIST].Init(pipeDesc);
+		_pipe[PIPE_SIMPLE_UNDERWATER_LIST].Init(pipeDesc);
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc._primitiveRestartEnable = true;
-		_pipe[PIPE_UNDERWATER_STRIP].Init(pipeDesc);
+		_pipe[PIPE_SIMPLE_UNDERWATER_STRIP].Init(pipeDesc);
 	}
 }
 
@@ -686,7 +696,7 @@ void Terrain::Layout()
 
 	PCamera pPrevCamera = nullptr;
 	// For CSM we need to create geometry beyond the view frustum (1st slice):
-	if (settings._sceneShadowQuality >= App::Settings::ShadowQuality::cascaded && atmo.GetShadowMap().IsRendering())
+	if (settings._sceneShadowQuality >= App::Settings::Quality::high && atmo.GetShadowMap().IsRendering())
 	{
 		PCamera pCameraCSM = atmo.GetShadowMap().GetCameraCSM();
 		if (pCameraCSM)
@@ -817,7 +827,7 @@ void Terrain::Draw(RcDrawDesc dd)
 	_instanceCount += _visiblePatchCount;
 }
 
-void Terrain::DrawReflection()
+void Terrain::DrawSimple(DrawSimpleMode mode)
 {
 	VERUS_QREF_ATMO;
 	VERUS_QREF_RENDERER;
@@ -828,6 +838,7 @@ void Terrain::DrawReflection()
 		return;
 
 	const Transform3 matW = Transform3::identity();
+	const float clipDistanceOffset = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? USHRT_MAX : 0;
 
 	auto cb = renderer.GetCommandBuffer();
 
@@ -835,7 +846,7 @@ void Terrain::DrawReflection()
 	s_ubSimpleTerrainVS._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubSimpleTerrainVS._eyePos = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
 	s_ubSimpleTerrainVS._mapSideInv_clipDistanceOffset.x = 1.f / _mapSide;
-	s_ubSimpleTerrainVS._mapSideInv_clipDistanceOffset.y = static_cast<float>(water.IsUnderwater() ? USHRT_MAX : 0);
+	s_ubSimpleTerrainVS._mapSideInv_clipDistanceOffset.y = clipDistanceOffset;
 	VERUS_FOR(i, VERUS_COUNT_OF(_layerData))
 		s_ubSimpleTerrainFS._vSpecStrength[i >> 2][i & 0x3] = _layerData[i]._specStrength;
 	s_ubSimpleTerrainFS._lamScaleBias.x = _lamScale;
@@ -844,12 +855,13 @@ void Terrain::DrawReflection()
 	s_ubSimpleTerrainFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubSimpleTerrainFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
 	s_ubSimpleTerrainFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-	s_ubSimpleTerrainFS._matSunShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
-	s_ubSimpleTerrainFS._matSunShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
-	s_ubSimpleTerrainFS._matSunShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
-	s_ubSimpleTerrainFS._matSunShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matScreenCSM = atmo.GetShadowMap().GetScreenMatrixVP().UniformBufferFormat();
+	s_ubSimpleTerrainFS._csmSplitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
 	memcpy(&s_ubSimpleTerrainFS._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubSimpleTerrainFS._shadowConfig));
-	s_ubSimpleTerrainFS._splitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
 
 	cb->BindVertexBuffers(_geo);
 	cb->BindIndexBuffer(_geo);
@@ -870,20 +882,24 @@ void Terrain::DrawReflection()
 
 			if (!lod)
 			{
-				if (water.IsUnderwater())
-					cb->BindPipeline(_pipe[PIPE_UNDERWATER_LIST]);
+				if (DrawSimpleMode::envMap == mode)
+					cb->BindPipeline(_pipe[PIPE_SIMPLE_ENV_MAP_LIST]);
+				else if (water.IsUnderwater())
+					cb->BindPipeline(_pipe[PIPE_SIMPLE_UNDERWATER_LIST]);
 				else
-					cb->BindPipeline(_pipe[PIPE_REFLECTION_LIST]);
+					cb->BindPipeline(_pipe[PIPE_SIMPLE_PLANAR_REF_LIST]);
 				cb->BindDescriptors(s_shader[SHADER_SIMPLE], 0, _cshSimpleVS);
 				cb->BindDescriptors(s_shader[SHADER_SIMPLE], 1, _cshSimpleFS);
 			}
 			else if (bindStrip)
 			{
 				bindStrip = false;
-				if (water.IsUnderwater())
-					cb->BindPipeline(_pipe[PIPE_UNDERWATER_STRIP]);
+				if (DrawSimpleMode::envMap == mode)
+					cb->BindPipeline(_pipe[PIPE_SIMPLE_ENV_MAP_STRIP]);
+				else if (water.IsUnderwater())
+					cb->BindPipeline(_pipe[PIPE_SIMPLE_UNDERWATER_STRIP]);
 				else
-					cb->BindPipeline(_pipe[PIPE_REFLECTION_STRIP]);
+					cb->BindPipeline(_pipe[PIPE_SIMPLE_PLANAR_REF_STRIP]);
 				cb->BindDescriptors(s_shader[SHADER_SIMPLE], 0, _cshSimpleVS);
 				cb->BindDescriptors(s_shader[SHADER_SIMPLE], 1, _cshSimpleFS);
 			}

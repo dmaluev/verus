@@ -136,8 +136,11 @@
     <ClInclude Include="src\Effects\Effects.h" />
     <ClInclude Include="src\Effects\Particles.h" />
     <ClInclude Include="src\Effects\Ssao.h" />
+    <ClInclude Include="src\Effects\Ssr.h" />
+    <ClInclude Include="src\Extra\BaseConvert.h" />
+    <ClInclude Include="src\Extra\ConvertGLTF.h" />
     <ClInclude Include="src\Extra\Extra.h" />
-    <ClInclude Include="src\Extra\FileParser.h" />
+    <ClInclude Include="src\Extra\ConvertX.h" />
     <ClInclude Include="src\Game\BaseGame.h" />
     <ClInclude Include="src\Game\BaseCharacter.h" />
     <ClInclude Include="src\Game\ChainAward.h" />
@@ -236,6 +239,7 @@
     <ClInclude Include="src\Scene\BaseMesh.h" />
     <ClInclude Include="src\Scene\Camera.h" />
     <ClInclude Include="src\Scene\CameraOrbit.h" />
+    <ClInclude Include="src\Scene\CubeMap.h" />
     <ClInclude Include="src\Scene\EditorTerrain.h" />
     <ClInclude Include="src\Scene\Forest.h" />
     <ClInclude Include="src\Scene\Grass.h" />
@@ -272,9 +276,12 @@
     <ClInclude Include="src\ThirdParty\libb64\cencode.h" />
     <ClInclude Include="src\ThirdParty\md5.h" />
     <ClInclude Include="src\ThirdParty\nativefiledialog\nfd.h" />
-    <ClInclude Include="src\ThirdParty\pugixml-1.10\pugiconfig.hpp" />
-    <ClInclude Include="src\ThirdParty\pugixml-1.10\pugixml.hpp" />
+    <ClInclude Include="src\ThirdParty\pugixml-1.11\pugiconfig.hpp" />
+    <ClInclude Include="src\ThirdParty\pugixml-1.11\pugixml.hpp" />
     <ClInclude Include="src\ThirdParty\ThirdParty.h" />
+    <ClInclude Include="src\ThirdParty\tinygltf-2.5.0\stb_image.h" />
+    <ClInclude Include="src\ThirdParty\tinygltf-2.5.0\stb_image_write.h" />
+    <ClInclude Include="src\ThirdParty\tinygltf-2.5.0\tiny_gltf.h" />
     <ClInclude Include="src\ThirdParty\utf8.h" />
     <ClInclude Include="src\ThirdParty\utf8\checked.h" />
     <ClInclude Include="src\ThirdParty\utf8\core.h" />
@@ -333,8 +340,11 @@
     <ClCompile Include="src\Effects\Effects.cpp" />
     <ClCompile Include="src\Effects\Particles.cpp" />
     <ClCompile Include="src\Effects\Ssao.cpp" />
+    <ClCompile Include="src\Effects\Ssr.cpp" />
+    <ClCompile Include="src\Extra\BaseConvert.cpp" />
+    <ClCompile Include="src\Extra\ConvertGLTF.cpp" />
     <ClCompile Include="src\Extra\Extra.cpp" />
-    <ClCompile Include="src\Extra\FileParser.cpp" />
+    <ClCompile Include="src\Extra\ConvertX.cpp" />
     <ClCompile Include="src\Game\BaseGame.cpp" />
     <ClCompile Include="src\Game\BaseCharacter.cpp" />
     <ClCompile Include="src\Game\ChainAward.cpp" />
@@ -411,6 +421,7 @@
     <ClCompile Include="src\Scene\BaseMesh.cpp" />
     <ClCompile Include="src\Scene\Camera.cpp" />
     <ClCompile Include="src\Scene\CameraOrbit.cpp" />
+    <ClCompile Include="src\Scene\CubeMap.cpp" />
     <ClCompile Include="src\Scene\EditorTerrain.cpp" />
     <ClCompile Include="src\Scene\Forest.cpp" />
     <ClCompile Include="src\Scene\Grass.cpp" />
@@ -484,7 +495,11 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="src\ThirdParty\pugixml-1.10\pugixml.cpp">
+    <ClCompile Include="src\ThirdParty\pugixml-1.11\pugixml.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\tinygltf-2.5.0\tinygltf.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -659,8 +674,8 @@
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="src\ThirdParty\imgui\imgui.natvis" />
-    <Natvis Include="src\ThirdParty\pugixml-1.10\pugixml.natvis" />
-    <Natvis Include="src\ThirdParty\pugixml-1.10\pugixml_compact.natvis" />
+    <Natvis Include="src\ThirdParty\pugixml-1.11\pugixml.natvis" />
+    <Natvis Include="src\ThirdParty\pugixml-1.11\pugixml_compact.natvis" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\Shaders\DebugDraw.hlsl">
@@ -807,6 +822,14 @@
       <FileType>Document</FileType>
     </None>
     <None Include="src\Shaders\SimpleMesh.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\Ssr.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\Ssr.inc.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>
