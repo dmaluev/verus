@@ -93,6 +93,11 @@ float Dictionary::FindFloat(CSZ name, float def) const
 	return def;
 }
 
+int Dictionary::GetCount() const
+{
+	return TStoreValues::GetStoredCount();
+}
+
 void Dictionary::ExportAsStrings(Vector<String>& v) const
 {
 	v.clear();

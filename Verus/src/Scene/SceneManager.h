@@ -9,12 +9,13 @@ namespace verus
 		typedef StoreUnique<String, SceneParticles> TStoreSceneParticles;
 		typedef StoreUnique<String, Site> TStoreSites;
 		typedef Store<Block> TStoreBlocks;
-		typedef Store<Light> TStoreLights;
 		typedef Store<Emitter> TStoreEmitters;
+		typedef Store<Light> TStoreLights;
 		typedef Store<Prefab> TStorePrefabs;
+		typedef Store<Trigger> TStoreTriggers;
 		class SceneManager : public Singleton<SceneManager>, public Object, public Math::OctreeDelegate,
 			private TStoreModels, private TStoreSceneParticles, private TStoreSites,
-			private TStoreBlocks, private TStoreLights, private TStoreEmitters, private TStorePrefabs
+			private TStoreBlocks, private TStoreEmitters, private TStoreLights, private TStorePrefabs, private TStoreTriggers
 		{
 			Math::Octree       _octree;
 			PCamera            _pCamera = nullptr;
@@ -71,6 +72,8 @@ namespace verus
 
 			static bool IsDrawingDepth(DrawDepth dd);
 
+			int ComputeBegin(NodeType type) const;
+
 			String EnsureUniqueName(CSZ name);
 
 			// Models:
@@ -126,20 +129,25 @@ namespace verus
 			void DeleteBlock(PBlock p);
 			void DeleteAllBlocks();
 
-			// Lights (and Shadows):
-			PLight InsertLight();
-			void DeleteLight(PLight p);
-			void DeleteAllLights();
-
 			// Emitters:
 			PEmitter InsertEmitter();
 			void DeleteEmitter(PEmitter p);
 			void DeleteAllEmitters();
 
+			// Lights (and Shadows):
+			PLight InsertLight();
+			void DeleteLight(PLight p);
+			void DeleteAllLights();
+
 			// Prefabs:
 			PPrefab InsertPrefab();
 			void DeletePrefab(PPrefab p);
 			void DeleteAllPrefabs();
+
+			// Triggers:
+			PTrigger InsertTrigger();
+			void DeleteTrigger(PTrigger p);
+			void DeleteAllTriggers();
 
 			template<typename T>
 			void ForEachNode(RcQuery query, const T& fn)
@@ -152,25 +160,7 @@ namespace verus
 				{
 					return -1 == query._selected || !!query._selected == node.IsSelected();
 				};
-				auto MatchNotBlockQuery = [&query]()
-				{
-					return !query._blockMesh && !query._blockMaterial;
-				};
 
-				// Visit PBLE:
-				if (NodeType::unknown == query._type || NodeType::prefab == query._type)
-				{
-					VERUS_FOREACH_X(TStorePrefabs::TList, TStorePrefabs::_list, it)
-					{
-						auto& prefab = *it++;
-						if (
-							MatchName(prefab) &&
-							MatchSelected(prefab) &&
-							MatchNotBlockQuery())
-							if (Continue::yes != fn(prefab))
-								return;
-					}
-				}
 				if (NodeType::unknown == query._type || NodeType::block == query._type)
 				{
 					VERUS_FOREACH_X(TStoreBlocks::TList, TStoreBlocks::_list, it)
@@ -185,19 +175,10 @@ namespace verus
 								return;
 					}
 				}
-				if (NodeType::unknown == query._type || NodeType::light == query._type)
-				{
-					VERUS_FOREACH_X(TStoreLights::TList, TStoreLights::_list, it)
-					{
-						auto& light = *it++;
-						if (
-							MatchName(light) &&
-							MatchSelected(light) &&
-							MatchNotBlockQuery())
-							if (Continue::yes != fn(light))
-								return;
-					}
-				}
+
+				if (query._blockMesh || query._blockMaterial)
+					return;
+
 				if (NodeType::unknown == query._type || NodeType::emitter == query._type)
 				{
 					VERUS_FOREACH_X(TStoreEmitters::TList, TStoreEmitters::_list, it)
@@ -206,9 +187,44 @@ namespace verus
 						if (
 							MatchName(emitter) &&
 							MatchSelected(emitter) &&
-							MatchNotBlockQuery() &&
 							(!query._particlesUrl || emitter.GetUrl() == query._particlesUrl))
 							if (Continue::yes != fn(emitter))
+								return;
+					}
+				}
+				if (NodeType::unknown == query._type || NodeType::light == query._type)
+				{
+					VERUS_FOREACH_X(TStoreLights::TList, TStoreLights::_list, it)
+					{
+						auto& light = *it++;
+						if (
+							MatchName(light) &&
+							MatchSelected(light))
+							if (Continue::yes != fn(light))
+								return;
+					}
+				}
+				if (NodeType::unknown == query._type || NodeType::prefab == query._type)
+				{
+					VERUS_FOREACH_X(TStorePrefabs::TList, TStorePrefabs::_list, it)
+					{
+						auto& prefab = *it++;
+						if (
+							MatchName(prefab) &&
+							MatchSelected(prefab))
+							if (Continue::yes != fn(prefab))
+								return;
+					}
+				}
+				if (NodeType::unknown == query._type || NodeType::trigger == query._type)
+				{
+					VERUS_FOREACH_X(TStoreTriggers::TList, TStoreTriggers::_list, it)
+					{
+						auto& trigger = *it++;
+						if (
+							MatchName(trigger) &&
+							MatchSelected(trigger))
+							if (Continue::yes != fn(trigger))
 								return;
 					}
 				}
@@ -226,6 +242,7 @@ namespace verus
 			bool RayCastingTest(RcPoint3 pointA, RcPoint3 pointB, PBlockPtr pBlock = nullptr,
 				PPoint3 pPoint = nullptr, PVector3 pNormal = nullptr, const float* pRadius = nullptr,
 				Physics::Group mask = Physics::Group::immovable | Physics::Group::terrain);
+			Matrix3 GetBasisAt(RcPoint3 point, Physics::Group mask = Physics::Group::immovable | Physics::Group::terrain) const;
 
 			void Serialize(IO::RSeekableStream stream);
 			void Deserialize(IO::RStream stream);

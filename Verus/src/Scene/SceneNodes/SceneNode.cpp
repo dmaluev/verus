@@ -141,6 +141,7 @@ void SceneNode::Serialize(IO::RSeekableStream stream)
 	stream << _uiRotation.GLM();
 	stream << _uiScale.GLM();
 	stream << _tr.GLM4x3();
+	_dict.Serialize(stream);
 }
 
 void SceneNode::Deserialize(IO::RStream stream)
@@ -156,6 +157,7 @@ void SceneNode::Deserialize(IO::RStream stream)
 		stream >> uiRotation;
 		stream >> uiScale;
 		stream >> tr;
+		_dict.Deserialize(stream);
 
 		_name = name;
 		_uiRotation = uiRotation;

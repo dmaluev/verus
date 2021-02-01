@@ -41,6 +41,8 @@ namespace verus
 			int      FindInt(CSZ name, int def = 0) const;
 			float    FindFloat(CSZ name, float def = 0) const;
 
+			int GetCount() const;
+
 			void ExportAsStrings(Vector<String>& v) const;
 
 			void Serialize(RStream stream);
@@ -48,6 +50,16 @@ namespace verus
 
 			String ToString() const;
 			void FromString(CSZ text);
+
+			template<typename T>
+			void ForEach(const T& fn)
+			{
+				for (const auto& x : TStoreValues::_map)
+				{
+					if (Continue::yes != fn(_C(x.first), _C(x.second._s)))
+						return;
+				}
+			}
 		};
 		VERUS_TYPEDEFS(Dictionary);
 	}

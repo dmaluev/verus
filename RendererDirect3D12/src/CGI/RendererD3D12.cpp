@@ -439,6 +439,7 @@ void RendererD3D12::ImGuiInit(RPHandle renderPassHandle)
 void RendererD3D12::ImGuiRenderDrawData()
 {
 	VERUS_QREF_RENDERER;
+	renderer.UpdateUtilization();
 	ImGui::Render();
 	auto pCmdList = static_cast<CommandBufferD3D12*>(renderer.GetCommandBuffer().Get())->GetD3DGraphicsCommandList();
 	if (ImGui::GetDrawData())
@@ -843,4 +844,12 @@ void RendererD3D12::SetDescriptorHeaps(PBaseCommandBuffer p)
 {
 	ID3D12DescriptorHeap* ppHeaps[] = { _dhViews.GetD3DDescriptorHeap(), _dhSamplers.GetD3DDescriptorHeap() };
 	static_cast<CommandBufferD3D12*>(p)->GetD3DGraphicsCommandList()->SetDescriptorHeaps(2, ppHeaps);
+}
+
+void RendererD3D12::UpdateUtilization()
+{
+	for (auto& x : TStoreGeometry::_list)
+		x.UpdateUtilization();
+	for (auto& x : TStoreShaders::_list)
+		x.UpdateUtilization();
 }

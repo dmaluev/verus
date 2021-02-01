@@ -5,19 +5,22 @@ namespace verus
 {
 	namespace Scene
 	{
-		//! SceneManager will sort nodes using their type.
 		enum class NodeType : int
 		{
 			unknown,
+
 			block,
+			emitter,
 			light,
 			prefab,
-			emitter,
+			trigger,
+
 			site,
+
 			terrain,
 			character,
 			vehicle,
-			transformGizmo,
+
 			count
 		};
 	}

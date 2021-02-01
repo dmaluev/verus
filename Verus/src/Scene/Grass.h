@@ -32,10 +32,10 @@ namespace verus
 
 			struct Patch
 			{
-				short i;
-				short j;
-				short h;
-				short type;
+				short _i;
+				short _j;
+				short _h;
+				short _type;
 			};
 			VERUS_TYPEDEFS(Patch);
 

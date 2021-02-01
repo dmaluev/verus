@@ -16,11 +16,12 @@ ViewManager::~ViewManager()
 void ViewManager::Init(bool hasCursor, bool canDebug)
 {
 	VERUS_INIT();
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 
 	_shader.Init("[Shaders]:GUI.hlsl");
-	_shader->CreateDescriptorSet(0, &_ubGui, sizeof(_ubGui), 100);
-	_shader->CreateDescriptorSet(1, &_ubGuiFS, sizeof(_ubGuiFS), 100,
+	_shader->CreateDescriptorSet(0, &_ubGui, sizeof(_ubGui), settings.GetLimits()._gui_ubGuiCapacity);
+	_shader->CreateDescriptorSet(1, &_ubGuiFS, sizeof(_ubGuiFS), settings.GetLimits()._gui_ubGuiFSCapacity,
 		{
 			CGI::Sampler::anisoSharp
 		}, CGI::ShaderStageFlags::fs);

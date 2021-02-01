@@ -20,18 +20,25 @@ Bloom::~Bloom()
 void Bloom::Init()
 {
 	VERUS_INIT();
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
+
+	if (!settings._postProcessBloom)
+	{
+		VERUS_LOG_INFO("Bloom disabled");
+		return;
+	}
 
 	_rph = renderer->CreateSimpleRenderPass(CGI::Format::srgbR8G8B8A8);
 	_rphGodRays = renderer->CreateSimpleRenderPass(CGI::Format::srgbR8G8B8A8, CGI::RP::Attachment::LoadOp::load);
 
 	_shader.Init("[Shaders]:Bloom.hlsl");
-	_shader->CreateDescriptorSet(0, &s_ubBloomVS, sizeof(s_ubBloomVS), 100, {}, CGI::ShaderStageFlags::vs);
-	_shader->CreateDescriptorSet(1, &s_ubBloomFS, sizeof(s_ubBloomFS), 100,
+	_shader->CreateDescriptorSet(0, &s_ubBloomVS, sizeof(s_ubBloomVS), 4, {}, CGI::ShaderStageFlags::vs);
+	_shader->CreateDescriptorSet(1, &s_ubBloomFS, sizeof(s_ubBloomFS), 4,
 		{
 			CGI::Sampler::linearClampMipN
 		}, CGI::ShaderStageFlags::fs);
-	_shader->CreateDescriptorSet(2, &s_ubBloomGodRaysFS, sizeof(s_ubBloomGodRaysFS), 100,
+	_shader->CreateDescriptorSet(2, &s_ubBloomGodRaysFS, sizeof(s_ubBloomGodRaysFS), 4,
 		{
 			CGI::Sampler::linearClampMipN,
 			CGI::Sampler::shadow
@@ -44,6 +51,7 @@ void Bloom::Init()
 		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_MAIN].Init(pipeDesc);
 	}
+	if (settings._postProcessGodRays)
 	{
 		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#GodRays", _rphGodRays);
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
@@ -57,7 +65,11 @@ void Bloom::Init()
 
 void Bloom::InitByAtmosphere(CGI::TexturePtr texShadow)
 {
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
+
+	if (!settings._postProcessBloom)
+		return;
 
 	_texAtmoShadow = texShadow;
 
@@ -67,9 +79,9 @@ void Bloom::InitByAtmosphere(CGI::TexturePtr texShadow)
 void Bloom::Done()
 {
 	VERUS_QREF_RENDERER;
-	_shader->FreeDescriptorSet(_cshGodRays);
-	_shader->FreeDescriptorSet(_csh);
 	renderer->DeleteFramebuffer(_fbh);
+	renderer->DeleteRenderPass(_rphGodRays);
+	renderer->DeleteRenderPass(_rph);
 	VERUS_DONE(Bloom);
 }
 
@@ -78,7 +90,11 @@ void Bloom::OnSwapChainResized()
 	if (!IsInitialized())
 		return;
 
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
+
+	if (!settings._postProcessBloom)
+		return;
 
 	{
 		_shader->FreeDescriptorSet(_cshGodRays);
@@ -106,11 +122,15 @@ void Bloom::OnSwapChainResized()
 	renderer.GetDS().InitByBloom(_tex[TEX_PING]);
 }
 
-void Bloom::Generate(bool withGodRays)
+void Bloom::Generate()
 {
 	VERUS_QREF_ATMO;
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
+
+	if (!settings._postProcessBloom)
+		return;
 
 	if (_editMode)
 	{
@@ -146,7 +166,7 @@ void Bloom::Generate(bool withGodRays)
 	if (_blur)
 		Blur::I().GenerateForBloom(false);
 
-	if (withGodRays)
+	if (settings._postProcessGodRays)
 	{
 		s_ubBloomGodRaysFS._matInvVP = Matrix4(VMath::inverse(sm.GetMainCamera()->GetMatrixVP())).UniformBufferFormat();
 		s_ubBloomGodRaysFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);

@@ -36,7 +36,7 @@ namespace verus
 			CGI::FBHandle                 _fbh;
 			CGI::CSHandle                 _csh;
 			CGI::CSHandle                 _cshGodRays;
-			float                         _colorScale = 0.5f;
+			float                         _colorScale = 0.8f;
 			float                         _colorBias = 1.1f;
 			float                         _maxDist = 20;
 			float                         _sunGloss = 128;
@@ -56,7 +56,7 @@ namespace verus
 
 			void OnSwapChainResized();
 
-			void Generate(bool withGodRays = true);
+			void Generate();
 
 			CGI::TexturePtr GetTexture() const;
 			CGI::TexturePtr GetPongTexture() const;

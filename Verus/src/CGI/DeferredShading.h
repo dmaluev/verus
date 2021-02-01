@@ -16,15 +16,17 @@ namespace verus
 		class DeferredShading : public Object
 		{
 #include "../Shaders/DS.inc.hlsl"
-#include "../Shaders/DS_Compose.inc.hlsl"
 #include "../Shaders/DS_AO.inc.hlsl"
+#include "../Shaders/DS_Compose.inc.hlsl"
+#include "../Shaders/DS_Reflection.inc.hlsl"
 #include "../Shaders/DS_BakeSprites.inc.hlsl"
 
 			enum SHADER
 			{
 				SHADER_LIGHT,
-				SHADER_COMPOSE,
 				SHADER_AO,
+				SHADER_COMPOSE,
+				SHADER_REFLECTION,
 				SHADER_BAKE_SPRITES,
 				SHADER_COUNT
 			};
@@ -34,10 +36,11 @@ namespace verus
 				PIPE_INSTANCED_DIR,
 				PIPE_INSTANCED_OMNI,
 				PIPE_INSTANCED_SPOT,
+				PIPE_INSTANCED_AO,
 				PIPE_COMPOSE,
+				PIPE_REFLECTION,
 				PIPE_TONE_MAPPING,
 				PIPE_QUAD,
-				PIPE_INSTANCED_AO,
 				PIPE_BAKE_SPRITES,
 				PIPE_COUNT
 			};
@@ -59,12 +62,18 @@ namespace verus
 			static UB_PerMeshVS     s_ubPerMeshVS;
 			static UB_ShadowFS      s_ubShadowFS;
 			static UB_PerObject     s_ubPerObject;
-			static UB_ComposeVS     s_ubComposeVS;
-			static UB_ComposeFS     s_ubComposeFS;
+
 			static UB_AOPerFrame    s_ubAOPerFrame;
 			static UB_AOTexturesFS  s_ubAOTexturesFS;
 			static UB_AOPerMeshVS   s_ubAOPerMeshVS;
 			static UB_AOPerObject   s_ubAOPerObject;
+
+			static UB_ComposeVS     s_ubComposeVS;
+			static UB_ComposeFS     s_ubComposeFS;
+
+			static UB_ReflectionVS  s_ubReflectionVS;
+			static UB_ReflectionFS  s_ubReflectionFS;
+
 			static UB_BakeSpritesVS s_ubBakeSpritesVS;
 			static UB_BakeSpritesFS s_ubBakeSpritesFS;
 
@@ -74,22 +83,29 @@ namespace verus
 			TexturePtr               _texShadowAtmo;
 			TexturePtr               _texAO;
 			UINT64                   _frame = 0;
+
 			RPHandle                 _rph;
 			RPHandle                 _rphAO;
 			RPHandle                 _rphCompose;
 			RPHandle                 _rphExtraCompose;
+			RPHandle                 _rphReflection;
 			RPHandle                 _rphBakeSprites;
+
 			FBHandle                 _fbh;
 			FBHandle                 _fbhAO;
 			FBHandle                 _fbhCompose;
 			FBHandle                 _fbhExtraCompose;
+			FBHandle                 _fbhReflection;
 			FBHandle                 _fbhBakeSprites;
+
 			CSHandle                 _cshLight;
 			CSHandle                 _cshAO;
 			CSHandle                 _cshCompose;
+			CSHandle                 _cshReflection;
 			CSHandle                 _cshToneMapping;
 			CSHandle                 _cshQuad[5];
 			CSHandle                 _cshBakeSprites;
+
 			float                    _lightGlossScale = 1;
 			bool                     _activeGeometryPass = false;
 			bool                     _activeLightingPass = false;
@@ -127,6 +143,7 @@ namespace verus
 			void EndAmbientOcclusion();
 			void BeginCompose(RcVector4 bgColor = Vector4(0));
 			void EndCompose();
+			void DrawReflection();
 			void ToneMapping();
 
 			static bool IsLightUrl(CSZ url);

@@ -378,7 +378,8 @@ Transform3 Math::ToUVMatrix(float zOffset, RcVector4 texSize, PcVector4 pTileSiz
 
 	if (uOffset || vOffset)
 	{
-		const Vector4 uvOffset(uOffset * texSize.getZ(), vOffset * texSize.getW());
+		PcVector4 pTexSize = pTileSize ? pTileSize : &texSize;
+		const Vector4 uvOffset(uOffset * pTexSize->getZ(), vOffset * pTexSize->getW());
 		m = Transform3::translation(uvOffset.getXYZ()) * m;
 	}
 

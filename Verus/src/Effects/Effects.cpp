@@ -6,6 +6,7 @@ namespace verus
 	void Make_Effects()
 	{
 		Effects::Bloom::Make();
+		Effects::Cinema::Make();
 		Effects::Ssao::Make();
 		Effects::Ssr::Make();
 		Effects::Blur::Make();
@@ -15,6 +16,7 @@ namespace verus
 		Effects::Blur::Free();
 		Effects::Ssr::Free();
 		Effects::Ssao::Free();
+		Effects::Cinema::Free();
 		Effects::Bloom::Free();
 	}
 }

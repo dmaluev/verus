@@ -132,8 +132,8 @@ namespace verus
 
 			struct LayerData
 			{
-				float _specStrength = 1;
-				float _detailStrength = 1;
+				float _specStrength = 0.5f;
+				float _detailStrength = 0.5f;
 			};
 
 		protected:

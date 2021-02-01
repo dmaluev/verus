@@ -9,12 +9,18 @@ DeferredShading::UB_TexturesFS    DeferredShading::s_ubTexturesFS;
 DeferredShading::UB_PerMeshVS     DeferredShading::s_ubPerMeshVS;
 DeferredShading::UB_ShadowFS      DeferredShading::s_ubShadowFS;
 DeferredShading::UB_PerObject     DeferredShading::s_ubPerObject;
-DeferredShading::UB_ComposeVS     DeferredShading::s_ubComposeVS;
-DeferredShading::UB_ComposeFS     DeferredShading::s_ubComposeFS;
+
 DeferredShading::UB_AOPerFrame    DeferredShading::s_ubAOPerFrame;
 DeferredShading::UB_AOTexturesFS  DeferredShading::s_ubAOTexturesFS;
 DeferredShading::UB_AOPerMeshVS   DeferredShading::s_ubAOPerMeshVS;
 DeferredShading::UB_AOPerObject   DeferredShading::s_ubAOPerObject;
+
+DeferredShading::UB_ComposeVS     DeferredShading::s_ubComposeVS;
+DeferredShading::UB_ComposeFS     DeferredShading::s_ubComposeFS;
+
+DeferredShading::UB_ReflectionVS  DeferredShading::s_ubReflectionVS;
+DeferredShading::UB_ReflectionFS  DeferredShading::s_ubReflectionFS;
+
 DeferredShading::UB_BakeSpritesVS DeferredShading::s_ubBakeSpritesVS;
 DeferredShading::UB_BakeSpritesFS DeferredShading::s_ubBakeSpritesFS;
 
@@ -65,9 +71,10 @@ void DeferredShading::Init()
 		{
 			RP::Dependency("Sp0", "Sp1").Mode(1)
 		});
+	const RP::Attachment::LoadOp loadOp = settings._postProcessSSAO ? RP::Attachment::LoadOp::load : RP::Attachment::LoadOp::clear;
 	_rphAO = renderer->CreateRenderPass(
 		{
-			RP::Attachment("Attach", Format::unormR8).Layout(ImageLayout::fsReadOnly),
+			RP::Attachment("Attach", Format::unormR8).SetLoadOp(loadOp).Layout(ImageLayout::fsReadOnly),
 			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilReadOnly)
 		},
 		{
@@ -93,6 +100,7 @@ void DeferredShading::Init()
 				})
 		},
 		{});
+	// Extra stuff, which is not using deferred shading, for example water and sky:
 	_rphExtraCompose = renderer->CreateRenderPass(
 		{
 			RP::Attachment("ComposedA", Format::floatR11G11B10).Layout(ImageLayout::fsReadOnly),
@@ -105,6 +113,8 @@ void DeferredShading::Init()
 				}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachment))
 		},
 		{});
+	// Reflection is added using additive blending:
+	_rphReflection = renderer->CreateSimpleRenderPass(Format::floatR11G11B10, RP::Attachment::LoadOp::load);
 
 	_shader[SHADER_LIGHT].Init("[Shaders]:DS.hlsl");
 	_shader[SHADER_LIGHT]->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame), settings._limits._ds_ubPerFrameCapacity);
@@ -122,19 +132,6 @@ void DeferredShading::Init()
 	_shader[SHADER_LIGHT]->CreateDescriptorSet(4, &s_ubPerObject, sizeof(s_ubPerObject), 0);
 	_shader[SHADER_LIGHT]->CreatePipelineLayout();
 
-	_shader[SHADER_COMPOSE].Init("[Shaders]:DS_Compose.hlsl");
-	_shader[SHADER_COMPOSE]->CreateDescriptorSet(0, &s_ubComposeVS, sizeof(s_ubComposeVS), 2, {}, ShaderStageFlags::vs);
-	_shader[SHADER_COMPOSE]->CreateDescriptorSet(1, &s_ubComposeFS, sizeof(s_ubComposeFS), 2,
-		{
-			Sampler::nearestClampMipN,
-			Sampler::nearestClampMipN,
-			Sampler::nearestClampMipN,
-			Sampler::nearestClampMipN,
-			Sampler::linearClampMipN, // For bloom.
-			Sampler::nearestClampMipN
-		}, ShaderStageFlags::fs);
-	_shader[SHADER_COMPOSE]->CreatePipelineLayout();
-
 	_shader[SHADER_AO].Init("[Shaders]:DS_AO.hlsl");
 	_shader[SHADER_AO]->CreateDescriptorSet(0, &s_ubAOPerFrame, sizeof(s_ubAOPerFrame), settings._limits._ds_ubAOPerFrameCapacity);
 	_shader[SHADER_AO]->CreateDescriptorSet(1, &s_ubAOTexturesFS, sizeof(s_ubAOTexturesFS), settings._limits._ds_ubAOTexturesFSCapacity,
@@ -145,6 +142,40 @@ void DeferredShading::Init()
 	_shader[SHADER_AO]->CreateDescriptorSet(2, &s_ubAOPerMeshVS, sizeof(s_ubAOPerMeshVS), settings._limits._ds_ubAOPerMeshVSCapacity, {}, ShaderStageFlags::vs);
 	_shader[SHADER_AO]->CreateDescriptorSet(3, &s_ubAOPerObject, sizeof(s_ubAOPerObject), 0);
 	_shader[SHADER_AO]->CreatePipelineLayout();
+
+	ShaderDesc shaderDesc("[Shaders]:DS_Compose.hlsl");
+	String userDefines;
+	if (settings._postProcessBloom)
+		userDefines += " BLOOM";
+	if (settings._postProcessSSAO || settings._sceneAmbientOcclusion)
+		userDefines += " AO";
+	if (!userDefines.empty())
+	{
+		userDefines = userDefines.substr(1);
+		shaderDesc._userDefines = _C(userDefines);
+	}
+	_shader[SHADER_COMPOSE].Init(shaderDesc);
+	_shader[SHADER_COMPOSE]->CreateDescriptorSet(0, &s_ubComposeVS, sizeof(s_ubComposeVS), 4, {}, ShaderStageFlags::vs);
+	_shader[SHADER_COMPOSE]->CreateDescriptorSet(1, &s_ubComposeFS, sizeof(s_ubComposeFS), 4,
+		{
+			Sampler::nearestClampMipN, // GBuffer0
+			Sampler::nearestClampMipN, // GBuffer1
+			Sampler::nearestClampMipN, // GBuffer2|AO
+			Sampler::nearestClampMipN, // Depth|Composed
+			Sampler::linearClampMipN, // AccDiff|Bloom
+			Sampler::nearestClampMipN // AccSpec
+		}, ShaderStageFlags::fs);
+	_shader[SHADER_COMPOSE]->CreatePipelineLayout();
+
+	_shader[SHADER_REFLECTION].Init("[Shaders]:DS_Reflection.hlsl");
+	_shader[SHADER_REFLECTION]->CreateDescriptorSet(0, &s_ubReflectionVS, sizeof(s_ubReflectionVS), 2);
+	_shader[SHADER_REFLECTION]->CreateDescriptorSet(1, &s_ubReflectionFS, sizeof(s_ubReflectionFS), 2,
+		{
+			Sampler::nearestClampMipN,
+			Sampler::nearestClampMipN,
+			Sampler::nearestClampMipN
+		}, ShaderStageFlags::fs);
+	_shader[SHADER_REFLECTION]->CreatePipelineLayout();
 
 	_shader[SHADER_BAKE_SPRITES].Init("[Shaders]:DS_BakeSprites.hlsl");
 	_shader[SHADER_BAKE_SPRITES]->CreateDescriptorSet(0, &s_ubBakeSpritesVS, sizeof(s_ubBakeSpritesVS), 1000);
@@ -163,6 +194,13 @@ void DeferredShading::Init()
 		pipeDesc._topology = PrimitiveTopology::triangleStrip;
 		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_COMPOSE].Init(pipeDesc);
+	}
+	{
+		PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader[SHADER_REFLECTION], "#", _rphReflection);
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
+		pipeDesc._topology = PrimitiveTopology::triangleStrip;
+		pipeDesc.DisableDepthTest();
+		_pipe[PIPE_REFLECTION].Init(pipeDesc);
 	}
 	{
 		PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader[SHADER_COMPOSE], "#ToneMapping", renderer.GetRenderPassHandle_AutoWithDepth());
@@ -196,7 +234,7 @@ void DeferredShading::InitGBuffers(int w, int h)
 	_tex[TEX_GBUFFER_0].Init(texDesc);
 
 	// GB1:
-	texDesc._clearValue = Vector4(0);
+	texDesc._clearValue = Vector4(0, 0, 0.25f, 1);
 	texDesc._name = "DeferredShading.GBuffer1";
 	texDesc._format = Format::unormR10G10B10A2;
 	texDesc._width = w;
@@ -205,7 +243,7 @@ void DeferredShading::InitGBuffers(int w, int h)
 	_tex[TEX_GBUFFER_1].Init(texDesc);
 
 	// GB2:
-	texDesc._clearValue = Vector4(0);
+	texDesc._clearValue = Vector4(1 / 8.f, 0.5f, 0.5f, 0);
 	texDesc._name = "DeferredShading.GBuffer2";
 	texDesc._format = Format::unormR8G8B8A8;
 	texDesc._width = w;
@@ -292,12 +330,14 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 
 	if (done)
 	{
-		_shader[SHADER_LIGHT]->FreeDescriptorSet(_cshLight);
 		VERUS_FOR(i, VERUS_COUNT_OF(_cshQuad))
 			renderer.GetShaderQuad()->FreeDescriptorSet(_cshQuad[i]);
 		_shader[SHADER_COMPOSE]->FreeDescriptorSet(_cshToneMapping);
+		_shader[SHADER_REFLECTION]->FreeDescriptorSet(_cshReflection);
 		_shader[SHADER_COMPOSE]->FreeDescriptorSet(_cshCompose);
+		_shader[SHADER_LIGHT]->FreeDescriptorSet(_cshLight);
 
+		renderer->DeleteFramebuffer(_fbhReflection);
 		renderer->DeleteFramebuffer(_fbhExtraCompose);
 		renderer->DeleteFramebuffer(_fbhCompose);
 		renderer->DeleteFramebuffer(_fbhAO);
@@ -358,6 +398,12 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 			},
 			renderer.GetSwapChainWidth(),
 			renderer.GetSwapChainHeight());
+		_fbhReflection = renderer->CreateFramebuffer(_rphReflection,
+			{
+				_tex[TEX_COMPOSED_A]
+			},
+			renderer.GetSwapChainWidth(),
+			renderer.GetSwapChainHeight());
 
 		_cshCompose = _shader[SHADER_COMPOSE]->BindDescriptorSetTextures(1,
 			{
@@ -366,6 +412,12 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 				_tex[TEX_GBUFFER_2],
 				renderer.GetTexDepthStencil(),
 				_tex[TEX_LIGHT_ACC_DIFF],
+				_tex[TEX_LIGHT_ACC_SPEC]
+			});
+		_cshReflection = _shader[SHADER_REFLECTION]->BindDescriptorSetTextures(1,
+			{
+				_tex[TEX_GBUFFER_0],
+				_tex[TEX_GBUFFER_2],
 				_tex[TEX_LIGHT_ACC_SPEC]
 			});
 		_cshToneMapping = _shader[SHADER_COMPOSE]->BindDescriptorSetTextures(1,
@@ -641,6 +693,27 @@ void DeferredShading::EndCompose()
 	VERUS_QREF_RENDERER;
 
 	renderer.GetCommandBuffer()->EndRenderPass();
+}
+
+void DeferredShading::DrawReflection()
+{
+	VERUS_QREF_RENDERER;
+
+	auto cb = renderer.GetCommandBuffer();
+
+	s_ubReflectionVS._matW = Math::QuadMatrix().UniformBufferFormat();
+	s_ubReflectionVS._matV = Math::ToUVMatrix().UniformBufferFormat();
+
+	cb->BeginRenderPass(_rphReflection, _fbhReflection, { _tex[TEX_COMPOSED_A]->GetClearValue() });
+
+	cb->BindPipeline(_pipe[PIPE_REFLECTION]);
+	_shader[SHADER_REFLECTION]->BeginBindDescriptors();
+	cb->BindDescriptors(_shader[SHADER_REFLECTION], 0);
+	cb->BindDescriptors(_shader[SHADER_REFLECTION], 1, _cshReflection);
+	_shader[SHADER_REFLECTION]->EndBindDescriptors();
+	renderer.DrawQuad(cb.Get());
+
+	cb->EndRenderPass();
 }
 
 void DeferredShading::ToneMapping()

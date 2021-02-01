@@ -41,11 +41,21 @@ namespace verus
 				TEX_COUNT
 			};
 
+			struct Utilization
+			{
+				String _name;
+				INT64  _value = 0;
+				INT64  _total = 0;
+				float  _fraction = 0;
+			};
+			VERUS_TYPEDEFS(Utilization);
+
 			struct Vertex
 			{
 				glm::vec2 _pos;
 			};
 
+			Vector<Utilization>      _vUtilization;
 			App::PWindow             _pMainWindow = nullptr;
 			PBaseRenderer            _pBaseRenderer = nullptr;
 			PRendererDelegate        _pRendererDelegate = nullptr;
@@ -74,6 +84,7 @@ namespace verus
 			UB_QuadVS                _ubQuadVS;
 			UB_QuadFS                _ubQuadFS;
 			bool                     _autoExposure = true;
+			bool                     _showUtilization = false;
 
 		public:
 			Renderer();
@@ -154,6 +165,10 @@ namespace verus
 			float GetExposure() const { return _exposure[0]; }
 			float GetExposureValue() const { return _exposure[1]; }
 			void SetExposureValue(float ev);
+
+			void ToggleUtilization() { _showUtilization = !_showUtilization; }
+			void UpdateUtilization();
+			void AddUtilization(CSZ name, INT64 value, INT64 total);
 		};
 		VERUS_TYPEDEFS(Renderer);
 	}

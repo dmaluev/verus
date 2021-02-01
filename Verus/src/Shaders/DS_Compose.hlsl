@@ -72,7 +72,9 @@ FSO2 mainFS(VSO si)
 	// <Sample>
 	const float4 rawGBuffer0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.f);
 	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.f);
+#ifdef DEF_AO
 	const float4 rawGBuffer2 = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.f);
+#endif
 	const float rawDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f).r;
 	const float4 rawAccDiff = g_texAccDiff.SampleLevel(g_samAccDiff, si.tc0, 0.f);
 	const float4 rawAccSpec = g_texAccSpec.SampleLevel(g_samAccSpec, si.tc0, 0.f);
@@ -85,15 +87,21 @@ FSO2 mainFS(VSO si)
 	const float3 posW = DS_GetPosition(rawDepth, g_ubComposeFS._matInvVP, ndcPos);
 	const float depth = ToLinearDepth(rawDepth, g_ubComposeFS._zNearFarEx);
 
-	const float ssaoDiff = 0.5f + 0.5f * rawGBuffer2.r;
-	const float ssaoSpec = ssaoDiff;
-	const float ssaoAmb = rawGBuffer2.r;
+#ifdef DEF_AO
+	const float aoDiff = 0.5f + 0.5f * rawGBuffer2.r;
+	const float aoSpec = aoDiff;
+	const float aoAmb = rawGBuffer2.r;
+#else
+	const float aoDiff = 1.f;
+	const float aoSpec = 1.f;
+	const float aoAmb = 1.f;
+#endif
 
 	const float3 normalW = mul(normalWV, (float3x3)g_ubComposeFS._matInvV);
 	const float grayAmbient = Grayscale(ambientColor);
 	const float3 finalAmbientColor = lerp(grayAmbient * 0.25f, ambientColor, normalW.y * 0.5f + 0.5f);
 
-	const float3 color = realAlbedo * (rawAccDiff.rgb * ssaoDiff + finalAmbientColor * ssaoAmb + emission.x) + rawAccSpec.rgb * ssaoSpec;
+	const float3 color = realAlbedo * (rawAccDiff.rgb * aoDiff + finalAmbientColor * aoAmb + emission.x) + rawAccSpec.rgb * aoSpec;
 
 	// <Underwater>
 	float3 underwaterColor;
@@ -154,33 +162,24 @@ FSO mainFS(VSO si)
 	// <Sample>
 	const float4 rawGBuffer0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.f);
 	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.f);
-	const float4 rawGBuffer2 = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.f);
-	float4 rawComposed = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f);
+	const float4 rawComposed = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f);
+#ifdef DEF_BLOOM
 	const float4 rawAccDiff = g_texAccDiff.SampleLevel(g_samAccDiff, si.tc0, 0.f);
-	const float4 rawAccSpec = g_texAccSpec.SampleLevel(g_samAccSpec, si.tc0, 0.f);
+#endif
 	// </Sample>
-
-	// Add reflection:
-	const float specMask = rawGBuffer0.a;
-	const float3 metalColor = ToMetalColor(rawGBuffer0.rgb);
-	const float2 metalMask = DS_GetMetallicity(rawGBuffer2);
-	rawComposed.rgb += rawAccSpec.rgb * lerp(1.f, metalColor, metalMask.x) * specMask;
 
 	const float gray = Grayscale(rawComposed.rgb);
 	const float3 exposedComposed = Desaturate(rawComposed.rgb, saturate(1.f - gray * 0.03f)) * g_ubComposeFS._ambientColor_exposure.a;
 	so.color.rgb = VerusToneMapping(exposedComposed, 0.5f);
 	so.color.a = 1.f;
 
-	// Vignette:
-	const float2 tcOffset = si.tc0 * 1.4f - 0.7f;
-	const float lamp = saturate(dot(tcOffset, tcOffset));
-	so.color.rgb = lerp(so.color.rgb, so.color.rgb * float3(0.64f, 0.48f, 0.36f), lamp);
-
-	// SolidColor (using special value 1.f for emission):
+	// SolidColor (using special value 1 for emission):
 	so.color.rgb = lerp(so.color.rgb, rawGBuffer0.rgb, floor(rawGBuffer1.b));
 
+#ifdef DEF_BLOOM
 	const float3 bloom = rawAccDiff.rgb;
 	so.color.rgb += bloom * (1.f - so.color.rgb);
+#endif
 
 	if (false)
 	{

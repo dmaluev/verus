@@ -84,10 +84,13 @@ void Settings::SetQuality(Quality q)
 	switch (q)
 	{
 	case Quality::low:
-		_gpuAnisotropyLevel = 0;
+		_gpuAnisotropyLevel = 2;
 		_gpuShaderQuality = Quality::low;
 		_gpuTrilinearFilter = false;
-		_sceneGrassDensity = 500;
+		_postProcessBloom = false;
+		_postProcessGodRays = false;
+		_postProcessSSAO = false;
+		_sceneGrassDensity = 600;
 		_sceneShadowQuality = Quality::low;
 		_sceneWaterQuality = WaterQuality::solidColor;
 		break;
@@ -96,25 +99,22 @@ void Settings::SetQuality(Quality q)
 	case Quality::high:
 		_gpuAnisotropyLevel = 8;
 		_gpuShaderQuality = Quality::high;
-		_postProcessBloom = true;
 		_postProcessCinema = true;
-		_postProcessSSAO = true;
-		_sceneGrassDensity = 1000;
+		_sceneAmbientOcclusion = true;
+		_sceneGrassDensity = 900;
 		_sceneShadowQuality = Quality::high;
 		_sceneWaterQuality = WaterQuality::trueWavesReflection;
 		break;
 	case Quality::ultra:
 		_gpuAnisotropyLevel = 16;
 		_gpuShaderQuality = Quality::ultra;
-		_postProcessBloom = true;
 		_postProcessCinema = true;
 		_postProcessMotionBlur = true;
-		_postProcessSSAO = true;
+		_postProcessSSR = true;
+		_sceneAmbientOcclusion = true;
 		_sceneGrassDensity = 1000;
 		_sceneShadowQuality = Quality::ultra;
 		_sceneWaterQuality = WaterQuality::trueWavesRefraction;
-		_displaySizeHeight = 1080;
-		_displaySizeWidth = 1980;
 		break;
 	}
 }
@@ -142,8 +142,11 @@ void Settings::Load()
 	_inputMouseSensitivity = GetF("inputMouseSensitivity", _inputMouseSensitivity);
 	_postProcessBloom = GetB("postProcessBloom", _postProcessBloom);
 	_postProcessCinema = GetB("postProcessCinema", _postProcessCinema);
+	_postProcessGodRays = GetB("postProcessGodRays", _postProcessGodRays);
 	_postProcessMotionBlur = GetB("postProcessMotionBlur", _postProcessMotionBlur);
 	_postProcessSSAO = GetB("postProcessSSAO", _postProcessSSAO);
+	_postProcessSSR = GetB("postProcessSSR", _postProcessSSR);
+	_sceneAmbientOcclusion = GetB("sceneAmbientOcclusion", _sceneAmbientOcclusion);
 	_sceneGrassDensity = GetI("sceneGrassDensity", _sceneGrassDensity);
 	_sceneShadowQuality = static_cast<Quality>(GetI("sceneShadowQuality", +_sceneShadowQuality));
 	_sceneWaterQuality = static_cast<WaterQuality>(GetI("sceneWaterQuality", +_sceneWaterQuality));
@@ -228,8 +231,11 @@ void Settings::Save()
 	Set("inputMouseSensitivity", _inputMouseSensitivity);
 	Set("postProcessBloom", _postProcessBloom);
 	Set("postProcessCinema", _postProcessCinema);
+	Set("postProcessGodRays", _postProcessGodRays);
 	Set("postProcessMotionBlur", _postProcessMotionBlur);
 	Set("postProcessSSAO", _postProcessSSAO);
+	Set("postProcessSSR", _postProcessSSR);
+	Set("sceneAmbientOcclusion", _sceneAmbientOcclusion);
 	Set("sceneGrassDensity", _sceneGrassDensity);
 	Set("sceneShadowQuality", +_sceneShadowQuality);
 	Set("sceneWaterQuality", +_sceneWaterQuality);

@@ -724,3 +724,16 @@ void ShaderD3D12::UpdateDebugInfo(
 
 	_debugInfo = ss.str();
 }
+
+void ShaderD3D12::UpdateUtilization()
+{
+	VERUS_QREF_RENDERER;
+	int setNumber = 0;
+	for (const auto& dsd : _vDescriptorSetDesc)
+	{
+		StringStream ss;
+		ss << "set=" << setNumber << ", " << _sourceName;
+		renderer.AddUtilization(_C(ss.str()), dsd._index, dsd._capacity);
+		setNumber++;
+	}
+}

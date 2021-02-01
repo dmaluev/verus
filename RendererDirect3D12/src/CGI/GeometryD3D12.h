@@ -13,6 +13,7 @@ namespace verus
 				D3D12MA::Allocation* _pMaAllocation = nullptr;
 				UINT64                   _bufferSize = 0;
 				D3D12_VERTEX_BUFFER_VIEW _bufferView[BaseRenderer::s_ringBufferSize] = {};
+				INT64                    _utilization = -1;
 			};
 
 			Vector<BufferEx>                 _vVertexBuffers;
@@ -47,6 +48,8 @@ namespace verus
 			int GetVertexBufferCount() const { return Utils::Cast32(_vVertexBuffers.size()); }
 			const D3D12_VERTEX_BUFFER_VIEW* GetD3DVertexBufferView(int binding) const;
 			const D3D12_INDEX_BUFFER_VIEW* GetD3DIndexBufferView() const;
+
+			void UpdateUtilization();
 		};
 		VERUS_TYPEDEFS(GeometryD3D12);
 	}

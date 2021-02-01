@@ -39,16 +39,18 @@ Grass::~Grass()
 
 void Grass::InitStatic()
 {
+	VERUS_QREF_CONST_SETTINGS;
+
 	s_shader.Init("[Shaders]:DS_Grass.hlsl");
-	s_shader->CreateDescriptorSet(0, &s_ubGrassVS, sizeof(s_ubGrassVS), 100,
+	s_shader->CreateDescriptorSet(0, &s_ubGrassVS, sizeof(s_ubGrassVS), settings.GetLimits()._grass_ubVSCapacity,
 		{
-			CGI::Sampler::linearMipL,
-			CGI::Sampler::linearMipN,
-			CGI::Sampler::nearestMipN,
+			CGI::Sampler::linearMipL, // Height
+			CGI::Sampler::nearestMipN, // Normal
+			CGI::Sampler::nearestMipN, // MLayer
 		}, CGI::ShaderStageFlags::vs);
-	s_shader->CreateDescriptorSet(1, &s_ubGrassFS, sizeof(s_ubGrassFS), 100,
+	s_shader->CreateDescriptorSet(1, &s_ubGrassFS, sizeof(s_ubGrassFS), settings.GetLimits()._grass_ubFSCapacity,
 		{
-			CGI::Sampler::aniso
+			CGI::Sampler::linearMipL
 		}, CGI::ShaderStageFlags::fs);
 	s_shader->CreatePipelineLayout();
 }
@@ -75,7 +77,6 @@ void Grass::Init(RTerrain terrain, CSZ atlasUrl)
 	_mapShift = Math::HighestBit(_mapSide);
 
 	const int patchSide = _mapSide >> 4;
-	const int patchShift = _mapShift - 4;
 	const int patchCount = patchSide * patchSide;
 	const int maxInstances = 128 * 8;
 
@@ -230,6 +231,7 @@ void Grass::Draw()
 
 	const UINT32 bushMask = _bushMask & 0xFF; // Use only first 8 bushes, next 8 are reserved.
 	const int half = _mapSide >> 1;
+	const int offset = _instanceCount;
 
 	auto cb = renderer.GetCommandBuffer();
 
@@ -256,12 +258,12 @@ void Grass::Draw()
 	VERUS_FOR(i, _visiblePatchCount)
 	{
 		RcPatch patch = _vPatches[i];
-		if (patch.type & 0x2)
+		if (patch._type & 0x2)
 		{
 			const int at = _instanceCount + pointSpriteInstCount;
-			_vInstanceBuffer[at]._patchPos[0] = patch.j - half;
-			_vInstanceBuffer[at]._patchPos[1] = patch.h;
-			_vInstanceBuffer[at]._patchPos[2] = patch.i - half;
+			_vInstanceBuffer[at]._patchPos[0] = patch._j - half;
+			_vInstanceBuffer[at]._patchPos[1] = patch._h;
+			_vInstanceBuffer[at]._patchPos[2] = patch._i - half;
 			_vInstanceBuffer[at]._patchPos[3] = 0;
 			pointSpriteInstCount++;
 		}
@@ -276,12 +278,12 @@ void Grass::Draw()
 	VERUS_FOR(i, _visiblePatchCount)
 	{
 		RcPatch patch = _vPatches[i];
-		if (patch.type & 0x1)
+		if (patch._type & 0x1)
 		{
 			const int at = _instanceCount + meshInstCount;
-			_vInstanceBuffer[at]._patchPos[0] = patch.j - half;
-			_vInstanceBuffer[at]._patchPos[1] = patch.h;
-			_vInstanceBuffer[at]._patchPos[2] = patch.i - half;
+			_vInstanceBuffer[at]._patchPos[0] = patch._j - half;
+			_vInstanceBuffer[at]._patchPos[1] = patch._h;
+			_vInstanceBuffer[at]._patchPos[2] = patch._i - half;
 			_vInstanceBuffer[at]._patchPos[3] = 0;
 			meshInstCount++;
 		}
@@ -291,7 +293,7 @@ void Grass::Draw()
 
 	s_shader->EndBindDescriptors();
 
-	_geo->UpdateVertexBuffer(_vInstanceBuffer.data(), 1);
+	_geo->UpdateVertexBuffer(_vInstanceBuffer.data(), 1, cb.Get(), _instanceCount - offset, offset);
 }
 
 void Grass::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center)
@@ -304,14 +306,14 @@ void Grass::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 cent
 		return;
 
 	Patch patch;
-	patch.i = ij[0];
-	patch.j = ij[1];
-	patch.h = Terrain::ConvertHeight(center.getY());
-	patch.type = 0;
+	patch._i = ij[0];
+	patch._j = ij[1];
+	patch._h = Terrain::ConvertHeight(center.getY());
+	patch._type = 0;
 	if (distSq <= 64 * 64.f)
-		patch.type |= 0x1;
+		patch._type |= 0x1;
 	if (distSq >= 16 * 16.f)
-		patch.type |= 0x2;
+		patch._type |= 0x2;
 	_vPatches[_visiblePatchCount++] = patch;
 }
 

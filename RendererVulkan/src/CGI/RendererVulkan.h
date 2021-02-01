@@ -185,6 +185,8 @@ namespace verus
 				uint32_t width, uint32_t height,
 				VkBuffer buffer,
 				PBaseCommandBuffer pCB = nullptr);
+
+			virtual void UpdateUtilization() override;
 		};
 		VERUS_TYPEDEFS(RendererVulkan);
 	}

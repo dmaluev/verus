@@ -12,6 +12,7 @@ namespace verus
 				VkBuffer      _buffer = VK_NULL_HANDLE;
 				VmaAllocation _vmaAllocation = VK_NULL_HANDLE;
 				VkDeviceSize  _bufferSize = 0;
+				INT64         _utilization = -1;
 			};
 
 			Vector<VkBufferEx>                        _vVertexBuffers;
@@ -49,6 +50,8 @@ namespace verus
 			VkBuffer GetVkIndexBuffer() const { return _indexBuffer._buffer; }
 			VkDeviceSize GetVkVertexBufferOffset(int binding) const;
 			VkDeviceSize GetVkIndexBufferOffset() const;
+
+			void UpdateUtilization();
 		};
 		VERUS_TYPEDEFS(GeometryVulkan);
 	}

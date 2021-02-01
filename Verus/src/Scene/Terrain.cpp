@@ -380,12 +380,12 @@ void Terrain::InitStatic()
 	VERUS_QREF_CONST_SETTINGS;
 
 	s_shader[SHADER_MAIN].Init("[Shaders]:DS_Terrain.hlsl");
-	s_shader[SHADER_MAIN]->CreateDescriptorSet(0, &s_ubTerrainVS, sizeof(s_ubTerrainVS), settings.GetLimits()._terrain_ubDrawDepthCapacity,
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(0, &s_ubTerrainVS, sizeof(s_ubTerrainVS), settings.GetLimits()._terrain_ubVSCapacity,
 		{
 			CGI::Sampler::linearMipN, // Height
 			CGI::Sampler::linearMipN // Normal
 		}, CGI::ShaderStageFlags::vs_hs_ds);
-	s_shader[SHADER_MAIN]->CreateDescriptorSet(1, &s_ubTerrainFS, sizeof(s_ubTerrainFS), 1000,
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(1, &s_ubTerrainFS, sizeof(s_ubTerrainFS), settings.GetLimits()._terrain_ubFSCapacity,
 		{
 			CGI::Sampler::aniso, // Normal
 			CGI::Sampler::aniso, // Blend
@@ -396,12 +396,12 @@ void Terrain::InitStatic()
 	s_shader[SHADER_MAIN]->CreatePipelineLayout();
 
 	s_shader[SHADER_SIMPLE].Init("[Shaders]:SimpleTerrain.hlsl");
-	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(0, &s_ubSimpleTerrainVS, sizeof(s_ubSimpleTerrainVS), settings.GetLimits()._terrain_ubDrawDepthCapacity,
+	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(0, &s_ubSimpleTerrainVS, sizeof(s_ubSimpleTerrainVS), settings.GetLimits()._terrain_ubVSCapacity,
 		{
 			CGI::Sampler::linearMipN, // Height
 			CGI::Sampler::linearMipN // Normal
 		}, CGI::ShaderStageFlags::vs);
-	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(1, &s_ubSimpleTerrainFS, sizeof(s_ubSimpleTerrainFS), 1000,
+	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(1, &s_ubSimpleTerrainFS, sizeof(s_ubSimpleTerrainFS), settings.GetLimits()._terrain_ubFSCapacity,
 		{
 			CGI::Sampler::linearMipN, // Normal
 			CGI::Sampler::linearMipN, // Blend
@@ -432,7 +432,7 @@ void Terrain::Init(RcDesc desc)
 	const int patchSide = _mapSide >> 4;
 	const int patchShift = _mapShift - 4;
 	const int patchCount = patchSide * patchSide;
-	const int maxInstances = patchCount * 32;
+	const int maxInstances = patchCount * 16;
 
 	_vPatches.resize(patchCount);
 	_vPatchTBNs.resize(patchCount * 3);
@@ -838,7 +838,7 @@ void Terrain::DrawSimple(DrawSimpleMode mode)
 		return;
 
 	const Transform3 matW = Transform3::identity();
-	const float clipDistanceOffset = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? USHRT_MAX : 0;
+	const float clipDistanceOffset = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? static_cast<float>(USHRT_MAX) : 0.f;
 
 	auto cb = renderer.GetCommandBuffer();
 

@@ -18,4 +18,6 @@ VERUS_UBUFFER UB_ExtraBlurFS
 	matrix _matPrevVP;
 	float4 _zNearFarEx;
 	float4 _textureSize;
+	float4 _blurDir;
+	float4 _focusDist_blurStrength;
 };

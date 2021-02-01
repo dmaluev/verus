@@ -29,16 +29,16 @@ void Atmosphere::Init()
 	_skyDome.Init("[Models]:SkyDome.x3d");
 
 	_shader.Init("[Shaders]:Sky.hlsl");
-	_shader->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame), 100);
-	_shader->CreateDescriptorSet(1, &s_ubPerMaterialFS, sizeof(s_ubPerMaterialFS), 100,
+	_shader->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame), settings.GetLimits()._sky_ubPerFrameCapacity);
+	_shader->CreateDescriptorSet(1, &s_ubPerMaterialFS, sizeof(s_ubPerMaterialFS), settings.GetLimits()._sky_ubPerMaterialFSCapacity,
 		{
-			CGI::Sampler::aniso,
-			CGI::Sampler::aniso,
-			CGI::Sampler::aniso,
-			CGI::Sampler::aniso
+			CGI::Sampler::linearMipL,
+			CGI::Sampler::linearMipL,
+			CGI::Sampler::linearMipL,
+			CGI::Sampler::linearMipL
 		}, CGI::ShaderStageFlags::fs);
-	_shader->CreateDescriptorSet(2, &s_ubPerMeshVS, sizeof(s_ubPerMeshVS), 100, {}, CGI::ShaderStageFlags::vs);
-	_shader->CreateDescriptorSet(3, &s_ubPerObject, sizeof(s_ubPerObject), 100);
+	_shader->CreateDescriptorSet(2, &s_ubPerMeshVS, sizeof(s_ubPerMeshVS), settings.GetLimits()._sky_ubPerMeshVSCapacity, {}, CGI::ShaderStageFlags::vs);
+	_shader->CreateDescriptorSet(3, &s_ubPerObject, sizeof(s_ubPerObject), settings.GetLimits()._sky_ubPerObjectCapacity);
 	_shader->CreatePipelineLayout();
 
 	_cubeMap.Init(512);
@@ -82,7 +82,7 @@ void Atmosphere::Init()
 	_clouds._phaseB.setX(utils.GetRandom().NextFloat());
 	_clouds._phaseB.setY(utils.GetRandom().NextFloat());
 
-	_fog._density[0] = _fog._density[1] = 0.001f;
+	_fog._density[0] = _fog._density[1] = 0.0005f;
 
 	_sun._matTilt = Matrix3::rotationX(_sun._latitude);
 	UpdateSun(_time);
@@ -90,12 +90,6 @@ void Atmosphere::Init()
 
 void Atmosphere::Done()
 {
-	if (_shader)
-	{
-		_shader->FreeDescriptorSet(_cshMoonFS);
-		_shader->FreeDescriptorSet(_cshSunFS);
-		_shader->FreeDescriptorSet(_cshSkyFS);
-	}
 	VERUS_DONE(Atmosphere);
 }
 

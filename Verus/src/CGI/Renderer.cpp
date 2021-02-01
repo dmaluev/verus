@@ -197,6 +197,12 @@ void Renderer::Update()
 {
 	VERUS_QREF_TIMER;
 
+	if (!_tex[TEX_OFFSCREEN_COLOR])
+	{
+		_exposure[0] = _exposure[1] = 1;
+		return;
+	}
+
 	UINT32 color = VERUS_COLOR_RGBA(127, 127, 127, 255);
 	if (_autoExposure && _tex[TEX_OFFSCREEN_COLOR]->ReadbackSubresource(&color))
 	{
@@ -585,4 +591,40 @@ void Renderer::SetExposureValue(float ev)
 {
 	_exposure[1] = ev;
 	_exposure[0] = 1.f / exp2(_exposure[1] - 1);
+}
+
+void Renderer::UpdateUtilization()
+{
+	if (!_showUtilization)
+		return;
+	_vUtilization.clear();
+	_pBaseRenderer->UpdateUtilization();
+	std::sort(_vUtilization.begin(), _vUtilization.end(), [](RcUtilization a, RcUtilization b)
+		{
+			if (a._fraction != b._fraction)
+				return a._fraction < b._fraction;
+			if (a._total != b._total)
+				return a._total > b._total;
+			return a._value < b._value;
+		});
+	for (const auto& x : _vUtilization)
+	{
+		StringStream ss;
+		ss << "(" << x._value << "/" << x._total << ")";
+		ImGui::ProgressBar(x._fraction, ImVec2(0, 0), _C(ss.str()));
+		ImGui::SameLine(0, ImGui::GetStyle().ItemInnerSpacing.x);
+		ImGui::Text(_C(x._name));
+	}
+}
+
+void Renderer::AddUtilization(CSZ name, INT64 value, INT64 total)
+{
+	if (!total)
+		return;
+	Utilization u;
+	u._name = name;
+	u._value = value;
+	u._total = total;
+	u._fraction = value / static_cast<float>(total);
+	_vUtilization.push_back(std::move(u));
 }

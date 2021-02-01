@@ -76,9 +76,6 @@
     <Filter Include="src\Physics">
       <UniqueIdentifier>{85f1e663-5318-4602-82d3-cd811b5a0141}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\ThirdParty\imgui">
-      <UniqueIdentifier>{3ee2005e-b456-4f4f-95cd-ad3ac11aaccb}</UniqueIdentifier>
-    </Filter>
     <Filter Include="src\ThirdParty\nativefiledialog">
       <UniqueIdentifier>{91530a5d-5ad0-4b0a-b2af-b48fa807a91d}</UniqueIdentifier>
     </Filter>
@@ -99,6 +96,9 @@
     </Filter>
     <Filter Include="src\ThirdParty\tinygltf-2.5.0">
       <UniqueIdentifier>{54a71e7f-5bcd-480d-990e-0d5e79d7ded9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\ThirdParty\imgui">
+      <UniqueIdentifier>{e5d1efc7-6850-406e-8abe-7dc0084d2ac7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -501,27 +501,6 @@
     <ClInclude Include="src\Scene\ShadowMap.h">
       <Filter>src\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="src\ThirdParty\imgui\imconfig.h">
-      <Filter>src\ThirdParty\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\imgui\imgui.h">
-      <Filter>src\ThirdParty\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\imgui\imgui_internal.h">
-      <Filter>src\ThirdParty\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\imgui\imstb_rectpack.h">
-      <Filter>src\ThirdParty\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\imgui\imstb_textedit.h">
-      <Filter>src\ThirdParty\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\imgui\imstb_truetype.h">
-      <Filter>src\ThirdParty\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\imgui\imgui_impl_sdl.h">
-      <Filter>src\ThirdParty\imgui</Filter>
-    </ClInclude>
     <ClInclude Include="src\Physics\BulletDebugDraw.h">
       <Filter>src\Physics</Filter>
     </ClInclude>
@@ -731,6 +710,45 @@
     </ClInclude>
     <ClInclude Include="src\Scene\CubeMap.h">
       <Filter>src\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\Cutscene.h">
+      <Filter>src\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\Driving.h">
+      <Filter>src\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\Mechanics.h">
+      <Filter>src\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\QuestSystem.h">
+      <Filter>src\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Effects\Cinema.h">
+      <Filter>src\Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imconfig.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imgui.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imgui_impl_sdl.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imgui_internal.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imstb_rectpack.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imstb_textedit.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\imgui\imstb_truetype.h">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene\SceneNodes\Trigger.h">
+      <Filter>src\Scene\SceneNodes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1037,21 +1055,6 @@
     <ClCompile Include="src\Scene\ShadowMap.cpp">
       <Filter>src\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="src\ThirdParty\imgui\imgui.cpp">
-      <Filter>src\ThirdParty\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\imgui\imgui_demo.cpp">
-      <Filter>src\ThirdParty\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\imgui\imgui_draw.cpp">
-      <Filter>src\ThirdParty\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\imgui\imgui_widgets.cpp">
-      <Filter>src\ThirdParty\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\imgui\imgui_impl_sdl.cpp">
-      <Filter>src\ThirdParty\imgui</Filter>
-    </ClCompile>
     <ClCompile Include="src\Physics\BulletDebugDraw.cpp">
       <Filter>src\Physics</Filter>
     </ClCompile>
@@ -1241,6 +1244,42 @@
     <ClCompile Include="src\Scene\CubeMap.cpp">
       <Filter>src\Scene</Filter>
     </ClCompile>
+    <ClCompile Include="src\Game\Cutscene.cpp">
+      <Filter>src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\Driving.cpp">
+      <Filter>src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\Mechanics.cpp">
+      <Filter>src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\QuestSystem.cpp">
+      <Filter>src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Effects\Cinema.cpp">
+      <Filter>src\Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui.cpp">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_demo.cpp">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_draw.cpp">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_impl_sdl.cpp">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_tables.cpp">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_widgets.cpp">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\SceneNodes\Trigger.cpp">
+      <Filter>src\Scene\SceneNodes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\Shaders\Lib.hlsl">
@@ -1411,16 +1450,30 @@
     <None Include="src\Shaders\Ssr.inc.hlsl">
       <Filter>src\Shaders</Filter>
     </None>
+    <None Include="src\Shaders\Cinema.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\Cinema.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <Natvis Include="src\ThirdParty\imgui\imgui.natvis">
-      <Filter>src\ThirdParty\imgui</Filter>
-    </Natvis>
     <Natvis Include="src\ThirdParty\pugixml-1.11\pugixml.natvis">
       <Filter>src\ThirdParty\pugixml-1.11</Filter>
     </Natvis>
     <Natvis Include="src\ThirdParty\pugixml-1.11\pugixml_compact.natvis">
       <Filter>src\ThirdParty\pugixml-1.11</Filter>
     </Natvis>
+    <Natvis Include="src\ThirdParty\imgui\imgui.natvis">
+      <Filter>src\ThirdParty\imgui</Filter>
+    </Natvis>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="src\Shaders\DS_Reflection.hlsl">
+      <Filter>src\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="src\Shaders\DS_Reflection.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

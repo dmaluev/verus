@@ -73,13 +73,13 @@ FSO mainFS(VSO si)
 		const float3 rand = Rand(si.pos.xy);
 
 #if _SHADER_QUALITY <= _Q_LOW
-		const int sampleCount = 8;
+		const int sampleCount = 12;
 #elif _SHADER_QUALITY <= _Q_MEDIUM
 		const int sampleCount = 16;
 #elif _SHADER_QUALITY <= _Q_HIGH
-		const int sampleCount = 32;
+		const int sampleCount = 24;
 #elif _SHADER_QUALITY <= _Q_ULTRA
-		const int sampleCount = 64;
+		const int sampleCount = 32;
 #endif
 		const float stride = maxDist / sampleCount;
 
@@ -99,7 +99,8 @@ FSO mainFS(VSO si)
 				g_ubBloomGodRaysFS._matShadowCSM3,
 				g_ubBloomGodRaysFS._matScreenCSM,
 				g_ubBloomGodRaysFS._csmSplitRanges,
-				g_ubBloomGodRaysFS._shadowConfig);
+				g_ubBloomGodRaysFS._shadowConfig,
+				false);
 			acc += shadowMask * step(pickingRayLen, depth);
 			pickingRayLen += stride;
 		}

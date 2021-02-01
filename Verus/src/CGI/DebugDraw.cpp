@@ -121,8 +121,10 @@ void DebugDraw::End()
 		return;
 	VERUS_QREF_RENDERER;
 
-	_geo->UpdateVertexBuffer(_vDynamicBuffer.data(), 0);
-	renderer.GetCommandBuffer()->Draw(_vertCount, 1, _offset);
+	auto cb = renderer.GetCommandBuffer();
+
+	_geo->UpdateVertexBuffer(&_vDynamicBuffer[_offset], 0, cb.Get(), _vertCount, _offset);
+	cb->Draw(_vertCount, 1, _offset);
 	_offset += _vertCount;
 	_vertCount = 0;
 }

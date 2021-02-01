@@ -18,7 +18,21 @@ void BaseShader::Load(CSZ url)
 	while (p)
 	{
 		const size_t span = strcspn(p, VERUS_CRNL);
-		const String value(p + branchCommentMarkerLen, span - branchCommentMarkerLen);
+		String value(p + branchCommentMarkerLen, span - branchCommentMarkerLen);
+		if (_userDefines)
+		{
+			if (Str::EndsWith(_C(value), ")"))
+			{
+				const size_t pos = value.rfind("(");
+				value.insert(pos, " ");
+				value.insert(pos, _userDefines);
+			}
+			else
+			{
+				value += " ";
+				value += _userDefines;
+			}
+		}
 		vBranches.push_back(value);
 		p = strstr(p + span, s_branchCommentMarker);
 	}
@@ -161,6 +175,7 @@ void ShaderPtr::Init(RcShaderDesc desc)
 	VERUS_RT_ASSERT(!_p);
 	_p = renderer->InsertShader();
 	_p->SetIgnoreList(desc._ignoreList);
+	_p->SetUserDefines(desc._userDefines);
 	_p->SetSaveCompiled(desc._saveCompiled);
 	if (desc._url)
 		_p->Load(desc._url);

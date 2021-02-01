@@ -11,6 +11,7 @@ namespace verus
 			CSZ  _source = nullptr;
 			CSZ* _branches = nullptr;
 			CSZ* _ignoreList = nullptr;
+			CSZ  _userDefines = nullptr;
 			bool _saveCompiled = false;
 
 			ShaderDesc(CSZ url = nullptr) : _url(url) {}
@@ -36,6 +37,7 @@ namespace verus
 		protected:
 			String _sourceName;
 			CSZ* _ignoreList = nullptr;
+			CSZ    _userDefines = nullptr;
 			bool   _saveCompiled = false;
 
 			BaseShader() = default;
@@ -69,6 +71,8 @@ namespace verus
 
 			void SetIgnoreList(CSZ* list) { _ignoreList = list; }
 			bool IsInIgnoreList(CSZ name) const;
+
+			void SetUserDefines(CSZ def) { _userDefines = def; }
 
 			void SetSaveCompiled(bool b) { _saveCompiled = b; }
 			static void SaveCompiled(CSZ code, CSZ filename);

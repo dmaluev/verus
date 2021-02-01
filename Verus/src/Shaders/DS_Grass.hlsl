@@ -126,8 +126,8 @@ VSO mainVS(VSI si)
 	float3 posWarped = pos;
 	{
 		const float distToEye = -mul(float4(posWarped, 1), g_ubGrassVS._matWV).z;
-		const float distant = saturate((distToEye - 50.f) * (1.f / 50.f)); // [50.f to 100.f] -> [0.f to 1.f].
-		const float distExt = saturate((distToEye - 25.f) * (1.f / 25.f)); // [25.f to 50.f] -> [0.f to 1.f].
+		const float distant = saturate((distToEye - 50.f) * (1.f / 50.f)); // [50 to 100] -> [0 to 1].
+		const float distExt = saturate((distToEye - 25.f) * (1.f / 25.f)); // [25 to 50] -> [0 to 1].
 
 		const float cliff = dot(normal.xz, normal.xz);
 		float hide = cliff + step(groundHeight, 1.f) + distant;
@@ -194,8 +194,6 @@ DS_FSO mainFS(VSO si)
 {
 	DS_FSO so;
 
-	const float3 rand = Rand(si.pos.xy);
-
 	float2 tc = si.tc0;
 #ifdef DEF_BILLBOARDS
 	tc = si.tc0 * 0.23f + si.tcOffset_phaseShift.xy;
@@ -216,7 +214,7 @@ DS_FSO mainFS(VSO si)
 		DS_SetAlbedo(so, rawAlbedo.rgb);
 		DS_SetSpecMask(so, specMask);
 
-		DS_SetNormal(so, normal + NormalDither(rand));
+		DS_SetNormal(so, normal);
 		DS_SetEmission(so, 0.f, 0.f);
 		DS_SetMotionBlurMask(so, 1.f);
 

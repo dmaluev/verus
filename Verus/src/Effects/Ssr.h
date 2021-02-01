@@ -17,10 +17,10 @@ namespace verus
 			CGI::RPHandle    _rph;
 			CGI::FBHandle    _fbh;
 			CGI::CSHandle    _csh;
-			float            _radius = 3;
+			float            _radius = 2.5f;
 			float            _depthBias = 0.03f;
 			float            _thickness = 0.25f;
-			float            _equalizeDist = 16;
+			float            _equalizeDist = 12;
 			bool             _blur = true;
 			bool             _editMode = false;
 

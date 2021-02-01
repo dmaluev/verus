@@ -37,6 +37,7 @@ extern "C"
 #include "glm/glm/gtx/vector_angle.hpp"
 
 // Dear ImGui (https://github.com/ocornut/imgui):
+#define IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_sdl.h"
 static inline ImVec2 operator*(const ImVec2& lhs, const float rhs) { return ImVec2(lhs.x * rhs, lhs.y * rhs); }

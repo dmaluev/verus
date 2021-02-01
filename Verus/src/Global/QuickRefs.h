@@ -7,6 +7,7 @@
 #define VERUS_QREF_BLOOM          Effects::RBloom         bloom    = Effects::Bloom::I()
 #define VERUS_QREF_BLUR           Effects::RBlur          blur     = Effects::Blur::I()
 #define VERUS_QREF_BULLET         Physics::RBullet        bullet   = Physics::Bullet::I()
+#define VERUS_QREF_CINEMA         Effects::RCinema        cinema   = Effects::Cinema::I()
 #define VERUS_QREF_CONST_SETTINGS App::RcSettings         settings = App::Settings::IConst()
 #define VERUS_QREF_DD             CGI::RDebugDraw         dd       = CGI::DebugDraw::I()
 #define VERUS_QREF_FSYS           IO::RFileSystem         fsys     = IO::FileSystem::I()

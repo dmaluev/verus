@@ -95,6 +95,8 @@ namespace verus
 				int& dstColorBlendFactor,
 				int& srcAlphaBlendFactor,
 				int& dstAlphaBlendFactor);
+
+			virtual void UpdateUtilization() {}
 		};
 		VERUS_TYPEDEFS(BaseRenderer);
 	}

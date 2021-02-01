@@ -7,3 +7,7 @@
 #include "BaseCharacter.h"
 #include "BaseGame.h"
 #include "ChainAward.h"
+#include "Mechanics.h"
+#include "Driving.h"
+#include "Cutscene.h"
+#include "QuestSystem.h"

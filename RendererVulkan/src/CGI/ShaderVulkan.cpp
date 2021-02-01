@@ -39,6 +39,7 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 	VERUS_INIT();
 	VERUS_QREF_CONST_SETTINGS;
 
+	_sourceName = sourceName;
 	ShaderInclude inc;
 #ifdef _DEBUG
 	const UINT32 flags = 1;
@@ -689,4 +690,17 @@ void ShaderVulkan::OnError(CSZ s)
 		renderer.OnShaderError(s);
 	else
 		renderer.OnShaderWarning(s);
+}
+
+void ShaderVulkan::UpdateUtilization()
+{
+	VERUS_QREF_RENDERER;
+	int setNumber = 0;
+	for (const auto& dsd : _vDescriptorSetDesc)
+	{
+		StringStream ss;
+		ss << "set=" << setNumber << ", " << _sourceName;
+		renderer.AddUtilization(_C(ss.str()), dsd._offset / dsd._alignedSize, dsd._capacity);
+		setNumber++;
+	}
 }

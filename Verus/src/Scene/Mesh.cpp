@@ -452,7 +452,7 @@ void Mesh::UpdateUniformBufferSimplePerFrame(DrawSimpleMode mode)
 	VERUS_QREF_WATER;
 
 	RcPoint3 eyePos = sm.GetMainCamera()->GetEyePosition();
-	const float clipDistanceOffset = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? USHRT_MAX : 0;
+	const float clipDistanceOffset = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? static_cast<float>(USHRT_MAX) : 0.f;
 
 	s_ubSimplePerFrame._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubSimplePerFrame._eyePos_clipDistanceOffset = float4(eyePos.GLM(), clipDistanceOffset);

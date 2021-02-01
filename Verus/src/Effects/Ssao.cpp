@@ -19,13 +19,21 @@ Ssao::~Ssao()
 void Ssao::Init()
 {
 	VERUS_INIT();
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
+
+	if (!settings._postProcessSSAO)
+	{
+		VERUS_LOG_INFO("SSAO disabled");
+		OnSwapChainResized();
+		return;
+	}
 
 	_rph = renderer->CreateSimpleRenderPass(CGI::Format::unormR8);
 
 	_shader.Init("[Shaders]:Ssao.hlsl");
-	_shader->CreateDescriptorSet(0, &s_ubSsaoVS, sizeof(s_ubSsaoVS), 1, {}, CGI::ShaderStageFlags::vs);
-	_shader->CreateDescriptorSet(1, &s_ubSsaoFS, sizeof(s_ubSsaoFS), 1,
+	_shader->CreateDescriptorSet(0, &s_ubSsaoVS, sizeof(s_ubSsaoVS), 2, {}, CGI::ShaderStageFlags::vs);
+	_shader->CreateDescriptorSet(1, &s_ubSsaoFS, sizeof(s_ubSsaoFS), 2,
 		{
 			CGI::Sampler::nearestMipN, // RandNormals
 			CGI::Sampler::nearestClampMipN, // GBuffer1
@@ -52,11 +60,19 @@ void Ssao::Init()
 
 void Ssao::InitCmd()
 {
+	VERUS_QREF_CONST_SETTINGS;
+
+	if (!settings._postProcessSSAO)
+		return;
+
 	UpdateRandNormalsTexture();
 }
 
 void Ssao::Done()
 {
+	VERUS_QREF_RENDERER;
+	renderer->DeleteFramebuffer(_fbh);
+	renderer->DeleteRenderPass(_rph);
 	VERUS_DONE(Ssao);
 }
 
@@ -65,21 +81,36 @@ void Ssao::OnSwapChainResized()
 	if (!IsInitialized())
 		return;
 
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 
+	auto InitTex = [this]()
 	{
-		_shader->FreeDescriptorSet(_csh);
-		renderer->DeleteFramebuffer(_fbh);
 		_tex[TEX_GEN_AO].Done();
-	}
-	{
+		VERUS_QREF_RENDERER;
 		CGI::TextureDesc texDesc;
+		texDesc._clearValue = Vector4::Replicate(1);
 		texDesc._name = "Ssao.GenAO";
 		texDesc._format = CGI::Format::unormR8;
 		texDesc._width = renderer.GetSwapChainWidth();
 		texDesc._height = renderer.GetSwapChainHeight();
 		texDesc._flags = CGI::TextureDesc::Flags::colorAttachment;
 		_tex[TEX_GEN_AO].Init(texDesc);
+		renderer.GetDS().InitBySsao(_tex[TEX_GEN_AO]);
+	};
+
+	if (!settings._postProcessSSAO)
+	{
+		InitTex();
+		return;
+	}
+
+	{
+		_shader->FreeDescriptorSet(_csh);
+		renderer->DeleteFramebuffer(_fbh);
+	}
+	{
+		InitTex();
 		_fbh = renderer->CreateFramebuffer(_rph, { _tex[TEX_GEN_AO] }, renderer.GetSwapChainWidth(), renderer.GetSwapChainHeight());
 		_csh = _shader->BindDescriptorSetTextures(1,
 			{
@@ -88,13 +119,16 @@ void Ssao::OnSwapChainResized()
 				renderer.GetTexDepthStencil()
 			});
 	}
-	renderer.GetDS().InitBySsao(_tex[TEX_GEN_AO]);
 }
 
 void Ssao::Generate()
 {
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
+
+	if (!settings._postProcessSSAO)
+		return;
 
 	if (_editMode)
 	{

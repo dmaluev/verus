@@ -23,7 +23,7 @@ Water::~Water()
 void Water::Init(RTerrain terrain)
 {
 	VERUS_INIT();
-
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 
 	_pTerrain = &terrain;
@@ -44,18 +44,18 @@ void Water::Init(RTerrain terrain)
 		{});
 
 	_shader[SHADER_MAIN].Init("[Shaders]:Water.hlsl");
-	_shader[SHADER_MAIN]->CreateDescriptorSet(0, &s_ubWaterVS, sizeof(s_ubWaterVS), 100,
+	_shader[SHADER_MAIN]->CreateDescriptorSet(0, &s_ubWaterVS, sizeof(s_ubWaterVS), settings.GetLimits()._water_ubVSCapacity,
 		{
 			CGI::Sampler::linearClampMipL,
 			CGI::Sampler::linearMipL,
 			CGI::Sampler::linearMipN
 		}, CGI::ShaderStageFlags::vs);
-	_shader[SHADER_MAIN]->CreateDescriptorSet(1, &s_ubWaterFS, sizeof(s_ubWaterFS), 100,
+	_shader[SHADER_MAIN]->CreateDescriptorSet(1, &s_ubWaterFS, sizeof(s_ubWaterFS), settings.GetLimits()._water_ubFSCapacity,
 		{
 			CGI::Sampler::linearClampMipL, // TerrainHeightmap
 			CGI::Sampler::linearMipL, // GenHeightmap
 			CGI::Sampler::custom, // GenNormals
-			CGI::Sampler::aniso, // Foam
+			CGI::Sampler::linearMipL, // Foam
 			CGI::Sampler::linearClampMipL, // Reflection
 			CGI::Sampler::linearClampMipN, // Refraction
 			CGI::Sampler::shadow,
@@ -64,9 +64,9 @@ void Water::Init(RTerrain terrain)
 	_shader[SHADER_MAIN]->CreatePipelineLayout();
 
 	_shader[SHADER_GEN].Init("[Shaders]:WaterGen.hlsl");
-	_shader[SHADER_GEN]->CreateDescriptorSet(0, &s_ubGen, sizeof(s_ubGen), 100, {}, CGI::ShaderStageFlags::vs);
-	_shader[SHADER_GEN]->CreateDescriptorSet(1, &s_ubGenHeightmapFS, sizeof(s_ubGenHeightmapFS), 100, { CGI::Sampler::linearMipN }, CGI::ShaderStageFlags::fs);
-	_shader[SHADER_GEN]->CreateDescriptorSet(2, &s_ubGenNormalsFS, sizeof(s_ubGenNormalsFS), 100, { CGI::Sampler::linearMipN }, CGI::ShaderStageFlags::fs);
+	_shader[SHADER_GEN]->CreateDescriptorSet(0, &s_ubGen, sizeof(s_ubGen), 4, {}, CGI::ShaderStageFlags::vs);
+	_shader[SHADER_GEN]->CreateDescriptorSet(1, &s_ubGenHeightmapFS, sizeof(s_ubGenHeightmapFS), 2, { CGI::Sampler::linearMipN }, CGI::ShaderStageFlags::fs);
+	_shader[SHADER_GEN]->CreateDescriptorSet(2, &s_ubGenNormalsFS, sizeof(s_ubGenNormalsFS), 2, { CGI::Sampler::linearMipN }, CGI::ShaderStageFlags::fs);
 	_shader[SHADER_GEN]->CreatePipelineLayout();
 
 	Vector<UINT16> vIndices;

@@ -19,6 +19,7 @@ Ssr::~Ssr()
 void Ssr::Init()
 {
 	VERUS_INIT();
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 
 	_rph = renderer->CreateRenderPass(
@@ -35,9 +36,12 @@ void Ssr::Init()
 		},
 		{});
 
-	_shader.Init("[Shaders]:Ssr.hlsl");
-	_shader->CreateDescriptorSet(0, &s_ubSsrVS, sizeof(s_ubSsrVS), 1, {}, CGI::ShaderStageFlags::vs);
-	_shader->CreateDescriptorSet(1, &s_ubSsrFS, sizeof(s_ubSsrFS), 1,
+	CGI::ShaderDesc shaderDesc("[Shaders]:Ssr.hlsl");
+	if (settings._postProcessSSR)
+		shaderDesc._userDefines = "SSR";
+	_shader.Init(shaderDesc);
+	_shader->CreateDescriptorSet(0, &s_ubSsrVS, sizeof(s_ubSsrVS), 2, {}, CGI::ShaderStageFlags::vs);
+	_shader->CreateDescriptorSet(1, &s_ubSsrFS, sizeof(s_ubSsrFS), 2,
 		{
 			CGI::Sampler::linearClampMipN, // Color
 			CGI::Sampler::nearestClampMipN, // Normal
@@ -60,6 +64,9 @@ void Ssr::Init()
 
 void Ssr::Done()
 {
+	VERUS_QREF_RENDERER;
+	renderer->DeleteFramebuffer(_fbh);
+	renderer->DeleteRenderPass(_rph);
 	VERUS_DONE(Ssr);
 }
 
@@ -82,7 +89,8 @@ void Ssr::OnSwapChainResized()
 				renderer.GetDS().GetLightAccSpecTexture(),
 				ssao.GetTexture()
 			},
-			renderer.GetSwapChainWidth(), renderer.GetSwapChainHeight());
+			renderer.GetSwapChainWidth(),
+			renderer.GetSwapChainHeight());
 		if (atmo.GetCubeMap().GetColorTexture())
 		{
 			_csh = _shader->BindDescriptorSetTextures(1,

@@ -11287,7 +11287,7 @@ VkResult VmaDeviceMemoryBlock::WriteMagicValueAroundAllocation(VmaAllocator hAll
     VMA_ASSERT(VMA_DEBUG_MARGIN > 0 && VMA_DEBUG_MARGIN % 4 == 0 && VMA_DEBUG_DETECT_CORRUPTION);
     VMA_ASSERT(allocOffset >= VMA_DEBUG_MARGIN);
 
-    void* pData;
+    void* pData = nullptr;
     VkResult res = Map(hAllocator, 1, &pData);
     if(res != VK_SUCCESS)
     {
@@ -11307,7 +11307,7 @@ VkResult VmaDeviceMemoryBlock::ValidateMagicValueAroundAllocation(VmaAllocator h
     VMA_ASSERT(VMA_DEBUG_MARGIN > 0 && VMA_DEBUG_MARGIN % 4 == 0 && VMA_DEBUG_DETECT_CORRUPTION);
     VMA_ASSERT(allocOffset >= VMA_DEBUG_MARGIN);
 
-    void* pData;
+    void* pData = nullptr;
     VkResult res = Map(hAllocator, 1, &pData);
     if(res != VK_SUCCESS)
     {

@@ -541,8 +541,8 @@ void Forest::DrawSimple(DrawSimpleMode mode)
 	VERUS_QREF_SM;
 	VERUS_QREF_WATER;
 
-	const float clipDistanceOffset = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? USHRT_MAX : 0;
-	const float pointSpriteScaleY = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? 1 : -1;
+	const float clipDistanceOffset = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? static_cast<float>(USHRT_MAX) : 0.f;
+	const float pointSpriteScaleY = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? 1.f : -1.f;
 
 	auto cb = renderer.GetCommandBuffer();
 

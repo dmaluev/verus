@@ -153,6 +153,7 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, PBaseCommandB
 		BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererD3D12->GetRingBufferIndex() * vb._bufferSize;
 		memcpy(pMappedData + offset * elementSize, p, size);
 		vb._pBuffer->Unmap(0, nullptr);
+		vb._utilization = offset * elementSize + size;
 	}
 	else
 	{
@@ -272,6 +273,7 @@ void GeometryD3D12::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, INT
 		BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererD3D12->GetRingBufferIndex() * _indexBuffer._bufferSize;
 		memcpy(pMappedData + offset * elementSize, p, size);
 		_indexBuffer._pBuffer->Unmap(0, nullptr);
+		_indexBuffer._utilization = offset * elementSize + size;
 	}
 	else
 	{
@@ -384,4 +386,26 @@ const D3D12_INDEX_BUFFER_VIEW* GeometryD3D12::GetD3DIndexBufferView() const
 	}
 	else
 		return &_indexBufferView[0];
+}
+
+void GeometryD3D12::UpdateUtilization()
+{
+	VERUS_QREF_RENDERER;
+	int binding = 0;
+	for (const auto& vb : _vVertexBuffers)
+	{
+		if (vb._utilization >= 0)
+		{
+			StringStream ss;
+			ss << "binding=" << binding << ", " << _name;
+			renderer.AddUtilization(_C(ss.str()), vb._utilization, vb._bufferSize);
+		}
+		binding++;
+	}
+	if (_indexBuffer._utilization >= 0)
+	{
+		StringStream ss;
+		ss << "ib, " << _name;
+		renderer.AddUtilization(_C(ss.str()), _indexBuffer._utilization, _indexBuffer._bufferSize);
+	}
 }

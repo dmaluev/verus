@@ -103,6 +103,8 @@ namespace verus
 				const Vector<CD3DX12_ROOT_PARAMETER1>& vRootParams,
 				const Vector<D3D12_STATIC_SAMPLER_DESC>& vStaticSamplers,
 				D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags);
+
+			void UpdateUtilization();
 		};
 		VERUS_TYPEDEFS(ShaderD3D12);
 	}

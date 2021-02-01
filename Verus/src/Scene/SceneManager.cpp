@@ -21,12 +21,12 @@ void SceneManager::Init(RcDesc desc)
 	SetCamera(desc._pMainCamera);
 
 	_mapSide = desc._mapSide;
-	const float hf = desc._mapSide * 0.5f;
+	const float sideHalf = desc._mapSide * 0.5f;
 	Math::Bounds bounds;
 	bounds.Set(
-		Vector3(-hf, -hf, -hf),
-		Vector3(+hf, +hf, +hf));
-	const Vector3 limit(hf / 14, hf / 14, hf / 14);
+		Vector3(-sideHalf, -sideHalf, -sideHalf),
+		Vector3(+sideHalf, +sideHalf, +sideHalf));
+	const Vector3 limit(sideHalf / 14, sideHalf / 14, sideHalf / 14);
 	_octree.Done();
 	_octree.Init(bounds, limit);
 	_octree.SetDelegate(this);
@@ -34,15 +34,16 @@ void SceneManager::Init(RcDesc desc)
 
 void SceneManager::Done()
 {
+	DeleteAllTriggers();
+	DeleteAllPrefabs();
+	DeleteAllLights();
+	DeleteAllEmitters();
+	DeleteAllBlocks();
+
 	DeleteAllSites();
-	{ // PBLE:
-		DeleteAllPrefabs();
-		DeleteAllBlocks();
-		DeleteAllLights();
-		DeleteAllEmitters();
-	}
 	DeleteAllSceneParticles();
 	DeleteAllModels();
+
 	VERUS_DONE(SceneManager);
 }
 
@@ -55,20 +56,22 @@ void SceneManager::ResetInstanceCount()
 void SceneManager::Update()
 {
 	VERUS_UPDATE_ONCE_CHECK;
-	for (auto& x : TStoreSites::_map)
-		x.second.Update();
-	{ // PBLE:
-		for (auto& x : TStorePrefabs::_list)
-			x.Update();
-		for (auto& x : TStoreBlocks::_list)
-			x.Update();
-		for (auto& x : TStoreLights::_list)
-			x.Update();
-		for (auto& x : TStoreEmitters::_list)
-			x.Update();
-	}
+
 	for (auto& x : TStoreSceneParticles::_map)
 		x.second.Update();
+	for (auto& x : TStoreSites::_map)
+		x.second.Update();
+
+	for (auto& x : TStoreBlocks::_list)
+		x.Update();
+	for (auto& x : TStoreEmitters::_list)
+		x.Update();
+	for (auto& x : TStoreLights::_list)
+		x.Update();
+	for (auto& x : TStorePrefabs::_list)
+		x.Update();
+	for (auto& x : TStoreTriggers::_list)
+		x.Update();
 }
 
 void SceneManager::UpdateParts()
@@ -90,10 +93,10 @@ void SceneManager::Layout()
 
 	// Allocate enough space:
 	int countAll = 0;
-	countAll += Utils::Cast32(TStorePrefabs::_list.size());
+	countAll += Utils::Cast32(TStoreSites::_map.size());
 	countAll += Utils::Cast32(TStoreBlocks::_list.size());
 	countAll += Utils::Cast32(TStoreLights::_list.size());
-	countAll += Utils::Cast32(TStoreSites::_map.size());
+	countAll += Utils::Cast32(TStorePrefabs::_list.size());
 	if (_vVisibleNodes.size() != countAll)
 		_vVisibleNodes.resize(countAll);
 
@@ -183,8 +186,8 @@ void SceneManager::Draw()
 	auto cb = renderer.GetCommandBuffer();
 	auto shader = Mesh::GetShader();
 
-	const int begin = 0;
-	const int end = _visibleCountPerType[+NodeType::block];
+	const int begin = ComputeBegin(NodeType::block);
+	const int end = begin + _visibleCountPerType[+NodeType::block];
 	shader->BeginBindDescriptors();
 	for (int i = begin; i <= end; ++i)
 	{
@@ -251,8 +254,8 @@ void SceneManager::DrawSimple(DrawSimpleMode mode)
 	auto cb = renderer.GetCommandBuffer();
 	auto shader = Mesh::GetSimpleShader();
 
-	const int begin = 0;
-	const int end = _visibleCountPerType[+NodeType::block];
+	const int begin = ComputeBegin(NodeType::block);
+	const int end = begin + _visibleCountPerType[+NodeType::block];
 	shader->BeginBindDescriptors();
 	for (int i = begin; i <= end; ++i)
 	{
@@ -335,8 +338,8 @@ void SceneManager::DrawLights()
 		}
 	};
 
-	const int begin = _visibleCountPerType[+NodeType::block];
-	const int end = _visibleCountPerType[+NodeType::block] + _visibleCountPerType[+NodeType::light];
+	const int begin = ComputeBegin(NodeType::light);
+	const int end = begin + _visibleCountPerType[+NodeType::light];
 	for (int i = begin; i <= end; ++i)
 	{
 		if (i == end)
@@ -403,6 +406,14 @@ bool SceneManager::IsDrawingDepth(DrawDepth dd)
 		return DrawDepth::yes == dd;
 }
 
+int SceneManager::ComputeBegin(NodeType type) const
+{
+	int ret = 0;
+	VERUS_FOR(i, +type)
+		ret += _visibleCountPerType[i];
+	return ret;
+}
+
 String SceneManager::EnsureUniqueName(CSZ name)
 {
 	// Compact name:
@@ -418,10 +429,11 @@ String SceneManager::EnsureUniqueName(CSZ name)
 	do
 	{
 		test = (id < 0) ? String(s, e) : String(s, e) + "_" + std::to_string(id);
-		for (auto& it : TStorePrefabs::_list)	if (it.GetName() == _C(test)) test.clear();
-		for (auto& it : TStoreBlocks::_list)	if (it.GetName() == _C(test)) test.clear();
-		for (auto& it : TStoreLights::_list)	if (it.GetName() == _C(test)) test.clear();
-		for (auto& it : TStoreEmitters::_list)	if (it.GetName() == _C(test)) test.clear();
+		for (auto& it : TStoreBlocks::_list)   if (it.GetName() == _C(test)) test.clear();
+		for (auto& it : TStoreEmitters::_list) if (it.GetName() == _C(test)) test.clear();
+		for (auto& it : TStoreLights::_list)   if (it.GetName() == _C(test)) test.clear();
+		for (auto& it : TStorePrefabs::_list)  if (it.GetName() == _C(test)) test.clear();
+		for (auto& it : TStoreTriggers::_list) if (it.GetName() == _C(test)) test.clear();
 		id++;
 	} while (test.empty());
 
@@ -503,21 +515,6 @@ void SceneManager::DeleteAllBlocks()
 	TStoreBlocks::DeleteAll();
 }
 
-PLight SceneManager::InsertLight()
-{
-	return TStoreLights::Insert();
-}
-
-void SceneManager::DeleteLight(PLight p)
-{
-	TStoreLights::Delete(p);
-}
-
-void SceneManager::DeleteAllLights()
-{
-	TStoreLights::DeleteAll();
-}
-
 PEmitter SceneManager::InsertEmitter()
 {
 	return TStoreEmitters::Insert();
@@ -533,6 +530,21 @@ void SceneManager::DeleteAllEmitters()
 	TStoreEmitters::DeleteAll();
 }
 
+PLight SceneManager::InsertLight()
+{
+	return TStoreLights::Insert();
+}
+
+void SceneManager::DeleteLight(PLight p)
+{
+	TStoreLights::Delete(p);
+}
+
+void SceneManager::DeleteAllLights()
+{
+	TStoreLights::DeleteAll();
+}
+
 PPrefab SceneManager::InsertPrefab()
 {
 	return TStorePrefabs::Insert();
@@ -546,6 +558,21 @@ void SceneManager::DeletePrefab(PPrefab p)
 void SceneManager::DeleteAllPrefabs()
 {
 	TStorePrefabs::DeleteAll();
+}
+
+PTrigger SceneManager::InsertTrigger()
+{
+	return TStoreTriggers::Insert();
+}
+
+void SceneManager::DeleteTrigger(PTrigger p)
+{
+	TStoreTriggers::Delete(p);
+}
+
+void SceneManager::DeleteAllTriggers()
+{
+	TStoreTriggers::DeleteAll();
 }
 
 void SceneManager::DeleteNode(NodeType type, CSZ name)
@@ -680,6 +707,33 @@ bool SceneManager::RayCastingTest(RcPoint3 pointA, RcPoint3 pointB, PBlockPtr pB
 	return false;
 }
 
+Matrix3 SceneManager::GetBasisAt(RcPoint3 point, Physics::Group mask) const
+{
+	VERUS_QREF_BULLET;
+	const btVector3 from = point.Bullet();
+	const btVector3 to = from - btVector3(0, 100, 0);
+	btCollisionWorld::ClosestRayResultCallback crrc(from, to);
+	crrc.m_collisionFilterMask = +mask;
+	bullet.GetWorld()->rayTest(from, to, crrc);
+	if (crrc.hasHit())
+	{
+		glm::vec3 nreal = Vector3(crrc.m_hitNormalWorld).GLM(), nrm(0, 1, 0), tan(1, 0, 0), bin(0, 0, 1);
+		const float angle = glm::angle(nrm, nreal);
+		VERUS_RT_ASSERT(angle <= VERUS_PI * 0.5f);
+		if (angle >= Math::ToRadians(1))
+		{
+			const glm::vec3 axis = glm::normalize(glm::cross(nrm, nreal));
+			const glm::quat q = glm::angleAxis(angle, axis);
+			const glm::mat3 mat = glm::mat3_cast(q);
+			tan = mat * tan;
+			bin = mat * bin;
+		}
+		return Matrix3(Vector3(tan), Vector3(nreal), Vector3(bin));
+	}
+	else
+		return Matrix3::identity();
+}
+
 void SceneManager::Serialize(IO::RSeekableStream stream)
 {
 	stream.WriteText(VERUS_CRNL VERUS_CRNL "<SM>");
@@ -715,6 +769,13 @@ void SceneManager::Serialize(IO::RSeekableStream stream)
 			x.Serialize(stream);
 	}
 
+	stream.WriteString(_C(std::to_string(GetPersistentCount(NodeType::emitter))));
+	for (auto& x : TStoreEmitters::_list)
+	{
+		if (!x.IsTransient())
+			x.Serialize(stream);
+	}
+
 	stream.WriteString(_C(std::to_string(GetPersistentCount(NodeType::light))));
 	for (auto& x : TStoreLights::_list)
 	{
@@ -729,8 +790,8 @@ void SceneManager::Serialize(IO::RSeekableStream stream)
 			x.Serialize(stream);
 	}
 
-	stream.WriteString(_C(std::to_string(GetPersistentCount(NodeType::emitter))));
-	for (auto& x : TStoreEmitters::_list)
+	stream.WriteString(_C(std::to_string(GetPersistentCount(NodeType::trigger))));
+	for (auto& x : TStoreTriggers::_list)
 	{
 		if (!x.IsTransient())
 			x.Serialize(stream);
@@ -779,6 +840,14 @@ void SceneManager::Deserialize(IO::RStream stream)
 		count = atoi(buffer);
 		VERUS_FOR(i, count)
 		{
+			PEmitter p = InsertEmitter();
+			p->Deserialize(stream);
+		}
+
+		stream.ReadString(buffer);
+		count = atoi(buffer);
+		VERUS_FOR(i, count)
+		{
 			PLight p = InsertLight();
 			p->Deserialize(stream);
 		}
@@ -795,7 +864,7 @@ void SceneManager::Deserialize(IO::RStream stream)
 		count = atoi(buffer);
 		VERUS_FOR(i, count)
 		{
-			PEmitter p = InsertEmitter();
+			PTrigger p = InsertTrigger();
 			p->Deserialize(stream);
 		}
 	}

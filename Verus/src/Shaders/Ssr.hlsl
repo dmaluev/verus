@@ -48,6 +48,12 @@ float SoftBorderMask(float2 tc)
 	return mask.x * mask.y;
 }
 
+float AlphaBoost(float alpha)
+{
+	const float x = 1.f - alpha;
+	return 1.f - x * x;
+}
+
 #ifdef _VS
 VSO mainVS(VSI si)
 {
@@ -66,6 +72,8 @@ FSO mainFS(VSO si)
 {
 	FSO so;
 
+	const float3 rand = Rand(si.pos.xy);
+
 	const float radius = g_ubSsrFS._radius_depthBias_thickness_equalizeDist.x;
 	const float depthBias = g_ubSsrFS._radius_depthBias_thickness_equalizeDist.y;
 	const float thickness = g_ubSsrFS._radius_depthBias_thickness_equalizeDist.z;
@@ -75,10 +83,6 @@ FSO mainFS(VSO si)
 	const float2 ndcPos = ToNdcPos(si.tc0);
 	const float rawDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f).r;
 	const float3 posWV = DS_GetPosition(rawDepth, g_ubSsrFS._matInvP, ndcPos);
-
-	// Depth:
-	const float originDepth = ToLinearDepth(rawDepth, g_ubSsrFS._zNearFarEx);
-	const float equalize = equalizeDist / originDepth;
 
 	// Normal:
 	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.f);
@@ -96,35 +100,42 @@ FSO mainFS(VSO si)
 	// Environment map:
 	const float3 reflectedDirW = mul(reflectedDir, (float3x3)g_ubSsrFS._matInvV);
 	float3 envColor = 0.f;
+#if _SHADER_QUALITY <= _Q_MEDIUM
+	envColor = g_texEnv.SampleLevel(g_samEnv, reflectedDirW, 0.f).rgb * fresnel;
+#else
 	[unroll] for (int i = 0; i < 4; ++i)
 	{
 		const float3 dir = reflectedDirW + g_tetrahedron[i] * 0.003f;
 		envColor += g_texEnv.SampleLevel(g_samEnv, dir, 0.f).rgb;
 	}
 	envColor *= 0.25f * fresnel;
+#endif
+
+	float4 color = float4(envColor, 0.f);
+
+#ifdef DEF_SSR
+	const float originDepth = ToLinearDepth(rawDepth, g_ubSsrFS._zNearFarEx);
+	const float equalize = equalizeDist / originDepth;
 
 	const float invRadius = 1.f / radius;
 #if _SHADER_QUALITY <= _Q_LOW
-	const int maxSampleCount = 8;
+	const int maxSampleCount = 6;
 #elif _SHADER_QUALITY <= _Q_MEDIUM
-	const int maxSampleCount = 16;
+	const int maxSampleCount = 8;
 #elif _SHADER_QUALITY <= _Q_HIGH
-	const int maxSampleCount = 32;
+	const int maxSampleCount = 12;
 #elif _SHADER_QUALITY <= _Q_ULTRA
-	const int maxSampleCount = 64;
+	const int maxSampleCount = 16;
 #endif
-	const int sampleCount = clamp(maxSampleCount * equalize, 4, maxSampleCount);
+	const int sampleCount = clamp(maxSampleCount * equalize, 3, maxSampleCount);
 	const float stride = radius / sampleCount;
 	const float3 rayStride = reflectedDir * stride;
 
-	float4 color = float4(envColor, 0.f);
-	float3 kernelPosWV = posWV + normalWV * depthBias;
+	float3 kernelPosWV = posWV + normalWV * depthBias + rayStride * rand.x;
 	float2 prevTcRaySample = si.tc0;
 	float prevRayDeeper = _SINGULARITY_FIX;
 	for (int j = 0; j < sampleCount; ++j)
 	{
-		kernelPosWV += rayStride;
-
 		float4 tcRaySample = mul(float4(kernelPosWV, 1), g_ubSsrFS._matPTex);
 		tcRaySample /= tcRaySample.w;
 		const float rawKernelDepth = g_texDepth.SampleLevel(g_samDepth, tcRaySample.xy, 0.f).r;
@@ -141,15 +152,18 @@ FSO mainFS(VSO si)
 
 			const float distMask = 1.f - ((j + ratio) * stride * invRadius);
 
-			const float alpha = tcMask * distMask * fresnel;
+			const float alpha = tcMask * AlphaBoost(distMask) * fresnel;
 
 			color.rgb = lerp(envColor, g_texColor.SampleLevel(g_samColor, tcFinal, 0.f).rgb, alpha);
 			color.a = alpha;
 			break;
 		}
+
 		prevTcRaySample = tcRaySample.xy;
 		prevRayDeeper = abs(rayDeeper);
+		kernelPosWV += rayStride;
 	}
+#endif
 
 	so.target0 = color;
 	so.target1 = color.a;

@@ -84,6 +84,8 @@ namespace verus
 			bool IsCompute() const { return _compute; }
 
 			void OnError(CSZ s);
+
+			void UpdateUtilization();
 		};
 		VERUS_TYPEDEFS(ShaderVulkan);
 	}

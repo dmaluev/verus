@@ -256,7 +256,8 @@ float SimpleShadowMapCSM(
 	matrix mat3,
 	matrix matScreen,
 	float4 csmSplitRanges,
-	float4 config)
+	float4 config,
+	bool clipping = true)
 {
 #if _SHADOW_QUALITY >= _Q_HIGH
 	float ret = 1.f;
@@ -265,7 +266,7 @@ float SimpleShadowMapCSM(
 	const float4 clipSpacePos = mul(float4(intactPos, 1.f), matScreen);
 	const float depth = clipSpacePos.w;
 
-	if (IsClippedCSM(clipSpacePos))
+	if (!clipping || IsClippedCSM(clipSpacePos))
 	{
 		if (depth >= csmSplitRanges.x)
 		{

@@ -17,6 +17,7 @@ void GeometryVulkan::Init(RcGeometryDesc desc)
 {
 	VERUS_INIT();
 
+	_name = desc._name;
 	_dynBindingsMask = desc._dynBindingsMask;
 	_32BitIndices = desc._32BitIndices;
 
@@ -126,6 +127,7 @@ void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, PBaseCommand
 		BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererVulkan->GetRingBufferIndex() * vb._bufferSize;
 		memcpy(pMappedData + offset * elementSize, p, size);
 		vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), vb._vmaAllocation);
+		vb._utilization = offset * elementSize + size;
 	}
 	else
 	{
@@ -186,6 +188,7 @@ void GeometryVulkan::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, IN
 		BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererVulkan->GetRingBufferIndex() * _indexBuffer._bufferSize;
 		memcpy(pMappedData + offset * elementSize, p, size);
 		vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), _indexBuffer._vmaAllocation);
+		_indexBuffer._utilization = offset * elementSize + size;
 	}
 	else
 	{
@@ -292,4 +295,26 @@ VkDeviceSize GeometryVulkan::GetVkIndexBufferOffset() const
 	}
 	else
 		return 0;
+}
+
+void GeometryVulkan::UpdateUtilization()
+{
+	VERUS_QREF_RENDERER;
+	int binding = 0;
+	for (const auto& vb : _vVertexBuffers)
+	{
+		if (vb._utilization >= 0)
+		{
+			StringStream ss;
+			ss << "binding=" << binding << ", " << _name;
+			renderer.AddUtilization(_C(ss.str()), vb._utilization, vb._bufferSize);
+		}
+		binding++;
+	}
+	if (_indexBuffer._utilization >= 0)
+	{
+		StringStream ss;
+		ss << "ib, " << _name;
+		renderer.AddUtilization(_C(ss.str()), _indexBuffer._utilization, _indexBuffer._bufferSize);
+	}
 }

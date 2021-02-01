@@ -786,6 +786,7 @@ void RendererVulkan::ImGuiInit(RPHandle renderPassHandle)
 void RendererVulkan::ImGuiRenderDrawData()
 {
 	VERUS_QREF_RENDERER;
+	renderer.UpdateUtilization();
 	ImGui::Render();
 	VkCommandBuffer commandBuffer = static_cast<CommandBufferVulkan*>(renderer.GetCommandBuffer().Get())->GetVkCommandBuffer();
 	if (ImGui::GetDrawData())
@@ -1383,4 +1384,12 @@ void RendererVulkan::CopyImageToBuffer(
 	region.imageExtent = { width, height, 1 };
 
 	vkCmdCopyImageToBuffer(commandBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, buffer, 1, &region);
+}
+
+void RendererVulkan::UpdateUtilization()
+{
+	for (auto& x : TStoreGeometry::_list)
+		x.UpdateUtilization();
+	for (auto& x : TStoreShaders::_list)
+		x.UpdateUtilization();
 }

@@ -92,5 +92,6 @@
 #define VERUS_COLOR_BLEND_SUB          "s*(1)-d*(1)"
 #define VERUS_COLOR_BLEND_REVSUB       "d*(1)-s*(1)"
 #define VERUS_COLOR_BLEND_MUL          "s*(dc)+d*(0)"
+#define VERUS_COLOR_BLEND_MAD          "s*(dc)+d*(sa)"
 #define VERUS_COLOR_BLEND_FILTER       "s*(0)+d*(sc)"
 #define VERUS_COLOR_BLEND_TINTED_GLASS "s*(sc)+d*(1-sc)"

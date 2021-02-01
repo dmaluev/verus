@@ -55,7 +55,7 @@ namespace verus
 				{
 					if (!pCB)
 						pCB = renderer.GetCommandBuffer().Get();
-					(*this)->UpdateVertexBuffer(_vVB.data(), 0);
+					(*this)->UpdateVertexBuffer(&_vVB[_firstVertex], 0, pCB, vertCount, _firstVertex);
 					pCB->Draw(vertCount, 1, _firstVertex);
 				}
 			}

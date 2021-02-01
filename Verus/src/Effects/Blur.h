@@ -15,6 +15,8 @@ namespace verus
 				PIPE_V,
 				PIPE_BLOOM_U,
 				PIPE_BLOOM_V,
+				PIPE_DOF_U,
+				PIPE_DOF_V,
 				PIPE_SSAO_U,
 				PIPE_SSAO_V,
 				PIPE_SSR_U,
@@ -35,6 +37,7 @@ namespace verus
 
 				void FreeDescriptorSets(CGI::ShaderPtr shader);
 				void DeleteFramebuffers();
+				void DeleteRenderPasses();
 			};
 
 			static UB_BlurVS      s_ubBlurVS;
@@ -45,8 +48,10 @@ namespace verus
 			CGI::PipelinePwns<PIPE_COUNT> _pipe;
 			CGI::TexturePwn               _tex;
 			Handles                       _bloomHandles;
+			Handles                       _dofHandles;
 			Handles                       _ssaoHandles;
 			Handles                       _ssrHandles;
+			CGI::CSHandle                 _cshDofExtra;
 			CGI::CSHandle                 _cshSsrExtra;
 			CGI::RPHandle                 _rphAntiAliasing;
 			CGI::FBHandle                 _fbhAntiAliasing;
@@ -58,7 +63,10 @@ namespace verus
 			CGI::CSHandle                 _cshMotionBlurExtra;
 			float                         _bloomRadius = 0.015f;
 			float                         _bloomGodRaysRadius = 0.004f;
-			float                         _ssrRadius = 0.03f;
+			float                         _dofFocusDist = 10;
+			float                         _dofBlurStrength = 0.2f;
+			float                         _ssrRadius = 0.025f;
+			bool                          _enableDepthOfField = false;
 
 		public:
 			Blur();
@@ -71,12 +79,20 @@ namespace verus
 
 			void Generate();
 			void GenerateForBloom(bool forGodRays);
+			void GenerateForDepthOfField();
 			void GenerateForSsao();
 			void GenerateForSsr();
 			void GenerateForAntiAliasing();
 			void GenerateForMotionBlur();
 
 			void UpdateUniformBuffer(float radius, int sampleCount, int texSize = 0, float samplesPerPixel = 1, int maxSamples = 61);
+
+			bool IsDepthOfFieldEnabled() const { return _enableDepthOfField; }
+			void EnableDepthOfField(bool b) { _enableDepthOfField = b; }
+			float GetDofFocusDistance() const { return _dofFocusDist; }
+			void SetDofFocusDistance(float dist) { _dofFocusDist = dist; }
+			float GetDofBlurStrength() const { return _dofBlurStrength; }
+			void SetDofBlurStrength(float strength) { _dofBlurStrength = strength; }
 		};
 		VERUS_TYPEDEFS(Blur);
 	}

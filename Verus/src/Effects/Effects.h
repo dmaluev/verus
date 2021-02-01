@@ -6,6 +6,7 @@
 #include "Ssao.h"
 #include "Ssr.h"
 #include "Particles.h"
+#include "Cinema.h"
 
 namespace verus
 {

@@ -109,6 +109,8 @@ namespace verus
 			RDynamicDescriptorHeap GetViewHeap() { return _dhViews; }
 			RDynamicDescriptorHeap GetSamplerHeap() { return _dhSamplers; }
 			void SetDescriptorHeaps(PBaseCommandBuffer p);
+
+			virtual void UpdateUtilization() override;
 		};
 		VERUS_TYPEDEFS(RendererD3D12);
 	}

@@ -133,6 +133,7 @@
     <ClInclude Include="src\D\RuntimeError.h" />
     <ClInclude Include="src\Effects\Bloom.h" />
     <ClInclude Include="src\Effects\Blur.h" />
+    <ClInclude Include="src\Effects\Cinema.h" />
     <ClInclude Include="src\Effects\Effects.h" />
     <ClInclude Include="src\Effects\Particles.h" />
     <ClInclude Include="src\Effects\Ssao.h" />
@@ -144,6 +145,10 @@
     <ClInclude Include="src\Game\BaseGame.h" />
     <ClInclude Include="src\Game\BaseCharacter.h" />
     <ClInclude Include="src\Game\ChainAward.h" />
+    <ClInclude Include="src\Game\Cutscene.h" />
+    <ClInclude Include="src\Game\Driving.h" />
+    <ClInclude Include="src\Game\Mechanics.h" />
+    <ClInclude Include="src\Game\QuestSystem.h" />
     <ClInclude Include="src\Game\Spirit.h" />
     <ClInclude Include="src\Game\Game.h" />
     <ClInclude Include="src\Game\State.h" />
@@ -258,6 +263,7 @@
     <ClInclude Include="src\Scene\SceneNodes\SceneNodes.h" />
     <ClInclude Include="src\Scene\SceneNodes\SceneParticles.h" />
     <ClInclude Include="src\Scene\SceneNodes\Site.h" />
+    <ClInclude Include="src\Scene\SceneNodes\Trigger.h" />
     <ClInclude Include="src\Scene\SceneNodes\Types.h" />
     <ClInclude Include="src\Scene\ShadowMap.h" />
     <ClInclude Include="src\Scene\Terrain.h" />
@@ -337,6 +343,7 @@
     <ClCompile Include="src\D\Log.cpp" />
     <ClCompile Include="src\Effects\Bloom.cpp" />
     <ClCompile Include="src\Effects\Blur.cpp" />
+    <ClCompile Include="src\Effects\Cinema.cpp" />
     <ClCompile Include="src\Effects\Effects.cpp" />
     <ClCompile Include="src\Effects\Particles.cpp" />
     <ClCompile Include="src\Effects\Ssao.cpp" />
@@ -348,6 +355,10 @@
     <ClCompile Include="src\Game\BaseGame.cpp" />
     <ClCompile Include="src\Game\BaseCharacter.cpp" />
     <ClCompile Include="src\Game\ChainAward.cpp" />
+    <ClCompile Include="src\Game\Cutscene.cpp" />
+    <ClCompile Include="src\Game\Driving.cpp" />
+    <ClCompile Include="src\Game\Mechanics.cpp" />
+    <ClCompile Include="src\Game\QuestSystem.cpp" />
     <ClCompile Include="src\Game\Spirit.cpp" />
     <ClCompile Include="src\Game\State.cpp" />
     <ClCompile Include="src\Game\StateMachine.cpp" />
@@ -440,6 +451,7 @@
     <ClCompile Include="src\Scene\SceneNodes\SceneNodes.cpp" />
     <ClCompile Include="src\Scene\SceneNodes\SceneParticles.cpp" />
     <ClCompile Include="src\Scene\SceneNodes\Site.cpp" />
+    <ClCompile Include="src\Scene\SceneNodes\Trigger.cpp" />
     <ClCompile Include="src\Scene\ShadowMap.cpp" />
     <ClCompile Include="src\Scene\Terrain.cpp" />
     <ClCompile Include="src\Scene\Water.cpp" />
@@ -460,6 +472,10 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\ThirdParty\imgui\imgui_impl_sdl.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\imgui\imgui_tables.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -830,6 +846,22 @@
       <FileType>Document</FileType>
     </None>
     <None Include="src\Shaders\Ssr.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\Cinema.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\Cinema.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\DS_Reflection.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DS_Reflection.inc.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>
