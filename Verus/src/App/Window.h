@@ -18,7 +18,7 @@ namespace verus
 				Uint32      _flags = 0;
 				DisplayMode _displayMode = DisplayMode::windowed;
 				UINT32      _color = VERUS_COLOR_BLACK;
-				bool        _resizable = false;
+				bool        _resizable = true;
 				bool        _maximized = false;
 				bool        _useSettings = true;
 

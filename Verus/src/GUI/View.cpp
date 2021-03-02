@@ -72,7 +72,7 @@ void View::Draw()
 	auto& ubGui = vm.GetUbGui();
 	auto& ubGuiFS = vm.GetUbGuiFS();
 
-	if (IsHidden())
+	if (!IsVisible())
 		return;
 
 	if (_tex)

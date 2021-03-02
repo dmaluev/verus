@@ -8,6 +8,7 @@
 #include "BaseGame.h"
 #include "ChainAward.h"
 #include "Mechanics.h"
+#include "ActiveMechanics.h"
 #include "Driving.h"
 #include "Cutscene.h"
 #include "QuestSystem.h"

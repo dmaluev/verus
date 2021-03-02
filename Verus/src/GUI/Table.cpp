@@ -36,10 +36,11 @@ void Table::Draw()
 	float yOffset = GetY();
 	const float cell = GetW() / _cols;
 
+	const Vector4 tableColor = GetColor(true);
+
 	// Draw header:
 	if (!_header._vCells.empty())
 	{
-		SetColor(Vector4(1, 1, 1, 0.75f));
 		VERUS_FOR(i, _cols)
 		{
 			SetX(x + cell * i);
@@ -95,6 +96,7 @@ void Table::Draw()
 	SetY(y);
 	SetW(w);
 	SetH(h);
+	SetColor(tableColor);
 }
 
 void Table::Parse(pugi::xml_node node)

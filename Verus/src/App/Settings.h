@@ -30,10 +30,10 @@ namespace verus
 			int _grass_ubFSCapacity = 4;
 			int _gui_ubGuiCapacity = 100;
 			int _gui_ubGuiFSCapacity = 100;
-			int _mesh_ubPerFrameCapacity = 100;
-			int _mesh_ubPerMaterialFSCapacity = 500;
+			int _mesh_ubPerFrameCapacity = 200;
+			int _mesh_ubPerMaterialFSCapacity = 1000;
 			int _mesh_ubPerMeshVSCapacity = 2000;
-			int _mesh_ubSkinningVSCapacity = 100;
+			int _mesh_ubSkinningVSCapacity = 200;
 			int _particles_ubVSCapacity = 100;
 			int _particles_ubFSCapacity = 100;
 			int _quad_ubVSCapacity = 20;
@@ -81,6 +81,12 @@ namespace verus
 				trueWavesRefraction
 			};
 
+			enum Platform : int
+			{
+				classic,
+				uwp
+			};
+
 			Quality       _quality = Quality::medium;
 			bool          _displayAllowHighDPI = true;
 			float         _displayFOV = 70;
@@ -114,6 +120,7 @@ namespace verus
 			Limits        _limits;
 			String        _imguiFont;
 			float         _highDpiScale = 1;
+			Platform      _platform = Platform::classic;
 
 			Settings();
 			~Settings();

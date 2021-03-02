@@ -19,7 +19,7 @@ namespace verus
 			Math::Bounds   _bounds;
 			IO::Dictionary _dict;
 			String         _name;
-			String         _parent;
+			SceneNode* _pLinkedNode = nullptr;
 			btRigidBody* _pBody = nullptr;
 			NodeType       _type = NodeType::unknown;
 			bool           _dynamic = false;
@@ -46,6 +46,10 @@ namespace verus
 			NodeType GetType() const { return _type; }
 			virtual String GetUrl() { return ""; }
 			IO::RDictionary GetDictionary() { return _dict; }
+			void SetDictionary(IO::RcDictionary dict) { _dict = dict; };
+
+			SceneNode* GetLinkedNode() const { return _pLinkedNode; }
+			void SetLinkedNode(SceneNode* p) { _pLinkedNode = p; }
 
 			bool IsDynamic() const { return _dynamic; }
 			void SetDynamic(bool mode);
@@ -64,6 +68,7 @@ namespace verus
 
 			RcTransform3 GetTransform() const { return _tr; }
 			virtual void SetTransform(RcTransform3 tr);
+			virtual void RestoreTransform(RcTransform3 tr, RcVector3 rot, RcVector3 scale);
 			VERUS_P(void ComputeTransform());
 
 			Point3 GetPosition() const; //!< Gets the position from the main transformation matrix.

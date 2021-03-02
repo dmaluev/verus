@@ -473,39 +473,43 @@ String FileSystem::ReplaceFilename(CSZ pathname, CSZ filename)
 	return filename;
 }
 
-void FileSystem::SaveImage(CSZ pathname, const UINT32* p, int w, int h, bool upsideDown, ILenum type)
+void FileSystem::SaveImage(CSZ pathname, const UINT32* p, int w, int h, ImageFormat format, int param)
 {
-	struct RAII
-	{
-		ILuint name;
-		RAII() : name(0) {}
-		~RAII()
-		{
-			if (name)
-				ilDeleteImages(1, &name);
-		}
-	} raii;
+	Vector<BYTE> v(w * h * 8);
+	MutableBlob context(v.data());
 
-	Vector<UINT32> vFlip;
-	if (!upsideDown)
+	auto WriteFunc = [](void* context, void* data, int len)
 	{
-		vFlip.resize(w * h);
-		VERUS_FOR(i, h)
-			memcpy(&vFlip[i * w], &p[(h - i - 1) * w], w * 4);
-		p = vFlip.data();
+		PMutableBlob pContext = static_cast<PMutableBlob>(context);
+		memcpy(pContext->_p + pContext->_size, data, len);
+		pContext->_size += len;
+	};
+	switch (format)
+	{
+	case ImageFormat::png:
+	{
+		if (!stbi_write_png_to_func(WriteFunc, &context, w, h, 4, p, param ? param : w * 4))
+			throw VERUS_RUNTIME_ERROR << "stbi_write_png_to_func()";
+	}
+	break;
+	case ImageFormat::tga:
+	{
+		if (!stbi_write_tga_to_func(WriteFunc, &context, w, h, 4, p))
+			throw VERUS_RUNTIME_ERROR << "stbi_write_tga_to_func()";
+	}
+	break;
+	case ImageFormat::jpg:
+	{
+		if (!stbi_write_jpg_to_func(WriteFunc, &context, w, h, 4, p, param ? param : 90))
+			throw VERUS_RUNTIME_ERROR << "stbi_write_jpg_to_func()";
+	}
+	break;
 	}
 
-	raii.name = ilGenImage();
-	ilBindImage(raii.name);
-	ilTexImage(w, h, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, (void*)p);
-	Vector<BYTE> v;
-	v.resize(w * h * 8);
-	ilSaveL(type, v.data(), Utils::Cast32(v.size()));
-	const ILuint sizeOut = ilGetLumpPos();
 	IO::File file;
 	if (file.Open(pathname, "wb"))
 	{
-		file.Write(v.data(), sizeOut);
+		file.Write(context._p, context._size);
 		file.Close();
 	}
 	else
@@ -575,22 +579,15 @@ void Image::Init(CSZ url)
 {
 	VERUS_INIT();
 	FileSystem::LoadResourceFromFile(url, _vData);
-	ilGenImages(1, &_name);
-	ilBindImage(_name);
-	ilLoadL(IL_TYPE_UNKNOWN, _vData.data(), Utils::Cast32(_vData.size()));
-	_width = ilGetInteger(IL_IMAGE_WIDTH);
-	_height = ilGetInteger(IL_IMAGE_HEIGHT);
-	_bytesPerPixel = ilGetInteger(IL_IMAGE_BYTES_PER_PIXEL);
-	_p = ilGetData();
+	_p = stbi_load_from_memory(_vData.data(), Utils::Cast32(_vData.size()), &_width, &_height, &_bytesPerPixel, 0);
 }
 
 void Image::Done()
 {
-	if (_name)
+	if (_p)
 	{
-		ilBindImage(_name);
-		ilDeleteImages(1, &_name);
-		_name = 0;
+		stbi_image_free(_p);
+		_p = nullptr;
 	}
 	_vData.clear();
 	VERUS_DONE(Image);

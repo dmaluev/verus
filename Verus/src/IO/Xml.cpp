@@ -22,7 +22,7 @@ void Xml::SetFilename(CSZ name)
 	CSZ pSlash = strchr(name, '/');
 	if (!pSlash)
 	{
-		pathname = String(_C(Utils::I().GetWritablePath())) + "/" + name;
+		pathname = String(_C(Utils::I().GetWritablePath())) + name;
 		name = _C(pathname);
 	}
 	_pathname = name;

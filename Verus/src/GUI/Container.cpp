@@ -51,7 +51,7 @@ void Container::DrawWidgets()
 	VERUS_FOREACH_REVERSE_CONST(Vector<PWidget>, _vWidgets, it)
 	{
 		PWidget p = *it;
-		if (!p->IsHidden())
+		if (p->IsVisible())
 			p->Draw();
 	}
 }
@@ -97,7 +97,7 @@ PWidget Container::GetHovered(float x, float y)
 {
 	for (const auto& p : _vWidgets)
 	{
-		if (p->IsHidden() || p->IsDisabled())
+		if (!p->IsVisible() || p->IsDisabled())
 			continue;
 
 		PContainer pContainer = p->AsContainer();

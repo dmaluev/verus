@@ -120,7 +120,7 @@ void Camera::ExcludeWaterLine(float h)
 void Camera::SaveState(int slot)
 {
 	StringStream ss;
-	ss << _C(Utils::I().GetWritablePath()) << "/CameraState.xml";
+	ss << _C(Utils::I().GetWritablePath()) << "CameraState.xml";
 	IO::Xml xml;
 	xml.SetFilename(_C(ss.str()));
 	xml.Load();
@@ -132,7 +132,7 @@ void Camera::SaveState(int slot)
 void Camera::LoadState(int slot)
 {
 	StringStream ss;
-	ss << _C(Utils::I().GetWritablePath()) << "/CameraState.xml";
+	ss << _C(Utils::I().GetWritablePath()) << "CameraState.xml";
 	IO::Xml xml;
 	xml.SetFilename(_C(ss.str()));
 	xml.Load();

@@ -32,6 +32,7 @@ void Prefab::Done()
 {
 	for (auto& f : _vFragments)
 		f._block.Done();
+	SceneManager::I().GetOctree().UnbindClient(this);
 }
 
 void Prefab::LoadPrefab(SZ xml)
@@ -75,6 +76,7 @@ void Prefab::LoadPrefab(SZ xml)
 		desc._modelMat = _C(matFrag);
 		desc._collide = _collide;
 		f._block.Init(desc);
+		f._block->SetLinkedNode(this);
 		f._block->SetTransient();
 		CSZ tr = node.attribute("tr").value();
 		f._tr.FromString(tr);
@@ -141,6 +143,16 @@ void Prefab::UpdateBounds()
 		_bounds.Reset();
 		for (auto& f : _vFragments)
 			_bounds.CombineWith(f._block->GetBounds());
+
+		if (!_octreeBindOnce)
+		{
+			SceneManager::I().GetOctree().BindClient(Math::Octree::Client(_bounds, this), _dynamic);
+			_octreeBindOnce = _dynamic;
+		}
+		if (_dynamic)
+		{
+			SceneManager::I().GetOctree().UpdateDynamicBounds(Math::Octree::Client(_bounds, this));
+		}
 	}
 }
 

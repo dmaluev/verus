@@ -112,10 +112,6 @@ using namespace Microsoft::WRL;
 #	pragma comment(lib, "TootleDLL_2k8_64.lib")
 #endif
 
-// DevIL:
-#include <IL/il.h>
-#pragma comment(lib, "DevIL.lib")
-
 // C/C++:
 #include <atomic>
 #include <cassert>

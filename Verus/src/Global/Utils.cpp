@@ -52,14 +52,11 @@ void Utils::InitPaths()
 
 	if (!_companyFolderName.empty() && !_writableFolderName.empty())
 	{
-		SHGetSpecialFolderPath(0, pathname, CSIDL_LOCAL_APPDATA, TRUE);
-		_writablePath = Str::WideToUtf8(pathname);
-		_writablePath += "\\";
-		_writablePath += _companyFolderName;
-		CreateDirectory(_C(Str::Utf8ToWide(_writablePath)), nullptr);
-		_writablePath += "\\";
-		_writablePath += _writableFolderName;
-		CreateDirectory(_C(Str::Utf8ToWide(_writablePath)), nullptr);
+		SZ prefPath = SDL_GetPrefPath(_C(_companyFolderName), _C(_writableFolderName));
+		if (!prefPath)
+			throw VERUS_RECOVERABLE << "SDL_GetPrefPath()";
+		_writablePath = prefPath;
+		SDL_free(prefPath);
 		VERUS_LOG_INFO("Writable path: " << _writablePath);
 	}
 	else
@@ -74,12 +71,6 @@ void Utils::PushQuitEvent()
 	SDL_Event event = {};
 	event.type = SDL_QUIT;
 	SDL_PushEvent(&event);
-}
-
-void Utils::OpenUrl(CSZ url)
-{
-	const WideString urlW = Str::Utf8ToWide(url);
-	ShellExecute(0, L"open", _C(urlW), 0, 0, SW_SHOWNORMAL);
 }
 
 INT32 Utils::Cast32(INT64 x)

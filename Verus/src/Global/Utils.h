@@ -47,7 +47,14 @@ namespace verus
 
 		static void PushQuitEvent();
 
-		static void OpenUrl(CSZ url);
+		static void OpenUrl(CSZ url)
+		{
+#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_PC_APP)
+#else
+			const WideString urlW = Str::Utf8ToWide(url);
+			ShellExecute(0, L"open", _C(urlW), 0, 0, SW_SHOWNORMAL);
+#endif
+		}
 
 		static INT32 Cast32(INT64 x);
 		static UINT32 Cast32(UINT64 x);

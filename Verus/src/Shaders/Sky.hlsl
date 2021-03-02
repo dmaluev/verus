@@ -113,6 +113,7 @@ FSO mainFS(VSO si)
 	const float noon = saturate(g_ubPerFrame._dirToSun.y);
 	const float noonHalf = noon * 0.5f;
 	const float avgColor = (colorA + colorB) * 0.5f;
+	const float negative = 1.f - avgColor;
 	const float3 cloudColor = saturate(Desaturate(rawSky, 0.4f + noonHalf) + 0.4f * noon); // White, bright clouds at noon.
 	const float3 rimColor = saturate(rawRim * 2.f);
 
@@ -121,18 +122,18 @@ FSO mainFS(VSO si)
 	normal.xyz = normal.xzy; // From normal-map space to world.
 
 	const float clearSky = 1.f - cloudiness;
-	const float clearSkySoft = 0.1f + 0.9f * clearSky;
-	const float alpha = saturate((avgColor - clearSky) * 3.5f);
+	const float clearSkySoft = 0.6f + 0.4f * clearSky;
+	const float alpha = saturate((avgColor - clearSky) * 3.f);
 
-	const float directGlow = saturate(dot(normal, g_ubPerFrame._dirToSun.xyz)) * sunAlpha;
-	const float edgeGlow = saturate((0.85f - alpha) * 1.2f);
-	const float ambientGlow = edgeGlow * 0.5f + noonHalf * 0.25f + sunBoost * dayRatio;
-	const float glow = saturate(lerp(directGlow * 0.25f, edgeGlow, noonHalf) + ambientGlow);
-	const float diff = saturate((avgColor + directGlow + sunBoost * 0.25f) * dayRatio * clearSkySoft);
+	const float directLight = saturate(dot(normal, g_ubPerFrame._dirToSun.xyz)) * sunAlpha;
+	const float edgeMask = saturate((0.9f - alpha) * 2.f);
+	const float glowAmbient = edgeMask * 0.1f + noonHalf * 0.25f + sunBoost * dayRatio;
+	const float glow = saturate(lerp(directLight * directLight, edgeMask, noonHalf) + glowAmbient);
+	const float diff = saturate((0.6f + 0.4f * (max(directLight, negative) + sunBoost)) * dayRatio * clearSkySoft);
 
-	const float3 finalColor = saturate(diff * cloudColor + glow * rimColor * clearSkySoft);
+	const float3 finalColor = saturate(diff * cloudColor + glow * rimColor * clearSkySoft * 0.25f);
 
-	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * (7.f - 2.f * cloudiness);
+	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * (10.f - 2.f * cloudiness);
 	so.color.rgb = finalColor * hdrScale;
 	so.color.a = alpha;
 
@@ -142,7 +143,7 @@ FSO mainFS(VSO si)
 		const float fogBias = 0.01f + 0.49f * cloudScale;
 		const float fogContrast = 1.f + 2.f * cloudScale;
 		const float fog = saturate((si.tc0.y - 0.5f + fogBias) * (fogContrast / fogBias));
-		so.color.rgb = lerp(so.color.rgb, g_ubPerFrame._fogColor.rgb, lerp(1.f, fog, alpha));
+		so.color.rgb = lerp(so.color.rgb, g_ubPerFrame._fogColor.rgb, fog);
 		so.color.a = max(so.color.a, fog);
 	}
 	// </Fog>

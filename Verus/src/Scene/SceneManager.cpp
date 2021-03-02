@@ -592,6 +592,22 @@ void SceneManager::DeleteNode(NodeType type, CSZ name)
 		});
 }
 
+bool SceneManager::IsValidNode(PSceneNode pSceneNode)
+{
+	bool ret = false;
+	Query query;
+	ForEachNode(query, [pSceneNode, &ret](RSceneNode node)
+		{
+			if (&node == pSceneNode)
+			{
+				ret = true;
+				return Continue::no;
+			}
+			return Continue::yes;
+		});
+	return ret;
+}
+
 void SceneManager::ClearSelection()
 {
 	Query query;

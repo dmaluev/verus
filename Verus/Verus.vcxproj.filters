@@ -750,6 +750,12 @@
     <ClInclude Include="src\Scene\SceneNodes\Trigger.h">
       <Filter>src\Scene\SceneNodes</Filter>
     </ClInclude>
+    <ClInclude Include="src\App\UndoManager.h">
+      <Filter>src\App</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\ActiveMechanics.h">
+      <Filter>src\Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -1280,6 +1286,12 @@
     <ClCompile Include="src\Scene\SceneNodes\Trigger.cpp">
       <Filter>src\Scene\SceneNodes</Filter>
     </ClCompile>
+    <ClCompile Include="src\App\UndoManager.cpp">
+      <Filter>src\App</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\ActiveMechanics.cpp">
+      <Filter>src\Game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\Shaders\Lib.hlsl">
@@ -1456,6 +1468,12 @@
     <None Include="src\Shaders\Cinema.inc.hlsl">
       <Filter>src\Shaders</Filter>
     </None>
+    <None Include="src\Shaders\DS_Reflection.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_Reflection.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="src\ThirdParty\pugixml-1.11\pugixml.natvis">
@@ -1467,13 +1485,5 @@
     <Natvis Include="src\ThirdParty\imgui\imgui.natvis">
       <Filter>src\ThirdParty\imgui</Filter>
     </Natvis>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="src\Shaders\DS_Reflection.hlsl">
-      <Filter>src\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="src\Shaders\DS_Reflection.inc.hlsl">
-      <Filter>src\Shaders</Filter>
-    </FxCompile>
   </ItemGroup>
 </Project>

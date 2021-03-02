@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "pch.h"
 
 #define VMA_IMPLEMENTATION
-#include "ThirdParty/vk_mem_alloc.h"
+#include "vk_mem_alloc.h"

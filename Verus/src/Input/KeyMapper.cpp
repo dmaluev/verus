@@ -164,7 +164,7 @@ bool KeyMapper::HandleSdlEvent(SDL_Event& event)
 void KeyMapper::Load(Action* pAction)
 {
 	StringStream ss;
-	ss << _C(Utils::I().GetWritablePath()) << "/Keys.xml";
+	ss << _C(Utils::I().GetWritablePath()) << "Keys.xml";
 	IO::Xml xml(_C(ss.str()));
 }
 

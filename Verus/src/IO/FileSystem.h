@@ -5,6 +5,13 @@ namespace verus
 {
 	namespace IO
 	{
+		enum class ImageFormat : int
+		{
+			png,
+			tga,
+			jpg
+		};
+
 		class FileSystem : public Singleton<FileSystem>
 		{
 			typedef Map<String, Vector<BYTE>> TMapCache;
@@ -58,7 +65,7 @@ namespace verus
 			static String ReplaceFilename(CSZ pathname, CSZ filename);
 
 			// Save data:
-			static void SaveImage /**/(CSZ pathname, const UINT32* p, int w, int h, bool upsideDown = false, ILenum type = IL_PSD);
+			static void SaveImage /**/(CSZ pathname, const UINT32* p, int w, int h, ImageFormat format = ImageFormat::tga, int param = 0);
 			static void SaveDDS   /**/(CSZ pathname, const UINT32* p, int w, int h, int d = 0);
 			static void SaveString/**/(CSZ pathname, CSZ s);
 		};
@@ -69,7 +76,6 @@ namespace verus
 		public:
 			Vector<BYTE> _vData;
 			BYTE* _p = nullptr;
-			ILuint       _name = 0;
 			int          _width = 0;
 			int          _height = 0;
 			int          _bytesPerPixel = 0;

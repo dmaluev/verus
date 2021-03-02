@@ -59,6 +59,14 @@ void SceneNode::SetTransform(RcTransform3 tr)
 	UpdateBounds();
 }
 
+void SceneNode::RestoreTransform(RcTransform3 tr, RcVector3 rot, RcVector3 scale)
+{
+	_tr = tr;
+	_uiRotation = rot;
+	_uiScale = scale;
+	UpdateBounds();
+}
+
 void SceneNode::ComputeTransform()
 {
 	Quat q;

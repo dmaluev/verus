@@ -90,6 +90,8 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
 	settings.Validate();
 	settings.Save();
 	BaseGame_UpdateSettings();
+	if (App::Settings::Platform::uwp == settings._platform)
+		settings._gapi = 12;
 
 	// Allocate memory:
 	_engineInit.Make();
@@ -130,7 +132,10 @@ void BaseGame::Run(bool relativeMouseMode)
 	VERUS_QREF_TIMER;
 
 	if (relativeMouseMode)
-		SDL_SetRelativeMouseMode(SDL_TRUE);
+	{
+		if (SDL_SetRelativeMouseMode(SDL_TRUE))
+			throw VERUS_RUNTIME_ERROR << "SDL_SetRelativeMouseMode(SDL_TRUE)";
+	}
 
 	timer.Update();
 
@@ -143,10 +148,21 @@ void BaseGame::Run(bool relativeMouseMode)
 		{
 			ImGui_ImplSDL2_ProcessEvent(&event);
 
+			// Toggle fullscreen (Alt+Enter):
+			if ((SDL_KEYDOWN == event.type) && (SDLK_RETURN == event.key.keysym.sym) && (event.key.keysym.mod & KMOD_ALT))
+				ToggleFullscreen();
+
+			bool keyboardShortcut = false;
 			if (_p->_rawInputEvents && !ImGui::GetIO().WantCaptureMouse)
 			{
 				switch (event.type)
 				{
+				case SDL_KEYDOWN:
+				{
+					if (event.key.keysym.mod & (KMOD_CTRL | KMOD_SHIFT | KMOD_ALT))
+						keyboardShortcut = BaseGame_SDL_OnKeyboardShortcut(event.key.keysym.sym, event.key.keysym.mod);
+				}
+				break;
 				case SDL_MOUSEMOTION:
 				{
 					BaseGame_SDL_OnMouseMotion(event.motion.xrel, event.motion.yrel);
@@ -173,7 +189,7 @@ void BaseGame::Run(bool relativeMouseMode)
 				}
 			}
 
-			if (!km.HandleSdlEvent(event))
+			if (!keyboardShortcut && !km.HandleSdlEvent(event))
 			{
 				switch (event.type)
 				{
@@ -187,29 +203,38 @@ void BaseGame::Run(bool relativeMouseMode)
 				{
 					switch (event.window.event)
 					{
-					case SDL_WINDOWEVENT_RESIZED:
+					case SDL_WINDOWEVENT_SIZE_CHANGED:
 					{
-						renderer.OnWindowResized(event.window.data1, event.window.data2);
-						Scene::PCamera pCamera = sm.GetCamera();
-						if (pCamera)
+						if (renderer.OnWindowSizeChanged(event.window.data1, event.window.data2))
 						{
-							pCamera->SetAspectRatio(renderer.GetSwapChainAspectRatio());
-							pCamera->Update();
+							Scene::PCamera pCamera = sm.GetCamera();
+							if (pCamera)
+							{
+								pCamera->SetAspectRatio(renderer.GetSwapChainAspectRatio());
+								pCamera->Update();
+							}
+							BaseGame_OnWindowSizeChanged();
 						}
-						BaseGame_OnWindowResized();
 					}
 					break;
 					case SDL_WINDOWEVENT_MINIMIZED:
 					{
-						_p->_minimized = true;
-						BaseGame_OnDeactivated();
-						renderer->WaitIdle();
+						if (!_p->_minimized)
+						{
+							_p->_minimized = true;
+							BaseGame_OnDeactivated();
+							renderer->WaitIdle();
+						}
 					}
 					break;
+					case SDL_WINDOWEVENT_SHOWN:
 					case SDL_WINDOWEVENT_RESTORED:
 					{
-						_p->_minimized = false;
-						BaseGame_OnActivated();
+						if (_p->_minimized)
+						{
+							_p->_minimized = false;
+							BaseGame_OnActivated();
+						}
 					}
 					break;
 					}
@@ -296,7 +321,10 @@ void BaseGame::Run(bool relativeMouseMode)
 	BaseGame_UnloadContent();
 
 	if (relativeMouseMode)
-		SDL_SetRelativeMouseMode(SDL_FALSE);
+	{
+		if (SDL_SetRelativeMouseMode(SDL_FALSE))
+			throw VERUS_RUNTIME_ERROR << "SDL_SetRelativeMouseMode(SDL_FALSE)";
+	}
 }
 
 void BaseGame::Exit()
@@ -330,6 +358,19 @@ void BaseGame::KeyMapper_OnKey(int scancode)
 void BaseGame::KeyMapper_OnChar(wchar_t c)
 {
 	BaseGame_OnChar(c);
+}
+
+bool BaseGame::IsFullscreen() const
+{
+	const Uint32 flags = SDL_GetWindowFlags(_window.GetSDL());
+	return flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP);
+}
+
+void BaseGame::ToggleFullscreen()
+{
+	const bool fullscreen = IsFullscreen();
+	if (SDL_SetWindowFullscreen(_window.GetSDL(), fullscreen ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP))
+		throw VERUS_RUNTIME_ERROR << "SDL_SetWindowFullscreen()";
 }
 
 Scene::RCamera BaseGame::GetCamera()

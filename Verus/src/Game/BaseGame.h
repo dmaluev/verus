@@ -28,7 +28,7 @@ namespace verus
 			virtual void BaseGame_Update() = 0;
 			virtual void BaseGame_Draw() = 0;
 			virtual void BaseGame_DrawOverlay() = 0;
-			virtual void BaseGame_OnWindowResized() {}
+			virtual void BaseGame_OnWindowSizeChanged() {}
 			virtual void BaseGame_OnActivated() {}
 			virtual void BaseGame_OnDeactivated() {}
 			virtual void BaseGame_OnMouseMove(float x, float y) {}
@@ -42,6 +42,7 @@ namespace verus
 			virtual void BaseGame_SDL_OnMouseDoubleClick(int button) {}
 			virtual void BaseGame_SDL_OnMouseButtonUp(int button) {}
 			virtual void BaseGame_SDL_OnMouseWheel(int delta) {}
+			virtual bool BaseGame_SDL_OnKeyboardShortcut(int sym, int mod) { return false; }
 
 			virtual void KeyMapper_OnMouseMove(int x, int y) override;
 			virtual void KeyMapper_OnKey(int scancode) override;
@@ -50,6 +51,8 @@ namespace verus
 			REngineInit GetEngineInit() { return _engineInit; }
 
 			App::RcWindow GetWindow() const { return _window; }
+			bool IsFullscreen() const;
+			void ToggleFullscreen();
 
 			// Camera:
 			Scene::RCamera GetCamera();

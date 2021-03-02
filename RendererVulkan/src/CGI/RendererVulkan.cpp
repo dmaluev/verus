@@ -1,5 +1,5 @@
 // Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
-#include "stdafx.h"
+#include "pch.h"
 
 using namespace verus;
 using namespace verus::CGI;
@@ -883,7 +883,10 @@ void RendererVulkan::Present()
 	vkpi.pSwapchains = swapChains;
 	vkpi.pImageIndices = &_swapChainBufferIndex;
 	if (VK_SUCCESS != (res = vkQueuePresentKHR(_presentQueue, &vkpi)))
-		throw VERUS_RUNTIME_ERROR << "vkQueuePresentKHR(), res=" << res;
+	{
+		if (res != VK_ERROR_OUT_OF_DATE_KHR)
+			throw VERUS_RUNTIME_ERROR << "vkQueuePresentKHR(), res=" << res;
+	}
 }
 
 void RendererVulkan::Sync(bool present)

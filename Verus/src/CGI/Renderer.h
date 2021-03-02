@@ -103,7 +103,7 @@ namespace verus
 			void Draw();
 			void Present();
 
-			void OnWindowResized(int w, int h);
+			bool OnWindowSizeChanged(int w, int h);
 			VERUS_P(void OnSwapChainResized(bool init, bool done));
 			int GetSwapChainWidth() const { return _swapChainWidth; }
 			int GetSwapChainHeight() const { return _swapChainHeight; }

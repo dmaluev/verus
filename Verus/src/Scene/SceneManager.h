@@ -231,6 +231,7 @@ namespace verus
 			}
 
 			void DeleteNode(NodeType type, CSZ name);
+			bool IsValidNode(PSceneNode pSceneNode);
 
 			void ClearSelection();
 			int GetSelectedCount();

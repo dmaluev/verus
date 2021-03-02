@@ -27,9 +27,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\stdafx.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="src\CGI\CGI.h">
       <Filter>src\CGI</Filter>
     </ClInclude>
@@ -60,12 +57,12 @@
     <ClInclude Include="src\ThirdParty\imgui\imgui_impl_vulkan.h">
       <Filter>src\ThirdParty\imgui</Filter>
     </ClInclude>
+    <ClInclude Include="src\pch.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\stdafx.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\CGI\RendererVulkan.cpp">
@@ -94,6 +91,9 @@
     </ClCompile>
     <ClCompile Include="src\ThirdParty\imgui\imgui_impl_vulkan.cpp">
       <Filter>src\ThirdParty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pch.cpp">
+      <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -246,8 +246,11 @@ void Renderer::Present()
 	_fps = Math::Lerp(_fps, timer.GetDeltaTimeInv(), 0.25f);
 }
 
-void Renderer::OnWindowResized(int w, int h)
+bool Renderer::OnWindowSizeChanged(int w, int h)
 {
+	if (_swapChainWidth == w && _swapChainHeight == h)
+		return false;
+
 	_pBaseRenderer->WaitIdle();
 
 	_swapChainWidth = w;
@@ -261,6 +264,8 @@ void Renderer::OnWindowResized(int w, int h)
 	Effects::Ssao::I().OnSwapChainResized();
 	Effects::Ssr::I().OnSwapChainResized();
 	Effects::Blur::I().OnSwapChainResized();
+
+	return true;
 }
 
 void Renderer::OnSwapChainResized(bool init, bool done)

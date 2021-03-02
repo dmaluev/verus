@@ -159,7 +159,12 @@ void Settings::HandleHighDpi()
 	{
 		HRESULT hr = 0;
 		if (FAILED(hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)))
-			throw VERUS_RUNTIME_ERROR << "SetProcessDpiAwareness(), hr=" << VERUS_HR(hr);
+		{
+			if (E_ACCESSDENIED != hr)
+				throw VERUS_RUNTIME_ERROR << "SetProcessDpiAwareness(), hr=" << VERUS_HR(hr);
+			else
+				VERUS_LOG_INFO("SetProcessDpiAwareness(), E_ACCESSDENIED");
+		}
 		UpdateHighDpiScale();
 	}
 }
@@ -289,8 +294,14 @@ void Settings::UpdateHighDpiScale()
 	float hdpi = 0;
 	float vdpi = 0;
 	if (SDL_GetDisplayDPI(0, &ddpi, &hdpi, &vdpi) < 0)
-		throw VERUS_RUNTIME_ERROR << "SDL_GetDisplayDPI(), " << SDL_GetError();
-	_highDpiScale = vdpi / 96;
+	{
+		VERUS_LOG_INFO("SDL_GetDisplayDPI(), " << SDL_GetError());
+		_highDpiScale = 1;
+	}
+	else
+	{
+		_highDpiScale = vdpi / 96;
+	}
 }
 
 int Settings::GetFontSize() const

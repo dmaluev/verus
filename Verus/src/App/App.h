@@ -3,6 +3,7 @@
 
 #include "Settings.h"
 #include "Window.h"
+#include "UndoManager.h"
 
 namespace verus
 {

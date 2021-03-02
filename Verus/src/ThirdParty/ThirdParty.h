@@ -72,6 +72,8 @@ static inline ImVec4 operator*(const ImVec4& lhs, const ImVec4& rhs) { return Im
 // TinyGLTF (https://github.com/syoyo/tinygltf):
 #define TINYGLTF_NO_EXTERNAL_IMAGE
 #define TINYGLTF_NO_INCLUDE_JSON
+#include "tinygltf-2.5.0/stb_image.h"
+#include "tinygltf-2.5.0/stb_image_write.h"
 #include "tinygltf-2.5.0/tiny_gltf.h"
 
 // UTF-8 (https://sourceforge.net/projects/utfcpp/):

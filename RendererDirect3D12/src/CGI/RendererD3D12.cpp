@@ -1,5 +1,5 @@
 // Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
-#include "stdafx.h"
+#include "pch.h"
 
 using namespace verus;
 using namespace verus::CGI;
@@ -103,12 +103,22 @@ ComPtr<IDXGIFactory7> RendererD3D12::CreateDXGIFactory()
 	return pFactory;
 }
 
-ComPtr<IDXGIAdapter4> RendererD3D12::GetAdapter(ComPtr<IDXGIFactory7> pFactory)
+ComPtr<IDXGIAdapter4> RendererD3D12::GetAdapter(ComPtr<IDXGIFactory7> pFactory, D3D_FEATURE_LEVEL featureLevel)
 {
-	HRESULT hr = 0;
 	ComPtr<IDXGIAdapter4> pAdapter;
-	if (FAILED(hr = pFactory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&pAdapter))))
-		throw VERUS_RUNTIME_ERROR << "EnumAdapterByGpuPreference(), hr=" << VERUS_HR(hr);
+	for (UINT index = 0; SUCCEEDED(pFactory->EnumAdapterByGpuPreference(index, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&pAdapter))); ++index)
+	{
+		DXGI_ADAPTER_DESC1 adapterDesc = {};
+		pAdapter->GetDesc1(&adapterDesc);
+		if (adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+			continue;
+		if (SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), featureLevel, _uuidof(ID3D12Device), nullptr)))
+			break;
+		pAdapter.Reset();
+	}
+
+	if (!pAdapter)
+		throw VERUS_RUNTIME_ERROR << "GetAdapter(), adapter not found";
 
 	DXGI_ADAPTER_DESC1 adapterDesc = {};
 	pAdapter->GetDesc1(&adapterDesc);
@@ -154,12 +164,22 @@ void RendererD3D12::InitD3D()
 	EnableDebugLayer();
 #endif
 
+	const D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
+
 	ComPtr<IDXGIFactory7> pFactory = CreateDXGIFactory();
 
-	ComPtr<IDXGIAdapter4> pAdapter = GetAdapter(pFactory);
+	ComPtr<IDXGIAdapter4> pAdapter = GetAdapter(pFactory, featureLevel);
 
-	const D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
-	if (FAILED(hr = D3D12CreateDevice(pAdapter.Get(), featureLevel, IID_PPV_ARGS(&_pDevice))))
+	hr = D3D12CreateDevice(pAdapter.Get(), featureLevel, IID_PPV_ARGS(&_pDevice));
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
+	if (FAILED(hr))
+	{
+		if (FAILED(hr = pFactory->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter))))
+			throw VERUS_RUNTIME_ERROR << "EnumWarpAdapter(), hr=" << VERUS_HR(hr);
+		hr = D3D12CreateDevice(pAdapter.Get(), featureLevel, IID_PPV_ARGS(&_pDevice));
+	}
+#endif
+	if (FAILED(hr))
 		throw VERUS_RUNTIME_ERROR << "D3D12CreateDevice(), hr=" << VERUS_HR(hr);
 
 	VERUS_RT_ASSERT(D3D_FEATURE_LEVEL_11_0 == featureLevel);
@@ -203,12 +223,26 @@ void RendererD3D12::InitD3D()
 	VERUS_RT_ASSERT(pWnd);
 	SDL_SysWMinfo wmInfo = {};
 	SDL_VERSION(&wmInfo.version);
-	SDL_GetWindowWMInfo(pWnd, &wmInfo);
-	const HWND hWnd = wmInfo.info.win.window;
+	if (!SDL_GetWindowWMInfo(pWnd, &wmInfo))
+		throw VERUS_RUNTIME_ERROR << "SDL_GetWindowWMInfo()";
 
 	ComPtr<IDXGISwapChain1> pSwapChain1;
-	if (FAILED(hr = pFactory->CreateSwapChainForHwnd(_pCommandQueue.Get(), hWnd, &_swapChainDesc, nullptr, nullptr, &pSwapChain1)))
-		throw VERUS_RUNTIME_ERROR << "CreateSwapChainForHwnd(), hr=" << VERUS_HR(hr);
+	switch (settings._platform)
+	{
+	case App::Settings::Platform::classic:
+	{
+		if (FAILED(hr = pFactory->CreateSwapChainForHwnd(_pCommandQueue.Get(), wmInfo.info.win.window, &_swapChainDesc, nullptr, nullptr, &pSwapChain1)))
+			throw VERUS_RUNTIME_ERROR << "CreateSwapChainForHwnd(), hr=" << VERUS_HR(hr);
+		pFactory->MakeWindowAssociation(wmInfo.info.win.window, DXGI_MWA_NO_ALT_ENTER);
+	}
+	break;
+	case App::Settings::Platform::uwp:
+	{
+		if (FAILED(hr = pFactory->CreateSwapChainForCoreWindow(_pCommandQueue.Get(), wmInfo.info.winrt.window, &_swapChainDesc, nullptr, &pSwapChain1)))
+			throw VERUS_RUNTIME_ERROR << "CreateSwapChainForCoreWindow(), hr=" << VERUS_HR(hr);
+	}
+	break;
+	}
 	if (FAILED(hr = pSwapChain1.As(&_pSwapChain)))
 		throw VERUS_RUNTIME_ERROR << "QueryInterface(), hr=" << VERUS_HR(hr);
 
@@ -224,6 +258,12 @@ void RendererD3D12::InitD3D()
 
 	_pFence = CreateFence();
 	_hFence = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	if (!_hFence)
+	{
+		hr = HRESULT_FROM_WIN32(GetLastError());
+		throw VERUS_RUNTIME_ERROR << "CreateEvent(), hr=" << VERUS_HR(hr);
+	}
+	_fenceValues[_ringBufferIndex]++;
 
 	_dhViews.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, settings.GetLimits()._d3d12_dhViewsCapacity, 16, true);
 	_dhSamplers.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, settings.GetLimits()._d3d12_dhSamplersCapacity, 0, true);
@@ -283,7 +323,7 @@ ComPtr<ID3D12Fence> RendererD3D12::CreateFence()
 UINT64 RendererD3D12::QueueSignal()
 {
 	HRESULT hr = 0;
-	const UINT64 value = _nextFenceValue++;
+	const UINT64 value = _fenceValues[_ringBufferIndex];
 	if (FAILED(hr = _pCommandQueue->Signal(_pFence.Get(), value)))
 		throw VERUS_RUNTIME_ERROR << "Signal(), hr=" << VERUS_HR(hr);
 	return value;
@@ -304,8 +344,8 @@ void RendererD3D12::QueueWaitIdle()
 {
 	if (_pCommandQueue)
 	{
-		const UINT64 value = QueueSignal();
-		WaitForFenceValue(value);
+		WaitForFenceValue(QueueSignal());
+		_fenceValues[_ringBufferIndex]++;
 	}
 }
 
@@ -520,10 +560,10 @@ void RendererD3D12::Present()
 
 void RendererD3D12::Sync(bool present)
 {
-	_fenceValues[_ringBufferIndex] = QueueSignal();
+	const UINT64 currentFenceValue = QueueSignal();
 	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
-
 	WaitForFenceValue(_fenceValues[_ringBufferIndex]);
+	_fenceValues[_ringBufferIndex] = currentFenceValue + 1;
 }
 
 void RendererD3D12::WaitIdle()

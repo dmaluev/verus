@@ -135,7 +135,7 @@ PView ViewManager::ParseView(CSZ url)
 	IO::FileSystem::LoadResource(url, vData);
 
 	pugi::xml_document doc;
-	const pugi::xml_parse_result result = doc.load_buffer_inplace(vData.data(), vData.size());
+	const pugi::xml_parse_result result = doc.load_buffer_inplace(vData.data(), vData.size(), pugi::parse_default & ~pugi::parse_wconv_attribute);
 	if (!result)
 		throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
 	pugi::xml_node root = doc.first_child();
@@ -215,7 +215,7 @@ void ViewManager::MsgBox(CSZ txt, int data)
 	{
 		PView pView = GetViewByName("UI/MsgBox.xml");
 		pView->Disable(false);
-		pView->Hide(false);
+		pView->Show();
 		pView->SetData();
 		pView->ResetAnimators();
 		pView->SetState(View::State::active);
@@ -346,7 +346,7 @@ bool ViewManager::SwitchView()
 	{
 		for (const auto& pView : _vViews)
 		{
-			if (!pView->IsHidden())
+			if (pView->IsVisible())
 				pView->GetData();
 			pView->Disable();
 			pView->Hide();
@@ -355,7 +355,7 @@ bool ViewManager::SwitchView()
 		if (pView)
 		{
 			pView->Disable(false);
-			pView->Hide(false);
+			pView->Show();
 			pView->SetData();
 			pView->ResetAnimators();
 			pView->BeginFadeIn();

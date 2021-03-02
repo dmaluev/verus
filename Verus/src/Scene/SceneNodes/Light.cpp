@@ -175,6 +175,12 @@ void Light::SetTransform(RcTransform3 mat)
 	SceneNode::SetTransform(tr);
 }
 
+void Light::RestoreTransform(RcTransform3 tr, RcVector3 rot, RcVector3 scale)
+{
+	_data._dir = VMath::normalize(tr.getCol2());
+	SceneNode::RestoreTransform(tr, rot, scale);
+}
+
 Vector3 Light::ComputeScale()
 {
 	switch (_data._lightType)

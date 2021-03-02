@@ -6,6 +6,15 @@ using namespace verus::D;
 
 void Log::Write(CSZ txt, std::thread::id tid, CSZ filename, UINT32 line, Severity severity)
 {
+	if (strstr(txt, "VUID-StandaloneSpirv-Offset-04663"))
+		return;
+	if (strstr(txt, "UNASSIGNED-BestPractices-vkAllocateMemory-small-allocation"))
+		return;
+	if (strstr(txt, "UNASSIGNED-BestPractices-vkBindMemory-small-dedicated-allocation"))
+		return;
+	if (strstr(txt, "UNASSIGNED-CoreValidation-Shader-OutputNotConsumed"))
+		return;
+
 	VERUS_LOCK(*this);
 
 #ifdef _DEBUG
@@ -25,7 +34,6 @@ void Log::Write(CSZ txt, std::thread::id tid, CSZ filename, UINT32 line, Severit
 	if (_pathname.empty())
 	{
 		_pathname += _C(Utils::I().GetWritablePath());
-		_pathname += "/";
 		_pathname += "Log.txt";
 	}
 

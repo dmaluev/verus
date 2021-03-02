@@ -11,4 +11,13 @@ namespace verus
 		Blob(const BYTE* p = nullptr, const INT64 size = 0) : _p(p), _size(size) {}
 	};
 	VERUS_TYPEDEFS(Blob);
+
+	struct MutableBlob
+	{
+		BYTE* _p;
+		INT64 _size;
+
+		MutableBlob(BYTE* p = nullptr, const INT64 size = 0) : _p(p), _size(size) {}
+	};
+	VERUS_TYPEDEFS(MutableBlob);
 }

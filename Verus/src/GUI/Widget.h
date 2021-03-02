@@ -107,7 +107,8 @@ namespace verus
 			bool IsDisabled() const { return _disabled; }
 			void Disable(bool disable = true) { _disabled = disable; }
 
-			bool IsHidden() const { return _hidden; }
+			bool IsVisible() const { return !_hidden; }
+			void Show() { _hidden = false; }
 			void Hide(bool hide = true) { _hidden = hide; }
 
 			float GetWScale() const { return _wScale; }

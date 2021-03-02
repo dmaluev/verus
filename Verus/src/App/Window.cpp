@@ -65,14 +65,6 @@ void Window::Init(RcDesc constDesc)
 		if (DisplayMode::borderlessWindowed == desc._displayMode)
 			VERUS_LOG_INFO("Window is using Borderless Windowed display mode");
 	}
-
-	SDL_Surface* pSurface = SDL_GetWindowSurface(_pWnd);
-	const Uint32 color = SDL_MapRGB(pSurface->format,
-		(desc._color >> 0) & 0xFF,
-		(desc._color >> 8) & 0xFF,
-		(desc._color >> 16) & 0xFF);
-	SDL_FillRect(pSurface, nullptr, color);
-	SDL_UpdateWindowSurface(_pWnd);
 }
 
 void Window::Done()

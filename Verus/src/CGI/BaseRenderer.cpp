@@ -15,10 +15,27 @@ BaseRenderer::~BaseRenderer()
 
 PBaseRenderer BaseRenderer::Load(CSZ dll, RBaseRendererDesc desc)
 {
+	VERUS_QREF_CONST_SETTINGS;
 #ifdef _WIN32
-	PFNCREATERENDERER CreateRenderer = reinterpret_cast<PFNCREATERENDERER>(
-		GetProcAddress(LoadLibraryA(dll), "CreateRenderer"));
-	return CreateRenderer(VERUS_SDK_VERSION, &desc);
+	switch (settings._platform)
+	{
+	case App::Settings::Platform::classic:
+	{
+		PFNCREATERENDERER CreateRenderer = reinterpret_cast<PFNCREATERENDERER>(
+			GetProcAddress(LoadLibraryA(dll), "CreateRenderer"));
+		return CreateRenderer(VERUS_SDK_VERSION, &desc);
+	}
+	break;
+	case App::Settings::Platform::uwp:
+	{
+		PFNCREATERENDERER CreateRenderer = reinterpret_cast<PFNCREATERENDERER>(
+			GetProcAddress(LoadPackagedLibrary(L"RendererDirect3D12.dll", 0), "CreateRenderer"));
+		return CreateRenderer(VERUS_SDK_VERSION, &desc);
+	}
+	break;
+	default:
+		return nullptr;
+	}
 #else
 	PFNCREATERENDERER CreateRenderer = reinterpret_cast<PFNCREATERENDERER>(
 		dlsym(dlopen("./libRenderOpenGL.so", RTLD_LAZY), "CreateRenderer"));

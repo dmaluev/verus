@@ -50,7 +50,7 @@ void Multiplayer::Player::SaveLog(int id, bool server)
 {
 	CSZ serv = server ? " (SERVER)" : "";
 	StringStream ss;
-	ss << _C(Utils::I().GetWritablePath()) << "/Multiplayer (" << id << ")" << serv << ".log";
+	ss << _C(Utils::I().GetWritablePath()) << "Multiplayer (" << id << ")" << serv << ".log";
 	IO::File file;
 	file.Open(_C(ss.str()), "w");
 	file.Write(_C(_log), _log.length());

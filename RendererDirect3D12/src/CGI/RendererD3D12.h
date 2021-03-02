@@ -27,7 +27,6 @@ namespace verus
 			ComPtr<ID3D12Fence>               _pFence;
 			HANDLE                            _hFence = INVALID_HANDLE_VALUE;
 			HANDLE                            _hFrameLatencyWaitableObject = INVALID_HANDLE_VALUE;
-			UINT64                            _nextFenceValue = 1;
 			UINT64                            _fenceValues[s_ringBufferSize] = {};
 			Vector<D3D12_STATIC_SAMPLER_DESC> _vSamplers;
 			Vector<RP::D3DRenderPass>         _vRenderPasses;
@@ -46,7 +45,7 @@ namespace verus
 		private:
 			static void EnableDebugLayer();
 			static ComPtr<IDXGIFactory7> CreateDXGIFactory();
-			static ComPtr<IDXGIAdapter4> GetAdapter(ComPtr<IDXGIFactory7> pFactory);
+			static ComPtr<IDXGIAdapter4> GetAdapter(ComPtr<IDXGIFactory7> pFactory, D3D_FEATURE_LEVEL featureLevel);
 			static bool CheckFeatureSupportAllowTearing(ComPtr<IDXGIFactory7> pFactory);
 			void CreateSwapChainBuffersRTVs();
 			void InitD3D();

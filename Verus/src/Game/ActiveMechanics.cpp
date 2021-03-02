@@ -1,0 +1,140 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+#include "verus.h"
+
+using namespace verus;
+using namespace verus::Game;
+
+ActiveMechanics::ActiveMechanics()
+{
+}
+
+ActiveMechanics::~ActiveMechanics()
+{
+}
+
+void ActiveMechanics::Init()
+{
+	VERUS_INIT();
+
+	Reset();
+}
+
+void ActiveMechanics::Done()
+{
+	VERUS_DONE(ActiveMechanics);
+}
+
+bool ActiveMechanics::HandleInput()
+{
+	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	{
+		if (Continue::no == (*it)->HandleInput())
+			return true;
+	}
+	return false;
+}
+
+bool ActiveMechanics::Update()
+{
+	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	{
+		if (Continue::no == (*it)->Update())
+			return true;
+	}
+	return false;
+}
+
+bool ActiveMechanics::Draw()
+{
+	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	{
+		if (Continue::no == (*it)->Draw())
+			return true;
+	}
+	return false;
+}
+
+void ActiveMechanics::ApplyReport(const void* pReport)
+{
+	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+		(*it)->ApplyReport(pReport);
+}
+
+bool ActiveMechanics::GetBotDomainCenter(int id, RPoint3 center)
+{
+	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	{
+		if (Continue::no == (*it)->GetBotDomainCenter(id, center))
+			return true;
+	}
+	return false;
+}
+
+bool ActiveMechanics::OnMouseMove(float x, float y)
+{
+	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	{
+		if (Continue::no == (*it)->OnMouseMove(x, y))
+			return true;
+	}
+	return false;
+}
+
+bool ActiveMechanics::UpdateMultiplayer()
+{
+	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	{
+		if (Continue::no == (*it)->UpdateMultiplayer())
+			return true;
+	}
+	return false;
+}
+
+Scene::PMainCamera ActiveMechanics::GetMainCamera()
+{
+	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	{
+		Scene::PMainCamera pCamera = (*it)->GetMainCamera();
+		if (pCamera)
+			return pCamera;
+	}
+	return nullptr;
+}
+
+void ActiveMechanics::Reset()
+{
+	for (auto& p : _vStack)
+		p->OnEnd();
+	_vStack.clear();
+	ActiveMechanics_OnChanged();
+}
+
+bool ActiveMechanics::Push(RMechanics mech)
+{
+	if (IsActive(mech))
+		return false;
+	_vStack.push_back(&mech);
+	std::sort(_vStack.begin(), _vStack.end());
+	mech.OnBegin();
+	ActiveMechanics_OnChanged();
+	return true;
+}
+
+bool ActiveMechanics::Pop(RMechanics mech)
+{
+	const auto it = std::remove(_vStack.begin(), _vStack.end(), &mech);
+	const bool ret = it != _vStack.end();
+	if (ret)
+	{
+		_vStack.erase(it, _vStack.end());
+		std::sort(_vStack.begin(), _vStack.end());
+		mech.OnEnd();
+		ActiveMechanics_OnChanged();
+	}
+	return ret;
+}
+
+bool ActiveMechanics::IsActive(RcMechanics mech) const
+{
+	return _vStack.end() != std::find(_vStack.begin(), _vStack.end(), &mech);
+}

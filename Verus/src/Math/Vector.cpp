@@ -115,11 +115,7 @@ void Vector3::EulerFromQuaternion(RcQuat q)
 
 void Vector3::EulerToQuaternion(RQuat q) const
 {
-	const glm::mat4 mat = glm::eulerAngleYXZ(
-		static_cast<float>(getY()),
-		static_cast<float>(getX()),
-		static_cast<float>(getZ()));
-	q = glm::quat_cast(mat);
+	q = glm::quat(GLM());
 }
 
 void Vector3::LimitDot(RcVector3 v, float d)
