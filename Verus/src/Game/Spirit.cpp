@@ -207,7 +207,7 @@ void Spirit::Rotate(RcVector3 front, float speed)
 	_yaw = Math::WrapAngle(_yaw + Math::Min(speed * dt, abs(dYaw)) * glm::sign(dYaw));
 }
 
-void Spirit::LookAt(RcPoint3 point)
+void Spirit::LookAt(RcPoint3 point, bool forceTarget)
 {
 	const Vector3 dir = point - GetPosition();
 	_yaw = Math::WrapAngle(atan2(
@@ -216,6 +216,12 @@ void Spirit::LookAt(RcPoint3 point)
 	Vector3 dir2D = dir;
 	dir2D.setY(0);
 	_pitch = -atan(dir.getY() / VMath::length(dir2D));
+
+	if (forceTarget)
+	{
+		_yaw.ForceTarget();
+		_pitch.ForceTarget();
+	}
 }
 
 RcMatrix3 Spirit::GetPitchMatrix() const

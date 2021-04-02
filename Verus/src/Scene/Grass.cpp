@@ -181,8 +181,8 @@ void Grass::Update()
 	_phase = glm::fract(_phase + dt * 2.3f);
 
 	const float windSpeed = atmo.GetWindSpeed();
-	const float warpStrength = Math::Clamp<float>(windSpeed * (1 / 10.f), 0, 1.f);
-	const float turbulence = Math::Clamp<float>(windSpeed * (1 / 14.f), 0, 0.4f);
+	const float warpStrength = Math::Clamp<float>(windSpeed * (1 / 13.f), 0, 1.f);
+	const float turbulence = Math::Clamp<float>(windSpeed * (1 / 17.f), 0, 0.4f);
 
 	_warpSpring.Update(atmo.GetWindDirection() * (warpStrength * 30.f));
 	_turbulence = turbulence * turbulence;

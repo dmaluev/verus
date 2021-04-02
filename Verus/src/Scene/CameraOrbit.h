@@ -17,6 +17,7 @@ namespace verus
 			virtual ~CameraOrbit();
 
 			virtual void Update() override;
+			void UpdateUsingEyeAt();
 			void UpdateElastic();
 
 			virtual void DragController_GetParams(float& x, float& y) override;

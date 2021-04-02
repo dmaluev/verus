@@ -20,7 +20,7 @@ void ViewController::Init(CSZ url)
 	_pView = ViewManager::I().ParseView(url);
 	_pView->SetDelegate(this);
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	ConnectOnKey(VERUS_EVENT_HANDLER(&ViewController::OnKey));
 #endif
 }
@@ -90,8 +90,20 @@ void ViewController::BeginFadeTo()
 	ViewManager::I().BeginFadeTo(_C(_pView->GetName()));
 }
 
+void ViewController::Activate()
+{
+	ViewManager::I().Activate(_C(_pView->GetName()));
+}
+
+void ViewController::Deactivate()
+{
+	ViewManager::I().Deactivate(_C(_pView->GetName()));
+}
+
 void ViewController::OnKey(RcEventArgs args)
 {
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	if (args._char == SDL_SCANCODE_F5)
 		Reload();
+#endif
 }

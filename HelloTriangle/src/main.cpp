@@ -1,0 +1,25 @@
+// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+#include "pch.h"
+
+using namespace verus;
+
+int main(VERUS_MAIN_DEFAULT_ARGS)
+{
+	Game::HelloTriangleGame game;
+	try
+	{
+		game.Initialize(argc, argv);
+		game.Run(false);
+	}
+	catch (D::RcRuntimeError e)
+	{
+		D::Log::I().Write(e.what(), e.GetThreadID(), e.GetFile(), e.GetLine(), D::Log::Severity::error);
+		return EXIT_FAILURE;
+	}
+	catch (const std::exception& e)
+	{
+		VERUS_LOG_ERROR(e.what());
+		return EXIT_FAILURE;
+	}
+	return EXIT_SUCCESS;
+}

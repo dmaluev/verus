@@ -31,6 +31,7 @@ void EngineInit::Make()
 
 void EngineInit::Free()
 {
+	// Some object must outlive others, so the order is important:
 	if (_makeGUI)
 		Free_GUI();
 	if (_makeScene)
@@ -74,9 +75,7 @@ void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::Rendere
 	}
 
 	if (_makeCGI)
-	{
-		CGI::Renderer::I().Init(pRendererDelegate);
-	}
+		CGI::Renderer::I().Init(pRendererDelegate, _allowInitShaders);
 
 	// Static init:
 	if (_makeEffects)
@@ -92,7 +91,7 @@ void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::Rendere
 	}
 
 	// Helpers:
-	if (_makeCGI)
+	if (_makeCGI && _allowInitShaders)
 		CGI::DebugDraw::I().Init();
 	if (_makeScene)
 		Scene::Helpers::I().Init();
@@ -118,7 +117,17 @@ void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::Rendere
 void EngineInit::InitCmd()
 {
 	if (_makeEffects)
-	{
 		Effects::Ssao::I().InitCmd();
-	}
+}
+
+void EngineInit::ReducedFeatureSet()
+{
+	_makeAudio = false;
+	_makeEffects = false;
+	_makeExtra = false;
+	_makeGUI = false;
+	_makeNet = false;
+	_makePhysics = false;
+	_makeScene = false;
+	_allowInitShaders = false;
 }

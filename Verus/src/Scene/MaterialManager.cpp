@@ -568,15 +568,10 @@ void MaterialManager::Init()
 
 void MaterialManager::InitCmd()
 {
-	CGI::SamplerDesc strassSamplerDesc;
-	strassSamplerDesc.SetFilter("a");
-	strassSamplerDesc.SetAddressMode("rr");
-	strassSamplerDesc._mipLodBias = -2;
-
 	_texDefaultAlbedo.Init("[Textures]:Default.dds", false, true);
 	_texDefaultNormal.Init("[Textures]:Default.NM.dds", false, true);
 	_texDetail.Init("[Textures]:Detail.FX.dds", false, true);
-	_texStrass.Init("[Textures]:Strass.dds", false, true, &strassSamplerDesc);
+	_texStrass.Init("[Textures]:Strass.dds", false, true);
 
 	_cshDefault = Mesh::GetShader()->BindDescriptorSetTextures(1,
 		{

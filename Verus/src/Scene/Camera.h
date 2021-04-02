@@ -91,6 +91,9 @@ namespace verus
 
 			void ExcludeWaterLine(float h = 0.25f);
 
+			void ApplyMotion(CSZ boneName, Anim::RMotion motion, float time);
+			void BakeMotion(CSZ boneName, Anim::RMotion motion, int frame);
+
 			// State:
 			virtual void SaveState(int slot);
 			virtual void LoadState(int slot);
@@ -110,6 +113,7 @@ namespace verus
 			Matrix4            _matPrevVP = Matrix4::identity(); // For motion blur.
 			PCursorPosProvider _pCpp = nullptr;
 			UINT64             _currentFrame = UINT64_MAX;
+			bool               _cutMotionBlur = false;
 
 		public:
 			void operator=(const MainCamera& that);
@@ -124,6 +128,7 @@ namespace verus
 			void SetCursorPosProvider(PCursorPosProvider p) { _pCpp = p; }
 
 			float ComputeMotionBlur(RcPoint3 pos, RcPoint3 posPrev) const;
+			void CutMotionBlur() { _cutMotionBlur = true; }
 		};
 		VERUS_TYPEDEFS(MainCamera);
 	}

@@ -274,7 +274,7 @@ void Blur::Generate()
 {
 }
 
-void Blur::GenerateForBloom(bool forGodRays)
+void Blur::GenerateForBloom(bool forLightShafts)
 {
 	VERUS_QREF_BLOOM;
 	VERUS_QREF_CONST_SETTINGS;
@@ -283,10 +283,10 @@ void Blur::GenerateForBloom(bool forGodRays)
 	if (bloom.IsEditMode())
 	{
 		ImGui::DragFloat("Bloom blur radius", &_bloomRadius, 0.001f);
-		ImGui::DragFloat("Bloom (god rays) blur radius", &_bloomGodRaysRadius, 0.001f);
+		ImGui::DragFloat("Bloom (god rays) blur radius", &_bloomLightShaftsRadius, 0.001f);
 	}
 
-	const float radius = forGodRays ? _bloomGodRaysRadius : _bloomRadius;
+	const float radius = forLightShafts ? _bloomLightShaftsRadius : _bloomRadius;
 	float samplesPerPixel = 1;
 	int maxSamples = 1;
 	switch (settings._gpuShaderQuality)

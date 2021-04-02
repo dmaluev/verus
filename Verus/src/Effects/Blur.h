@@ -62,7 +62,7 @@ namespace verus
 			CGI::CSHandle                 _cshMotionBlur;
 			CGI::CSHandle                 _cshMotionBlurExtra;
 			float                         _bloomRadius = 0.015f;
-			float                         _bloomGodRaysRadius = 0.004f;
+			float                         _bloomLightShaftsRadius = 0.004f;
 			float                         _dofFocusDist = 10;
 			float                         _dofBlurStrength = 0.2f;
 			float                         _ssrRadius = 0.025f;
@@ -78,7 +78,7 @@ namespace verus
 			void OnSwapChainResized();
 
 			void Generate();
-			void GenerateForBloom(bool forGodRays);
+			void GenerateForBloom(bool forLightShafts);
 			void GenerateForDepthOfField();
 			void GenerateForSsao();
 			void GenerateForSsr();

@@ -4,6 +4,8 @@
 using namespace verus;
 using namespace verus::Anim;
 
+const float Motion::Bone::s_magicValueForCircle = 0.825f * 0.7071f * 4; // Octagon vertices will form a perfect circle.
+
 // Motion::Bone::Rotation:
 
 Motion::Bone::Rotation::Rotation()
@@ -130,9 +132,24 @@ bool Motion::Bone::FindKeyframeTrigger(int frame, int& state) const
 
 void Motion::Bone::ComputeRotationAt(float time, RVector3 euler, RQuat q) const
 {
-	Rotation prev, next, null(Quat(0));
-	const float alpha = GetAlpha(_mapRot, prev, next, null, time);
-	q = VMath::slerp(alpha, prev._q, next._q);
+	int frames[4];
+	Rotation keys[4];
+	const float alpha = FindControlPoints(_mapRot, frames, keys, time);
+
+	if (_flags & Flags::slerpRot)
+	{
+		const Rotation null(Quat(0));
+		RcRotation prev = (frames[1] == -1) ? null : keys[1];
+		RcRotation next = (frames[2] == -1) ? null : keys[2];
+		q = VMath::slerp(alpha, prev._q, next._q);
+	}
+	else
+	{
+		const Rotation null(Quat(0));
+		RcRotation prev = (frames[1] == -1) ? null : keys[1];
+		RcRotation next = (frames[2] == -1) ? null : keys[2];
+		q = Math::NLerp(alpha, prev._q, next._q);
+	}
 
 	PMotion pBlendMotion = _pMotion->GetBlendMotion();
 	if (pBlendMotion)
@@ -143,7 +160,12 @@ void Motion::Bone::ComputeRotationAt(float time, RVector3 euler, RQuat q) const
 			Vector3 eulerBlend;
 			Quat qBlend;
 			if (pBone->FindKeyframeRotation(0, eulerBlend, qBlend))
-				q = VMath::slerp(_pMotion->GetBlendAlpha(), qBlend, q);
+			{
+				if (_flags & Flags::slerpRot)
+					q = VMath::slerp(_pMotion->GetBlendAlpha(), qBlend, q);
+				else
+					q = Math::NLerp(_pMotion->GetBlendAlpha(), qBlend, q);
+			}
 		}
 	}
 
@@ -152,9 +174,38 @@ void Motion::Bone::ComputeRotationAt(float time, RVector3 euler, RQuat q) const
 
 void Motion::Bone::ComputePositionAt(float time, RVector3 pos) const
 {
-	Vector3 prev, next, null(0);
-	const float alpha = GetAlpha(_mapPos, prev, next, null, time);
-	pos = VMath::lerp(alpha, prev, next);
+	int frames[4];
+	Vector3 keys[4];
+	const float alpha = FindControlPoints(_mapPos, frames, keys, time);
+
+	if (_flags & Flags::splinePos)
+	{
+		const Vector3 null(0);
+		if (frames[1] == -1) { frames[1] = 0; keys[1] = null; }
+		if (frames[2] == -1) { frames[2] = 0; keys[2] = null; }
+		// Extrapolate:
+		if (frames[0] == -1) { frames[0] = frames[1] * 2 - frames[2]; keys[0] = keys[1] * 2 - keys[2]; }
+		if (frames[3] == -1) { frames[3] = frames[2] * 2 - frames[1]; keys[3] = keys[2] * 2 - keys[1]; }
+		// Ratio controls the direction and length of tangents. One keyframe can have different tangent lengths to match speed.
+		const int intervals[3] =
+		{
+			frames[1] - frames[0],
+			frames[2] - frames[1],
+			frames[3] - frames[2]
+		};
+		const float ratioA = static_cast<float>(intervals[0]) / (intervals[0] + intervals[1]);
+		const float ratioB = static_cast<float>(intervals[1]) / (intervals[1] + intervals[2]);
+		const Vector3 tanA = VMath::lerp(ratioA, keys[1] - keys[0], keys[2] - keys[1]) * s_magicValueForCircle * (1 - ratioA);
+		const Vector3 tanB = VMath::lerp(ratioB, keys[2] - keys[1], keys[3] - keys[2]) * s_magicValueForCircle * ratioB;
+		pos = glm::hermite(keys[1].GLM(), tanA.GLM(), keys[2].GLM(), tanB.GLM(), alpha);
+	}
+	else
+	{
+		const Vector3 null(0);
+		RcVector3 prev = (frames[1] == -1) ? null : keys[1];
+		RcVector3 next = (frames[2] == -1) ? null : keys[2];
+		pos = VMath::lerp(alpha, prev, next);
+	}
 
 	PMotion pBlendMotion = _pMotion->GetBlendMotion();
 	if (pBlendMotion)
@@ -171,9 +222,38 @@ void Motion::Bone::ComputePositionAt(float time, RVector3 pos) const
 
 void Motion::Bone::ComputeScaleAt(float time, RVector3 scale) const
 {
-	Vector3 prev, next, null(1, 1, 1);
-	const float alpha = GetAlpha(_mapScale, prev, next, null, time);
-	scale = VMath::lerp(alpha, prev, next);
+	int frames[4];
+	Vector3 keys[4];
+	const float alpha = FindControlPoints(_mapScale, frames, keys, time);
+
+	if (_flags & Flags::splineScale)
+	{
+		const Vector3 null(1, 1, 1);
+		if (frames[1] == -1) { frames[1] = 0; keys[1] = null; }
+		if (frames[2] == -1) { frames[2] = 0; keys[2] = null; }
+		// Extrapolate:
+		if (frames[0] == -1) { frames[0] = frames[1] * 2 - frames[2]; keys[0] = keys[1] * 2 - keys[2]; }
+		if (frames[3] == -1) { frames[3] = frames[2] * 2 - frames[1]; keys[3] = keys[2] * 2 - keys[1]; }
+		// Ratio controls the direction and length of tangents. One keyframe can have different tangent lengths to match speed.
+		const int intervals[3] =
+		{
+			frames[1] - frames[0],
+			frames[2] - frames[1],
+			frames[3] - frames[2]
+		};
+		const float ratioA = static_cast<float>(intervals[0]) / (intervals[0] + intervals[1]);
+		const float ratioB = static_cast<float>(intervals[1]) / (intervals[1] + intervals[2]);
+		const Vector3 tanA = VMath::lerp(ratioA, keys[1] - keys[0], keys[2] - keys[1]) * s_magicValueForCircle * (1 - ratioA);
+		const Vector3 tanB = VMath::lerp(ratioB, keys[2] - keys[1], keys[3] - keys[2]) * s_magicValueForCircle * ratioB;
+		scale = glm::hermite(keys[1].GLM(), tanA.GLM(), keys[2].GLM(), tanB.GLM(), alpha);
+	}
+	else
+	{
+		const Vector3 null(1, 1, 1);
+		RcVector3 prev = (frames[1] == -1) ? null : keys[1];
+		RcVector3 next = (frames[2] == -1) ? null : keys[2];
+		scale = VMath::lerp(alpha, prev, next);
+	}
 
 	PMotion pBlendMotion = _pMotion->GetBlendMotion();
 	if (pBlendMotion)
@@ -195,7 +275,7 @@ void Motion::Bone::ComputeTriggerAt(float time, int& state) const
 		state = 0;
 		return;
 	}
-	const int frame = int(_pMotion->GetFps() * time);
+	const int frame = static_cast<int>(_pMotion->GetFps() * time);
 	TMapTrigger::const_iterator it = _mapTrigger.upper_bound(frame); // Find frame after 'time'.
 	if (it != _mapTrigger.begin())
 	{
@@ -211,22 +291,22 @@ void Motion::Bone::ComputeTriggerAt(float time, int& state) const
 void Motion::Bone::ComputeMatrixAt(float time, RTransform3 mat)
 {
 	Quat q;
-	Vector3 scale, euler, pos;
+	Vector3 euler, pos, scale;
 	ComputeRotationAt(time, euler, q);
 	ComputePositionAt(time, pos);
 	ComputeScaleAt(time, scale);
 	mat = VMath::appendScale(Transform3(q, pos), scale);
 }
 
-void Motion::Bone::MoveKeyframe(int direction, Type type, int frame)
+void Motion::Bone::MoveKeyframe(int direction, Channel channel, int frame)
 {
 	const int frameDest = (direction >= 0) ? frame + 1 : frame - 1;
 	if (frameDest < 0 || frameDest >= _pMotion->GetFrameCount())
 		return;
 
-	switch (type)
+	switch (channel)
 	{
-	case Type::rotation:
+	case Channel::rotation:
 	{
 		VERUS_IF_FOUND_IN(TMapRot, _mapRot, frame, it)
 		{
@@ -238,7 +318,7 @@ void Motion::Bone::MoveKeyframe(int direction, Type type, int frame)
 		}
 	}
 	break;
-	case Type::position:
+	case Channel::position:
 	{
 		VERUS_IF_FOUND_IN(TMapPos, _mapPos, frame, it)
 		{
@@ -250,7 +330,7 @@ void Motion::Bone::MoveKeyframe(int direction, Type type, int frame)
 		}
 	}
 	break;
-	case Type::scale:
+	case Channel::scale:
 	{
 		VERUS_IF_FOUND_IN(TMapScale, _mapScale, frame, it)
 		{
@@ -262,7 +342,7 @@ void Motion::Bone::MoveKeyframe(int direction, Type type, int frame)
 		}
 	}
 	break;
-	case Type::trigger:
+	case Channel::trigger:
 	{
 		VERUS_IF_FOUND_IN(TMapTrigger, _mapTrigger, frame, it)
 		{
@@ -277,8 +357,10 @@ void Motion::Bone::MoveKeyframe(int direction, Type type, int frame)
 	}
 }
 
-void Motion::Bone::Serialize(IO::RStream stream)
+void Motion::Bone::Serialize(IO::RStream stream, UINT16 version)
 {
+	stream << _flags;
+
 	const int rotKeyframeCount = Utils::Cast32(_mapRot.size());
 	const int posKeyframeCount = Utils::Cast32(_mapPos.size());
 	const int scaleKeyframeCount = Utils::Cast32(_mapScale.size());
@@ -313,8 +395,12 @@ void Motion::Bone::Serialize(IO::RStream stream)
 	}
 }
 
-void Motion::Bone::Deserialize(IO::RStream stream)
+void Motion::Bone::Deserialize(IO::RStream stream, UINT16 version)
 {
+	_flags = Flags::none;
+	if (version >= 0x0102)
+		stream >> _flags;
+
 	int rotKeyframeCount, posKeyframeCount, scaleKeyframeCount, triggerKeyframeCount, frame, state;
 	Vector3 temp;
 	Quat q;
@@ -603,6 +689,18 @@ void Motion::Bone::Scatter(int srcFrom, int srcTo, int dMin, int dMax)
 	}
 }
 
+bool Motion::Bone::SpaceTimeSync(Channel channel, int fromFrame, int toFrame)
+{
+	if (fromFrame == toFrame) // Endpoints must not match.
+		return false;
+	switch (channel)
+	{
+	case Channel::position: return SpaceTimeSyncTemplate(_mapPos, fromFrame, toFrame);
+	case Channel::scale:    return SpaceTimeSyncTemplate(_mapScale, fromFrame, toFrame);
+	}
+	return false;
+}
+
 int Motion::Bone::GetLastKeyframe() const
 {
 	int frame = -1;
@@ -708,7 +806,7 @@ void Motion::Serialize(IO::RStream stream)
 	{
 		RBone bone = kv.second;
 		stream.WriteString(_C(bone.GetName()));
-		bone.Serialize(stream);
+		bone.Serialize(stream, version);
 	}
 }
 
@@ -721,7 +819,7 @@ void Motion::Deserialize(IO::RStream stream)
 
 	UINT16 version = 0;
 	stream >> version;
-	if (s_xanVersion != version)
+	if (s_xanVersion < version)
 		throw VERUS_RECOVERABLE << "Deserialize(), invalid XAN version";
 
 	stream >> _frameCount;
@@ -743,7 +841,7 @@ void Motion::Deserialize(IO::RStream stream)
 	{
 		stream.ReadString(buffer);
 		PBone pBone = InsertBone(buffer);
-		pBone->Deserialize(stream);
+		pBone->Deserialize(stream, version);
 	}
 }
 
@@ -902,7 +1000,7 @@ void Motion::ComputePlaybackSpeed(float duration)
 	_playbackSpeedInv = 1 / _playbackSpeed;
 }
 
-void Motion::Exec(CSZ code)
+void Motion::Exec(CSZ code, PBone pBone, Bone::Channel channel)
 {
 	if (Str::StartsWith(code, "copy "))
 	{
@@ -961,6 +1059,12 @@ void Motion::Exec(CSZ code)
 					bone.second._mapScale.clear();
 			}
 		}
+	}
+	if (pBone && Str::StartsWith(code, "sts "))
+	{
+		int from = 0, to = 0;
+		sscanf(code, "%*s %d %d", &from, &to);
+		pBone->SpaceTimeSync(channel, from, to);
 	}
 }
 

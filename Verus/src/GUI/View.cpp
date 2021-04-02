@@ -140,6 +140,7 @@ void View::Parse(pugi::xml_node node)
 	_cursor = node.attribute("cursor").as_bool(_cursor);
 	_debug = node.attribute("debug").as_bool(_debug);
 	_fadeSpeed = node.attribute("fadeSpeed").as_float(_fadeSpeed);
+	_locale = node.attribute("forceLocale").as_string(_C(_locale));
 
 	CSZ bg = node.attribute("bg").value();
 	if (strlen(bg) > 0)
@@ -223,7 +224,7 @@ void View::OnKey(int scancode)
 		return;
 
 	const bool handled = InvokeOnKey(scancode);
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	if (handled && scancode == SDL_SCANCODE_F5)
 		return; // Reloaded, this pointer is invalid.
 #endif

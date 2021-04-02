@@ -58,7 +58,7 @@ namespace verus
 				int i = 0;
 				for (auto& x : _vCommands)
 				{
-					if (Continue::yes != fn(x, i < _nextUndo))
+					if (Continue::no == fn(x, i < _nextUndo))
 						return;
 					i++;
 				}

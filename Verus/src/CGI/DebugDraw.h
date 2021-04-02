@@ -64,7 +64,8 @@ namespace verus
 			bool AddLine(
 				RcPoint3 posA,
 				RcPoint3 posB,
-				UINT32 color);
+				UINT32 colorA,
+				UINT32 colorB = 0);
 			bool AddTriangle(
 				RcPoint3 posA,
 				RcPoint3 posB,

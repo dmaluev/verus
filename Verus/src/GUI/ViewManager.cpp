@@ -213,23 +213,13 @@ void ViewManager::MsgBox(CSZ txt, int data)
 {
 	if (txt) // Display MessageBox:
 	{
-		PView pView = GetViewByName("UI/MsgBox.xml");
-		pView->Disable(false);
-		pView->Show();
-		pView->SetData();
-		pView->ResetAnimators();
-		pView->SetState(View::State::active);
-		MoveToFront("UI/MsgBox.xml");
+		PView pView = Activate("UI/MsgBox.xml");
 		PLabel pLabel = static_cast<PLabel>(pView->GetWidgetById("MsgBoxText"));
 		pLabel->SetText(txt);
 	}
 	else // Restore original view:
 	{
-		PView pView = GetViewByName("UI/MsgBox.xml");
-		pView->Disable();
-		pView->Hide();
-		pView->SetState(View::State::done);
-		MoveToBack("UI/MsgBox.xml");
+		PView pView = Deactivate("UI/MsgBox.xml");
 	}
 }
 
@@ -321,6 +311,28 @@ void ViewManager::BeginFadeOut()
 		if (View::State::done != pView->GetState())
 			pView->BeginFadeOut(); // Put all views into done state.
 	}
+}
+
+PView ViewManager::Activate(CSZ viewName)
+{
+	PView pView = GetViewByName(viewName);
+	pView->Disable(false);
+	pView->Show();
+	pView->SetData();
+	pView->ResetAnimators();
+	pView->SetState(View::State::active);
+	MoveToFront(viewName);
+	return pView;
+}
+
+PView ViewManager::Deactivate(CSZ viewName)
+{
+	PView pView = GetViewByName(viewName);
+	pView->Disable();
+	pView->Hide();
+	pView->SetState(View::State::done);
+	MoveToBack(viewName);
+	return pView;
 }
 
 bool ViewManager::HasAllViewsInDoneState()

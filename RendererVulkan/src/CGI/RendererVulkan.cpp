@@ -630,6 +630,12 @@ void RendererVulkan::CreateSamplers()
 	};
 
 	vksci = init;
+	vksci.mipLodBias = -2;
+	vksci.anisotropyEnable = (settings._gpuAnisotropyLevel > 0) ? VK_TRUE : VK_FALSE;
+	vksci.maxAnisotropy = static_cast<float>(settings._gpuAnisotropyLevel);
+	_vSamplers[+Sampler::lodBias] = Create(vksci);
+
+	vksci = init;
 	if (settings._sceneShadowQuality <= App::Settings::Quality::low)
 	{
 		vksci.magFilter = VK_FILTER_NEAREST;

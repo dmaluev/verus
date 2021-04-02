@@ -38,7 +38,7 @@ void Utils::FreeEx(PBaseAllocator pAlloc)
 void Utils::InitPaths()
 {
 	if (_companyFolderName.empty())
-		_companyFolderName = "swiborg.com";
+		_companyFolderName = "VerusEngine";
 
 	wchar_t pathname[MAX_PATH] = {};
 	if (_modulePath.empty())

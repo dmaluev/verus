@@ -139,15 +139,18 @@ bool DebugDraw::AddPoint(
 bool DebugDraw::AddLine(
 	RcPoint3 posA,
 	RcPoint3 posB,
-	UINT32 color)
+	UINT32 colorA,
+	UINT32 colorB)
 {
+	if (!colorB)
+		colorB = colorA;
 	const int at = _offset + _vertCount;
 	if (at + 2 > _maxVerts)
 		return false;
 	posA.ToArray3(_vDynamicBuffer[at]._pos);
-	Utils::CopyColor(_vDynamicBuffer[at]._color, color);
+	Utils::CopyColor(_vDynamicBuffer[at]._color, colorA);
 	posB.ToArray3(_vDynamicBuffer[at + 1]._pos);
-	Utils::CopyColor(_vDynamicBuffer[at + 1]._color, color);
+	Utils::CopyColor(_vDynamicBuffer[at + 1]._color, colorB);
 	_vertCount += 2;
 	_peakLoad = Math::Max(_peakLoad, at + 2);
 	return true;

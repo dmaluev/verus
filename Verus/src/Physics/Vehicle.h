@@ -71,7 +71,7 @@ namespace verus
 			{
 				VERUS_FOR(i, _wheelCount)
 				{
-					if (Continue::yes != fn(_pRaycastVehicle->getWheelInfo(i)))
+					if (Continue::no == fn(_pRaycastVehicle->getWheelInfo(i)))
 						return;
 				}
 			}

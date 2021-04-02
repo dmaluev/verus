@@ -40,7 +40,7 @@ void Mesh::InitStatic()
 			CGI::Sampler::aniso,
 			CGI::Sampler::aniso,
 			CGI::Sampler::aniso,
-			CGI::Sampler::custom
+			CGI::Sampler::lodBias
 		}, CGI::ShaderStageFlags::fs);
 	s_shader[SHADER_MAIN]->CreateDescriptorSet(2, &s_ubPerMeshVS, sizeof(s_ubPerMeshVS), settings.GetLimits()._mesh_ubPerMeshVSCapacity, {}, CGI::ShaderStageFlags::vs);
 	s_shader[SHADER_MAIN]->CreateDescriptorSet(3, &s_ubSkeletonVS, sizeof(s_ubSkeletonVS), settings.GetLimits()._mesh_ubSkinningVSCapacity, {}, CGI::ShaderStageFlags::vs);

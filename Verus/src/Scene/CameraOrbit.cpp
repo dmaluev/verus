@@ -22,6 +22,25 @@ void CameraOrbit::Update()
 	MainCamera::Update();
 }
 
+void CameraOrbit::UpdateUsingEyeAt()
+{
+	const Vector3 toEye = _eyePos - _atPos;
+	const float distToEye = VMath::length(toEye);
+	const Vector3 dirToEye = toEye / distToEye;
+
+	const float yaw = Math::WrapAngle(atan2(dirToEye.getX(), dirToEye.getZ()));
+	const float pitch = asin(Math::Clamp<float>(-dirToEye.getY(), -1, 1));
+
+	_pitch = pitch;
+	_pitch.ForceTarget();
+	_yaw = yaw;
+	_yaw.ForceTarget();
+	_radius = distToEye;
+	_radius.ForceTarget();
+
+	Update();
+}
+
 void CameraOrbit::UpdateElastic()
 {
 	if (!_elastic)

@@ -375,6 +375,12 @@ void RendererD3D12::CreateSamplers()
 	init.MaxLOD = D3D12_FLOAT32_MAX;
 
 	desc = init;
+	desc.Filter = D3D12_FILTER_ANISOTROPIC;
+	desc.MipLODBias = -2;
+	desc.MaxAnisotropy = settings._gpuAnisotropyLevel;
+	_vSamplers[+Sampler::lodBias] = desc;
+
+	desc = init;
 	desc.Filter = (settings._sceneShadowQuality <= App::Settings::Quality::low) ?
 		D3D12_FILTER_COMPARISON_MIN_MAG_MIP_POINT : D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
 	desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -888,6 +894,10 @@ void RendererD3D12::SetDescriptorHeaps(PBaseCommandBuffer p)
 
 void RendererD3D12::UpdateUtilization()
 {
+	VERUS_QREF_RENDERER;
+	renderer.AddUtilization("D3D12 Views", _dhViews.GetOffset(), _dhViews.GetCapacity());
+	renderer.AddUtilization("D3D12 Samplers", _dhSamplers.GetOffset(), _dhSamplers.GetCapacity());
+
 	for (auto& x : TStoreGeometry::_list)
 		x.UpdateUtilization();
 	for (auto& x : TStoreShaders::_list)

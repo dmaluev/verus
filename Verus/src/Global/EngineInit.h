@@ -18,23 +18,26 @@ namespace verus
 	class EngineInit
 	{
 	public:
-		bool _makeGlobal = true;
-		bool _makeNet = true;
-		bool _makeIO = true;
-		bool _makeInput = true;
 		bool _makeAudio = true;
 		bool _makeCGI = true;
-		bool _makePhysics = true;
 		bool _makeEffects = true;
 		bool _makeExtra = false;
-		bool _makeScene = true;
+		bool _makeGlobal = true;
 		bool _makeGUI = true;
+		bool _makeInput = true;
+		bool _makeIO = true;
+		bool _makeNet = true;
+		bool _makePhysics = true;
+		bool _makeScene = true;
+		bool _allowInitShaders = true;
 
 		void Make();
 		void Free();
 
 		void Init(Input::KeyMapperDelegate* pKeyMapperDelegate, CGI::RendererDelegate* pRendererDelegate);
 		void InitCmd();
+
+		void ReducedFeatureSet();
 	};
 	VERUS_TYPEDEFS(EngineInit);
 }

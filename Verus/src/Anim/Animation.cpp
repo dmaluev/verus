@@ -80,39 +80,46 @@ void Animation::Update(int alphaTrackCount, PAlphaTrack pAlphaTracks)
 
 	if (_playing)
 	{
-		if (_blending)
+		float dt2 = dt;
+		if (_blending) // Still blending?
 		{
-			_blendTimer += dt;
-			if (_blendTimer >= _blendDuration)
+			_blendTime += dt2;
+			if (_blendTime >= _blendDuration)
+			{
 				_blending = false;
+				dt2 -= _blendTime - _blendDuration;
+			}
 		}
-		else if (!_currentMotion.empty())
+		if (!_blending && !_currentMotion.empty()) // Done blending?
 		{
 			RMotionData md = *_pCollection->Find(_C(_currentMotion));
-			const float len = md._motion.GetDuration();
-			if (_time < len + 0.5f)
+			const float duration = md._motion.GetDuration();
+			_time += dt2;
+			md._motion.ProcessTriggers(_time, this, GetTriggerStatesArray());
+			if (_time >= duration)
 			{
-				_time += dt;
-				md._motion.ProcessTriggers(_time, this, GetTriggerStatesArray());
-				if (_time >= len)
-				{
-					if (_pDelegate)
-						_pDelegate->Animation_OnEnd(_C(_currentMotion));
-					_time = md._loop ? fmod(_time, len) : len + 1;
-					md._motion.ResetTriggers(GetTriggerStatesArray()); // New loop, reset triggers.
-				}
+				_playing = md._loop; // Continue?
+				_time = md._loop ? fmod(_time, duration) : duration;
+				md._motion.ResetTriggers(GetTriggerStatesArray()); // New loop, reset triggers.
+				if (_pDelegate)
+					_pDelegate->Animation_OnEnd(_C(_currentMotion)); // This can call BlendTo and change everything.
 			}
 		}
 	}
 
+	UpdateSkeleton(alphaTrackCount, pAlphaTracks);
+}
+
+void Animation::UpdateSkeleton(int alphaTrackCount, PAlphaTrack pAlphaTracks)
+{
 	if (!_currentMotion.empty() && alphaTrackCount >= 0) // Alpha track (-1) should not modify the skeleton.
 	{
 		RMotionData md = *_pCollection->Find(_C(_currentMotion));
 
 		int alphaMotionCount = 0;
-		Skeleton::AlphaMotion alphaMotions[4];
+		Skeleton::AlphaMotion alphaMotions[s_maxAlphaTracks];
 
-		for (int i = 0; i < alphaTrackCount && i < 4; ++i)
+		for (int i = 0; i < alphaTrackCount && i < s_maxAlphaTracks; ++i)
 		{
 			alphaMotions[i]._pMotion = pAlphaTracks[i]._pAnimation->GetMotion(); // Can be in blend state.
 			alphaMotions[i]._rootBone = pAlphaTracks[i]._rootBone;
@@ -123,7 +130,7 @@ void Animation::Update(int alphaTrackCount, PAlphaTrack pAlphaTracks)
 
 		if (_blending)
 		{
-			md._motion.BindBlendMotion(&_blendMotion, _blendTimer / _blendDuration);
+			md._motion.BindBlendMotion(&_blendMotion, Math::ApplyEasing(_easing, _blendTime / _blendDuration));
 			_pSkeleton->ApplyMotion(md._motion, _time, alphaMotionCount, alphaMotions);
 		}
 		else
@@ -147,20 +154,6 @@ void Animation::BindSkeleton(PSkeleton p)
 	_pSkeleton = p;
 }
 
-void Animation::SetCurrentMotion(CSZ name)
-{
-	// Reset triggers:
-	if (!_currentMotion.empty())
-		_pCollection->Find(_C(_currentMotion))->_motion.ResetTriggers(GetTriggerStatesArray());
-	if (name)
-	{
-		_pCollection->Find(name)->_motion.ResetTriggers(GetTriggerStatesArray());
-		_currentMotion = name;
-	}
-	else
-		_currentMotion.clear();
-}
-
 void Animation::Play()
 {
 	_playing = true;
@@ -177,22 +170,22 @@ void Animation::Pause()
 	_playing = false;
 }
 
-void Animation::BlendTo(CSZ name, Range<float> duration, int randTime, PMotion pMotionFrom)
+void Animation::BlendTo(CSZ name, Range<float> duration, int randTime, PMotion pFromMotion)
 {
 	VERUS_QREF_UTILS;
 
-	PMotion pMotion = pMotionFrom;
-	if (!_currentMotion.empty() || pMotionFrom)
+	PMotion pMotion = pFromMotion;
+	if (!_currentMotion.empty() || pFromMotion)
 	{
-		if (!pMotionFrom)
+		if (!pFromMotion)
 			pMotion = &_pCollection->Find(_C(_currentMotion))->_motion;
 		if (_blending) // Already blending?
-			pMotion->BindBlendMotion(&_blendMotion, _blendTimer / _blendDuration);
+			pMotion->BindBlendMotion(&_blendMotion, Math::ApplyEasing(_easing, _blendTime / _blendDuration));
 		pMotion->BakeMotionAt(_time, _blendMotion); // Capture current pose.
 		pMotion->BindBlendMotion(nullptr, 0);
 	}
 
-	if ((0 == duration._max) || (_currentMotion.empty() && name && _prevMotion == name && _blendTimer / _blendDuration < 0.5f))
+	if ((0 == duration._max) || (_currentMotion.empty() && name && _prevMotion == name && _blendTime / _blendDuration < 0.5f))
 	{
 		_blending = false; // Special case for alpha tracks.
 	}
@@ -200,7 +193,7 @@ void Animation::BlendTo(CSZ name, Range<float> duration, int randTime, PMotion p
 	{
 		_blending = true;
 		_blendDuration = (_currentMotion == (name ? name : "")) ? duration._min : duration._max;
-		_blendTimer = 0;
+		_blendTime = 0;
 	}
 
 	_prevMotion = _currentMotion;
@@ -219,16 +212,18 @@ void Animation::BlendTo(CSZ name, Range<float> duration, int randTime, PMotion p
 	_time = (randTime >= 0 && pMotion) ? (randTime / 255.f) * pMotion->GetDuration() : 0;
 	if (_time)
 		pMotion->SkipTriggers(_time, GetTriggerStatesArray());
+
+	_playing = true;
 }
 
-bool Animation::BlendToNew(std::initializer_list<CSZ> names, Range<float> duration, int randTime, PMotion pMotionFrom)
+bool Animation::BlendToNew(std::initializer_list<CSZ> names, Range<float> duration, int randTime, PMotion pFromMotion)
 {
 	for (auto name : names)
 	{
 		if (_currentMotion == name)
 			return false;
 	}
-	BlendTo(*names.begin(), duration, randTime, pMotionFrom);
+	BlendTo(*names.begin(), duration, randTime, pFromMotion);
 	return true;
 }
 
@@ -251,7 +246,7 @@ PMotion Animation::GetMotion()
 		p = &_pCollection->Find(_C(_currentMotion))->_motion;
 	}
 	if (p && _blending)
-		p->BindBlendMotion(&_blendMotion, _blendTimer / _blendDuration);
+		p->BindBlendMotion(&_blendMotion, Math::ApplyEasing(_easing, _blendTime / _blendDuration));
 	return p;
 }
 
@@ -275,9 +270,9 @@ float Animation::GetAlpha(CSZ name) const
 			fadeOut = matchPrevMotion && !matchCurrentMotion;
 		}
 		if (fadeIn)
-			return Math::SmoothStep(0, 1, _blendTimer / _blendDuration);
+			return Math::ApplyEasing(_easing, _blendTime / _blendDuration);
 		if (fadeOut)
-			return Math::SmoothStep(0, 1, 1 - _blendTimer / _blendDuration);
+			return Math::ApplyEasing(_easing, 1 - _blendTime / _blendDuration);
 	}
 	if (name)
 		return matchCurrentMotion ? 1.f : 0.f;

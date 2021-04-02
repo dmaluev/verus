@@ -112,6 +112,7 @@ void StreamPlayer::Update()
 
 void StreamPlayer::AddTrack(PTrack pTrack)
 {
+	VERUS_RT_ASSERT(IsInitialized());
 	{
 		VERUS_LOCK(*this);
 		_vTracks.push_back(pTrack);

@@ -193,6 +193,23 @@ CSZ Math::EasingToString(Easing easing)
 	return g_easings[+easing];
 }
 
+Quat Math::NLerp(float t, RcQuat qA, RcQuat qB)
+{
+	Quat ret;
+	const auto dp = VMath::dot(qA, qB);
+	if (dp < 0)
+	{
+		const Quat qNeg = -qB;
+		ret = VMath::lerp(t, qA, qNeg);
+	}
+	else
+	{
+		ret = VMath::lerp(t, qA, qB);
+	}
+	ret = VMath::normalize(ret);
+	return ret;
+}
+
 Vector3 Math::TriangleNormal(RcPoint3 a, RcPoint3 b, RcPoint3 c)
 {
 	return VMath::normalize(VMath::cross(a - b, a - c));

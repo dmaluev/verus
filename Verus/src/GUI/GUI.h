@@ -12,6 +12,7 @@
 #include "Image.h"
 #include "Button.h"
 #include "Table.h"
+#include "Bars.h"
 #include "Cursor.h"
 #include "ViewManager.h"
 #include "ViewController.h"

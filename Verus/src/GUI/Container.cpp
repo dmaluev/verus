@@ -18,12 +18,13 @@ Container::~Container()
 
 void Container::RegisterAll()
 {
-	RegisterWidget("button", Button::Make);
-	RegisterWidget("image", Image::Make);
-	RegisterWidget("label", Label::Make);
-	RegisterWidget("sizer", Sizer::Make);
-	RegisterWidget("table", Table::Make);
-	RegisterWidget("textBox", TextBox::Make);
+	RegisterWidget("bars", &Bars::Make);
+	RegisterWidget("button", &Button::Make);
+	RegisterWidget("image", &Image::Make);
+	RegisterWidget("label", &Label::Make);
+	RegisterWidget("sizer", &Sizer::Make);
+	RegisterWidget("table", &Table::Make);
+	RegisterWidget("textBox", &TextBox::Make);
 }
 
 void Container::RegisterWidget(CSZ type, PFNCREATOR pCreator)

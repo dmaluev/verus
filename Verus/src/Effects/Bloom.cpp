@@ -4,9 +4,9 @@
 using namespace verus;
 using namespace verus::Effects;
 
-Bloom::UB_BloomVS        Bloom::s_ubBloomVS;
-Bloom::UB_BloomFS        Bloom::s_ubBloomFS;
-Bloom::UB_BloomGodRaysFS Bloom::s_ubBloomGodRaysFS;
+Bloom::UB_BloomVS            Bloom::s_ubBloomVS;
+Bloom::UB_BloomFS            Bloom::s_ubBloomFS;
+Bloom::UB_BloomLightShaftsFS Bloom::s_ubBloomLightShaftsFS;
 
 Bloom::Bloom()
 {
@@ -30,7 +30,7 @@ void Bloom::Init()
 	}
 
 	_rph = renderer->CreateSimpleRenderPass(CGI::Format::srgbR8G8B8A8);
-	_rphGodRays = renderer->CreateSimpleRenderPass(CGI::Format::srgbR8G8B8A8, CGI::RP::Attachment::LoadOp::load);
+	_rphLightShafts = renderer->CreateSimpleRenderPass(CGI::Format::srgbR8G8B8A8, CGI::RP::Attachment::LoadOp::load);
 
 	_shader.Init("[Shaders]:Bloom.hlsl");
 	_shader->CreateDescriptorSet(0, &s_ubBloomVS, sizeof(s_ubBloomVS), 4, {}, CGI::ShaderStageFlags::vs);
@@ -38,7 +38,7 @@ void Bloom::Init()
 		{
 			CGI::Sampler::linearClampMipN
 		}, CGI::ShaderStageFlags::fs);
-	_shader->CreateDescriptorSet(2, &s_ubBloomGodRaysFS, sizeof(s_ubBloomGodRaysFS), 4,
+	_shader->CreateDescriptorSet(2, &s_ubBloomLightShaftsFS, sizeof(s_ubBloomLightShaftsFS), 4,
 		{
 			CGI::Sampler::linearClampMipN,
 			CGI::Sampler::shadow
@@ -51,13 +51,13 @@ void Bloom::Init()
 		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_MAIN].Init(pipeDesc);
 	}
-	if (settings._postProcessGodRays)
+	if (settings._postProcessLightShafts)
 	{
-		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#GodRays", _rphGodRays);
+		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#LightShafts", _rphLightShafts);
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc.DisableDepthTest();
-		_pipe[PIPE_GOD_RAYS].Init(pipeDesc);
+		_pipe[PIPE_LIGHT_SHAFTS].Init(pipeDesc);
 	}
 
 	OnSwapChainResized();
@@ -73,14 +73,14 @@ void Bloom::InitByAtmosphere(CGI::TexturePtr texShadow)
 
 	_texAtmoShadow = texShadow;
 
-	_cshGodRays = _shader->BindDescriptorSetTextures(2, { renderer.GetTexDepthStencil(), _texAtmoShadow });
+	_cshLightShafts = _shader->BindDescriptorSetTextures(2, { renderer.GetTexDepthStencil(), _texAtmoShadow });
 }
 
 void Bloom::Done()
 {
 	VERUS_QREF_RENDERER;
 	renderer->DeleteFramebuffer(_fbh);
-	renderer->DeleteRenderPass(_rphGodRays);
+	renderer->DeleteRenderPass(_rphLightShafts);
 	renderer->DeleteRenderPass(_rph);
 	VERUS_DONE(Bloom);
 }
@@ -97,7 +97,7 @@ void Bloom::OnSwapChainResized()
 		return;
 
 	{
-		_shader->FreeDescriptorSet(_cshGodRays);
+		_shader->FreeDescriptorSet(_cshLightShafts);
 		_shader->FreeDescriptorSet(_csh);
 		renderer->DeleteFramebuffer(_fbh);
 		_tex.Done();
@@ -141,7 +141,7 @@ void Bloom::Generate()
 		ImGui::DragFloat("Bloom (god rays) wideStrength", &_wideStrength, 0.01f);
 		ImGui::DragFloat("Bloom (god rays) sunStrength", &_sunStrength, 0.01f);
 		ImGui::Checkbox("Bloom blur", &_blur);
-		ImGui::Checkbox("Bloom (god rays) blur", &_blurGodRays);
+		ImGui::Checkbox("Bloom (light shafts) blur", &_blurLightShafts);
 	}
 
 	auto cb = renderer.GetCommandBuffer();
@@ -166,39 +166,39 @@ void Bloom::Generate()
 	if (_blur)
 		Blur::I().GenerateForBloom(false);
 
-	if (settings._postProcessGodRays)
+	if (settings._postProcessLightShafts)
 	{
-		s_ubBloomGodRaysFS._matInvVP = Matrix4(VMath::inverse(sm.GetMainCamera()->GetMatrixVP())).UniformBufferFormat();
-		s_ubBloomGodRaysFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
-		s_ubBloomGodRaysFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-		s_ubBloomGodRaysFS._eyePos = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
-		s_ubBloomGodRaysFS._maxDist_sunGloss_wideStrength_sunStrength.x = _maxDist;
-		s_ubBloomGodRaysFS._maxDist_sunGloss_wideStrength_sunStrength.y = _sunGloss;
-		s_ubBloomGodRaysFS._maxDist_sunGloss_wideStrength_sunStrength.z = _wideStrength;
-		s_ubBloomGodRaysFS._maxDist_sunGloss_wideStrength_sunStrength.w = _sunStrength;
-		s_ubBloomGodRaysFS._matShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
-		s_ubBloomGodRaysFS._matShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
-		s_ubBloomGodRaysFS._matShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
-		s_ubBloomGodRaysFS._matShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
-		s_ubBloomGodRaysFS._matScreenCSM = atmo.GetShadowMap().GetScreenMatrixVP().UniformBufferFormat();
-		s_ubBloomGodRaysFS._csmSplitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
-		memcpy(&s_ubBloomGodRaysFS._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubBloomGodRaysFS._shadowConfig));
+		s_ubBloomLightShaftsFS._matInvVP = Matrix4(VMath::inverse(sm.GetMainCamera()->GetMatrixVP())).UniformBufferFormat();
+		s_ubBloomLightShaftsFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
+		s_ubBloomLightShaftsFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
+		s_ubBloomLightShaftsFS._eyePos = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
+		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.x = _maxDist;
+		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.y = _sunGloss;
+		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.z = _wideStrength;
+		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.w = _sunStrength;
+		s_ubBloomLightShaftsFS._matShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
+		s_ubBloomLightShaftsFS._matShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
+		s_ubBloomLightShaftsFS._matShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
+		s_ubBloomLightShaftsFS._matShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
+		s_ubBloomLightShaftsFS._matScreenCSM = atmo.GetShadowMap().GetScreenMatrixVP().UniformBufferFormat();
+		s_ubBloomLightShaftsFS._csmSplitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
+		memcpy(&s_ubBloomLightShaftsFS._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubBloomLightShaftsFS._shadowConfig));
 
 		cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
-		cb->BeginRenderPass(_rphGodRays, _fbh, { _tex[TEX_PING]->GetClearValue() });
+		cb->BeginRenderPass(_rphLightShafts, _fbh, { _tex[TEX_PING]->GetClearValue() });
 
-		cb->BindPipeline(_pipe[PIPE_GOD_RAYS]);
+		cb->BindPipeline(_pipe[PIPE_LIGHT_SHAFTS]);
 		_shader->BeginBindDescriptors();
 		cb->BindDescriptors(_shader, 0);
 		cb->BindDescriptors(_shader, 1, _csh);
-		cb->BindDescriptors(_shader, 2, _cshGodRays);
+		cb->BindDescriptors(_shader, 2, _cshLightShafts);
 		_shader->EndBindDescriptors();
 		renderer.DrawQuad(cb.Get());
 
 		cb->EndRenderPass();
 		cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilReadOnly, CGI::ImageLayout::depthStencilAttachment, 0);
 
-		if (_blurGodRays)
+		if (_blurLightShafts)
 			Blur::I().GenerateForBloom(true);
 	}
 }

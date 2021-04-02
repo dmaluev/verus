@@ -77,6 +77,8 @@ namespace verus
 			PView MoveToBack	/**/(CSZ viewName);
 			PView BeginFadeTo	/**/(CSZ viewName = ":VOID:");
 			void BeginFadeOut();
+			PView Activate(CSZ viewName);
+			PView Deactivate(CSZ viewName);
 			bool HasAllViewsInDoneState();
 			bool HasSomeViewsInFadeState();
 			VERUS_P(bool SwitchView());

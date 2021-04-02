@@ -46,6 +46,8 @@ namespace verus
 		class Animation : public MotionDelegate
 		{
 		public:
+			static const int s_maxAlphaTracks = 4;
+
 			enum class Edge : int
 			{
 				begin = (1 << 0),
@@ -67,9 +69,10 @@ namespace verus
 			String             _currentMotion;
 			String             _prevMotion;
 			Vector<int>        _vTriggerStates;
+			Easing             _easing = Easing::quadInOut;
 			float              _time = 0;
 			float              _blendDuration = 0;
-			float              _blendTimer = 0;
+			float              _blendTime = 0;
 			bool               _blending = false;
 			bool               _playing = false;
 
@@ -78,12 +81,13 @@ namespace verus
 			~Animation();
 
 			void Update(int alphaTrackCount = 0, PAlphaTrack pAlphaTracks = nullptr);
+			void UpdateSkeleton(int alphaTrackCount = 0, PAlphaTrack pAlphaTracks = nullptr);
 
 			void BindCollection(PCollection p);
 			void BindSkeleton(PSkeleton p);
-			void SetCurrentMotion(CSZ name);
 			PAnimationDelegate SetDelegate(PAnimationDelegate p) { return Utils::Swap(_pDelegate, p); }
 
+			bool IsPlaying() const { return _playing; }
 			void Play();
 			void Stop();
 			void Pause();
@@ -91,10 +95,12 @@ namespace verus
 			Str GetCurrentMotionName() const { return _C(_currentMotion); }
 
 			void BlendTo(CSZ name,
-				Range<float> duration = 0.5f, int randTime = -1, PMotion pMotionFrom = nullptr);
+				Range<float> duration = 0.5f, int randTime = -1, PMotion pFromMotion = nullptr);
 			bool BlendToNew(std::initializer_list<CSZ> names,
-				Range<float> duration = 0.5f, int randTime = -1, PMotion pMotionFrom = nullptr);
+				Range<float> duration = 0.5f, int randTime = -1, PMotion pFromMotion = nullptr);
 			bool IsBlending() const { return _blending; }
+
+			void SetEasing(Easing easing) { _easing = easing; }
 
 			virtual void Motion_OnTrigger(CSZ name, int state) override;
 

@@ -4,13 +4,108 @@
 using namespace verus;
 using namespace verus::App;
 
+// QualitySettings:
+
+bool QualitySettings::operator==(RcQualitySettings that) const
+{
+	return
+		_displayOffscreenDraw == that._displayOffscreenDraw &&
+		_displayOffscreenScale == that._displayOffscreenScale &&
+		_gpuAnisotropyLevel == that._gpuAnisotropyLevel &&
+		_gpuAntialiasingLevel == that._gpuAntialiasingLevel &&
+		_gpuShaderQuality == that._gpuShaderQuality &&
+		_gpuTessellation == that._gpuTessellation &&
+		_gpuTextureLodLevel == that._gpuTextureLodLevel &&
+		_gpuTrilinearFilter == that._gpuTrilinearFilter &&
+		_postProcessBloom == that._postProcessBloom &&
+		_postProcessCinema == that._postProcessCinema &&
+		_postProcessLightShafts == that._postProcessLightShafts &&
+		_postProcessMotionBlur == that._postProcessMotionBlur &&
+		_postProcessSSAO == that._postProcessSSAO &&
+		_postProcessSSR == that._postProcessSSR &&
+		_sceneAmbientOcclusion == that._sceneAmbientOcclusion &&
+		_sceneGrassDensity == that._sceneGrassDensity &&
+		_sceneShadowQuality == that._sceneShadowQuality &&
+		_sceneWaterQuality == that._sceneWaterQuality;
+}
+
+void QualitySettings::SetQuality(OverallQuality q)
+{
+	if (OverallQuality::custom == q)
+		return;
+
+	*this = QualitySettings(); // Start with medium.
+
+	switch (q)
+	{
+	case OverallQuality::low:
+		_gpuAnisotropyLevel = 2;
+		_gpuShaderQuality = Quality::low;
+		_gpuTrilinearFilter = false;
+		_postProcessBloom = false;
+		_postProcessLightShafts = false;
+		_postProcessSSAO = false;
+		_sceneGrassDensity = 600;
+		_sceneShadowQuality = Quality::low;
+		_sceneWaterQuality = WaterQuality::solidColor;
+		break;
+	case OverallQuality::medium:
+		break;
+	case OverallQuality::high:
+		_gpuAnisotropyLevel = 8;
+		_gpuShaderQuality = Quality::high;
+		_postProcessCinema = true;
+		_sceneAmbientOcclusion = true;
+		_sceneGrassDensity = 900;
+		_sceneShadowQuality = Quality::high;
+		_sceneWaterQuality = WaterQuality::trueWavesReflection;
+		break;
+	case OverallQuality::ultra:
+		_gpuAnisotropyLevel = 16;
+		_gpuShaderQuality = Quality::ultra;
+		_postProcessCinema = true;
+		_postProcessMotionBlur = true;
+		_postProcessSSR = true;
+		_sceneAmbientOcclusion = true;
+		_sceneGrassDensity = 1000;
+		_sceneShadowQuality = Quality::ultra;
+		_sceneWaterQuality = WaterQuality::trueWavesRefraction;
+		break;
+	}
+}
+
+QualitySettings::OverallQuality QualitySettings::DetectQuality() const
+{
+	QualitySettings reference;
+
+	reference.SetQuality(OverallQuality::low);
+	if (*this == reference)
+		return OverallQuality::low;
+
+	reference.SetQuality(OverallQuality::medium);
+	if (*this == reference)
+		return OverallQuality::medium;
+
+	reference.SetQuality(OverallQuality::high);
+	if (*this == reference)
+		return OverallQuality::high;
+
+	reference.SetQuality(OverallQuality::ultra);
+	if (*this == reference)
+		return OverallQuality::ultra;
+
+	return OverallQuality::custom;
+}
+
+// Settings:
+
 Settings::Settings()
 {
 #ifdef _WIN32
 	if (0x419 == GetUserDefaultUILanguage())
 		_uiLang = "RU";
 #endif
-	SetQuality(Quality::medium);
+	SetQuality(OverallQuality::medium);
 }
 
 Settings::~Settings()
@@ -47,6 +142,8 @@ void Settings::ParseCommandLineArgs(int argc, char* argv[])
 			_commandLine._windowed = true;
 		if (IsArg(i, "--bwnd"))
 			_commandLine._borderlessWindowed = true;
+		if (IsArg(i, "--restarted"))
+			_commandLine._restarted = true;
 	}
 
 	SetFilename("Settings.json");
@@ -57,65 +154,23 @@ void Settings::ParseCommandLineArgs(int argc, char* argv[])
 		if (IsArg(i, "--q-low"))
 		{
 			const bool ret = IO::FileSystem::Delete(_C(pathname));
-			SetQuality(Quality::low);
+			SetQuality(OverallQuality::low);
 		}
 		if (IsArg(i, "--q-medium"))
 		{
 			const bool ret = IO::FileSystem::Delete(_C(pathname));
-			SetQuality(Quality::medium);
+			SetQuality(OverallQuality::medium);
 		}
 		if (IsArg(i, "--q-high"))
 		{
 			const bool ret = IO::FileSystem::Delete(_C(pathname));
-			SetQuality(Quality::high);
+			SetQuality(OverallQuality::high);
 		}
 		if (IsArg(i, "--q-ultra"))
 		{
 			const bool ret = IO::FileSystem::Delete(_C(pathname));
-			SetQuality(Quality::ultra);
+			SetQuality(OverallQuality::ultra);
 		}
-	}
-}
-
-void Settings::SetQuality(Quality q)
-{
-	_quality = q;
-
-	switch (q)
-	{
-	case Quality::low:
-		_gpuAnisotropyLevel = 2;
-		_gpuShaderQuality = Quality::low;
-		_gpuTrilinearFilter = false;
-		_postProcessBloom = false;
-		_postProcessGodRays = false;
-		_postProcessSSAO = false;
-		_sceneGrassDensity = 600;
-		_sceneShadowQuality = Quality::low;
-		_sceneWaterQuality = WaterQuality::solidColor;
-		break;
-	case Quality::medium:
-		break;
-	case Quality::high:
-		_gpuAnisotropyLevel = 8;
-		_gpuShaderQuality = Quality::high;
-		_postProcessCinema = true;
-		_sceneAmbientOcclusion = true;
-		_sceneGrassDensity = 900;
-		_sceneShadowQuality = Quality::high;
-		_sceneWaterQuality = WaterQuality::trueWavesReflection;
-		break;
-	case Quality::ultra:
-		_gpuAnisotropyLevel = 16;
-		_gpuShaderQuality = Quality::ultra;
-		_postProcessCinema = true;
-		_postProcessMotionBlur = true;
-		_postProcessSSR = true;
-		_sceneAmbientOcclusion = true;
-		_sceneGrassDensity = 1000;
-		_sceneShadowQuality = Quality::ultra;
-		_sceneWaterQuality = WaterQuality::trueWavesRefraction;
-		break;
 	}
 }
 
@@ -123,7 +178,6 @@ void Settings::Load()
 {
 	Json::Load();
 
-	_quality = static_cast<Quality>(GetI("quality", +_quality));
 	_displayAllowHighDPI = GetB("displayAllowHighDPI", _displayAllowHighDPI);
 	_displayFOV = GetF("displayFOV", _displayFOV);
 	_displayMode = static_cast<DisplayMode>(GetI("displayMode", +_displayMode));
@@ -142,7 +196,7 @@ void Settings::Load()
 	_inputMouseSensitivity = GetF("inputMouseSensitivity", _inputMouseSensitivity);
 	_postProcessBloom = GetB("postProcessBloom", _postProcessBloom);
 	_postProcessCinema = GetB("postProcessCinema", _postProcessCinema);
-	_postProcessGodRays = GetB("postProcessGodRays", _postProcessGodRays);
+	_postProcessLightShafts = GetB("postProcessLightShafts", _postProcessLightShafts);
 	_postProcessMotionBlur = GetB("postProcessMotionBlur", _postProcessMotionBlur);
 	_postProcessSSAO = GetB("postProcessSSAO", _postProcessSSAO);
 	_postProcessSSR = GetB("postProcessSSR", _postProcessSSR);
@@ -173,7 +227,7 @@ void Settings::HandleCommandLineArgs()
 {
 	switch (_commandLine._gapi)
 	{
-	case 0: _gapi = 0; break;
+	case 0:  _gapi = 0; break;
 	case 12: _gapi = 12; break;
 	}
 
@@ -185,8 +239,8 @@ void Settings::HandleCommandLineArgs()
 	if (_commandLine._windowed)
 	{
 		_displayMode = DisplayMode::windowed;
-		_displaySizeHeight = 720;
 		_displaySizeWidth = 1280;
+		_displaySizeHeight = 720;
 	}
 	if (_commandLine._borderlessWindowed)
 	{
@@ -197,10 +251,9 @@ void Settings::HandleCommandLineArgs()
 
 void Settings::Validate()
 {
-	_quality = Math::Clamp(_quality, Quality::low, Quality::ultra);
 	_displayFOV = Math::Clamp<float>(_displayFOV, 60, 90);
-	_displaySizeHeight = Math::Clamp(_displaySizeHeight, 270, 0x2000);
 	_displaySizeWidth = Math::Clamp(_displaySizeWidth, 480, 0x2000);
+	_displaySizeHeight = Math::Clamp(_displaySizeHeight, 270, 0x2000);
 	_gpuAnisotropyLevel = Math::Clamp(_gpuAnisotropyLevel, 0, 16);
 	_gpuAntialiasingLevel = Math::Clamp(_gpuAntialiasingLevel, 0, 16);
 	_gpuShaderQuality = Math::Clamp(_gpuShaderQuality, Quality::low, Quality::ultra);
@@ -217,7 +270,6 @@ void Settings::Save()
 {
 	Clear();
 
-	Set("quality", +_quality);
 	Set("displayAllowHighDPI", _displayAllowHighDPI);
 	Set("displayFOV", _displayFOV);
 	Set("displayMode", +_displayMode);
@@ -236,7 +288,7 @@ void Settings::Save()
 	Set("inputMouseSensitivity", _inputMouseSensitivity);
 	Set("postProcessBloom", _postProcessBloom);
 	Set("postProcessCinema", _postProcessCinema);
-	Set("postProcessGodRays", _postProcessGodRays);
+	Set("postProcessLightShafts", _postProcessLightShafts);
 	Set("postProcessMotionBlur", _postProcessMotionBlur);
 	Set("postProcessSSAO", _postProcessSSAO);
 	Set("postProcessSSR", _postProcessSSR);

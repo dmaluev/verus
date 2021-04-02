@@ -116,6 +116,7 @@ namespace verus
 		float ApplyEasing(Easing easing, float x);
 		Easing EasingFromString(CSZ s);
 		CSZ EasingToString(Easing easing);
+		Quat NLerp(float t, RcQuat qA, RcQuat qB);
 
 		// Shapes:
 		Vector3 TriangleNormal(RcPoint3 a, RcPoint3 b, RcPoint3 c);

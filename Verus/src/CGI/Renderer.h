@@ -84,6 +84,7 @@ namespace verus
 			UB_QuadVS                _ubQuadVS;
 			UB_QuadFS                _ubQuadFS;
 			bool                     _autoExposure = true;
+			bool                     _allowInitShaders = true;
 			bool                     _showUtilization = false;
 
 		public:
@@ -94,7 +95,7 @@ namespace verus
 			PBaseRenderer operator->();
 			static bool IsLoaded();
 
-			void Init(PRendererDelegate pDelegate);
+			void Init(PRendererDelegate pDelegate, bool allowInitShaders = true);
 			void InitCmd();
 			void Done();
 

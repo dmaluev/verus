@@ -38,6 +38,8 @@ namespace verus
 			void ConnectOnTimeout    /**/(TFnEvent fn, CSZ id = nullptr);
 
 			void BeginFadeTo();
+			void Activate();
+			void Deactivate();
 
 			virtual void View_SetViewData(PView pView) override {}
 			virtual void View_GetViewData(PView pView) override {}

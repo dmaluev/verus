@@ -22,7 +22,27 @@ namespace verus
 		public:
 			class Bone : public AllocatorAware
 			{
+			public:
+				enum class Channel : int
+				{
+					rotation,
+					position,
+					scale,
+					trigger
+				};
+
+				enum class Flags : UINT32
+				{
+					none = 0,
+					slerpRot = (1 << 0),
+					splinePos = (1 << 1),
+					splineScale = (1 << 2)
+				};
+
+			private:
 				friend class Motion;
+
+				static const float s_magicValueForCircle;
 
 				class Rotation
 				{
@@ -47,63 +67,124 @@ namespace verus
 				TMapScale   _mapScale; //!< Scaling keyframes.
 				TMapTrigger _mapTrigger; //!< Trigger keyframes.
 				int         _lastTriggerState = 0;
+				Flags       _flags = Flags::none;
 
 				template<typename TMap, typename T>
-				float GetAlpha(const TMap& m, T& prev, T& next, const T& null, float time) const
+				float FindControlPoints(const TMap& m, int frames[4], T keys[4], float time) const
 				{
+					frames[0] = frames[1] = frames[2] = frames[3] = -1;
 					if (m.empty()) // No frames at all, so return null.
-					{
-						prev = null;
-						next = null;
 						return 0;
-					}
 					time = Math::Max(0.f, time); // Negative time is not allowed.
 					float alpha;
 					const int frame = static_cast<int>(_pMotion->GetFps() * time); // Frame is before or at 'time'.
 					typename TMap::const_iterator it = m.upper_bound(frame); // Find frame after 'time'.
-					if (it != m.end()) // There are frames greater (after 'time'):
+					if (it != m.cend()) // There are frames greater (after 'time'):
 					{
-						if (it != m.begin()) // And there are less than (before 'time'), full interpolation:
+						if (it != m.cbegin()) // And there are less than (before 'time'), full interpolation:
 						{
 							typename TMap::const_iterator itPrev = it;
 							itPrev--;
-							const float prevTime = itPrev->first * _pMotion->GetFpsInv();
-							const float nextTime = it->first * _pMotion->GetFpsInv();
-							const float delta = nextTime - prevTime;
-							const float offset = nextTime - time;
-							alpha = 1 - offset / delta;
-							prev = itPrev->second;
-							next = it->second;
+							frames[1] = itPrev->first;
+							keys[1] = itPrev->second;
+							if (itPrev != m.cbegin())
+							{
+								itPrev--;
+								frames[0] = itPrev->first;
+								keys[0] = itPrev->second;
+							}
+							frames[2] = it->first;
+							keys[2] = it->second;
+							it++;
+							if (it != m.cend())
+							{
+								frames[3] = it->first;
+								keys[3] = it->second;
+							}
+							alpha = (time - (frames[1] * _pMotion->GetFpsInv())) / ((frames[2] - frames[1]) * _pMotion->GetFpsInv());
 						}
 						else // But there are no less than:
 						{
-							const float nextTime = it->first * _pMotion->GetFpsInv();
-							const float delta = nextTime;
-							const float offset = time;
-							alpha = offset / delta;
-							prev = null;
-							next = it->second;
+							frames[2] = it->first;
+							keys[2] = it->second;
+							it++;
+							if (it != m.cend())
+							{
+								frames[3] = it->first;
+								keys[3] = it->second;
+							}
+							alpha = time / (frames[2] * _pMotion->GetFpsInv());
 						}
 					}
 					else // There are no frames greater, but there are less than:
 					{
 						it--;
+						frames[1] = it->first;
+						keys[1] = it->second;
+						if (it != m.cbegin())
+						{
+							it--;
+							frames[0] = it->first;
+							keys[0] = it->second;
+						}
 						alpha = 0;
-						prev = it->second;
-						next = null;
 					}
 					return alpha;
 				}
 
-			public:
-				enum class Type : int
+				template<typename TMap>
+				static bool SpaceTimeSyncTemplate(TMap& m, int fromFrame, int toFrame)
 				{
-					rotation,
-					position,
-					scale,
-					trigger
-				};
+					const auto itFrom = m.find(fromFrame);
+					const auto itTo = m.find(toFrame);
+					if (m.end() == itFrom || m.end() == itTo) // Endpoints must exist.
+						return false;
 
+					const int totalFrames = toFrame - fromFrame;
+
+					auto it = itFrom;
+					Vector<float> vSegments;
+					vSegments.reserve(8);
+					float totalDist = 0;
+					while (it != itTo)
+					{
+						const auto& posA = it->second;
+						it++;
+						const auto& posB = it->second;
+						const float d = VMath::dist(Point3(posA), Point3(posB));
+						vSegments.push_back(d);
+						totalDist += d;
+					}
+					if (totalDist < 1e-4f) // Distance is too small.
+						return false;
+					const float invTotalDist = 1.f / totalDist;
+
+					TMap tempMap;
+					it = itFrom;
+					it++;
+					while (it != itTo) // Copy all keys in-between, delete original keys.
+					{
+						tempMap[it->first] = std::move(it->second);
+						it = m.erase(it);
+					}
+
+					it = tempMap.begin();
+					float distAcc = 0;
+					int i = 0;
+					while (it != tempMap.end())
+					{
+						distAcc += vSegments[i++];
+						int syncedFrame = fromFrame + static_cast<int>(totalFrames * (distAcc * invTotalDist) + 0.5f);
+						while (m.end() != m.find(syncedFrame)) // Frame already occupied?
+							syncedFrame++;
+						m[syncedFrame] = it->second;
+						it++;
+					}
+
+					return true;
+				}
+
+			public:
 				Bone(Motion* pMotion = nullptr);
 				~Bone();
 
@@ -113,39 +194,46 @@ namespace verus
 				int GetLastTriggerState() const { return _lastTriggerState; }
 				void SetLastTriggerState(int state) { _lastTriggerState = state; }
 
+				Flags GetFlags() const { return _flags; }
+				void SetFlags(Flags flags) { _flags = flags; }
+
 				void DeleteAll();
 
+				// Insert:
 				void InsertKeyframeRotation(int frame, RcQuat q);
 				void InsertKeyframeRotation(int frame, RcVector3 euler);
 				void InsertKeyframePosition(int frame, RcVector3 pos);
 				void    InsertKeyframeScale(int frame, RcVector3 scale);
 				void  InsertKeyframeTrigger(int frame, int state);
 
+				// Delete:
 				void DeleteKeyframeRotation(int frame);
 				void DeleteKeyframePosition(int frame);
 				void    DeleteKeyframeScale(int frame);
 				void  DeleteKeyframeTrigger(int frame);
 
+				// Find:
 				bool FindKeyframeRotation(int frame, RVector3 euler, RQuat q) const;
 				bool FindKeyframePosition(int frame, RVector3 pos) const;
 				bool    FindKeyframeScale(int frame, RVector3 scale) const;
 				bool  FindKeyframeTrigger(int frame, int& state) const;
 
+				// Compute:
 				void ComputeRotationAt(float time, RVector3 euler, RQuat q) const;
 				void ComputePositionAt(float time, RVector3 pos) const;
 				void    ComputeScaleAt(float time, RVector3 scale) const;
 				void  ComputeTriggerAt(float time, int& state) const;
 				void   ComputeMatrixAt(float time, RTransform3 mat);
 
-				void MoveKeyframe(int direction, Type type, int frame);
+				void MoveKeyframe(int direction, Channel channel, int frame);
 
 				int GetRotationKeyCount() const { return Utils::Cast32(_mapRot.size()); }
 				int GetPositionKeyCount() const { return Utils::Cast32(_mapPos.size()); }
 				int GetScaleKeyCount() const { return Utils::Cast32(_mapScale.size()); }
 				int GetTriggerKeyCount() const { return Utils::Cast32(_mapTrigger.size()); }
 
-				VERUS_P(void Serialize(IO::RStream stream));
-				VERUS_P(void Deserialize(IO::RStream stream));
+				VERUS_P(void Serialize(IO::RStream stream, UINT16 version));
+				VERUS_P(void Deserialize(IO::RStream stream, UINT16 version));
 
 				void DeleteRedundantKeyframes();
 				void DeleteOddKeyframes();
@@ -157,12 +245,14 @@ namespace verus
 
 				void Scatter(int srcFrom, int srcTo, int dMin, int dMax);
 
+				bool SpaceTimeSync(Channel channel, int fromFrame, int toFrame);
+
 				int GetLastKeyframe() const;
 			};
 			VERUS_TYPEDEFS(Bone);
 
 		private:
-			static const int s_xanVersion = 0x0101;
+			static const int s_xanVersion = 0x0102;
 			static const int s_maxFps = 10000;
 			static const int s_maxBones = 10000;
 			static const int s_maxFrames = 32 * 1024 * 1024;
@@ -171,9 +261,9 @@ namespace verus
 
 			TMapBones _mapBones;
 			Motion* _pBlendMotion = nullptr;
-			int       _frameCount = 50;
-			int       _fps = 10;
-			float     _fpsInv = 0.1f;
+			int       _frameCount = 60;
+			int       _fps = 12;
+			float     _fpsInv = 1 / 12.f;
 			float     _blendAlpha = 0;
 			float     _playbackSpeed = 1;
 			float     _playbackSpeedInv = 1;
@@ -206,6 +296,16 @@ namespace verus
 			void DeleteAllBones();
 			PBone FindBone(CSZ name);
 
+			template<typename T>
+			void ForEachBone(const T& fn)
+			{
+				for (auto& kv : _mapBones)
+				{
+					if (Continue::no == fn(kv.second))
+						break;
+				}
+			}
+
 			void Serialize(IO::RStream stream);
 			void Deserialize(IO::RStream stream);
 
@@ -233,7 +333,7 @@ namespace verus
 			void ComputePlaybackSpeed(float duration);
 			bool IsReversed() const { return _reversed; }
 
-			void Exec(CSZ code);
+			void Exec(CSZ code, PBone pBone = nullptr, Bone::Channel channel = Bone::Channel::rotation);
 
 			int GetLastKeyframe() const;
 		};

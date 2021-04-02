@@ -24,7 +24,7 @@ bool Renderer::IsLoaded()
 	return IsValidSingleton() && !!I()._pBaseRenderer;
 }
 
-void Renderer::Init(PRendererDelegate pDelegate)
+void Renderer::Init(PRendererDelegate pDelegate, bool allowInitShaders)
 {
 	VERUS_INIT();
 	VERUS_QREF_CONST_SETTINGS;
@@ -33,6 +33,10 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	_swapChainHeight = settings._displaySizeHeight;
 
 	_pRendererDelegate = pDelegate;
+
+	_allowInitShaders = allowInitShaders;
+
+	VERUS_RT_ASSERT(_allowInitShaders || !settings._displayOffscreenDraw);
 
 	CSZ dll = "RendererVulkan.dll";
 	switch (settings._gapi)
@@ -54,10 +58,11 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	_commandBuffer.Init();
 
 	// Draw directly to swap chain buffer:
-	const RP::Attachment::LoadOp loadOp = settings._displayOffscreenDraw ? RP::Attachment::LoadOp::dontCare : RP::Attachment::LoadOp::clear;
+	const RP::Attachment::LoadOp colorLoadOp = settings._displayOffscreenDraw ? RP::Attachment::LoadOp::dontCare : RP::Attachment::LoadOp::clear;
+	const RP::Attachment::LoadOp depthLoadOp = settings._displayOffscreenDraw ? RP::Attachment::LoadOp::load : RP::Attachment::LoadOp::clear;
 	_rphSwapChain = _pBaseRenderer->CreateRenderPass(
 		{
-			RP::Attachment("Color", Format::srgbB8G8R8A8).SetLoadOp(loadOp).Layout(ImageLayout::undefined, ImageLayout::presentSrc)
+			RP::Attachment("Color", Format::srgbB8G8R8A8).SetLoadOp(colorLoadOp).Layout(ImageLayout::undefined, ImageLayout::presentSrc)
 		},
 		{
 			RP::Subpass("Sp0").Color({RP::Ref("Color", ImageLayout::colorAttachment)})
@@ -65,8 +70,8 @@ void Renderer::Init(PRendererDelegate pDelegate)
 		{});
 	_rphSwapChainWithDepth = _pBaseRenderer->CreateRenderPass(
 		{
-			RP::Attachment("Color", Format::srgbB8G8R8A8).SetLoadOp(loadOp).Layout(ImageLayout::undefined, ImageLayout::presentSrc),
-			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilAttachment),
+			RP::Attachment("Color", Format::srgbB8G8R8A8).SetLoadOp(colorLoadOp).Layout(ImageLayout::undefined, ImageLayout::presentSrc),
+			RP::Attachment("Depth", Format::unormD24uintS8).SetLoadOp(depthLoadOp).Layout(ImageLayout::depthStencilAttachment),
 		},
 		{
 			RP::Subpass("Sp0").Color(
@@ -109,32 +114,37 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	geoDesc._pStrides = strides;
 	_geoQuad.Init(geoDesc);
 
-	_shader[SHADER_GENERATE_MIPS].Init("[Shaders]:GenerateMips.hlsl");
-	_shader[SHADER_GENERATE_MIPS]->CreateDescriptorSet(0, &_ubGenerateMips, sizeof(_ubGenerateMips), settings.GetLimits()._generateMips_ubCapacity,
-		{
-			Sampler::linearClampMipN,
-			Sampler::storage,
-			Sampler::storage,
-			Sampler::storage,
-			Sampler::storage
-		},
-		ShaderStageFlags::cs);
-	_shader[SHADER_GENERATE_MIPS]->CreatePipelineLayout();
+	if (_allowInitShaders)
+	{
+		_shader[SHADER_GENERATE_MIPS].Init("[Shaders]:GenerateMips.hlsl");
+		_shader[SHADER_GENERATE_MIPS]->CreateDescriptorSet(0, &_ubGenerateMips, sizeof(_ubGenerateMips), settings.GetLimits()._generateMips_ubCapacity,
+			{
+				Sampler::linearClampMipN,
+				Sampler::storage,
+				Sampler::storage,
+				Sampler::storage,
+				Sampler::storage
+			},
+			ShaderStageFlags::cs);
+		_shader[SHADER_GENERATE_MIPS]->CreatePipelineLayout();
 
-	_shader[SHADER_QUAD].Init("[Shaders]:Quad.hlsl");
-	_shader[SHADER_QUAD]->CreateDescriptorSet(0, &_ubQuadVS, sizeof(_ubQuadVS), settings.GetLimits()._quad_ubVSCapacity, {}, ShaderStageFlags::vs);
-	_shader[SHADER_QUAD]->CreateDescriptorSet(1, &_ubQuadFS, sizeof(_ubQuadFS), settings.GetLimits()._quad_ubFSCapacity, { Sampler::linearClampMipN }, ShaderStageFlags::fs);
-	_shader[SHADER_QUAD]->CreatePipelineLayout();
+		_shader[SHADER_QUAD].Init("[Shaders]:Quad.hlsl");
+		_shader[SHADER_QUAD]->CreateDescriptorSet(0, &_ubQuadVS, sizeof(_ubQuadVS), settings.GetLimits()._quad_ubVSCapacity, {}, ShaderStageFlags::vs);
+		_shader[SHADER_QUAD]->CreateDescriptorSet(1, &_ubQuadFS, sizeof(_ubQuadFS), settings.GetLimits()._quad_ubFSCapacity, { Sampler::linearClampMipN }, ShaderStageFlags::fs);
+		_shader[SHADER_QUAD]->CreatePipelineLayout();
+	}
 
+	if (_allowInitShaders)
 	{
 		PipelineDesc pipeDesc(_shader[SHADER_GENERATE_MIPS], "#");
 		_pipe[PIPE_GENERATE_MIPS].Init(pipeDesc);
 	}
+	if (_allowInitShaders)
 	{
 		PipelineDesc pipeDesc(_shader[SHADER_GENERATE_MIPS], "#Exposure");
 		_pipe[PIPE_GENERATE_MIPS_EXPOSURE].Init(pipeDesc);
 	}
-	if (App::Settings::I()._displayOffscreenDraw)
+	if (settings._displayOffscreenDraw)
 	{
 		PipelineDesc pipeDesc(_geoQuad, _shader[SHADER_QUAD], "#", _rphSwapChainWithDepth);
 		pipeDesc._topology = PrimitiveTopology::triangleStrip;
@@ -147,7 +157,8 @@ void Renderer::Init(PRendererDelegate pDelegate)
 	_pBaseRenderer->ImGuiInit(_rphSwapChainWithDepth);
 	ImGuiUpdateStyle();
 
-	_ds.Init();
+	if (_allowInitShaders)
+		_ds.Init();
 
 	SetExposureValue(15);
 }
@@ -258,12 +269,18 @@ bool Renderer::OnWindowSizeChanged(int w, int h)
 	_pBaseRenderer->ResizeSwapChain();
 
 	OnSwapChainResized(true, true);
-	_ds.OnSwapChainResized(true, true);
-	Scene::Water::I().OnSwapChainResized();
-	Effects::Bloom::I().OnSwapChainResized();
-	Effects::Ssao::I().OnSwapChainResized();
-	Effects::Ssr::I().OnSwapChainResized();
-	Effects::Blur::I().OnSwapChainResized();
+	if (_ds.IsInitialized())
+		_ds.OnSwapChainResized(true, true);
+	if (Scene::Water::IsValidSingleton())
+		Scene::Water::I().OnSwapChainResized();
+	if (Effects::Bloom::IsValidSingleton())
+		Effects::Bloom::I().OnSwapChainResized();
+	if (Effects::Ssao::IsValidSingleton())
+		Effects::Ssao::I().OnSwapChainResized();
+	if (Effects::Ssr::IsValidSingleton())
+		Effects::Ssr::I().OnSwapChainResized();
+	if (Effects::Blur::IsValidSingleton())
+		Effects::Blur::I().OnSwapChainResized();
 
 	return true;
 }
@@ -272,7 +289,8 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 {
 	if (done)
 	{
-		_shader[SHADER_QUAD]->FreeDescriptorSet(_cshOffscreenColor);
+		if (_shader[SHADER_QUAD])
+			_shader[SHADER_QUAD]->FreeDescriptorSet(_cshOffscreenColor);
 
 		_pBaseRenderer->DeleteFramebuffer(_fbhOffscreenWithDepth);
 		_pBaseRenderer->DeleteFramebuffer(_fbhOffscreen);

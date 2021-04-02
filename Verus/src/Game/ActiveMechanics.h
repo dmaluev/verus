@@ -19,10 +19,15 @@ namespace verus
 			bool HandleInput();
 			bool Update();
 			bool Draw();
+			bool DrawOverlay();
 
 			void ApplyReport(const void* pReport);
 			bool GetBotDomainCenter(int id, RPoint3 center);
+			bool GetSpawnPosition(int id, RPoint3 pos);
+			bool IsInputEnabled();
+			bool OnDie(int id);
 			bool OnMouseMove(float x, float y);
+			bool OnTakeDamage(int id, float amount);
 			bool UpdateMultiplayer();
 			Scene::PMainCamera GetMainCamera();
 

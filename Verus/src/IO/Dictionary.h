@@ -56,7 +56,7 @@ namespace verus
 			{
 				for (const auto& x : TStoreValues::_map)
 				{
-					if (Continue::yes != fn(_C(x.first), _C(x.second._s)))
+					if (Continue::no == fn(_C(x.first), _C(x.second._s)))
 						return;
 				}
 			}

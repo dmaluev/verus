@@ -117,14 +117,14 @@ namespace verus
 			void ForEachBone(const F& fn)
 			{
 				for (auto& kv : _mapBones)
-					if (Continue::yes != fn(kv.second))
+					if (Continue::no == fn(kv.second))
 						return;
 			}
 			template<typename F>
 			void ForEachBone(const F& fn) const
 			{
 				for (const auto& kv : _mapBones)
-					if (Continue::yes != fn(kv.second))
+					if (Continue::no == fn(kv.second))
 						return;
 			}
 

@@ -12,7 +12,7 @@ VERUS_UBUFFER UB_BloomFS
 	float4 _colorScale_colorBias;
 };
 
-VERUS_UBUFFER UB_BloomGodRaysFS
+VERUS_UBUFFER UB_BloomLightShaftsFS
 {
 	matrix _matInvVP;
 	float4 _dirToSun;

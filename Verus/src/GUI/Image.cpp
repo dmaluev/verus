@@ -99,7 +99,7 @@ void Image::Draw()
 	cb->BindDescriptors(shader, 0);
 	cb->BindDescriptors(shader, 1, _solidColor ? vm.GetDefaultComplexSetHandle() : _csh);
 	shader->EndBindDescriptors();
-	renderer.DrawQuad();
+	renderer.DrawQuad(cb.Get());
 }
 
 void Image::Parse(pugi::xml_node node)

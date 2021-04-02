@@ -87,7 +87,7 @@ namespace verus
 
 			//! Rotates smoothly across multiple frames.
 			void Rotate(RcVector3 front, float speed);
-			void LookAt(RcPoint3 point);
+			void LookAt(RcPoint3 point, bool forceTarget = false);
 
 			// Matrices:
 			RcMatrix3 GetPitchMatrix() const;

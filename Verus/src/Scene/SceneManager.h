@@ -87,7 +87,7 @@ namespace verus
 				VERUS_FOREACH_X(TStoreModels::TMap, TStoreModels::_map, it)
 				{
 					auto& model = *it++;
-					if (Continue::yes != fn(model.second))
+					if (Continue::no == fn(model.second))
 						return;
 				}
 			}
@@ -103,7 +103,7 @@ namespace verus
 				VERUS_FOREACH_X(TStoreSceneParticles::TMap, TStoreSceneParticles::_map, it)
 				{
 					auto& particles = *it++;
-					if (Continue::yes != fn(particles.second))
+					if (Continue::no == fn(particles.second))
 						return;
 				}
 			}
@@ -119,7 +119,7 @@ namespace verus
 				VERUS_FOREACH_X(TStoreSites::TMap, TStoreSites::_map, it)
 				{
 					auto& site = *it++;
-					if (Continue::yes != fn(site.second))
+					if (Continue::no == fn(site.second))
 						return;
 				}
 			}
@@ -171,7 +171,7 @@ namespace verus
 							MatchSelected(block) &&
 							(!query._blockMesh || block.GetUrl() == query._blockMesh) &&
 							(!query._blockMaterial || block.GetMaterial()->_name == query._blockMaterial))
-							if (Continue::yes != fn(block))
+							if (Continue::no == fn(block))
 								return;
 					}
 				}
@@ -188,7 +188,7 @@ namespace verus
 							MatchName(emitter) &&
 							MatchSelected(emitter) &&
 							(!query._particlesUrl || emitter.GetUrl() == query._particlesUrl))
-							if (Continue::yes != fn(emitter))
+							if (Continue::no == fn(emitter))
 								return;
 					}
 				}
@@ -200,7 +200,7 @@ namespace verus
 						if (
 							MatchName(light) &&
 							MatchSelected(light))
-							if (Continue::yes != fn(light))
+							if (Continue::no == fn(light))
 								return;
 					}
 				}
@@ -212,7 +212,7 @@ namespace verus
 						if (
 							MatchName(prefab) &&
 							MatchSelected(prefab))
-							if (Continue::yes != fn(prefab))
+							if (Continue::no == fn(prefab))
 								return;
 					}
 				}
@@ -224,7 +224,7 @@ namespace verus
 						if (
 							MatchName(trigger) &&
 							MatchSelected(trigger))
-							if (Continue::yes != fn(trigger))
+							if (Continue::no == fn(trigger))
 								return;
 					}
 				}

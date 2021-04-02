@@ -12,6 +12,62 @@ namespace verus
 			borderlessWindowed
 		};
 
+		class QualitySettings
+		{
+		public:
+			enum class OverallQuality : int
+			{
+				custom,
+				low,
+				medium,
+				high,
+				ultra
+			};
+
+			enum class Quality : int
+			{
+				low,
+				medium,
+				high,
+				ultra
+			};
+
+			enum class WaterQuality : int
+			{
+				solidColor,
+				simpleReflection,
+				distortedReflection,
+				trueWavesReflection,
+				trueWavesRefraction
+			};
+
+		public:
+			bool         _displayOffscreenDraw = true;
+			float        _displayOffscreenScale = 1;
+			int          _gpuAnisotropyLevel = 4;
+			int          _gpuAntialiasingLevel = 0;
+			Quality      _gpuShaderQuality = Quality::medium;
+			bool         _gpuTessellation = false;
+			int	         _gpuTextureLodLevel = 0;
+			bool         _gpuTrilinearFilter = true;
+			bool         _postProcessBloom = true;
+			bool         _postProcessCinema = false;
+			bool         _postProcessLightShafts = true;
+			bool         _postProcessMotionBlur = false;
+			bool         _postProcessSSAO = true;
+			bool         _postProcessSSR = false;
+			bool         _sceneAmbientOcclusion = false;
+			int	         _sceneGrassDensity = 800;
+			Quality      _sceneShadowQuality = Quality::medium;
+			WaterQuality _sceneWaterQuality = WaterQuality::solidColor;
+
+			bool operator==(const QualitySettings& that) const;
+
+			void SetQuality(OverallQuality q);
+			OverallQuality DetectQuality() const;
+		};
+		VERUS_TYPEDEFS(QualitySettings);
+
 		// Capacity is per frame. 3 frames are buffered.
 		class Limits
 		{
@@ -49,7 +105,7 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(Limits);
 
-		class Settings : public Singleton<Settings>, IO::Json
+		class Settings : public QualitySettings, public Singleton<Settings>, IO::Json
 		{
 			typedef Map<String, String> TMapLocalizedStrings;
 
@@ -62,23 +118,7 @@ namespace verus
 				bool _exclusiveFullscreen = false;
 				bool _windowed = false;
 				bool _borderlessWindowed = false;
-			};
-
-			enum class Quality : int
-			{
-				low,
-				medium,
-				high,
-				ultra
-			};
-
-			enum class WaterQuality : int
-			{
-				solidColor,
-				simpleReflection,
-				distortedReflection,
-				trueWavesReflection,
-				trueWavesRefraction
+				bool _restarted = false;
 			};
 
 			enum Platform : int
@@ -87,47 +127,27 @@ namespace verus
 				uwp
 			};
 
-			Quality       _quality = Quality::medium;
-			bool          _displayAllowHighDPI = true;
-			float         _displayFOV = 70;
-			DisplayMode   _displayMode = DisplayMode::windowed;
-			bool          _displayOffscreenDraw = true;
-			float         _displayOffscreenScale = 1;
-			int           _displaySizeHeight = 720;
-			int           _displaySizeWidth = 1280;
-			bool          _displayVSync = true;
-			int           _gapi = 0;
-			int           _gpuAnisotropyLevel = 4;
-			int           _gpuAntialiasingLevel = 0;
-			Quality       _gpuShaderQuality = Quality::medium;
-			bool          _gpuTessellation = false;
-			int	          _gpuTextureLodLevel = 0;
-			bool          _gpuTrilinearFilter = true;
-			float         _inputMouseSensitivity = 1;
-			bool          _physicsSupportDebugDraw = false;
-			bool          _postProcessBloom = true;
-			bool          _postProcessCinema = false;
-			bool          _postProcessGodRays = true;
-			bool          _postProcessMotionBlur = false;
-			bool          _postProcessSSAO = true;
-			bool          _postProcessSSR = false;
-			bool          _sceneAmbientOcclusion = false;
-			int	          _sceneGrassDensity = 800;
-			Quality       _sceneShadowQuality = Quality::medium;
-			WaterQuality  _sceneWaterQuality = WaterQuality::solidColor;
-			String        _uiLang = "EN";
-			CommandLine   _commandLine;
-			Limits        _limits;
-			String        _imguiFont;
-			float         _highDpiScale = 1;
-			Platform      _platform = Platform::classic;
+			bool        _displayAllowHighDPI = true;
+			float       _displayFOV = 70;
+			DisplayMode _displayMode = DisplayMode::windowed;
+			int         _displaySizeHeight = 720;
+			int         _displaySizeWidth = 1280;
+			bool        _displayVSync = true;
+			int         _gapi = 0;
+			float       _inputMouseSensitivity = 1;
+			bool        _physicsSupportDebugDraw = false;
+			String      _uiLang = "EN";
+			CommandLine _commandLine;
+			Limits      _limits;
+			String      _imguiFont;
+			float       _highDpiScale = 1;
+			Platform    _platform = Platform::classic;
 
 			Settings();
 			~Settings();
 
 			void ParseCommandLineArgs(int argc, wchar_t* argv[]);
 			void ParseCommandLineArgs(int argc, char* argv[]);
-			void SetQuality(Quality q);
 
 			void Load();
 			void HandleHighDpi();

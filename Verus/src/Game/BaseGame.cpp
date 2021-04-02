@@ -69,6 +69,9 @@ BaseGame::~BaseGame()
 	Free_D();
 	Utils::FreeEx(&_alloc);
 	SDL_Quit();
+
+	if (_restartApp)
+		RestartApp();
 }
 
 void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
@@ -110,12 +113,14 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
 	VERUS_QREF_MM;
 	_p->_camera.SetAspectRatio(renderer.GetSwapChainAspectRatio());
 	_p->_camera.Update();
-	sm.SetCamera(&_p->_camera);
+	if (Scene::SceneManager::IsValidSingleton())
+		Scene::SceneManager::I().SetCamera(&_p->_camera);
 
 	renderer->BeginFrame(false); // Begin recording a command buffer.
 	renderer.InitCmd();
 	_engineInit.InitCmd();
-	mm.InitCmd();
+	if (Scene::MaterialManager::IsValidSingleton())
+		Scene::MaterialManager::I().InitCmd();
 	BaseGame_LoadContent();
 	renderer->EndFrame(false); // End recording a command buffer.
 	renderer->Sync(false);
@@ -124,11 +129,8 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
 void BaseGame::Run(bool relativeMouseMode)
 {
 	VERUS_QREF_ASYNC;
-	VERUS_QREF_ASYS;
-	VERUS_QREF_BULLET;
 	VERUS_QREF_KM;
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_SM;
 	VERUS_QREF_TIMER;
 
 	if (relativeMouseMode)
@@ -207,7 +209,7 @@ void BaseGame::Run(bool relativeMouseMode)
 					{
 						if (renderer.OnWindowSizeChanged(event.window.data1, event.window.data2))
 						{
-							Scene::PCamera pCamera = sm.GetCamera();
+							Scene::PCamera pCamera = Scene::SceneManager::IsValidSingleton() ? Scene::SceneManager::I().GetCamera() : nullptr;
 							if (pCamera)
 							{
 								pCamera->SetAspectRatio(renderer.GetSwapChainAspectRatio());
@@ -247,7 +249,7 @@ void BaseGame::Run(bool relativeMouseMode)
 		if (_p->_escapeKeyExitGame && km.IsKeyDownEvent(SDL_SCANCODE_ESCAPE))
 			Exit();
 
-		if (_p->_minimized)
+		if (_p->_minimized || _restartApp)
 			continue;
 
 		//
@@ -272,9 +274,13 @@ void BaseGame::Run(bool relativeMouseMode)
 			if (km.IsKeyPressed(SDL_SCANCODE_D))
 				_p->_cameraSpirit.MoveSide(speed);
 		}
-		BaseGame_HandleInput();
 
-		bullet.Simulate();
+		BaseGame_HandleInput();
+		if (_restartApp)
+			continue;
+
+		if (Physics::Bullet::IsValidSingleton())
+			Physics::Bullet::I().Simulate();
 
 		if (_p->_defaultCameraMovement)
 		{
@@ -289,12 +295,16 @@ void BaseGame::Run(bool relativeMouseMode)
 					_p->_camera.ExcludeWaterLine();
 			}
 			_p->_camera.Update();
-			sm.SetCamera(&_p->_camera);
+			if (Scene::SceneManager::IsValidSingleton())
+				Scene::SceneManager::I().SetCamera(&_p->_camera);
 		}
 
 		BaseGame_Update();
+		if (_restartApp)
+			continue;
 
-		asys.Update();
+		if (Audio::AudioSystem::IsValidSingleton())
+			Audio::AudioSystem::I().Update();
 
 		// Draw current frame:
 		renderer.Draw();
@@ -414,4 +424,40 @@ float BaseGame::GetMouseScale()
 	VERUS_QREF_CONST_SETTINGS;
 	const float rad = (VERUS_2PI / 360.f) / 3.f; // 3 pixels = 1 degree.
 	return rad * settings._inputMouseSensitivity;
+}
+
+void BaseGame::RestartApp()
+{
+#ifdef _WIN32
+	wchar_t pathname[MAX_PATH] = {};
+	GetModuleFileName(nullptr, pathname, MAX_PATH);
+
+	wchar_t commandLine[MAX_PATH] = {};
+	wcscpy_s(commandLine, L"--restarted");
+
+	STARTUPINFO si = {};
+	PROCESS_INFORMATION pi = {};
+	si.cb = sizeof(si);
+
+	CreateProcess(
+		pathname,
+		commandLine,
+		nullptr,
+		nullptr,
+		FALSE,
+		CREATE_NEW_PROCESS_GROUP,
+		nullptr,
+		nullptr,
+		&si,
+		&pi);
+
+	CloseHandle(pi.hProcess);
+	CloseHandle(pi.hThread);
+#endif
+}
+
+void BaseGame::RequestAppRestart()
+{
+	_restartApp = true;
+	Exit();
 }

@@ -756,6 +756,9 @@
     <ClInclude Include="src\Game\ActiveMechanics.h">
       <Filter>src\Game</Filter>
     </ClInclude>
+    <ClInclude Include="src\GUI\Bars.h">
+      <Filter>src\GUI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -1291,6 +1294,9 @@
     </ClCompile>
     <ClCompile Include="src\Game\ActiveMechanics.cpp">
       <Filter>src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GUI\Bars.cpp">
+      <Filter>src\GUI</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

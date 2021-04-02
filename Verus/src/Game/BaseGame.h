@@ -12,6 +12,7 @@ namespace verus
 			AlignedAllocator _alloc;
 			EngineInit       _engineInit;
 			App::Window      _window;
+			bool             _restartApp = false;
 
 		public:
 			BaseGame();
@@ -27,7 +28,7 @@ namespace verus
 			virtual void BaseGame_HandleInput() = 0;
 			virtual void BaseGame_Update() = 0;
 			virtual void BaseGame_Draw() = 0;
-			virtual void BaseGame_DrawOverlay() = 0;
+			virtual void BaseGame_DrawOverlay() {}
 			virtual void BaseGame_OnWindowSizeChanged() {}
 			virtual void BaseGame_OnActivated() {}
 			virtual void BaseGame_OnDeactivated() {}
@@ -67,6 +68,9 @@ namespace verus
 			void BulletDebugDraw();
 
 			static float GetMouseScale();
+
+			void RestartApp();
+			void RequestAppRestart();
 		};
 		VERUS_TYPEDEFS(BaseGame);
 	}

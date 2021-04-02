@@ -15,6 +15,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PAKBuilder", "PAKBuilder\PA
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TextureTool", "TextureTool\TextureTool.vcxproj", "{5A1A3E76-7F69-48B6-B1E3-F6BB281B7E73}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HelloTriangle", "HelloTriangle\HelloTriangle.vcxproj", "{BC17ACD3-97EB-4D5C-A2C9-574CDAA7576B}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HelloTexturedCube", "HelloTexturedCube\HelloTexturedCube.vcxproj", "{26BD6E61-E36D-464A-A312-4110ADF10083}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -45,6 +49,14 @@ Global
 		{5A1A3E76-7F69-48B6-B1E3-F6BB281B7E73}.Debug|x64.Build.0 = Debug|x64
 		{5A1A3E76-7F69-48B6-B1E3-F6BB281B7E73}.Release|x64.ActiveCfg = Release|x64
 		{5A1A3E76-7F69-48B6-B1E3-F6BB281B7E73}.Release|x64.Build.0 = Release|x64
+		{BC17ACD3-97EB-4D5C-A2C9-574CDAA7576B}.Debug|x64.ActiveCfg = Debug|x64
+		{BC17ACD3-97EB-4D5C-A2C9-574CDAA7576B}.Debug|x64.Build.0 = Debug|x64
+		{BC17ACD3-97EB-4D5C-A2C9-574CDAA7576B}.Release|x64.ActiveCfg = Release|x64
+		{BC17ACD3-97EB-4D5C-A2C9-574CDAA7576B}.Release|x64.Build.0 = Release|x64
+		{26BD6E61-E36D-464A-A312-4110ADF10083}.Debug|x64.ActiveCfg = Debug|x64
+		{26BD6E61-E36D-464A-A312-4110ADF10083}.Debug|x64.Build.0 = Debug|x64
+		{26BD6E61-E36D-464A-A312-4110ADF10083}.Release|x64.ActiveCfg = Release|x64
+		{26BD6E61-E36D-464A-A312-4110ADF10083}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

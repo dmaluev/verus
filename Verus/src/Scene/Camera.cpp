@@ -117,6 +117,50 @@ void Camera::ExcludeWaterLine(float h)
 	}
 }
 
+void Camera::ApplyMotion(CSZ boneName, Anim::RMotion motion, float time)
+{
+	auto pBone = motion.FindBone(boneName);
+	if (!pBone)
+		return;
+
+	Quat q;
+	Vector3 euler, pos;
+	int state = 0;
+	pBone->ComputeRotationAt(time, euler, q);
+	pBone->ComputePositionAt(time, pos);
+	pBone->ComputeTriggerAt(time, state);
+	Point3 at;
+	Vector3 up;
+	if (state & 0x2)
+	{
+		Vector3 scale;
+		pBone->ComputeScaleAt(time, scale);
+		at = scale;
+		up = Vector3(0, 1, 0);
+	}
+	else
+	{
+		const Matrix3 matR(q);
+		at = pos + matR.getCol2();
+		up = matR.getCol1();
+	}
+	MoveEyeTo(pos);
+	MoveAtTo(at);
+	SetUpDirection(up);
+	Update();
+}
+
+void Camera::BakeMotion(CSZ boneName, Anim::RMotion motion, int frame)
+{
+	auto pBone = motion.FindBone(boneName);
+	if (!pBone)
+		return;
+
+	const glm::quat q = glm::quatLookAt(-_frontDir.GLM(), _upDir.GLM());
+	pBone->InsertKeyframeRotation(frame, q);
+	pBone->InsertKeyframePosition(frame, _eyePos);
+}
+
 void Camera::SaveState(int slot)
 {
 	StringStream ss;
@@ -170,12 +214,20 @@ void MainCamera::Update()
 void MainCamera::UpdateVP()
 {
 	VERUS_QREF_RENDERER;
+
 	if (_currentFrame != renderer.GetFrameCount())
 	{
 		_matPrevVP = GetMatrixVP();
 		_currentFrame = renderer.GetFrameCount();
 	}
+
 	Camera::UpdateVP();
+
+	if (_cutMotionBlur)
+	{
+		_cutMotionBlur = false;
+		_matPrevVP = GetMatrixVP();
+	}
 }
 
 void MainCamera::GetPickingRay(RPoint3 pos, RVector3 dir) const

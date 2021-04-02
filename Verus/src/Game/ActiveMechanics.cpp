@@ -36,6 +36,23 @@ bool ActiveMechanics::HandleInput()
 
 bool ActiveMechanics::Update()
 {
+	bool popped = false;
+	VERUS_WHILE(Vector<PMechanics>, _vStack, it)
+	{
+		if ((*it)->CanAutoPop())
+		{
+			popped = true;
+			(*it)->OnEnd();
+			it = _vStack.erase(it);
+		}
+		else
+			it++;
+	}
+	if (popped)
+	{
+		std::sort(_vStack.begin(), _vStack.end());
+		ActiveMechanics_OnChanged();
+	}
 	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
 	{
 		if (Continue::no == (*it)->Update())
@@ -49,6 +66,16 @@ bool ActiveMechanics::Draw()
 	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
 	{
 		if (Continue::no == (*it)->Draw())
+			return true;
+	}
+	return false;
+}
+
+bool ActiveMechanics::DrawOverlay()
+{
+	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	{
+		if (Continue::no == (*it)->DrawOverlay())
 			return true;
 	}
 	return false;
@@ -70,11 +97,51 @@ bool ActiveMechanics::GetBotDomainCenter(int id, RPoint3 center)
 	return false;
 }
 
+bool ActiveMechanics::GetSpawnPosition(int id, RPoint3 pos)
+{
+	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	{
+		if (Continue::no == (*it)->GetSpawnPosition(id, pos))
+			return true;
+	}
+	return false;
+}
+
+bool ActiveMechanics::IsInputEnabled()
+{
+	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	{
+		if (!(*it)->IsInputEnabled())
+			return false;
+	}
+	return true;
+}
+
+bool ActiveMechanics::OnDie(int id)
+{
+	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	{
+		if (Continue::no == (*it)->OnDie(id))
+			return true;
+	}
+	return false;
+}
+
 bool ActiveMechanics::OnMouseMove(float x, float y)
 {
 	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
 	{
 		if (Continue::no == (*it)->OnMouseMove(x, y))
+			return true;
+	}
+	return false;
+}
+
+bool ActiveMechanics::OnTakeDamage(int id, float amount)
+{
+	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	{
+		if (Continue::no == (*it)->OnTakeDamage(id, amount))
 			return true;
 	}
 	return false;

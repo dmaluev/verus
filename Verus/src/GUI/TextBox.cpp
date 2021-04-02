@@ -57,7 +57,7 @@ void TextBox::Draw()
 		cb->BindDescriptors(shader, 0);
 		cb->BindDescriptors(shader, 1, vm.GetDefaultComplexSetHandle());
 		shader->EndBindDescriptors();
-		renderer.DrawQuad();
+		renderer.DrawQuad(cb.Get());
 	}
 }
 
