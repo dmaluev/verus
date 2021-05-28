@@ -6,8 +6,6 @@ using namespace verus::D;
 
 void Log::Write(CSZ txt, std::thread::id tid, CSZ filename, UINT32 line, Severity severity)
 {
-	if (strstr(txt, "VUID-VkMappedMemoryRange-size-01389"))
-		return;
 	if (strstr(txt, "VUID-StandaloneSpirv-Offset-04663"))
 		return;
 	if (strstr(txt, "UNASSIGNED-BestPractices-vkAllocateMemory-small-allocation"))
