@@ -27,13 +27,13 @@ namespace verus
 			VERUS_PD(Point3  _atPos = Point3(0, 0, -1));
 			VERUS_PD(Vector3 _upDir = Vector3(0, 1, 0));
 			VERUS_PD(Vector3 _frontDir = Vector3(0, 0, -1));
-			float            _fovScale = 1;
-			float            _fovY = VERUS_PI / 4; // Zero FOV means ortho.
 			float            _aspectRatio = 1;
+			float            _yFov = VERUS_PI / 4; // Zero FOV means ortho.
 			float            _zNear = 0.1f; // 10 cm.
 			float            _zFar = 10000; // 10 km.
-			float            _w = 80;
-			float            _h = 60;
+			float            _xMag = 80;
+			float            _yMag = 60;
+			float            _fovScale = 1;
 			VERUS_PD(Update  _update = Update::none);
 			VERUS_PD(void UpdateInternal());
 
@@ -70,22 +70,22 @@ namespace verus
 			RcMatrix4 GetMatrixVP() const { return _matVP; }
 
 			// Perspective:
-			float GetFovScale() const { return _fovScale; } // For converting offsets in meters to offsets in texture coords.
-			float GetFovY() const { return _fovY; }
 			float GetAspectRatio() const { return _aspectRatio; }
-			float GetZNear() const { return _zNear; }
-			float GetZFar() const { return _zFar; }
-			void SetFovX(float x);
-			void SetFovY(float x) { _update |= Update::p; _fovY = x; }
 			void SetAspectRatio(float x) { _update |= Update::p; _aspectRatio = x; }
+			float GetYFov() const { return _yFov; }
+			void SetYFov(float x) { _update |= Update::p; _yFov = x; }
+			void SetXFov(float x);
+			float GetZNear() const { return _zNear; }
 			void SetZNear(float x) { _update |= Update::p; _zNear = x; }
+			float GetZFar() const { return _zFar; }
 			void SetZFar(float x) { _update |= Update::p; _zFar = x; }
+			float GetFovScale() const { return _fovScale; } // For converting offsets in meters to offsets in texture coords.
 
 			// Ortho:
-			float GetWidth() const { return _w; }
-			float GetHeight() const { return _h; }
-			void SetWidth(float x) { _update |= Update::p; _w = (0 == x) ? _aspectRatio * _h : x; }
-			void SetHeight(float x) { _update |= Update::p; _h = x; }
+			float GetXMag() const { return _xMag; }
+			float GetYMag() const { return _yMag; }
+			void SetXMag(float x) { _update |= Update::p; _xMag = (0 == x) ? _aspectRatio * _yMag : x; }
+			void SetYMag(float x) { _update |= Update::p; _yMag = x; }
 
 			void GetClippingSpacePlane(RVector4 plane) const;
 

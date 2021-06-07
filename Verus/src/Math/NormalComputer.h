@@ -20,7 +20,8 @@ namespace verus
 				const Vector<glm::vec3>& vNormals,
 				const Vector<glm::vec2>& vTexCoords,
 				Vector<glm::vec3>& vTan,
-				Vector<glm::vec3>& vBin);
+				Vector<glm::vec3>& vBin,
+				bool useMikkTSpace = true);
 		};
 		VERUS_TYPEDEFS(NormalComputer);
 	}

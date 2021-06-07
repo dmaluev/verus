@@ -5576,6 +5576,18 @@ void ImGui::RenderWindowDecorations(ImGuiWindow* window, const ImRect& title_bar
         {
             ImU32 title_bar_col = GetColorU32(title_bar_is_highlight ? ImGuiCol_TitleBgActive : ImGuiCol_TitleBg);
             window->DrawList->AddRectFilled(title_bar_rect.Min, title_bar_rect.Max, title_bar_col, window_rounding, ImDrawFlags_RoundCornersTop);
+
+            // Dmitry's magic gradient
+            const float width = title_bar_rect.Max.x - title_bar_rect.Min.x;
+            const float points[3] =
+            {
+                title_bar_rect.Min.x + width * 0.1f,
+                title_bar_rect.Min.x + width * 0.5f,
+                title_bar_rect.Min.x + width * 0.9f
+            };
+            const ImU32 dark = IM_COL32(0, 0, 0, 128);
+            window->DrawList->AddRectFilledMultiColor(ImVec2(points[0], title_bar_rect.Min.y + 2), ImVec2(points[1], title_bar_rect.Max.y), title_bar_col, dark, dark, title_bar_col);
+            window->DrawList->AddRectFilledMultiColor(ImVec2(points[1], title_bar_rect.Min.y + 2), ImVec2(points[2], title_bar_rect.Max.y), dark, title_bar_col, title_bar_col, dark);
         }
 
         // Menu bar

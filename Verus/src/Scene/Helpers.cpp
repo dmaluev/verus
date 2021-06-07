@@ -22,7 +22,7 @@ void Helpers::Init()
 	// Grid:
 	_vGrid.reserve(92);
 	const UINT32 colorMain = VERUS_COLOR_RGBA(32, 32, 32, 255);
-	const UINT32 colorExtra = VERUS_COLOR_RGBA(64, 64, 64, 255);
+	const UINT32 colorExtra = VERUS_COLOR_RGBA(96, 96, 96, 255);
 	const int edgeMin = 5, edgeMax = 55;
 	for (int i = -edgeMin; i <= edgeMin; ++i)
 	{

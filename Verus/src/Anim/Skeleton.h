@@ -161,6 +161,8 @@ namespace verus
 			//! Tries to compute the highest speed at which a bone would move with this motion applied.
 			//! Can be used to sync animation and movement to fix the sliding feet problem.
 			Vector3 GetHighestSpeed(RMotion motion, CSZ name, RcVector3 scale = Vector3(1, 0, 1), bool positive = false);
+
+			void ComputeBoneLengths(Map<String, float>& m, bool accumulated = false);
 		};
 		VERUS_TYPEDEFS(Skeleton);
 	}

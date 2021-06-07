@@ -184,7 +184,7 @@ FSO mainFS(VSO si)
 	if (false)
 	{
 		const float gray = dot(rawComposed.rgb, 1.f / 3.f);
-		so.color.r = saturate((gray - 2000.f) * 0.001f);
+		so.color.r = saturate((gray - 5000.f) * 0.001f);
 		so.color.gb *= 0.5f;
 	}
 

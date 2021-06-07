@@ -235,7 +235,7 @@ namespace verus
 				VERUS_P(void Serialize(IO::RStream stream, UINT16 version));
 				VERUS_P(void Deserialize(IO::RStream stream, UINT16 version));
 
-				void DeleteRedundantKeyframes();
+				void DeleteRedundantKeyframes(float boneAccLength);
 				void DeleteOddKeyframes();
 				void InsertLoopKeyframes();
 				void Cut(int frame, bool before);
@@ -314,7 +314,7 @@ namespace verus
 			Motion* GetBlendMotion() const { return _pBlendMotion; }
 			float GetBlendAlpha() const { return _blendAlpha; }
 
-			void DeleteRedundantKeyframes();
+			void DeleteRedundantKeyframes(Map<String, float>& mapBoneAccLengths);
 			void DeleteOddKeyframes();
 			void InsertLoopKeyframes();
 			void Cut(int frame, bool before = true);

@@ -284,6 +284,7 @@
     <ClInclude Include="src\ThirdParty\libb64\cdecode.h" />
     <ClInclude Include="src\ThirdParty\libb64\cencode.h" />
     <ClInclude Include="src\ThirdParty\md5.h" />
+    <ClInclude Include="src\ThirdParty\mikktspace.h" />
     <ClInclude Include="src\ThirdParty\nativefiledialog\nfd.h" />
     <ClInclude Include="src\ThirdParty\pugixml-1.11\pugiconfig.hpp" />
     <ClInclude Include="src\ThirdParty\pugixml-1.11\pugixml.hpp" />
@@ -508,6 +509,10 @@
       <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4267</DisableSpecificWarnings>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\mikktspace.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\ThirdParty\nativefiledialog\nfd_common.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>

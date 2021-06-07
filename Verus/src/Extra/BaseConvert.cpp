@@ -22,12 +22,12 @@ bool BaseConvert::Mesh::UberVertex::operator==(RcUberVertex that) const
 		glm::all(glm::epsilonEqual(_tc1, that._tc1, e));
 }
 
-void BaseConvert::Mesh::UberVertex::Add(float weight, UINT32 index)
+void BaseConvert::Mesh::UberVertex::Add(UINT32 index, float weight)
 {
 	if (_currentWeight < 4) // Space for one more?
 	{
-		_bw[_currentWeight] = weight;
 		_bi[_currentWeight] = index;
+		_bw[_currentWeight] = weight;
 		_currentWeight++;
 	}
 	else // No space left - check the smallest weight:
@@ -36,20 +36,20 @@ void BaseConvert::Mesh::UberVertex::Add(float weight, UINT32 index)
 		if (weight > *pMin)
 		{
 			const int i = Utils::Cast32(std::distance(_bw, pMin));
-			_bw[i] = weight;
 			_bi[i] = index;
+			_bw[i] = weight;
 		}
 	}
 }
 
-void BaseConvert::Mesh::UberVertex::CompileBits(UINT32& ww, UINT32& ii) const
+void BaseConvert::Mesh::UberVertex::CompileBits(UINT32& ii, UINT32& ww) const
 {
-	ww = 0;
 	ii = 0;
+	ww = 0;
 
 	int ibw[4] = {};
 	VERUS_FOR(i, _currentWeight)
-		ibw[i] = glm::clamp(int(_bw[i] * 255 + 0.5f), 0, 255);
+		ibw[i] = glm::clamp(static_cast<int>(_bw[i] * 255 + 0.5f), 0, 255);
 	ibw[0] = glm::clamp(255 - ibw[1] - ibw[2] - ibw[3], 0, 255);
 
 	// Make sure that the sum is 255:
@@ -67,8 +67,8 @@ void BaseConvert::Mesh::UberVertex::CompileBits(UINT32& ww, UINT32& ii) const
 
 	VERUS_FOR(i, _currentWeight)
 	{
-		ww |= ibw[i] << (i << 3);
 		ii |= _bi[i] << (i << 3);
+		ww |= ibw[i] << (i << 3);
 	}
 }
 
@@ -122,6 +122,64 @@ BaseConvert::Mesh::PBone BaseConvert::Mesh::FindBone(CSZ name)
 			return &bone;
 	}
 	return nullptr;
+}
+
+void BaseConvert::Mesh::CleanBones()
+{
+	VERUS_RT_ASSERT(_boneCount == _vBones.size());
+
+	for (auto& bone : _vBones)
+		bone._usedInSkin = false;
+
+	for (const auto& v : _vUberVerts)
+	{
+		VERUS_FOR(i, 4)
+		{
+			if (v._bw[i] > 0)
+				_vBones[v._bi[i]]._usedInSkin = true;
+		}
+	}
+	for (auto& bone : _vBones)
+	{
+		if (bone._usedInSkin)
+		{
+			PBone pBone = FindBone(_C(bone._parentName));
+			while (pBone)
+			{
+				pBone->_usedInSkin = true;
+				pBone = FindBone(_C(pBone->_parentName));
+			}
+		}
+	}
+
+	int index = 0;
+	Map<int, int> mapIndices;
+	VERUS_FOR(i, _vBones.size())
+	{
+		if (_vBones[i]._usedInSkin)
+		{
+			mapIndices[i] = index;
+			index++;
+		}
+	}
+	_vBones.erase(std::remove_if(_vBones.begin(), _vBones.end(), [](RcBone bone)
+		{
+			return !bone._usedInSkin;
+		}), _vBones.end());
+
+	for (auto& v : _vUberVerts)
+	{
+		VERUS_FOR(i, 4)
+		{
+			const auto it = mapIndices.find(v._bi[i]);
+			if (it != mapIndices.end())
+				v._bi[i] = it->second;
+			else
+				v._bi[i] = 0;
+		}
+	}
+
+	_boneCount = Utils::Cast32(_vBones.size());
 }
 
 void BaseConvert::Mesh::Optimize()
@@ -272,7 +330,7 @@ void BaseConvert::Mesh::Compress()
 		_vZipPos.push_back(pos);
 	}
 
-	// Compress tc0:
+	// Compress texCoord0:
 	_pBaseConvert->OnProgress(50);
 	aabb.Reset();
 	VERUS_FOR(i, _vertCount)
@@ -292,10 +350,10 @@ void BaseConvert::Mesh::Compress()
 		_vZipTc0.push_back(tc);
 	}
 
-	if (!(_found & Found::texcoordExtra))
+	if (!(_found & Found::texCoord1))
 		return;
 
-	// Compress tc1:
+	// Compress texCoord1:
 	_pBaseConvert->OnProgress(75);
 	aabb.Reset();
 	VERUS_FOR(i, _vertCount)
@@ -328,9 +386,10 @@ void BaseConvert::Mesh::Compress()
 
 void BaseConvert::Mesh::SerializeX3D3(IO::RFile file)
 {
-	if (!(_found & Found::vertsAndUVs))
+	if (!(_found & Found::posAndTexCoord0))
 		return;
 
+	CleanBones();
 	Optimize();
 	ComputeTangentSpace();
 	Compress();
@@ -338,7 +397,7 @@ void BaseConvert::Mesh::SerializeX3D3(IO::RFile file)
 	file.WriteText("<X3D>");
 
 	file.WriteText(VERUS_CRNL VERUS_CRNL "<VN>");
-	file.WriteString("3.0");
+	file.WriteString("3.1");
 
 	file.WriteText(VERUS_CRNL VERUS_CRNL "<IX>");
 	file.BeginBlock();
@@ -379,7 +438,7 @@ void BaseConvert::Mesh::SerializeX3D3(IO::RFile file)
 		file.Write(&_vZipTc0[i], 4);
 	file.EndBlock();
 
-	if (_found & Found::texcoordExtra)
+	if (_found & Found::texCoord1)
 	{
 		file.WriteText(VERUS_CRNL VERUS_CRNL "<T1>");
 		file.BeginBlock();
@@ -401,7 +460,7 @@ void BaseConvert::Mesh::SerializeX3D3(IO::RFile file)
 		{
 			file.WriteString(_C(_vBones[i]._name));
 			file.WriteString(_C(_vBones[i]._parentName));
-			file.Write(&_vBones[i]._matOffset, 64);
+			file.Write(&_vBones[i]._trToBoneSpace, 64);
 		}
 		file.EndBlock();
 
@@ -418,11 +477,11 @@ void BaseConvert::Mesh::SerializeX3D3(IO::RFile file)
 		{
 			file.WriteText(VERUS_CRNL VERUS_CRNL "<SS>");
 			file.BeginBlock();
-			UINT32 ww, ii;
+			UINT32 ii, ww;
 			VERUS_FOR(i, _vertCount)
 			{
-				_vUberVerts[i].CompileBits(ww, ii);
-				file << ww << ii;
+				_vUberVerts[i].CompileBits(ii, ww);
+				file << ii << ww;
 			}
 			file.EndBlock();
 		}
@@ -457,6 +516,66 @@ bool BaseConvert::Mesh::IsCopyOf(RMesh that)
 		return true;
 }
 
+// BaseConvert::AnimationKey:
+
+void BaseConvert::AnimationKey::DetectRedundantFrames(float threshold)
+{
+	for (auto& subkey : _vFrame)
+		subkey._redundant = false;
+
+	const size_t size = _vFrame.size();
+	const size_t edge = size - 1;
+
+	_logicFrameCount = size > 1 ? 2 : 1;
+
+	if (size <= 1)
+		return;
+
+	Quat base(
+		_vFrame[1]._q.getX() - _vFrame[0]._q.getX(),
+		_vFrame[1]._q.getY() - _vFrame[0]._q.getY(),
+		_vFrame[1]._q.getZ() - _vFrame[0]._q.getZ(),
+		_vFrame[1]._q.getW() - _vFrame[0]._q.getW());
+	for (size_t i = 1; i < edge; ++i)
+	{
+		const Quat test(
+			_vFrame[i]._q.getX() - _vFrame[i - 1]._q.getX(),
+			_vFrame[i]._q.getY() - _vFrame[i - 1]._q.getY(),
+			_vFrame[i]._q.getZ() - _vFrame[i - 1]._q.getZ(),
+			_vFrame[i]._q.getW() - _vFrame[i - 1]._q.getW());
+		if (base.IsEqual(test, threshold))
+		{
+			_vFrame[i]._redundant = true;
+		}
+		else
+		{
+			base = test;
+			_logicFrameCount++;
+			if (_vFrame[i - 1]._redundant)
+			{
+				_vFrame[i - 1]._redundant = false;
+				_logicFrameCount++;
+			}
+		}
+	}
+}
+
+// BaseConvert::AnimationSet:
+
+void BaseConvert::AnimationSet::CleanUp()
+{
+	VERUS_WHILE(Vector<Animation>, _vAnimations, it)
+	{
+		const String name = (*it)._name;
+		if (String::npos != name.find("OgreMax") ||
+			String::npos != name.find("Omni") ||
+			String::npos != name.find("Camera"))
+			it = _vAnimations.erase(it);
+		else
+			it++;
+	}
+}
+
 // BaseConvert:
 
 BaseConvert::BaseConvert()
@@ -465,6 +584,81 @@ BaseConvert::BaseConvert()
 
 BaseConvert::~BaseConvert()
 {
+}
+
+void BaseConvert::LoadBoneNames(CSZ pathname)
+{
+	Vector<BYTE> vData;
+	IO::FileSystem::LoadResource(pathname, vData, IO::FileSystem::LoadDesc(true));
+	Vector<String> vLines;
+	Str::ReadLines(reinterpret_cast<CSZ>(vData.data()), vLines);
+	for (const auto& line : vLines)
+	{
+		Vector<String> vPair;
+		Str::Explode(_C(line), " ", vPair);
+		Str::ToLower(const_cast<SZ>(_C(vPair[0])));
+		_mapBoneNames[vPair[0]] = vPair[1];
+	}
+}
+
+String BaseConvert::RenameBone(CSZ name)
+{
+	char lowName[256];
+	strcpy(lowName, name);
+	Str::ToLower(lowName);
+	VERUS_IF_FOUND_IN(TMapBoneNames, _mapBoneNames, lowName, it)
+	{
+		return it->second;
+	}
+	if (strlen(name) >= 6 && !strncmp(lowName, "bip", 3))
+	{
+		return name + 6;
+	}
+	return name;
+}
+
+BaseConvert::PMesh BaseConvert::AddMesh(PMesh pMesh)
+{
+	VERUS_QREF_UTILS;
+	VERUS_RT_ASSERT(pMesh);
+	if (FindMesh(_C(pMesh->GetName())))
+	{
+		{
+			StringStream ss;
+			ss << "Mesh with this name (" << pMesh->GetName() << ") already exist FAIL.";
+		}
+
+		do
+		{
+			StringStream ssName;
+			ssName << pMesh->GetName() << "_" << utils.GetRandom().Next();
+			pMesh->SetName(_C(ssName.str()));
+		} while (FindMesh(_C(pMesh->GetName())));
+
+		{
+			StringStream ss;
+			ss << "Mesh renamed to " << pMesh->GetName() << ".";
+		}
+	}
+	_vMeshes.push_back(pMesh);
+	return pMesh;
+}
+
+BaseConvert::PMesh BaseConvert::FindMesh(CSZ name)
+{
+	for (const auto& pMesh : _vMeshes)
+	{
+		if (pMesh->GetName() == name)
+			return pMesh;
+	}
+	return nullptr;
+}
+
+void BaseConvert::DeleteAll()
+{
+	for (const auto& pMesh : _vMeshes)
+		delete pMesh;
+	_vMeshes.clear();
 }
 
 void BaseConvert::OnProgress(float percent)
@@ -477,4 +671,157 @@ void BaseConvert::OnProgressText(CSZ txt)
 {
 	if (_pDelegate)
 		_pDelegate->BaseConvert_OnProgressText(txt);
+}
+
+void BaseConvert::SerializeMotions(SZ pathname)
+{
+	int animTotal = 0, animCount = 0;
+	if (!_vAnimSets.empty())
+	{
+		OnProgressText("Saving motions");
+		VERUS_FOREACH(Vector<AnimationSet>, _vAnimSets, itSet)
+		{
+			AnimationSet& set = *itSet;
+			set.CleanUp();
+			animTotal += Utils::Cast32(set._vAnimations.size());
+		}
+	}
+
+	VERUS_FOREACH(Vector<AnimationSet>, _vAnimSets, itSet)
+	{
+		AnimationSet& set = *itSet;
+
+		int maxFrames = 0;
+		VERUS_FOREACH_CONST(Vector<Animation>, set._vAnimations, it)
+		{
+			maxFrames = Math::Max(maxFrames, static_cast<int>((*it)._vAnimKeys[0]._vFrame.size()));
+			maxFrames = Math::Max(maxFrames, static_cast<int>((*it)._vAnimKeys[1]._vFrame.size()));
+			maxFrames = Math::Max(maxFrames, static_cast<int>((*it)._vAnimKeys[2]._vFrame.size()));
+		}
+
+		strcpy(strrchr(pathname, '\\') + 1, _C(set._name));
+		strcat(pathname, ".xan");
+		if (_pDelegate && !_pDelegate->BaseConvert_CanOverwriteFile(pathname))
+			continue;
+
+		IO::File file;
+		if (file.Open(pathname, "wb"))
+		{
+			const UINT32 magic = '2NAX';
+			file << magic;
+
+			const UINT16 version = 0x0102;
+			file << version;
+
+			const UINT32 frameCount = maxFrames;
+			file << frameCount;
+
+			const UINT32 fps = 10;
+			file << fps;
+
+			const int boneCount = Utils::Cast32(set._vAnimations.size());
+			file << boneCount;
+
+			VERUS_FOREACH(Vector<Animation>, set._vAnimations, itAnim) // For each bone:
+			{
+				Animation& anim = *itAnim;
+
+				String name;
+				const size_t startAt = anim._name.rfind("-");
+				if (startAt != String::npos)
+				{
+					name = anim._name.substr(startAt + 1);
+				}
+				else
+				{
+					name = anim._name;
+				}
+
+				name = RenameBone(_C(name));
+				file.WriteString(_C(name)); // Bone's name.
+
+				UINT32 flags = 0;
+				file << flags;
+
+				VERUS_FOREACH(Vector<AnimationKey>, anim._vAnimKeys, itKey)
+				{
+					AnimationKey& key = *itKey;
+					if (key._type == 0) // Rotation:
+					{
+						key.DetectRedundantFrames();
+						const int keyframeCount = key._logicFrameCount;
+						file << keyframeCount;
+
+						int frame = 0;
+						VERUS_FOREACH(Vector<SubKey>, key._vFrame, itSK)
+						{
+							SubKey& sk = *itSK;
+							if (!sk._redundant)
+							{
+								file << frame;
+								file.Write(sk._q.ToPointer(), 16);
+							}
+							frame++;
+						}
+					}
+				}
+
+				VERUS_FOREACH(Vector<AnimationKey>, anim._vAnimKeys, itKey)
+				{
+					AnimationKey& key = *itKey;
+					if (key._type == 2) // Position:
+					{
+						key.DetectRedundantFrames();
+						const int keyframeCount = key._logicFrameCount;
+						file << keyframeCount;
+
+						int frame = 0;
+						VERUS_FOREACH(Vector<SubKey>, key._vFrame, itSK)
+						{
+							SubKey& sk = *itSK;
+							if (!sk._redundant)
+							{
+								file << frame;
+								file.Write(sk._q.ToPointer(), 12);
+							}
+							frame++;
+						}
+					}
+				}
+
+				VERUS_FOREACH(Vector<AnimationKey>, anim._vAnimKeys, itKey)
+				{
+					AnimationKey& key = *itKey;
+					if (key._type == 1) // Scale:
+					{
+						PMesh pMesh = _vMeshes[0];
+						if (!pMesh->FindBone(_C(name)))
+							break;
+
+						VERUS_FOREACH(Vector<SubKey>, key._vFrame, itSK)
+						{
+							SubKey& sk = *itSK;
+							const glm::vec3 scale = glm::make_vec3(sk._q.ToPointer());
+							const float e = 0.001f;
+							if (!glm::all(glm::epsilonEqual(scale, glm::vec3(1, 1, 1), e)))
+							{
+								StringStream ss;
+								ss << "Scaling detected: " << name;
+								OnProgressText(_C(ss.str()));
+								break;
+							}
+						}
+					}
+				}
+
+				// Scale/trigger:
+				const int keyframeSTCount = 0;
+				file << keyframeSTCount;
+				file << keyframeSTCount;
+
+				animCount++;
+				OnProgress(float(animCount) / animTotal * 100);
+			}
+		}
+	}
 }

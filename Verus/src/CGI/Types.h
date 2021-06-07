@@ -90,15 +90,15 @@ namespace verus
 		// See: https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3ddeclusage
 		enum class ViaUsage : int
 		{
-			position,
-			blendWeights,
-			blendIndices,
-			normal,
-			tangent,
+			position, // "POSITION" in glTF.
+			blendWeights, // "WEIGHTS_0" in glTF.
+			blendIndices, // "JOINTS_0" in glTF.
+			normal, // "NORMAL" in glTF.
+			tangent, // "TANGENT" in glTF.
 			binormal,
-			color,
+			color, // "COLOR_X" in glTF.
 			psize,
-			texCoord,
+			texCoord, // "TEXCOORD_X" in glTF.
 			instData,
 			attr
 		};

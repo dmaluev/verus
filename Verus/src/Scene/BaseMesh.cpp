@@ -79,7 +79,9 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 	sp >> temp;
 	sp >> temp;
 	sp.ReadString(buffer);
-	VERUS_RT_ASSERT(!strcmp(buffer, "3.0"));
+	int verMajor = 1, verMinor = 0;
+	sscanf(buffer, "%d.%d", &verMajor, &verMinor);
+	const int version = verMajor * 100 + verMinor;
 
 	while (!sp.IsEnd())
 	{
@@ -181,18 +183,6 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 				Convert::Sint8ToSint16(temp, pVB[i]._tan, 3); // Single byte is not supported in OpenGL.
 				sp.Read(temp, 3);
 				Convert::Sint8ToSint16(temp, pVB[i]._bin, 3);
-#ifdef VERUS_RELEASE_DEBUG
-				const int lenT =
-					pVB[i]._tan[0] * pVB[i]._tan[0] +
-					pVB[i]._tan[1] * pVB[i]._tan[1] +
-					pVB[i]._tan[2] * pVB[i]._tan[2];
-				VERUS_RT_ASSERT(lenT > 32100 * 32100);
-				const int lenB =
-					pVB[i]._bin[0] * pVB[i]._bin[0] +
-					pVB[i]._bin[1] * pVB[i]._bin[1] +
-					pVB[i]._bin[2] * pVB[i]._bin[2];
-				VERUS_RT_ASSERT(lenB > 32100 * 32100);
-#endif
 			}
 		}
 		break;
@@ -261,8 +251,16 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 				sp.Read(data, 8);
 				VERUS_FOR(j, 4)
 				{
-					pVB[i]._bw[j] = data[j];
-					pVB[i]._bi[j] = data[j + 4];
+					if (version <= 300)
+					{
+						pVB[i]._bw[j] = data[j];
+						pVB[i]._bi[j] = data[j + 4];
+					}
+					else
+					{
+						pVB[i]._bi[j] = data[j];
+						pVB[i]._bw[j] = data[j + 4];
+					}
 				}
 #ifdef VERUS_RELEASE_DEBUG
 				const int sum =

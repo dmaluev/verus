@@ -57,6 +57,9 @@ static inline ImVec4 operator*(const ImVec4& lhs, const ImVec4& rhs) { return Im
 // JSON for Modern C++ (https://github.com/nlohmann/json):
 #include "json.hpp"
 
+// MikkTSpace (https://github.com/mmikk/MikkTSpace):
+#include "mikktspace.h"
+
 // MD5:
 #include "md5.h"
 

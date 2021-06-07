@@ -432,71 +432,72 @@ void Renderer::ImGuiUpdateStyle()
 
 	style.WindowRounding = 4;
 	style.WindowTitleAlign.x = 0.5f;
-	style.ChildRounding = 2;
-	style.PopupRounding = 2;
+	style.ChildRounding = 3;
+	style.PopupRounding = 3;
 	style.FramePadding.y = 4;
-	style.FrameRounding = 2;
+	style.FrameRounding = 3;
 	style.FrameBorderSize = 1;
 	style.ScrollbarSize = 16;
-	style.ScrollbarRounding = 2;
-	style.GrabMinSize = 12;
+	style.ScrollbarRounding = 12;
 	style.GrabRounding = 2;
-	style.TabRounding = 0;
+	style.TabRounding = 3;
 	style.TabBorderSize = 1;
 
-	const ImVec4 darkColor(0.01f, 0.01f, 0.01f, 1.00f);
-	const ImVec4 windowColor(0.02f, 0.02f, 0.02f, 0.99f);
-	const ImVec4 baseColor(0.02f, 0.02f, 0.02f, 1.00f);
-	const ImVec4 borderColor(0.05f, 0.05f, 0.05f, 1.00f);
-	const ImVec4 hoveredColor(0.09f, 0.09f, 0.09f, 1.00f);
+	const ImVec4 frameBgColor(0.02f, 0.02f, 0.02f, 1.00f); // EditBox color.
+	const ImVec4 frameBgHoveredColor(0.025f, 0.025f, 0.025f, 1.00f);
+	const ImVec4 windowBgColor(0.03f, 0.03f, 0.03f, 0.99f);
+	const ImVec4 borderColor(0.05f, 0.05f, 0.05f, 1.00f); // Also a Header color.
+	const ImVec4 buttonColor(0.08f, 0.08f, 0.08f, 1.00f);
+	const ImVec4 hoveredColor(0.12f, 0.12f, 0.12f, 1.00f); // Also a HeaderHovered color.
+
 	const ImVec4 activeColor(0.19f, 0.19f, 0.19f, 1.00f);
-	const ImVec4 disabledColor(0.39f, 0.39f, 0.39f, 1.00f);
-	const ImVec4 satColorA(0.92f, 0.43f, 0.02f, 1.00f);
-	const ImVec4 satColorB(0.89f, 0.13f, 0.00f, 1.00f);
-	const ImVec4 titleColor(0.19f, 0.03f, 0.00f, 1.00f);
+	const ImVec4 disabledColor(0.3f, 0.3f, 0.3f, 1.00f);
+	const ImVec4 satColorA(0.06f, 0.16f, 0.70f, 1.00f);
+	const ImVec4 satColorB(0.09f, 0.24f, 1.00f, 1.00f);
+	const ImVec4 titleColor(0.03f, 0.08f, 0.35f, 1.00f);
 
 	ImVec4* colors = style.Colors;
-	colors[ImGuiCol_Text] = ImVec4(0.82f, 0.82f, 0.82f, 1.00f);
+	colors[ImGuiCol_Text] = ImVec4(0.6f, 0.6f, 0.6f, 1.00f);
 	colors[ImGuiCol_TextDisabled] = disabledColor;
-	colors[ImGuiCol_WindowBg] = windowColor;
-	colors[ImGuiCol_ChildBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.50f);
-	colors[ImGuiCol_PopupBg] = windowColor;
+	colors[ImGuiCol_WindowBg] = windowBgColor;
+	colors[ImGuiCol_ChildBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.25f);
+	colors[ImGuiCol_PopupBg] = ImVec4(0.02f, 0.02f, 0.02f, 0.99f);
 	colors[ImGuiCol_Border] = borderColor;
-	colors[ImGuiCol_BorderShadow] = ImVec4(0.05f, 0.05f, 0.05f, 0.08f);
-	colors[ImGuiCol_FrameBg] = darkColor;
-	colors[ImGuiCol_FrameBgHovered] = baseColor;
+	colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.05f);
+	colors[ImGuiCol_FrameBg] = frameBgColor;
+	colors[ImGuiCol_FrameBgHovered] = frameBgHoveredColor;
 	colors[ImGuiCol_FrameBgActive] = borderColor;
-	colors[ImGuiCol_TitleBg] = darkColor;
+	colors[ImGuiCol_TitleBg] = frameBgColor;
 	colors[ImGuiCol_TitleBgActive] = titleColor;
-	colors[ImGuiCol_TitleBgCollapsed] = darkColor;
-	colors[ImGuiCol_MenuBarBg] = darkColor;
+	colors[ImGuiCol_TitleBgCollapsed] = frameBgColor;
+	colors[ImGuiCol_MenuBarBg] = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
 
-	colors[ImGuiCol_ScrollbarBg] = baseColor;
+	colors[ImGuiCol_ScrollbarBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
 	colors[ImGuiCol_ScrollbarGrab] = borderColor;
 	colors[ImGuiCol_ScrollbarGrabHovered] = hoveredColor;
-	colors[ImGuiCol_ScrollbarGrabActive] = activeColor;
+	colors[ImGuiCol_ScrollbarGrabActive] = hoveredColor;
 
 	colors[ImGuiCol_CheckMark] = satColorA;
 	colors[ImGuiCol_SliderGrab] = hoveredColor;
 	colors[ImGuiCol_SliderGrabActive] = satColorA;
-	colors[ImGuiCol_Button] = borderColor;
+	colors[ImGuiCol_Button] = buttonColor;
 	colors[ImGuiCol_ButtonHovered] = hoveredColor;
 	colors[ImGuiCol_ButtonActive] = activeColor;
-	colors[ImGuiCol_Header] = borderColor;
+	colors[ImGuiCol_Header] = buttonColor;
 	colors[ImGuiCol_HeaderHovered] = hoveredColor;
 	colors[ImGuiCol_HeaderActive] = activeColor;
 
 	colors[ImGuiCol_Separator] = borderColor;
 	colors[ImGuiCol_SeparatorHovered] = hoveredColor;
-	colors[ImGuiCol_SeparatorActive] = satColorB;
+	colors[ImGuiCol_SeparatorActive] = titleColor;
 	colors[ImGuiCol_ResizeGrip] = borderColor;
 	colors[ImGuiCol_ResizeGripHovered] = hoveredColor;
-	colors[ImGuiCol_ResizeGripActive] = satColorB;
+	colors[ImGuiCol_ResizeGripActive] = titleColor;
 
-	colors[ImGuiCol_Tab] = baseColor;
+	colors[ImGuiCol_Tab] = frameBgHoveredColor;
 	colors[ImGuiCol_TabHovered] = hoveredColor;
 	colors[ImGuiCol_TabActive] = titleColor;
-	colors[ImGuiCol_TabUnfocused] = darkColor;
+	colors[ImGuiCol_TabUnfocused] = frameBgColor;
 	colors[ImGuiCol_TabUnfocusedActive] = borderColor;
 
 	colors[ImGuiCol_PlotLines] = disabledColor;

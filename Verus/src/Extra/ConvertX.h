@@ -15,7 +15,7 @@ namespace verus
 				float     _angle = 0;
 				float     _areaBasedNormals = 0;
 				bool      _useRigidBones = false;
-				bool      _convertAsLevel = false;
+				bool      _convertAsScene = false;
 				bool      _useDefaultMaterial = false;
 				bool      _rightHanded = true;
 			};
@@ -25,40 +25,11 @@ namespace verus
 			struct Frame
 			{
 				String    _name;
-				String    _parent;
-				glm::mat4 _mat;
-				glm::mat4 _matAcc;
+				String    _parentName;
+				glm::mat4 _trLocal;
+				glm::mat4 _trGlobal;
 			};
 			VERUS_TYPEDEFS(Frame);
-
-			struct SubKey
-			{
-				Quat _q;
-				bool _redundant = false;
-			};
-
-			struct AnimationKey
-			{
-				Vector<SubKey> _vFrame;
-				int            _type = 0;
-				int            _logicFrameCount = 0;
-
-				void DetectRedundantFrames(float threshold = 0.001f);
-			};
-
-			struct Animation
-			{
-				String               _name;
-				Vector<AnimationKey> _vAnimKeys;
-			};
-
-			struct AnimationSet
-			{
-				String            _name;
-				Vector<Animation> _vAnimations;
-
-				void CleanUp();
-			};
 
 			struct Material
 			{
@@ -83,21 +54,16 @@ namespace verus
 			};
 			VERUS_TYPEDEFS(Material);
 
-			typedef Map<String, String> TMapBoneNames;
 			typedef Map<String, Frame> TMapFrames;
 
-			Transform3            _matRoot;
-			TMapBoneNames         _mapBoneNames;
+			Transform3            _trRoot;
 			String                _currentMesh;
 			String                _pathname;
 			Vector<char>          _vData;
 			const char* _pData;
 			const char* _pDataBegin;
-			Vector<PMesh>         _vMesh;
-			std::unique_ptr<Mesh> _pCurrentMesh;
 			TMapFrames            _mapFrames;
 			Vector<Frame>         _stackFrames;
-			Vector<AnimationSet>  _vAnimSets;
 			Vector<Material>      _vMaterials;
 			std::future<void>     _future;
 			Desc                  _desc;
@@ -115,7 +81,6 @@ namespace verus
 			virtual bool UseRigidBones() override;
 			virtual Str GetPathname() override;
 
-			void LoadBoneNames(CSZ pathname);
 			void ParseData(CSZ pathname);
 			void SerializeAll(CSZ pathname);
 
@@ -149,10 +114,6 @@ namespace verus
 			void ParseBlockData_TextureFilename();
 			void ParseBlockData_MeshMaterialList();
 
-			PMesh AddMesh(PMesh pMesh);
-			PMesh FindMesh(CSZ name);
-			void DeleteAll();
-
 			void OnProgress(float percent);
 			void OnProgressText(CSZ txt);
 
@@ -160,7 +121,6 @@ namespace verus
 
 			void DetectMaterialCopies();
 			String GetXmlMaterial(int i);
-			String RenameBone(CSZ name);
 		};
 		VERUS_TYPEDEFS(ConvertX);
 	}

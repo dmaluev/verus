@@ -76,14 +76,14 @@ void ShadowMap::Begin(RcVector3 dirToSun)
 	eye = at + dirToSun * (depth * (2 / 3.f));
 
 	// Setup light space camera and use it (used for terrain draw, etc.):
-	_camera.SetUpDirection(up);
-	_camera.MoveAtTo(at);
 	_camera.MoveEyeTo(eye);
-	_camera.SetFovY(0);
+	_camera.MoveAtTo(at);
+	_camera.SetUpDirection(up);
+	_camera.SetYFov(0);
 	_camera.SetZNear(zNear);
 	_camera.SetZFar(zFar);
-	_camera.SetWidth(texSizeInMeters);
-	_camera.SetHeight(texSizeInMeters);
+	_camera.SetXMag(texSizeInMeters);
+	_camera.SetYMag(texSizeInMeters);
 	_camera.Update();
 	_pPrevCamera = sm.SetCamera(&_camera);
 
@@ -241,14 +241,14 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, int split)
 		_depth = Math::Clamp<float>(texSizeInMeters * 10, 1000, 10000); // Must be the same for all splits.
 
 		// Setup CSM light space camera for full range (used for terrain layout, etc.):
-		_cameraCSM.SetUpDirection(up);
-		_cameraCSM.MoveAtTo(at);
 		_cameraCSM.MoveEyeTo(eye);
-		_cameraCSM.SetFovY(0);
+		_cameraCSM.MoveAtTo(at);
+		_cameraCSM.SetUpDirection(up);
+		_cameraCSM.SetYFov(0);
 		_cameraCSM.SetZNear(zNear);
 		_cameraCSM.SetZFar(zFar);
-		_cameraCSM.SetWidth(texSizeInMeters);
-		_cameraCSM.SetHeight(texSizeInMeters);
+		_cameraCSM.SetXMag(texSizeInMeters);
+		_cameraCSM.SetYMag(texSizeInMeters);
 		_cameraCSM.Update();
 	}
 
@@ -312,14 +312,14 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, int split)
 	_splitRanges.setW(cam.GetZNear() + range);
 
 	// Setup light space camera and use it (used for terrain draw, etc.):
-	_camera.SetUpDirection(up);
-	_camera.MoveAtTo(at);
 	_camera.MoveEyeTo(eye);
-	_camera.SetFovY(0);
+	_camera.MoveAtTo(at);
+	_camera.SetUpDirection(up);
+	_camera.SetYFov(0);
 	_camera.SetZNear(zNear);
 	_camera.SetZFar(zFar);
-	_camera.SetWidth(texSizeInMeters);
-	_camera.SetHeight(texSizeInMeters);
+	_camera.SetXMag(texSizeInMeters);
+	_camera.SetYMag(texSizeInMeters);
 	_camera.Update();
 	_pPrevCamera = sm.SetCamera(&_camera);
 

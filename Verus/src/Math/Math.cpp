@@ -206,7 +206,7 @@ Quat Math::NLerp(float t, RcQuat qA, RcQuat qB)
 	{
 		ret = VMath::lerp(t, qA, qB);
 	}
-	ret = VMath::normalize(ret);
+	ret = VMath::normalize(reinterpret_cast<RcVector4>(ret)); // Use more accurate normalize!
 	return ret;
 }
 
@@ -620,10 +620,10 @@ void Math::Test()
 	{
 		// Right-handed mode (default):
 		Scene::Camera camera;
-		camera.MoveAtTo(Point3(0, 0, 4));
 		camera.MoveEyeTo(Point3(0, 0, 3));
-		camera.SetFovY(VERUS_PI * 0.25f);
+		camera.MoveAtTo(Point3(0, 0, 4));
 		camera.SetAspectRatio(1);
+		camera.SetYFov(VERUS_PI * 0.25f);
 		camera.SetZNear(0.5f);
 		camera.SetZFar(100);
 		camera.Update();
@@ -635,7 +635,7 @@ void Math::Test()
 		VERUS_RT_ASSERT(glm::epsilonEqual<float>(point.getZ(), 1.f, e));
 
 		// Left-handed mode:
-		camera.SetFovY(VERUS_PI * -0.25f);
+		camera.SetYFov(VERUS_PI * -0.25f);
 		camera.Update();
 		point = camera.GetMatrixVP() * Point3(2.5f, 0, 2.5f);
 		point /= point.getW();

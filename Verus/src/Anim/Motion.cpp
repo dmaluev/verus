@@ -438,8 +438,195 @@ void Motion::Bone::Deserialize(IO::RStream stream, UINT16 version)
 	}
 }
 
-void Motion::Bone::DeleteRedundantKeyframes()
+void Motion::Bone::DeleteRedundantKeyframes(float boneAccLength)
 {
+	// Long bones should have smaller error threshold because their influence is bigger.
+	const float thresholdScale = 1.f / boneAccLength;
+
+	// Rotation:
+	{
+		const float threshold = 0.0000025f * thresholdScale;
+
+		TMapRot mapReference; // Ideal case.
+		VERUS_FOR(i, _pMotion->GetFrameCount())
+		{
+			Quat q;
+			Vector3 euler;
+			ComputeRotationAt(i * _pMotion->GetFpsInv(), euler, q);
+			mapReference[i] = q;
+		}
+
+		TMapRot mapSaved = _mapRot;
+		do
+		{
+			// Which keyframe can be removed with the least error?
+			float leastError = threshold;
+			int frameWithLeastError = -1;
+			for (const auto& kv : mapSaved)
+			{
+				const int excludeFrame = kv.first;
+				if (!excludeFrame || _pMotion->GetFrameCount() == excludeFrame)
+					continue;
+				_mapRot.clear();
+				for (const auto& kv2 : mapSaved)
+				{
+					if (kv2.first != excludeFrame)
+						_mapRot[kv2.first] = kv2.second;
+				}
+
+				float accError = 0;
+				VERUS_FOR(i, _pMotion->GetFrameCount())
+				{
+					Quat q;
+					Vector3 euler;
+					ComputeRotationAt(i * _pMotion->GetFpsInv(), euler, q);
+					const float dot = VMath::dot(mapReference[i]._q, q);
+					accError += Math::Clamp(1 - dot, 0.f, 1.f);
+					if (accError >= leastError)
+						break;
+				}
+				if (leastError > accError)
+				{
+					leastError = accError;
+					frameWithLeastError = excludeFrame;
+				}
+			}
+
+			if (leastError < threshold && frameWithLeastError >= 0)
+			{
+				mapSaved.erase(frameWithLeastError);
+				_mapRot = mapSaved;
+			}
+			else
+			{
+				_mapRot = mapSaved;
+				break;
+			}
+		} while (true);
+	}
+
+	// Position:
+	{
+		const float threshold = 0.00025f * thresholdScale;
+
+		TMapPos mapReference; // Ideal case.
+		VERUS_FOR(i, _pMotion->GetFrameCount())
+		{
+			Vector3 pos;
+			ComputePositionAt(i * _pMotion->GetFpsInv(), pos);
+			mapReference[i] = pos;
+		}
+
+		TMapPos mapSaved = _mapPos;
+		do
+		{
+			// Which keyframe can be removed with the least error?
+			float leastError = threshold;
+			int frameWithLeastError = -1;
+			for (const auto& kv : mapSaved)
+			{
+				const int excludeFrame = kv.first;
+				if (!excludeFrame || _pMotion->GetFrameCount() == excludeFrame)
+					continue;
+				_mapPos.clear();
+				for (const auto& kv2 : mapSaved)
+				{
+					if (kv2.first != excludeFrame)
+						_mapPos[kv2.first] = kv2.second;
+				}
+
+				float accError = 0;
+				VERUS_FOR(i, _pMotion->GetFrameCount())
+				{
+					Vector3 pos;
+					ComputePositionAt(i * _pMotion->GetFpsInv(), pos);
+					const Vector3 diff = mapReference[i] - pos;
+					const float len = VMath::length(diff);
+					accError += len + len * len;
+					if (accError >= leastError)
+						break;
+				}
+				if (leastError > accError)
+				{
+					leastError = accError;
+					frameWithLeastError = excludeFrame;
+				}
+			}
+
+			if (leastError < threshold && frameWithLeastError >= 0)
+			{
+				mapSaved.erase(frameWithLeastError);
+				_mapPos = mapSaved;
+			}
+			else
+			{
+				_mapPos = mapSaved;
+				break;
+			}
+		} while (true);
+	}
+
+	// Scale:
+	{
+		const float threshold = 0.00025f * thresholdScale;
+
+		TMapScale mapReference; // Ideal case.
+		VERUS_FOR(i, _pMotion->GetFrameCount())
+		{
+			Vector3 scale;
+			ComputeScaleAt(i * _pMotion->GetFpsInv(), scale);
+			mapReference[i] = scale;
+		}
+
+		TMapScale mapSaved = _mapScale;
+		do
+		{
+			// Which keyframe can be removed with the least error?
+			float leastError = threshold;
+			int frameWithLeastError = -1;
+			for (const auto& kv : mapSaved)
+			{
+				const int excludeFrame = kv.first;
+				if (!excludeFrame || _pMotion->GetFrameCount() == excludeFrame)
+					continue;
+				_mapScale.clear();
+				for (const auto& kv2 : mapSaved)
+				{
+					if (kv2.first != excludeFrame)
+						_mapScale[kv2.first] = kv2.second;
+				}
+
+				float accError = 0;
+				VERUS_FOR(i, _pMotion->GetFrameCount())
+				{
+					Vector3 scale;
+					ComputeScaleAt(i * _pMotion->GetFpsInv(), scale);
+					const Vector3 diff = mapReference[i] - scale;
+					const float len = VMath::length(diff);
+					accError += len + len * len;
+					if (accError >= leastError)
+						break;
+				}
+				if (leastError > accError)
+				{
+					leastError = accError;
+					frameWithLeastError = excludeFrame;
+				}
+			}
+
+			if (leastError < threshold && frameWithLeastError >= 0)
+			{
+				mapSaved.erase(frameWithLeastError);
+				_mapScale = mapSaved;
+			}
+			else
+			{
+				_mapScale = mapSaved;
+				break;
+			}
+		} while (true);
+	}
+
 	if (2 == _mapRot.size())
 	{
 		if (!memcmp(
@@ -877,10 +1064,16 @@ void Motion::BindBlendMotion(PMotion p, float alpha)
 	_blendAlpha = alpha;
 }
 
-void Motion::DeleteRedundantKeyframes()
+void Motion::DeleteRedundantKeyframes(Map<String, float>& mapBoneAccLengths)
 {
-	for (auto& kv : _mapBones)
-		kv.second.DeleteRedundantKeyframes();
+	VERUS_P_FOR(i, static_cast<int>(_mapBones.size()))
+	{
+		auto it = _mapBones.begin();
+		std::advance(it, i);
+		auto itBoneAccLength = mapBoneAccLengths.find(_C(it->second.GetName()));
+		const float leafBoneLength = 0.02f;
+		it->second.DeleteRedundantKeyframes(mapBoneAccLengths.end() != itBoneAccLength ? itBoneAccLength->second : leafBoneLength);
+	});
 }
 
 void Motion::DeleteOddKeyframes()

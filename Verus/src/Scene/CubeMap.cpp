@@ -90,8 +90,8 @@ void CubeMap::BeginEnvMap(CGI::CubeMapFace cubeMapFace, RcPoint3 center)
 	_camera.MoveEyeTo(center);
 	_camera.MoveAtTo(center - facePos); // Looking at center.
 	_camera.SetUpDirection(up);
-	_camera.SetFovY(VERUS_PI * -0.5f); // Using left-handed coordinate system!
 	_camera.SetAspectRatio(1);
+	_camera.SetYFov(VERUS_PI * -0.5f); // Using left-handed coordinate system!
 	_camera.SetZNear(1);
 	_camera.SetZFar(200);
 	_camera.Update();

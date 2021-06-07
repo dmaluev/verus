@@ -9,9 +9,6 @@ namespace verus
 
 		class BaseConvert
 		{
-		protected:
-			BaseConvertDelegate* _pDelegate = nullptr;
-
 		public:
 			class Mesh
 			{
@@ -20,12 +17,11 @@ namespace verus
 				{
 					null = 0,
 					faces = (1 << 0),
-					vertsAndUVs = (1 << 1),
+					posAndTexCoord0 = (1 << 1),
 					normals = (1 << 2),
-					boneHierarchy = (1 << 3),
+					tangentSpace = (1 << 3),
 					skinning = (1 << 4),
-					tangentSpace = (1 << 5),
-					texcoordExtra = (1 << 6)
+					texCoord1 = (1 << 5)
 				};
 
 				struct UberVertex
@@ -36,14 +32,14 @@ namespace verus
 					glm::vec2 _tc1;
 					glm::vec3 _tan;
 					glm::vec3 _bin;
-					float     _bw[4];
 					UINT32    _bi[4];
+					float     _bw[4];
 					int       _currentWeight = 0;
 
 					UberVertex();
 					bool operator==(const UberVertex& that) const;
-					void Add(float weight, UINT32 index);
-					void CompileBits(UINT32& ww, UINT32& ii) const;
+					void Add(UINT32 index, float weight);
+					void CompileBits(UINT32& ii, UINT32& ww) const;
 					UINT32 GetDominantIndex();
 				};
 				VERUS_TYPEDEFS(UberVertex);
@@ -58,9 +54,10 @@ namespace verus
 				{
 					String    _name;
 					String    _parentName;
-					glm::mat4 _matOffset;
-					glm::mat4 _matFrame;
-					glm::mat4 _matFrameAcc;
+					glm::mat4 _trLocal;
+					glm::mat4 _trGlobal;
+					glm::mat4 _trToBoneSpace; // Inverse of Global.
+					bool      _usedInSkin = false;
 				};
 				VERUS_TYPEDEFS(Bone);
 
@@ -117,7 +114,7 @@ namespace verus
 				glm::vec2          _tc1Scale;
 				glm::vec2          _tc1Bias;
 				glm::mat4          _matBoneAxis;
-				glm::mat4          _matCombined;
+				glm::mat4          _matGlobal;
 				glm::mat4          _worldSpace;
 				Found              _found = Found::null;
 				int                _materialIndex = 0;
@@ -128,6 +125,7 @@ namespace verus
 
 				PBone FindBone(CSZ name);
 
+				VERUS_P(void CleanBones());
 				VERUS_P(void Optimize());
 				VERUS_P(void ComputeTangentSpace());
 				VERUS_P(void Compress());
@@ -138,8 +136,8 @@ namespace verus
 
 				const glm::mat4& GetBoneAxisMatrix() const { return _matBoneAxis; }
 
-				const glm::mat4& GetCombinedMatrix() const { return _matCombined; }
-				void             SetCombinedMatrix(const glm::mat4& mat) { _matCombined = mat; }
+				const glm::mat4& GetGlobalMatrix() const { return _matGlobal; }
+				void             SetGlobalMatrix(const glm::mat4& mat) { _matGlobal = mat; }
 
 				const glm::mat4& GetWorldSpaceMatrix() const { return _worldSpace; }
 				void             SetWorldSpaceMatrix(const glm::mat4& mat) { _worldSpace = mat; }
@@ -171,9 +169,55 @@ namespace verus
 			};
 			VERUS_TYPEDEFS(Mesh);
 
+			struct SubKey
+			{
+				Quat _q;
+				bool _redundant = false;
+			};
+
+			struct AnimationKey // Represents one bone's channel in motion file.
+			{
+				Vector<SubKey> _vFrame;
+				int            _type = 0;
+				int            _logicFrameCount = 0;
+
+				void DetectRedundantFrames(float threshold = 0.0001f);
+			};
+
+			struct Animation // Represents one bone in motion file.
+			{
+				String               _name;
+				Vector<AnimationKey> _vAnimKeys;
+			};
+
+			struct AnimationSet // Represents one motion file.
+			{
+				String            _name;
+				Vector<Animation> _vAnimations;
+
+				void CleanUp();
+			};
+
+		protected:
+			typedef Map<String, String> TMapBoneNames;
+
+			TMapBoneNames         _mapBoneNames;
+			BaseConvertDelegate* _pDelegate = nullptr;
+			Vector<PMesh>         _vMeshes;
+			Vector<AnimationSet>  _vAnimSets;
+			std::unique_ptr<Mesh> _pCurrentMesh;
+
 		public:
 			BaseConvert();
 			~BaseConvert();
+
+			void LoadBoneNames(CSZ pathname);
+			String RenameBone(CSZ name);
+
+		protected:
+			PMesh AddMesh(PMesh pMesh);
+			PMesh FindMesh(CSZ name);
+			void DeleteAll();
 
 			void OnProgress(float percent);
 			void OnProgressText(CSZ txt);
@@ -181,6 +225,8 @@ namespace verus
 			virtual bool UseAreaBasedNormals() { return false; }
 			virtual bool UseRigidBones() { return false; }
 			virtual Str GetPathname() { return ""; }
+
+			void SerializeMotions(SZ pathname);
 		};
 		VERUS_TYPEDEFS(BaseConvert);
 

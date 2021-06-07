@@ -1222,3 +1222,42 @@ Vector3 Skeleton::GetHighestSpeed(RMotion motion, CSZ name, RcVector3 scale, boo
 		0.25f * (vDY[offA] + vDY[offB] + vDY[offC] + vDY[offD]),
 		0.25f * (vDZ[offA] + vDZ[offB] + vDZ[offC] + vDZ[offD]));
 }
+
+void Skeleton::ComputeBoneLengths(Map<String, float>& m, bool accumulated)
+{
+	for (auto& kv : _mapBones)
+	{
+		RcBone bone = kv.second;
+		PcBone pParentBone = FindBone(_C(bone._parentName));
+		float len = 0;
+		if (pParentBone)
+		{
+			len = VMath::dist(
+				Point3(bone._matFromBoneSpace.getTranslation()),
+				Point3(pParentBone->_matFromBoneSpace.getTranslation()));
+		}
+		while (pParentBone)
+		{
+			auto it = m.find(pParentBone->_name);
+			if (it != m.end())
+			{
+				if (accumulated)
+					it->second += len;
+				else
+					it->second = Math::Max(it->second, len);
+			}
+			else
+			{
+				m[pParentBone->_name] = len;
+			}
+			if (!accumulated)
+				break;
+			pParentBone = FindBone(_C(pParentBone->_parentName));
+		}
+	}
+	if (accumulated) // Add leaf bone lengths?
+	{
+		for (auto& kv : m)
+			kv.second += 0.02f;
+	}
+}

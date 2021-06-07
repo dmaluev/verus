@@ -148,6 +148,7 @@ VkShaderStageFlags CGI::ToNativeStageFlags(ShaderStageFlags stageFlags)
 
 int CGI::ToNativeLocation(ViaUsage usage, int usageIndex)
 {
+	// See: https://www.opengl.org/sdk/docs/tutorials/ClockworkCoders/attributes.php
 	switch (usage)
 	{
 	case ViaUsage::position: return 0;

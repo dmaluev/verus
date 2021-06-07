@@ -980,14 +980,14 @@ void Forest::BakeSprite(RPlant plant, CSZ url)
 			const Vector3 offset = matR * Vector3(0, 0, size);
 
 			Camera cam;
-			cam.MoveAtTo(Vector3(0, size * 0.5f / _margin, 0));
 			cam.MoveEyeTo(Vector3(0, size * 0.5f / _margin, 0) + offset);
-			cam.SetFovY(0);
-			cam.SetWidth(size * _margin);
-			cam.SetHeight(size * _margin);
+			cam.MoveAtTo(Vector3(0, size * 0.5f / _margin, 0));
 			cam.SetAspectRatio(1);
+			cam.SetYFov(0);
 			cam.SetZNear(0);
 			cam.SetZFar(size * 2);
+			cam.SetXMag(size * _margin);
+			cam.SetYMag(size * _margin);
 			cam.Update();
 			PCamera pPrevCamera = sm.SetCamera(&cam);
 

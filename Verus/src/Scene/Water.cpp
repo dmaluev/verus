@@ -239,9 +239,9 @@ void Water::Draw()
 	s_ubWaterVS._eyePos_mapSideInv = float4(cam.GetEyePosition().GLM(), 1.f / _pTerrain->GetMapSide());
 	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.x = 1 / _patchSide;
 	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.y =
-		Math::ComputeDistToMipScale(static_cast<float>(_genSide << 6), static_cast<float>(renderer.GetSwapChainHeight()), _patchSide, cam.GetFovY());
+		Math::ComputeDistToMipScale(static_cast<float>(_genSide << 6), static_cast<float>(renderer.GetSwapChainHeight()), _patchSide, cam.GetYFov());
 	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.z =
-		Math::ComputeDistToMipScale(static_cast<float>(_pTerrain->GetMapSide()), static_cast<float>(renderer.GetSwapChainHeight()), static_cast<float>(_pTerrain->GetMapSide()), cam.GetFovY());
+		Math::ComputeDistToMipScale(static_cast<float>(_pTerrain->GetMapSide()), static_cast<float>(renderer.GetSwapChainHeight()), static_cast<float>(_pTerrain->GetMapSide()), cam.GetYFov());
 	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.w = _wavePhase;
 
 	s_ubWaterFS._matV = cam.GetMatrixV().UniformBufferFormat();

@@ -13,22 +13,22 @@ void Camera::UpdateInternal()
 
 	if (_update & Update::p)
 	{
-		if (0 == _fovY)
+		if (0 == _yFov)
 		{
-			_matP = Matrix4::MakeOrtho(_w, _h, _zNear, _zFar);
+			_matP = Matrix4::MakeOrtho(_xMag, _yMag, _zNear, _zFar);
 		}
 		else
 		{
-			if (_fovY > 0)
+			if (_yFov > 0)
 			{
-				_matP = Matrix4::MakePerspective(_fovY, _aspectRatio, _zNear, _zFar);
+				_matP = Matrix4::MakePerspective(_yFov, _aspectRatio, _zNear, _zFar);
 			}
 			else
 			{
-				_fovY = -_fovY;
-				_matP = Matrix4::MakePerspective(_fovY, _aspectRatio, _zNear, _zFar, false);
+				_yFov = -_yFov;
+				_matP = Matrix4::MakePerspective(_yFov, _aspectRatio, _zNear, _zFar, false);
 			}
-			_fovScale = 0.5f / tan(_fovY * 0.5f);
+			_fovScale = 0.5f / tan(_yFov * 0.5f);
 		}
 		_matPi = VMath::inverse(_matP);
 	}
@@ -94,9 +94,9 @@ void Camera::SetFrustumFar(float zFar)
 	_frustum.SetFarPlane(_eyePos, _frontDir, zFar);
 }
 
-void Camera::SetFovX(float x)
+void Camera::SetXFov(float x)
 {
-	SetFovY(2 * atan(tan(x * 0.5f) / _aspectRatio));
+	SetYFov(2 * atan(tan(x * 0.5f) / _aspectRatio));
 }
 
 void Camera::GetClippingSpacePlane(RVector4 plane) const
@@ -237,11 +237,11 @@ void MainCamera::GetPickingRay(RPoint3 pos, RVector3 dir) const
 
 	int x, y;
 	_pCpp->GetPos(x, y);
-	const float clipSpaceX = (float(x + x + 1) / renderer.GetSwapChainWidth()) - 1;
-	const float clipSpaceY = 1 - (float(y + y + 1) / renderer.GetSwapChainHeight());
+	const float ndcX = (float(x + x + 1) / renderer.GetSwapChainWidth()) - 1;
+	const float ndcY = 1 - (float(y + y + 1) / renderer.GetSwapChainHeight());
 	const Vector3 v(
-		clipSpaceX / GetMatrixP().getElem(0, 0),
-		clipSpaceY / GetMatrixP().getElem(1, 1),
+		ndcX / GetMatrixP().getElem(0, 0),
+		ndcY / GetMatrixP().getElem(1, 1),
 		-1);
 	dir = GetMatrixVi().getUpper3x3() * v;
 	pos = GetMatrixVi().getTranslation();
@@ -249,13 +249,13 @@ void MainCamera::GetPickingRay(RPoint3 pos, RVector3 dir) const
 
 float MainCamera::ComputeMotionBlur(RcPoint3 pos, RcPoint3 posPrev) const
 {
-	Vector4 screenPos = GetMatrixVP() * pos;
-	Vector4 screenPosPrev = GetMatrixPrevVP() * posPrev;
-	screenPos /= screenPos.getW();
-	screenPos.setZ(0);
-	screenPos.setW(0);
-	screenPosPrev /= screenPosPrev.getW();
-	screenPosPrev.setZ(0);
-	screenPosPrev.setW(0);
-	return VMath::length(screenPos - screenPosPrev) * 10;
+	Vector4 ndcPos = GetMatrixVP() * pos;
+	Vector4 ndcPosPrev = GetMatrixPrevVP() * posPrev;
+	ndcPos /= ndcPos.getW();
+	ndcPos.setZ(0);
+	ndcPos.setW(0);
+	ndcPosPrev /= ndcPosPrev.getW();
+	ndcPosPrev.setZ(0);
+	ndcPosPrev.setW(0);
+	return VMath::length(ndcPos - ndcPosPrev) * 10;
 }

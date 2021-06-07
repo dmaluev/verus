@@ -4,71 +4,9 @@
 using namespace verus;
 using namespace verus::Extra;
 
-// ConvertX::AnimationKey:
-
-void ConvertX::AnimationKey::DetectRedundantFrames(float threshold)
-{
-	for (auto& subkey : _vFrame)
-		subkey._redundant = false;
-
-	const size_t size = _vFrame.size();
-	const size_t edge = size - 1;
-
-	_logicFrameCount = size > 1 ? 2 : 1;
-
-	if (size <= 1)
-		return;
-
-	Quat base(
-		_vFrame[1]._q.getX() - _vFrame[0]._q.getX(),
-		_vFrame[1]._q.getY() - _vFrame[0]._q.getY(),
-		_vFrame[1]._q.getZ() - _vFrame[0]._q.getZ(),
-		_vFrame[1]._q.getW() - _vFrame[0]._q.getW());
-	for (size_t i = 1; i < edge; ++i)
-	{
-		const Quat test(
-			_vFrame[i]._q.getX() - _vFrame[i - 1]._q.getX(),
-			_vFrame[i]._q.getY() - _vFrame[i - 1]._q.getY(),
-			_vFrame[i]._q.getZ() - _vFrame[i - 1]._q.getZ(),
-			_vFrame[i]._q.getW() - _vFrame[i - 1]._q.getW());
-		if (base.IsEqual(test, threshold))
-		{
-			_vFrame[i]._redundant = true;
-		}
-		else
-		{
-			base = test;
-			_logicFrameCount++;
-			if (_vFrame[i - 1]._redundant)
-			{
-				_vFrame[i - 1]._redundant = false;
-				_logicFrameCount++;
-			}
-		}
-	}
-}
-
-// ConvertX::AnimationSet:
-
-void ConvertX::AnimationSet::CleanUp()
-{
-	VERUS_WHILE(Vector<Animation>, _vAnimations, it)
-	{
-		const String name = (*it)._name;
-		if (String::npos != name.find("OgreMax") ||
-			String::npos != name.find("Omni") ||
-			String::npos != name.find("Camera"))
-			it = _vAnimations.erase(it);
-		else
-			it++;
-	}
-}
-
-// ConvertX:
-
 ConvertX::ConvertX()
 {
-	_matRoot = Transform3::identity();
+	_trRoot = Transform3::identity();
 }
 
 ConvertX::~ConvertX()
@@ -104,21 +42,6 @@ Str ConvertX::GetPathname()
 	return _C(_pathname);
 }
 
-void ConvertX::LoadBoneNames(CSZ pathname)
-{
-	Vector<BYTE> vData;
-	IO::FileSystem::LoadResource(pathname, vData, IO::FileSystem::LoadDesc(true));
-	Vector<String> vLines;
-	Str::ReadLines(reinterpret_cast<CSZ>(vData.data()), vLines);
-	for (const auto& line : vLines)
-	{
-		Vector<String> vPair;
-		Str::Explode(_C(line), " ", vPair);
-		Str::ToLower(const_cast<SZ>(_C(vPair[0])));
-		_mapBoneNames[vPair[0]] = vPair[1];
-	}
-}
-
 void ConvertX::ParseData(CSZ pathname)
 {
 	VERUS_RT_ASSERT(IsInitialized());
@@ -145,7 +68,7 @@ void ConvertX::ParseData(CSZ pathname)
 		StreamSkipWhitespace();
 		const bool temp = !strcmp(prev, "template");
 
-		if (!temp && !strcmp(buffer, "Mesh"))
+		if (!temp && !strcmp(buffer, "Mesh")) // Unusual top-level mesh.
 		{
 			if ('{' == *_pData)
 			{
@@ -160,7 +83,7 @@ void ConvertX::ParseData(CSZ pathname)
 			}
 			ParseBlockRecursive(buffer, 0);
 		}
-		else if (!temp && !strcmp(buffer, "Frame"))
+		else if (!temp && !strcmp(buffer, "Frame")) // Similar to node in glTF.
 		{
 			char name[256] = {};
 			StreamReadUntil(name, sizeof(name), VERUS_WHITESPACE);
@@ -200,7 +123,7 @@ void ConvertX::SerializeAll(CSZ pathname)
 
 	StringStream ssLevel;
 	ssLevel << "<?xml version=\"1.0\" encoding=\"utf-8\"?>" VERUS_CRNL;
-	ssLevel << "<level>" VERUS_CRNL;
+	ssLevel << "<scene>" VERUS_CRNL;
 
 	for (const auto& mat : _vMaterials)
 	{
@@ -211,23 +134,23 @@ void ConvertX::SerializeAll(CSZ pathname)
 		ssLevel << "name=\"" << Str::XmlEscape(_C(mat._name)) << "\" ";
 		if (_desc._useDefaultMaterial)
 		{
-			ssLevel << "faceColor=\"1 1 1 1\" ";
+			ssLevel << "baseColorFactor=\"1 1 1 1\" ";
 			ssLevel << "power=\"10\" ";
-			ssLevel << "specularColor=\"0.25 0.25 0.25\" ";
-			ssLevel << "emissiveColor=\"0 0 0\">";
+			ssLevel << "specularFactor=\"0.25 0.25 0.25\" ";
+			ssLevel << "emissiveFactor=\"0 0 0\">";
 		}
 		else
 		{
-			ssLevel << "faceColor=\"" << Vector4(mat._faceColor).ToString() << "\" ";
+			ssLevel << "baseColorFactor=\"" << Vector4(mat._faceColor).ToString() << "\" ";
 			ssLevel << "power=\"" << mat._power << "\" ";
-			ssLevel << "specularColor=\"" << Vector3(mat._specularColor).ToString() << "\" ";
-			ssLevel << "emissiveColor=\"" << Vector3(mat._emissiveColor).ToString() << "\">";
+			ssLevel << "specularFactor=\"" << Vector3(mat._specularColor).ToString() << "\" ";
+			ssLevel << "emissiveFactor=\"" << Vector3(mat._emissiveColor).ToString() << "\">";
 		}
 		ssLevel << Str::XmlEscape(_C(mat._textureFilename));
 		ssLevel << "</material>" VERUS_CRNL;
 	}
 
-	for (const auto& pMesh : _vMesh)
+	for (const auto& pMesh : _vMeshes)
 	{
 		strcpy(strrchr(path, '\\') + 1, _C(pMesh->GetName()));
 		strcat(path, ".x3d");
@@ -247,13 +170,13 @@ void ConvertX::SerializeAll(CSZ pathname)
 			pos.setZ(-pos.getZ());
 		matW.setTranslation(pos);
 
-		ssLevel << "<object ";
+		ssLevel << "<node ";
 		ssLevel << "copyOf=\"" << Str::XmlEscape(_C(pMesh->GetCopyOfName())) << "\" ";
-		ssLevel << "matrix=\"" << matW.ToString() << "\" ";
+		ssLevel << "tr=\"" << matW.ToString() << "\" ";
 		ssLevel << "mat=\"" << GetXmlMaterial(pMesh->GetMaterialIndex()) << "\"";
-		ssLevel << ">" << Str::XmlEscape(_C(pMesh->GetName())) << "</object>" VERUS_CRNL;
+		ssLevel << ">" << Str::XmlEscape(_C(pMesh->GetName())) << "</node>" VERUS_CRNL;
 
-		if (!_desc._convertAsLevel || !pMesh->IsCopy())
+		if (!_desc._convertAsScene || !pMesh->IsCopy())
 		{
 			IO::File file;
 			if (file.Open(path, "wb"))
@@ -263,11 +186,11 @@ void ConvertX::SerializeAll(CSZ pathname)
 		}
 	}
 
-	ssLevel << "</level>" VERUS_CRNL;
+	ssLevel << "</scene>" VERUS_CRNL;
 
-	if (_desc._convertAsLevel)
+	if (_desc._convertAsScene)
 	{
-		strcpy(strrchr(path, '\\') + 1, "Level.xml");
+		strcpy(strrchr(path, '\\') + 1, "Scene.xml");
 		if (!_pDelegate || _pDelegate->BaseConvert_CanOverwriteFile(path))
 		{
 			IO::File file;
@@ -276,128 +199,7 @@ void ConvertX::SerializeAll(CSZ pathname)
 		}
 	}
 
-	int animTotal = 0, animCount = 0;
-	if (!_vAnimSets.empty())
-	{
-		OnProgressText("Saving motions");
-		VERUS_FOREACH(Vector<AnimationSet>, _vAnimSets, itSet)
-		{
-			AnimationSet& set = *itSet;
-			set.CleanUp();
-			animTotal += Utils::Cast32(set._vAnimations.size());
-		}
-	}
-
-	VERUS_FOREACH(Vector<AnimationSet>, _vAnimSets, itSet) // Each animation set:
-	{
-		AnimationSet& set = *itSet;
-
-		int maxFrames = 0;
-		VERUS_FOREACH_CONST(Vector<Animation>, set._vAnimations, it)
-		{
-			maxFrames = Math::Max(maxFrames, static_cast<int>((*it)._vAnimKeys[0]._vFrame.size()));
-			maxFrames = Math::Max(maxFrames, static_cast<int>((*it)._vAnimKeys[1]._vFrame.size()));
-			maxFrames = Math::Max(maxFrames, static_cast<int>((*it)._vAnimKeys[2]._vFrame.size()));
-		}
-
-		strcpy(strrchr(path, '\\') + 1, _C(set._name));
-		strcat(path, ".xan");
-		if (_pDelegate && !_pDelegate->BaseConvert_CanOverwriteFile(path))
-			continue;
-
-		IO::File file;
-		if (file.Open(path, "wb"))
-		{
-			const UINT32 magic = '2NAX';
-			file << magic;
-
-			const UINT16 version = 0x0101;
-			file << version;
-
-			const UINT32 frameCount = maxFrames;
-			file << frameCount;
-
-			const UINT32 fps = 10;
-			file << fps;
-
-			const int boneCount = Utils::Cast32(set._vAnimations.size());
-			file << boneCount;
-
-			VERUS_FOREACH(Vector<Animation>, set._vAnimations, itAnim) // Each bone:
-			{
-				Animation& anim = *itAnim;
-
-				String name;
-				const size_t startAt = anim._name.rfind("-");
-				if (startAt != String::npos)
-				{
-					name = anim._name.substr(startAt + 1);
-				}
-				else
-				{
-					name = anim._name;
-				}
-
-				if (name == "Pelvis0")
-					name = Anim::Skeleton::RootName();
-
-				name = RenameBone(_C(name));
-
-				file.WriteString(_C(name)); // Bone's name.
-				anim._vAnimKeys[0].DetectRedundantFrames();
-				const int keyframeCount = anim._vAnimKeys[0]._logicFrameCount;
-				file << keyframeCount;
-				VERUS_FOREACH(Vector<AnimationKey>, anim._vAnimKeys, itKey)
-				{
-					AnimationKey& key = *itKey;
-					if (key._type == 0) // Rotation:
-					{
-						int frame = 0;
-						VERUS_FOREACH(Vector<SubKey>, key._vFrame, itSK)
-						{
-							SubKey& sk = *itSK;
-							if (!sk._redundant)
-							{
-								file << frame;
-								file.Write(sk._q.ToPointer(), 16);
-							}
-							frame++;
-						}
-					}
-				}
-
-				anim._vAnimKeys[2].DetectRedundantFrames();
-				const int keyframePCount = anim._vAnimKeys[2]._logicFrameCount;
-				file << keyframePCount;
-				VERUS_FOREACH(Vector<AnimationKey>, anim._vAnimKeys, itKey)
-				{
-					AnimationKey& key = *itKey;
-					if (key._type == 2) // Position:
-					{
-						int frame = 0;
-						VERUS_FOREACH(Vector<SubKey>, key._vFrame, itSK)
-						{
-							SubKey& sk = *itSK;
-							if (!sk._redundant)
-							{
-								file << frame;
-								file.Write(sk._q.ToPointer(), 12);
-							}
-							frame++;
-						}
-					}
-				}
-
-				// Scale/trigger:
-				const int keyframeSTCount = 0;
-				file << keyframeSTCount;
-				file << keyframeSTCount;
-
-				animCount++;
-				OnProgress(float(animCount) / animTotal * 100);
-			}
-		}
-	}
+	SerializeMotions(path);
 
 	OnProgress(100);
 }
@@ -432,7 +234,7 @@ void ConvertX::LoadFromFile(CSZ pathname)
 	if (file.Open(pathname, "rb"))
 	{
 		const INT64 size = file.GetSize();
-		_vData.resize((size_t)size + 1);
+		_vData.resize(size + 1);
 		file.Read(_vData.data(), size);
 		_pData = _vData.data();
 	}
@@ -478,11 +280,11 @@ void ConvertX::FixBones()
 {
 	// Same as in ParseBlockData_Mesh:
 	const float s = _desc._scaleFactor;
-	const Transform3 m = VMath::appendScale(
+	const Transform3 tr = VMath::appendScale(
 		Transform3(Matrix3::rotationY(_desc._angle), Vector3(_desc._bias)), Vector3(s, s, _desc._rightHanded ? -s : s));
-	const glm::mat4 matW = m.GLM();
+	const glm::mat4 matW = tr.GLM();
 
-	for (const auto& pMesh : _vMesh)
+	for (const auto& pMesh : _vMeshes)
 	{
 		bool boneAdded = false;
 		do
@@ -492,24 +294,24 @@ void ConvertX::FixBones()
 			{
 				RcFrame frame = itFrame->second;
 				Mesh::PBone pBone = pMesh->FindBone(_C(frame._name));
-				if (pBone)
+				if (pBone) // Is this frame a bone?
 				{
-					pBone->_matFrame = frame._mat;
-					pBone->_matFrameAcc = frame._matAcc;
+					pBone->_trLocal = frame._trLocal;
+					pBone->_trGlobal = frame._trGlobal;
 
-					pBone->_matFrameAcc = glm::inverse(pBone->_matFrameAcc); // Turn to Offset matrix.
+					pBone->_trGlobal = glm::inverse(pBone->_trGlobal); // Turn to Offset matrix.
 					// Good time to adjust bone matrix (combined matrix is already included):
-					pBone->_matFrameAcc = pMesh->GetBoneAxisMatrix() * pBone->_matFrameAcc;
-					pBone->_matFrameAcc *= glm::inverse(matW);
-					pBone->_matFrameAcc = Transform3(pBone->_matFrameAcc).Normalize(true).GLM();
-					pBone->_matOffset = pBone->_matFrameAcc; // Use Frames in rest position for offsets.
-					pBone->_matFrameAcc = glm::inverse(pBone->_matFrameAcc); // Back to FrameAcc matrix.
+					pBone->_trGlobal = pMesh->GetBoneAxisMatrix() * pBone->_trGlobal;
+					pBone->_trGlobal *= glm::inverse(matW);
+					pBone->_trGlobal = Transform3(pBone->_trGlobal).Normalize(true).GLM();
+					pBone->_trToBoneSpace = pBone->_trGlobal; // Use Frames in rest position for offsets.
+					pBone->_trGlobal = glm::inverse(pBone->_trGlobal); // Back to Global matrix.
 
-					// Find a good parent for this bone:
-					Mesh::PBone pParent = pMesh->FindBone(_C(frame._parent));
-					if (!pParent && _mapFrames.find(frame._parent) != _mapFrames.end())
+					// Add missing parent bones, which are not part of skinning info:
+					Mesh::PBone pParent = pMesh->FindBone(_C(frame._parentName));
+					if (!pParent && _mapFrames.find(frame._parentName) != _mapFrames.end())
 					{
-						const String name = RenameBone(_C(frame._parent));
+						const String name = RenameBone(_C(frame._parentName));
 						pBone->_parentName = name;
 
 						Mesh::Bone bone;
@@ -687,34 +489,34 @@ void ConvertX::ParseBlockData_Mesh()
 	const Matrix4 matFix = Matrix4::scale(Vector3(s, s, _desc._rightHanded ? -s : s));
 
 	const int frameCount = Utils::Cast32(_stackFrames.size());
-	if (_desc._convertAsLevel)
+	if (_desc._convertAsScene)
 	{
-		// World matrix for level objects:
+		// World matrix for scene nodes:
 		VERUS_FOR(i, frameCount)
 		{
 			if (!i && _stackFrames[i]._name == "Root")
 				continue; // Blender's coord system matrix.
-			_pCurrentMesh->SetWorldSpaceMatrix(_pCurrentMesh->GetWorldSpaceMatrix() * _stackFrames[i]._mat);
+			_pCurrentMesh->SetWorldSpaceMatrix(_pCurrentMesh->GetWorldSpaceMatrix() * _stackFrames[i]._trLocal);
 		}
 	}
 	else
 	{
-		// Collapse all frame matrices (Frame0*Frame1*Frame2):
+		// Collapse all frame matrices (Frame0 * Frame1 * Frame2):
 		VERUS_FOR(i, frameCount)
-			_pCurrentMesh->SetCombinedMatrix(_pCurrentMesh->GetCombinedMatrix() * _stackFrames[i]._mat);
+			_pCurrentMesh->SetGlobalMatrix(_pCurrentMesh->GetGlobalMatrix() * _stackFrames[i]._trLocal);
 
 		const float s = _desc._scaleFactor;
-		const Transform3 m = VMath::appendScale(
+		const Transform3 tr = VMath::appendScale(
 			Transform3(Matrix3::rotationY(_desc._angle), Vector3(_desc._bias)), Vector3(s, s, _desc._rightHanded ? -s : s));
-		const glm::mat4 matW = m.GLM();
-		// Scale, flip, turn & offset after frame collapse (matW*Frame0*Frame1*Frame2):
-		_pCurrentMesh->SetCombinedMatrix(matW * _pCurrentMesh->GetCombinedMatrix());
+		const glm::mat4 matW = tr.GLM();
+		// Scale, flip, turn & offset after frame collapse (matW * Frame0 * Frame1 * Frame2):
+		_pCurrentMesh->SetGlobalMatrix(matW * _pCurrentMesh->GetGlobalMatrix());
 	}
 
 	Transform3 mat;
-	if (_desc._convertAsLevel)
+	if (_desc._convertAsScene)
 	{
-		const Transform3 matFromBlender = Transform3(_stackFrames[0]._mat);
+		const Transform3 matFromBlender = Transform3(_stackFrames[0]._trLocal);
 		const Transform3 matToBlender = VMath::inverse(matFromBlender);
 		const Transform3 matS = Transform3::scale(Vector3::Replicate(_desc._scaleFactor));
 		const Transform3 matRH = _desc._rightHanded ? Transform3::scale(Vector3(1, 1, -1)) : Transform3::identity();
@@ -723,7 +525,7 @@ void ConvertX::ParseBlockData_Mesh()
 
 		if (frameCount)
 		{
-			const glm::mat4 matFromBlender = matFix.GLM() * _stackFrames[0]._mat;
+			const glm::mat4 matFromBlender = matFix.GLM() * _stackFrames[0]._trLocal;
 			const glm::mat4 matToBlender = glm::inverse(matFromBlender);
 			_pCurrentMesh->SetWorldSpaceMatrix(matFromBlender * _pCurrentMesh->GetWorldSpaceMatrix() * matToBlender);
 		}
@@ -759,7 +561,7 @@ void ConvertX::ParseBlockData_Mesh()
 			throw VERUS_RECOVERABLE << "ParseBlockData_Mesh(), NaN found";
 
 		// Collapse transformations:
-		if (_desc._convertAsLevel)
+		if (_desc._convertAsScene)
 		{
 			Point3 pos = v;
 			pos = mat * pos;
@@ -767,7 +569,7 @@ void ConvertX::ParseBlockData_Mesh()
 		}
 		else
 		{
-			v = glm::vec3(_pCurrentMesh->GetCombinedMatrix() * glm::vec4(v, 1));
+			v = glm::vec3(_pCurrentMesh->GetGlobalMatrix() * glm::vec4(v, 1));
 		}
 
 		_pCurrentMesh->GetSetVertexAt(i)._pos = v;
@@ -864,16 +666,16 @@ void ConvertX::ParseBlockData_MeshTextureCoords()
 		_pCurrentMesh->GetSetVertexAt(i)._tc0 = tc;
 	}
 
-	if (_desc._convertAsLevel)
+	if (_desc._convertAsScene)
 	{
-		for (const auto& pMesh : _vMesh)
+		for (const auto& pMesh : _vMeshes)
 		{
 			if (_pCurrentMesh->IsCopyOf(*pMesh))
 				break;
 		}
 	}
 
-	_pCurrentMesh->AddFoundFlag(Mesh::Found::vertsAndUVs);
+	_pCurrentMesh->AddFoundFlag(Mesh::Found::posAndTexCoord0);
 }
 
 void ConvertX::ParseBlockData_MeshNormals()
@@ -881,9 +683,9 @@ void ConvertX::ParseBlockData_MeshNormals()
 	Debug("MeshNormals");
 
 	Transform3 mat;
-	if (_desc._convertAsLevel)
+	if (_desc._convertAsScene)
 	{
-		const Transform3 matFromBlender = Transform3(_stackFrames[0]._mat);
+		const Transform3 matFromBlender = Transform3(_stackFrames[0]._trLocal);
 		const Transform3 matToBlender = VMath::inverse(matFromBlender);
 		const Transform3 matS = Transform3::scale(Vector3::Replicate(_desc._scaleFactor));
 		const Transform3 matRH = _desc._rightHanded ? Transform3::scale(Vector3(1, 1, -1)) : Transform3::identity();
@@ -920,7 +722,7 @@ void ConvertX::ParseBlockData_MeshNormals()
 			throw VERUS_RECOVERABLE << "ParseBlockData_MeshNormals(), NaN found";
 
 		// Collapse transformations (no translation here):
-		if (_desc._convertAsLevel)
+		if (_desc._convertAsScene)
 		{
 			Vector3 n = vNormals[i];
 			n = mat * n;
@@ -929,7 +731,7 @@ void ConvertX::ParseBlockData_MeshNormals()
 		}
 		else
 		{
-			vNormals[i] = glm::vec3(_pCurrentMesh->GetCombinedMatrix() * glm::vec4(vNormals[i], 0));
+			vNormals[i] = glm::vec3(_pCurrentMesh->GetGlobalMatrix() * glm::vec4(vNormals[i], 0));
 			vNormals[i] = glm::normalize(vNormals[i]);
 		}
 	}
@@ -1048,7 +850,7 @@ void ConvertX::ParseBlockData_FVFData(bool declData)
 	}
 
 	if (!trash)
-		_pCurrentMesh->AddFoundFlag(Mesh::Found::texcoordExtra);
+		_pCurrentMesh->AddFoundFlag(Mesh::Found::texCoord1);
 }
 
 void ConvertX::ParseBlockData_XSkinMeshHeader()
@@ -1077,14 +879,14 @@ void ConvertX::ParseBlockData_SkinWeights()
 	OnProgressText(_C(ss.str()));
 
 	Mesh::Bone bone;
-	bone._matOffset = glm::mat4(1);
-	bone._matFrame = glm::mat4(1);
+	bone._trToBoneSpace = glm::mat4(1);
+	bone._trLocal = glm::mat4(1);
 	_pData++; // Skip "
 	StreamSkipWhitespace();
 	if (_stackFrames.empty())
 	{
-		StreamReadUntil(buffer, sizeof(buffer), "_");	bone._name = RenameBone(buffer);
-		StreamReadUntil(buffer, sizeof(buffer), "\"");	bone._parentName = RenameBone(buffer + 1);
+		StreamReadUntil(buffer, sizeof(buffer), "_");  bone._name = RenameBone(buffer);
+		StreamReadUntil(buffer, sizeof(buffer), "\""); bone._parentName = RenameBone(buffer + 1);
 	}
 	else
 	{
@@ -1122,7 +924,7 @@ void ConvertX::ParseBlockData_SkinWeights()
 		_pData++; // Skip "; or ,"
 		StreamSkipWhitespace();
 		const float weight = float(atof(buffer));
-		_pCurrentMesh->GetSetVertexAt(vVertexIndices[i]).Add(weight, boneIndex);
+		_pCurrentMesh->GetSetVertexAt(vVertexIndices[i]).Add(boneIndex, weight);
 	}
 
 	VERUS_FOR(i, 4)
@@ -1132,16 +934,16 @@ void ConvertX::ParseBlockData_SkinWeights()
 			StreamReadUntil(buffer, sizeof(buffer), ",;");
 			_pData++; // Skip "; or ,"
 			StreamSkipWhitespace();
-			bone._matOffset[i][j] = (float)atof(buffer);
-			if (Math::IsNaN(bone._matOffset[i][j]))
+			bone._trToBoneSpace[i][j] = (float)atof(buffer);
+			if (Math::IsNaN(bone._trToBoneSpace[i][j]))
 				throw VERUS_RECOVERABLE << "ParseBlockData_SkinWeights(), NaN found";
 		}
 	}
 
 	// Good time to adjust bone matrix:
-	bone._matOffset = _pCurrentMesh->GetBoneAxisMatrix() * bone._matOffset;
-	bone._matOffset *= glm::inverse(_pCurrentMesh->GetCombinedMatrix());
-	bone._matOffset = Transform3(bone._matOffset).Normalize(true).GLM();
+	bone._trToBoneSpace = _pCurrentMesh->GetBoneAxisMatrix() * bone._trToBoneSpace;
+	bone._trToBoneSpace *= glm::inverse(_pCurrentMesh->GetGlobalMatrix());
+	bone._trToBoneSpace = Transform3(bone._trToBoneSpace).Normalize(true).GLM();
 
 	_pData++; // Skip ";"
 	StreamSkipWhitespace();
@@ -1156,6 +958,7 @@ void ConvertX::ParseBlockData_Frame(CSZ blockName)
 	ss << "Frame " << blockName;
 	Debug(_C(ss.str()));
 
+	// Frame is similar to node in glTF.
 	Frame frame;
 	frame._name = RenameBone(blockName);
 	_stackFrames.push_back(frame);
@@ -1209,8 +1012,8 @@ void ConvertX::ParseBlockData_Frame(CSZ blockName)
 	Vector<Frame> stackTemp;
 	if (_stackFrames.size() == 1)
 	{
-		frame._parent = Anim::Skeleton::RootName();
-		_matRoot = frame._mat;
+		frame._parentName = Anim::Skeleton::RootName();
+		_trRoot = frame._trLocal;
 	}
 	else
 	{
@@ -1220,7 +1023,7 @@ void ConvertX::ParseBlockData_Frame(CSZ blockName)
 			_stackFrames.pop_back();
 		} while (!_stackFrames.empty() && _stackFrames.back()._name.empty());
 
-		frame._parent = RenameBone(_C(_stackFrames.back()._name));
+		frame._parentName = RenameBone(_C(_stackFrames.back()._name));
 
 		while (!stackTemp.empty())
 		{
@@ -1239,7 +1042,7 @@ void ConvertX::ParseBlockData_FrameTransformMatrix()
 	Debug("FrameTransformMatrix");
 
 	char buffer[256] = {};
-	glm::mat4& mat = _stackFrames.back()._mat;
+	glm::mat4& trLocal = _stackFrames.back()._trLocal;
 	VERUS_FOR(i, 4)
 	{
 		VERUS_FOR(j, 4)
@@ -1247,24 +1050,24 @@ void ConvertX::ParseBlockData_FrameTransformMatrix()
 			StreamReadUntil(buffer, sizeof(buffer), ",;");
 			_pData++; // Skip "; or ,"
 			StreamSkipWhitespace();
-			mat[i][j] = (float)atof(buffer);
-			if (Math::IsNaN(mat[i][j]))
+			trLocal[i][j] = static_cast<float>(atof(buffer));
+			if (Math::IsNaN(trLocal[i][j]))
 				throw VERUS_RECOVERABLE << "ParseBlockData_FrameTransformMatrix(), NaN found";
 		}
 	}
 	_pData++; // Skip ";"
 	StreamSkipWhitespace();
 
-	// Good time to compute accumulated frame matrix:
+	// Good time to compute frame's global transformation matrix:
 	VERUS_FOREACH_REVERSE_CONST(Vector<Frame>, _stackFrames, it)
-		_stackFrames.back()._matAcc = (*it)._mat * _stackFrames.back()._matAcc;
+		_stackFrames.back()._trGlobal = (*it)._trLocal * _stackFrames.back()._trGlobal;
 }
 
 void ConvertX::ParseBlockData_AnimationSet(CSZ blockName)
 {
-	AnimationSet set;
-	set._name = blockName;
-	_vAnimSets.push_back(set);
+	AnimationSet animSet;
+	animSet._name = blockName;
+	_vAnimSets.push_back(animSet);
 	bool loop = true;
 	while (loop)
 	{
@@ -1296,19 +1099,19 @@ void ConvertX::ParseBlockData_AnimationSet(CSZ blockName)
 
 void ConvertX::ParseBlockData_Animation(CSZ blockName)
 {
-	const int indexSet = int(_vAnimSets.size() - 1);
-	Animation an;
-	an._name = blockName;
+	const int animSetIndex = static_cast<int>(_vAnimSets.size() - 1);
+	Animation anim;
+	anim._name = blockName;
 	if ('{' == *_pData) // Animation { {FrameName} AnimationKey {...
 	{
 		_pData++;
 		CSZ pEnd = strchr(_pData, '}');
-		if (an._name.empty())
-			an._name.assign(_pData, pEnd);
+		if (anim._name.empty())
+			anim._name.assign(_pData, pEnd);
 		_pData = strchr(_pData, '}') + 1;
 	}
 	StreamSkipWhitespace();
-	_vAnimSets[indexSet]._vAnimations.push_back(an);
+	_vAnimSets[animSetIndex]._vAnimations.push_back(anim);
 
 	bool loop = true;
 	while (loop)
@@ -1342,65 +1145,66 @@ void ConvertX::ParseBlockData_Animation(CSZ blockName)
 	StreamSkipWhitespace();
 
 	// Convert data to bone space:
-	Animation& anFilled = _vAnimSets[indexSet]._vAnimations.back();
-	CSZ name = _C(anFilled._name);
+	Animation& animWithKeys = _vAnimSets[animSetIndex]._vAnimations.back();
+	CSZ name = _C(animWithKeys._name);
 	if (strrchr(name, '-'))
 		name = strrchr(name, '-') + 1;
-	String xname = RenameBone(name);
-	Mesh::Bone* pBone = _vMesh[0]->FindBone(_C(xname));
+	String boneName = RenameBone(name);
+	Mesh::Bone* pBone = _vMeshes[0]->FindBone(_C(boneName));
 	Mesh::Bone* pParentBone = nullptr;
 	if (pBone)
 	{
-		Transform3 matParentSpaceOffset;
-		pParentBone = _vMesh[0]->FindBone(_C(pBone->_parentName));
+		Transform3 trToParentSpace;
+		pParentBone = _vMeshes[0]->FindBone(_C(pBone->_parentName));
 		if (!pParentBone)
-			matParentSpaceOffset = Transform3::identity();
+			trToParentSpace = Transform3::identity();
 		else
-			matParentSpaceOffset = pParentBone->_matOffset;
+			trToParentSpace = pParentBone->_trToBoneSpace;
+		const Transform3 trFromParentSpace = VMath::inverse(trToParentSpace);
 
 		int maxFrames = 0;
-		maxFrames = Math::Max(maxFrames, static_cast<int>(anFilled._vAnimKeys[0]._vFrame.size()));
-		maxFrames = Math::Max(maxFrames, static_cast<int>(anFilled._vAnimKeys[1]._vFrame.size()));
-		maxFrames = Math::Max(maxFrames, static_cast<int>(anFilled._vAnimKeys[2]._vFrame.size()));
+		maxFrames = Math::Max(maxFrames, static_cast<int>(animWithKeys._vAnimKeys[0]._vFrame.size()));
+		maxFrames = Math::Max(maxFrames, static_cast<int>(animWithKeys._vAnimKeys[1]._vFrame.size()));
+		maxFrames = Math::Max(maxFrames, static_cast<int>(animWithKeys._vAnimKeys[2]._vFrame.size()));
 
-		Transform3 matBoneAxis = _vMesh[0]->GetBoneAxisMatrix();
+		Transform3 matBoneAxis = _vMeshes[0]->GetBoneAxisMatrix();
 		Transform3 matBoneAxisInv = VMath::inverse(matBoneAxis);
 		VERUS_FOR(i, maxFrames)
 		{
-			const int index0 = Math::Min(i, static_cast<int>(anFilled._vAnimKeys[0]._vFrame.size() - 1));
-			const int index2 = Math::Min(i, static_cast<int>(anFilled._vAnimKeys[2]._vFrame.size() - 1));
+			const int index0 = Math::Min(i, static_cast<int>(animWithKeys._vAnimKeys[0]._vFrame.size() - 1));
+			const int index2 = Math::Min(i, static_cast<int>(animWithKeys._vAnimKeys[2]._vFrame.size() - 1));
 
-			const glm::quat q = glm::inverse(anFilled._vAnimKeys[0]._vFrame[index0]._q.GLM());
-			Transform3 matSRT = Transform3(Quat(q), anFilled._vAnimKeys[2]._vFrame[index2]._q.getXYZ());
+			const glm::quat q = glm::inverse(animWithKeys._vAnimKeys[0]._vFrame[index0]._q.GLM());
+			Transform3 matSRT = Transform3(Quat(q), animWithKeys._vAnimKeys[2]._vFrame[index2]._q.getXYZ());
 
-			Transform3 matFrameAnim = matBoneAxis * matSRT * matBoneAxisInv;
-			matFrameAnim.setTranslation(matFrameAnim.getTranslation() * _desc._scaleFactor);
+			Transform3 trNewLocal = matBoneAxis * matSRT * matBoneAxisInv;
+			trNewLocal.setTranslation(trNewLocal.getTranslation() * _desc._scaleFactor);
 
-			const glm::mat4 matNew = Transform3(Transform3(pBone->_matOffset) * VMath::inverse(matParentSpaceOffset) * matFrameAnim).GLM();
+			const glm::mat4 matNew = Transform3(Transform3(pBone->_trToBoneSpace) * trFromParentSpace * trNewLocal).GLM();
 
 			if (index0 == i)
 			{
-				anFilled._vAnimKeys[0]._vFrame[i]._q = glm::quat_cast(matNew);
-				anFilled._vAnimKeys[0]._vFrame[i]._q = VMath::normalize(anFilled._vAnimKeys[0]._vFrame[i]._q);
+				const glm::quat qNew = glm::quat_cast(matNew);
+				animWithKeys._vAnimKeys[0]._vFrame[i]._q = glm::normalize(qNew);
 			}
 
 			if (index2 == i)
 			{
 				Point3 pos(0);
 				pos = Transform3(matNew) * pos;
-				anFilled._vAnimKeys[2]._vFrame[i]._q.setXYZ(Vector3(pos));
+				animWithKeys._vAnimKeys[2]._vFrame[i]._q.setXYZ(Vector3(pos));
 			}
 		}
 	}
 	else
 	{
-		const Transform3 matRootInv = VMath::inverse(_matRoot);
+		const Transform3 matRootInv = VMath::inverse(_trRoot);
 		int i = 0;
-		for (auto& subkey : anFilled._vAnimKeys[2]._vFrame)
+		for (auto& subkey : animWithKeys._vAnimKeys[2]._vFrame)
 		{
-			const int index = Math::Min(i, static_cast<int>(anFilled._vAnimKeys[0]._vFrame.size() - 1));
+			const int index = Math::Min(i, static_cast<int>(animWithKeys._vAnimKeys[0]._vFrame.size() - 1));
 
-			const Transform3 matR(anFilled._vAnimKeys[0]._vFrame[index]._q, Vector3(0));
+			const Transform3 matR(animWithKeys._vAnimKeys[0]._vFrame[index]._q, Vector3(0));
 			const Transform3 matT = Transform3::translation(subkey._q.getXYZ());
 			const Transform3 mat = matT * VMath::inverse(matR) * matRootInv;
 
@@ -1419,8 +1223,8 @@ void ConvertX::ParseBlockData_Animation(CSZ blockName)
 
 void ConvertX::ParseBlockData_AnimationKey()
 {
-	const int indexSet = int(_vAnimSets.size() - 1);
-	const int indexAnim = int(_vAnimSets[indexSet]._vAnimations.size() - 1);
+	const int animSetIndex = static_cast<int>(_vAnimSets.size() - 1);
+	const int animIndex = static_cast<int>(_vAnimSets[animSetIndex]._vAnimations.size() - 1);
 	char buffer[256] = {};
 	AnimationKey ak;
 	AnimationKey akR;
@@ -1449,7 +1253,7 @@ void ConvertX::ParseBlockData_AnimationKey()
 		StreamSkipWhitespace();
 		if (atoi(buffer) == 16)
 		{
-			Matrix4 m;
+			Matrix4 tr;
 			float data[16];
 			sscanf(_pData,
 				"%f,%f,%f,%f,"
@@ -1460,13 +1264,13 @@ void ConvertX::ParseBlockData_AnimationKey()
 				data + 4, data + 5, data + 6, data + 7,
 				data + 8, data + 9, data + 10, data + 11,
 				data + 12, data + 13, data + 14, data + 15);
-			memcpy(&m, data, sizeof(m));
+			memcpy(&tr, data, sizeof(tr));
 			SubKey skR;
 			skR._redundant = false;
-			skR._q = Quat(VMath::inverse(m.getUpper3x3()));
+			skR._q = Quat(VMath::inverse(tr.getUpper3x3()));
 			SubKey skT;
 			skT._redundant = false;
-			skT._q = Quat(m.getTranslation(), 0);
+			skT._q = Quat(tr.getTranslation(), 0);
 			akR._vFrame.push_back(skR);
 			akT._vFrame.push_back(skT);
 
@@ -1502,13 +1306,13 @@ void ConvertX::ParseBlockData_AnimationKey()
 	StreamSkipWhitespace();
 	if (!akR._vFrame.empty())
 	{
-		_vAnimSets[indexSet]._vAnimations[indexAnim]._vAnimKeys.push_back(akR);
-		_vAnimSets[indexSet]._vAnimations[indexAnim]._vAnimKeys.push_back(akS);
-		_vAnimSets[indexSet]._vAnimations[indexAnim]._vAnimKeys.push_back(akT);
+		_vAnimSets[animSetIndex]._vAnimations[animIndex]._vAnimKeys.push_back(akR);
+		_vAnimSets[animSetIndex]._vAnimations[animIndex]._vAnimKeys.push_back(akS);
+		_vAnimSets[animSetIndex]._vAnimations[animIndex]._vAnimKeys.push_back(akT);
 	}
 	else
 	{
-		_vAnimSets[indexSet]._vAnimations[indexAnim]._vAnimKeys.push_back(ak);
+		_vAnimSets[animSetIndex]._vAnimations[animIndex]._vAnimKeys.push_back(ak);
 	}
 }
 
@@ -1608,51 +1412,6 @@ void ConvertX::ParseBlockData_MeshMaterialList()
 	StreamSkipWhitespace();
 }
 
-ConvertX::PMesh ConvertX::AddMesh(PMesh pMesh)
-{
-	VERUS_QREF_UTILS;
-	VERUS_RT_ASSERT(pMesh);
-	if (FindMesh(_C(pMesh->GetName())))
-	{
-		{
-			StringStream ss;
-			ss << "Mesh with this name (" << pMesh->GetName() << ") already exist FAIL.";
-		}
-
-		do
-		{
-			StringStream ssName;
-			ssName << pMesh->GetName() << "_" << utils.GetRandom().Next();
-			pMesh->SetName(_C(ssName.str()));
-		} while (FindMesh(_C(pMesh->GetName())));
-
-		{
-			StringStream ss;
-			ss << "Mesh renamed to " << pMesh->GetName() << ".";
-		}
-	}
-	_vMesh.push_back(pMesh);
-	return pMesh;
-}
-
-ConvertX::PMesh ConvertX::FindMesh(CSZ name)
-{
-	for (const auto& pMesh : _vMesh)
-	{
-		if (pMesh->GetName() == name)
-			return pMesh;
-	}
-	return nullptr;
-}
-
-void ConvertX::DeleteAll()
-{
-	_vData.clear();
-	for (const auto& pMesh : _vMesh)
-		delete pMesh;
-	_vMesh.clear();
-}
-
 void ConvertX::OnProgress(float percent)
 {
 	if (_pDelegate)
@@ -1697,20 +1456,4 @@ String ConvertX::GetXmlMaterial(int i)
 	if (!_vMaterials[i]._copyOf.empty())
 		return Str::XmlEscape(_C(_vMaterials[i]._copyOf));
 	return Str::XmlEscape(_C(_vMaterials[i]._name));
-}
-
-String ConvertX::RenameBone(CSZ name)
-{
-	char lowName[256];
-	strcpy(lowName, name);
-	Str::ToLower(lowName);
-	VERUS_IF_FOUND_IN(TMapBoneNames, _mapBoneNames, lowName, it)
-	{
-		return it->second;
-	}
-	if (strlen(name) >= 6 && !strncmp(lowName, "bip", 3))
-	{
-		return name + 6;
-	}
-	return name;
 }

@@ -226,11 +226,11 @@ void Atmosphere::Update()
 	{
 		const float time = (count > 1) ? (i / 256.f) : _time;
 		float color[3];
-		SampleSkyColor(208, color, 1); _ambientColor = Vector3::MakeFromPointer(color) * (GetMagnitude(time, 32000, 8000, 4000) * cloudScaleAmb);
+		SampleSkyColor(208, color, 1); _ambientColor = Vector3::MakeFromPointer(color) * (GetMagnitude(time, 64000, 16000, 4000) * cloudScaleAmb);
 		SampleSkyColor(100, color, 1); _fog._color = Vector3::MakeFromPointer(color) * (GetMagnitude(time, 32000, 5000, 300) * cloudScaleFog);
-		SampleSkyColor(240, color, 1); _sun._color = Vector3::MakeFromPointer(color) * (GetMagnitude(time, 40000, 28000, 300) * cloudScaleSun);
+		SampleSkyColor(240, color, 1); _sun._color = Vector3::MakeFromPointer(color) * (GetMagnitude(time, 90000, 60000, 600) * cloudScaleSun);
 		if (count > 1)
-			ssDebug << static_cast<int>(glm::saturation(0.f, _fog._color.GLM()).x) << ", ";
+			ssDebug << static_cast<int>(glm::saturation(0.f, _ambientColor.GLM()).x) << ", ";
 	}
 	const String debug = ssDebug.str();
 
@@ -248,8 +248,8 @@ void Atmosphere::Update()
 		const glm::vec3 grayAmbient = glm::saturation(0.f, _ambientColor.GLM());
 		const glm::vec3 grayFog = glm::saturation(0.f, _fog._color.GLM());
 		const glm::vec3 graySun = glm::saturation(0.f, _sun._color.GLM());
-		VERUS_RT_ASSERT(glm::epsilonEqual<float>(grayAmbient.x, 4000, 400));
-		VERUS_RT_ASSERT(glm::epsilonEqual<float>(graySun.x, 16000, 1600));
+		//VERUS_RT_ASSERT(glm::epsilonEqual<float>(grayAmbient.x, 4000, 400));
+		//VERUS_RT_ASSERT(glm::epsilonEqual<float>(graySun.x, 16000, 1600));
 	}
 #endif
 

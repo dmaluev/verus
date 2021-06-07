@@ -759,6 +759,9 @@
     <ClInclude Include="src\GUI\Bars.h">
       <Filter>src\GUI</Filter>
     </ClInclude>
+    <ClInclude Include="src\ThirdParty\mikktspace.h">
+      <Filter>src\ThirdParty</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -1297,6 +1300,9 @@
     </ClCompile>
     <ClCompile Include="src\GUI\Bars.cpp">
       <Filter>src\GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\mikktspace.c">
+      <Filter>src\ThirdParty</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

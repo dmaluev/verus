@@ -133,7 +133,7 @@ FSO mainFS(VSO si)
 
 	const float3 finalColor = saturate(diff * cloudColor + glow * rimColor * clearSkySoft * 0.25f);
 
-	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * (10.f - 2.f * cloudiness);
+	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * (10.f - 6.f * cloudiness);
 	so.color.rgb = finalColor * hdrScale;
 	so.color.a = alpha;
 
@@ -152,7 +152,7 @@ FSO mainFS(VSO si)
 	const float3 skyColor = rawSky.rgb + rand * lerp(0.001f, 0.01f, rawSky.rgb); // Dithering.
 	const float4 rawStars = g_texStars.Sample(g_samStars, si.tcStars);
 
-	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * (5.5f + 4.5f * sunBoost);
+	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * (4.f + 3.f * sunBoost);
 	so.color = float4(skyColor.rgb * hdrScale + rawStars.rgb * 50.f, 1);
 #endif
 
