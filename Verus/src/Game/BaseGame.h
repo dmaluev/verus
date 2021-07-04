@@ -69,6 +69,7 @@ namespace verus
 
 			static float GetMouseScale();
 
+			bool IsRestartAppRequested() const { return _restartApp; }
 			void RestartApp();
 			void RequestAppRestart();
 		};

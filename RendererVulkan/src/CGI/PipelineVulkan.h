@@ -24,6 +24,7 @@ namespace verus
 			VERUS_P(void InitCompute(RcPipelineDesc desc));
 			bool IsCompute() const { return _compute; }
 			VkPipeline GetVkPipeline() const { return _pipeline; }
+			void FillColorBlendAttachmentStates(RcPipelineDesc desc, int attachmentCount, VkPipelineColorBlendAttachmentState vkpcbas[]);
 		};
 		VERUS_TYPEDEFS(PipelineVulkan);
 	}

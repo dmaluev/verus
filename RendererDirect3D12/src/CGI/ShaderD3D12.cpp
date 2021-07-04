@@ -301,6 +301,8 @@ void ShaderD3D12::CreatePipelineLayout()
 				case ShaderStageFlags::ds: visibility = D3D12_SHADER_VISIBILITY_DOMAIN; break;
 				case ShaderStageFlags::gs: visibility = D3D12_SHADER_VISIBILITY_GEOMETRY; break;
 				case ShaderStageFlags::fs: visibility = D3D12_SHADER_VISIBILITY_PIXEL; break;
+				case ShaderStageFlags::ts: visibility = D3D12_SHADER_VISIBILITY_AMPLIFICATION; break;
+				case ShaderStageFlags::ms: visibility = D3D12_SHADER_VISIBILITY_MESH; break;
 				}
 
 				CD3DX12_DESCRIPTOR_RANGE1 descRange;
@@ -373,6 +375,10 @@ void ShaderD3D12::CreatePipelineLayout()
 			rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 		if (!(stageFlags & ShaderStageFlags::fs))
 			rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+		if (!(stageFlags & ShaderStageFlags::ts))
+			rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS;
+		if (!(stageFlags & ShaderStageFlags::ms))
+			rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 	}
 
 	UpdateDebugInfo(vRootParams, vStaticSamplers, rootSignatureFlags);
@@ -633,6 +639,8 @@ void ShaderD3D12::UpdateDebugInfo(
 		case D3D12_SHADER_VISIBILITY_DOMAIN: ss << "D"; break;
 		case D3D12_SHADER_VISIBILITY_GEOMETRY: ss << "G"; break;
 		case D3D12_SHADER_VISIBILITY_PIXEL: ss << "P"; break;
+		case D3D12_SHADER_VISIBILITY_AMPLIFICATION: ss << "A"; break;
+		case D3D12_SHADER_VISIBILITY_MESH: ss << "M"; break;
 		}
 	};
 
@@ -721,6 +729,10 @@ void ShaderD3D12::UpdateDebugInfo(
 		ss << "[ASO]";
 	if (rootSignatureFlags & D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE)
 		ss << "[LRS]";
+	if (rootSignatureFlags & D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS)
+		ss << "[DASRA]";
+	if (rootSignatureFlags & D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS)
+		ss << "[DMSRA]";
 
 	_debugInfo = ss.str();
 }

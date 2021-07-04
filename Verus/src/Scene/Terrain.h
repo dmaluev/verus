@@ -181,6 +181,9 @@ namespace verus
 
 			struct Desc
 			{
+				CSZ   _heightmapUrl = nullptr;
+				float _heightmapScale = 1;
+				float _heightmapBias = 0;
 				int   _mapSide = 256;
 				int   _layer = 0;
 				short _height = 0;

@@ -58,7 +58,7 @@ void Forest::DoneStatic()
 	s_shader.Done();
 }
 
-void Forest::Init(PTerrain pTerrain)
+void Forest::Init(PTerrain pTerrain, CSZ url)
 {
 	VERUS_INIT();
 
@@ -86,6 +86,52 @@ void Forest::Init(PTerrain pTerrain)
 	_vDrawPlants.resize(_capacity);
 
 	_vCollisionPool.Resize(1000);
+
+	if (url)
+	{
+		Vector<BYTE> vData;
+		IO::FileSystem::LoadResource(url, vData, IO::FileSystem::LoadDesc(true));
+
+		pugi::xml_document doc;
+		const pugi::xml_parse_result result = doc.load_buffer_inplace(vData.data(), vData.size());
+		if (!result)
+			throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+		pugi::xml_node root = doc.first_child();
+
+		for (auto layerNode : root.children("layer"))
+		{
+			const int id = layerNode.attribute("id").as_int();
+			LayerDesc layerDesc;
+			for (auto typeNode : layerNode.children("type"))
+			{
+				const int typeID = typeNode.attribute("id").as_int();
+				SCATTER_TYPE scatterType = SCATTER_TYPE_COUNT;
+				switch (typeID)
+				{
+				case 100: scatterType = SCATTER_TYPE_100; break;
+				case 50:  scatterType = SCATTER_TYPE_50; break;
+				case 25:  scatterType = SCATTER_TYPE_25; break;
+				case 20:  scatterType = SCATTER_TYPE_20; break;
+				case 15:  scatterType = SCATTER_TYPE_15; break;
+				case 10:  scatterType = SCATTER_TYPE_10; break;
+				case 5:   scatterType = SCATTER_TYPE_5; break;
+				case 3:   scatterType = SCATTER_TYPE_3; break;
+				}
+				if (SCATTER_TYPE_COUNT == scatterType)
+					throw VERUS_RECOVERABLE << "Invalid scatterType";
+
+				layerDesc._forType[scatterType].Set(
+					typeNode.text().as_string(),
+					typeNode.attribute("alignToNormal").as_float(1),
+					typeNode.attribute("minScale").as_float(0.5f),
+					typeNode.attribute("maxScale").as_float(1.5f),
+					typeNode.attribute("windBending").as_float(1),
+					typeNode.attribute("allowedNormal").as_int(116));
+			}
+
+			SetLayer(id, layerDesc);
+		}
+	}
 }
 
 void Forest::Done()
@@ -982,8 +1028,8 @@ void Forest::BakeSprite(RPlant plant, CSZ url)
 			Camera cam;
 			cam.MoveEyeTo(Vector3(0, size * 0.5f / _margin, 0) + offset);
 			cam.MoveAtTo(Vector3(0, size * 0.5f / _margin, 0));
-			cam.SetAspectRatio(1);
 			cam.SetYFov(0);
+			cam.SetAspectRatio(1);
 			cam.SetZNear(0);
 			cam.SetZFar(size * 2);
 			cam.SetXMag(size * _margin);
@@ -1041,7 +1087,7 @@ void Forest::BakeSprite(RPlant plant, CSZ url)
 
 		String pathname = _C(plant._mesh.GetUrl());
 		char filename[20];
-		sprintf_s(filename, "GB%d%s.psd", i, ext[i]);
+		sprintf_s(filename, "GB%d%s.tga", i, ext[i]);
 		Str::ReplaceFilename(pathname, filename);
 		pathname = Str::ToPakFriendlyUrl(_C(pathname));
 		pathname = String(url) + '/' + pathname;

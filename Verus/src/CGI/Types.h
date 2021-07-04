@@ -52,7 +52,6 @@ namespace verus
 			float       _depthBiasSlopeFactor = 0;
 			bool        _depthClampEnable = false;
 			bool        _depthBiasEnable = false;
-			bool        _rasterizerDiscardEnable = false;
 		};
 
 		enum class CompareOp : int
@@ -69,12 +68,27 @@ namespace verus
 
 		enum class ShaderStageFlags : UINT32
 		{
-			vs = (1 << 0),
-			hs = (1 << 1),
-			ds = (1 << 2),
-			gs = (1 << 3),
-			fs = (1 << 4),
-			cs = (1 << 5),
+			// Classic pipeline:
+			vs = (1 << 0), // Vertex shader.
+			hs = (1 << 1), // Hull shader. Also known as tessellation control shader.
+			ds = (1 << 2), // Domain shader. Also known as tessellation evaluation shader.
+			gs = (1 << 3), // Geometry shader.
+			fs = (1 << 4), // Fragment shader. Also known as pixel shader.
+
+			cs = (1 << 5), // Compute shader. Also known as kernel shader.
+
+			// Raytracing:
+			rtrg = (1 << 6), // Ray generation shader.
+			rtah = (1 << 7), // Any hit shader.
+			rtch = (1 << 8), // Closest hit shader.
+			rtm = (1 << 9), // Miss shader.
+			rti = (1 << 10), // Intersection shader.
+			rtc = (1 << 11), // Callable shader.
+
+			// Mesh shading pipeline:
+			ts = (1 << 12), // Task shader. Also known as amplification shader.
+			ms = (1 << 13), // Mesh shader.
+
 			vs_fs = vs | fs,
 			vs_hs_ds = vs | hs | ds,
 			vs_hs_ds_fs = vs | hs | ds | fs

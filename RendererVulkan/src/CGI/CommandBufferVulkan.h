@@ -42,8 +42,8 @@ namespace verus
 
 			virtual void Draw(int vertexCount, int instanceCount, int firstVertex, int firstInstance) override;
 			virtual void DrawIndexed(int indexCount, int instanceCount, int firstIndex, int vertexOffset, int firstInstance) override;
-
 			virtual void Dispatch(int groupCountX, int groupCountY, int groupCountZ) override;
+			virtual void TraceRays(int width, int height, int depth) override;
 
 			//
 			// Vulkan

@@ -143,6 +143,18 @@ VkShaderStageFlags CGI::ToNativeStageFlags(ShaderStageFlags stageFlags)
 		ret |= VK_SHADER_STAGE_FRAGMENT_BIT;
 	if (stageFlags & ShaderStageFlags::cs)
 		ret |= VK_SHADER_STAGE_COMPUTE_BIT;
+	if (stageFlags & ShaderStageFlags::rtrg)
+		ret |= VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+	if (stageFlags & ShaderStageFlags::rtah)
+		ret |= VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
+	if (stageFlags & ShaderStageFlags::rtch)
+		ret |= VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+	if (stageFlags & ShaderStageFlags::rtm)
+		ret |= VK_SHADER_STAGE_MISS_BIT_KHR;
+	if (stageFlags & ShaderStageFlags::rti)
+		ret |= VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
+	if (stageFlags & ShaderStageFlags::rtc)
+		ret |= VK_SHADER_STAGE_CALLABLE_BIT_KHR;
 	return ret;
 }
 

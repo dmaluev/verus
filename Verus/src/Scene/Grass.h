@@ -104,6 +104,7 @@ namespace verus
 			VERUS_P(void CreateBuffers());
 
 			void ResetAllTextures();
+			void LoadLayersFromFile(CSZ url = nullptr);
 			void SetTexture(int layer, CSZ url, CSZ url2 = nullptr);
 			VERUS_P(void OnTextureLoaded(int layer));
 			void SaveTexture(CSZ url);

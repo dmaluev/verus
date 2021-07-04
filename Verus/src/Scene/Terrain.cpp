@@ -423,11 +423,17 @@ void Terrain::Init(RcDesc desc)
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 
-	if (!Math::IsPowerOfTwo(desc._mapSide))
-		throw VERUS_RECOVERABLE << "Init(), mapSide must be power of two";
-
 	_mapSide = desc._mapSide;
-	_mapShift = Math::HighestBit(desc._mapSide);
+	IO::Image image;
+	if (desc._heightmapUrl)
+	{
+		image.Init(desc._heightmapUrl);
+		_mapSide = image._width;
+	}
+	_mapShift = Math::HighestBit(_mapSide);
+
+	if (!Math::IsPowerOfTwo(_mapSide))
+		throw VERUS_RECOVERABLE << "Init(), mapSide must be power of two";
 
 	const int patchSide = _mapSide >> 4;
 	const int patchShift = _mapShift - 4;
@@ -449,7 +455,30 @@ void Terrain::Init(RcDesc desc)
 			patch._layerForChannel[0] = desc._layer;
 		}
 	});
-	if (desc._debugHills)
+
+	if (desc._heightmapUrl)
+	{
+		VERUS_P_FOR(i, _mapSide)
+		{
+			VERUS_FOR(j, _mapSide)
+			{
+				const BYTE pix = image._p[((i << _mapShift) + j) * image._bytesPerPixel];
+				const float h = Convert::Uint8ToUnorm(pix) * desc._heightmapScale + desc._heightmapBias;
+				const short hs = Math::Clamp(ConvertHeight(h), -SHRT_MAX, SHRT_MAX);
+				const int ij[] = { i, j };
+				SetHeightAt(ij, hs);
+			}
+		});
+
+		VERUS_FOR(lod, 5)
+		{
+			VERUS_P_FOR(i, Utils::Cast32(_vPatches.size()))
+			{
+				_vPatches[i].UpdateNormals(this, lod);
+			});
+		}
+	}
+	else if (desc._debugHills)
 	{
 		if (desc._debugHills < 0)
 		{

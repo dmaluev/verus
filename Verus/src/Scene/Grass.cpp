@@ -442,6 +442,24 @@ void Grass::ResetAllTextures()
 	_bushMask = 0;
 }
 
+void Grass::LoadLayersFromFile(CSZ url)
+{
+	if (!url)
+		url = "[Misc]:TerrainLayers.xml";
+	Vector<BYTE> vData;
+	IO::FileSystem::LoadResource(url, vData);
+	pugi::xml_document doc;
+	const pugi::xml_parse_result result = doc.load_buffer_inplace(vData.data(), vData.size());
+	if (!result)
+		throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+	pugi::xml_node root = doc.first_child();
+	for (auto node : root.children("grass"))
+	{
+		const int id = node.attribute("id").as_int();
+		SetTexture(id, node.attribute("url").value(), node.attribute("urlEx").value());
+	}
+}
+
 void Grass::SetTexture(int layer, CSZ url, CSZ url2)
 {
 	if (_vTextureSubresData.empty()) // Using DDS?

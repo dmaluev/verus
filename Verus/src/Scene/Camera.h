@@ -27,8 +27,8 @@ namespace verus
 			VERUS_PD(Point3  _atPos = Point3(0, 0, -1));
 			VERUS_PD(Vector3 _upDir = Vector3(0, 1, 0));
 			VERUS_PD(Vector3 _frontDir = Vector3(0, 0, -1));
-			float            _aspectRatio = 1;
 			float            _yFov = VERUS_PI / 4; // Zero FOV means ortho.
+			float            _aspectRatio = 1;
 			float            _zNear = 0.1f; // 10 cm.
 			float            _zFar = 10000; // 10 km.
 			float            _xMag = 80;
@@ -70,11 +70,11 @@ namespace verus
 			RcMatrix4 GetMatrixVP() const { return _matVP; }
 
 			// Perspective:
-			float GetAspectRatio() const { return _aspectRatio; }
-			void SetAspectRatio(float x) { _update |= Update::p; _aspectRatio = x; }
 			float GetYFov() const { return _yFov; }
 			void SetYFov(float x) { _update |= Update::p; _yFov = x; }
-			void SetXFov(float x);
+			void SetXFov(float x); // Set correct aspect ratio before calling this method.
+			float GetAspectRatio() const { return _aspectRatio; }
+			void SetAspectRatio(float x) { _update |= Update::p; _aspectRatio = x; }
 			float GetZNear() const { return _zNear; }
 			void SetZNear(float x) { _update |= Update::p; _zNear = x; }
 			float GetZFar() const { return _zFar; }

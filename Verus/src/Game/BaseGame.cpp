@@ -323,7 +323,7 @@ void BaseGame::Run(bool relativeMouseMode)
 			case CGI::Gapi::vulkan:     gapi = "Vulkan"; break;
 			case CGI::Gapi::direct3D12: gapi = "Direct3D 12"; break;
 			}
-			sprintf_s(title, "[%s] - %.1f FPS", gapi, renderer.GetFps());
+			sprintf_s(title, "GAPI: %s, FPS: %.1f", gapi, renderer.GetFps());
 			SDL_SetWindowTitle(renderer.GetMainWindow()->GetSDL(), title);
 		}
 	} while (!quit); // The Game Loop.

@@ -622,8 +622,8 @@ void Math::Test()
 		Scene::Camera camera;
 		camera.MoveEyeTo(Point3(0, 0, 3));
 		camera.MoveAtTo(Point3(0, 0, 4));
-		camera.SetAspectRatio(1);
 		camera.SetYFov(VERUS_PI * 0.25f);
+		camera.SetAspectRatio(1);
 		camera.SetZNear(0.5f);
 		camera.SetZFar(100);
 		camera.Update();

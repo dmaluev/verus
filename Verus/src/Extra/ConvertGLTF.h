@@ -14,6 +14,8 @@ namespace verus
 				float     _scaleFactor = 1;
 				float     _angle = 0;
 				float     _areaBasedNormals = 0;
+				bool      _flipNormals = false;
+				bool      _flipFaces = false;
 				bool      _useRigidBones = false;
 				bool      _convertAsScene = false;
 			};

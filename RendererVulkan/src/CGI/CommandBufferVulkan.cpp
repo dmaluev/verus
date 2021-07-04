@@ -352,6 +352,11 @@ void CommandBufferVulkan::Dispatch(int groupCountX, int groupCountY, int groupCo
 	vkCmdDispatch(GetVkCommandBuffer(), groupCountX, groupCountY, groupCountZ);
 }
 
+void CommandBufferVulkan::TraceRays(int width, int height, int depth)
+{
+	//vkCmdTraceRaysKHR(GetVkCommandBuffer(), nullptr, nullptr, nullptr, nullptr, width, height, depth);
+}
+
 VkCommandBuffer CommandBufferVulkan::GetVkCommandBuffer() const
 {
 	VERUS_QREF_RENDERER;

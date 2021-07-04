@@ -303,6 +303,20 @@ void CommandBufferD3D12::Dispatch(int groupCountX, int groupCountY, int groupCou
 	GetD3DGraphicsCommandList()->Dispatch(groupCountX, groupCountY, groupCountZ);
 }
 
+void CommandBufferD3D12::DispatchMesh(int groupCountX, int groupCountY, int groupCountZ)
+{
+	//GetD3DGraphicsCommandList()->DispatchMesh(groupCountX, groupCountY, groupCountZ);
+}
+
+void CommandBufferD3D12::TraceRays(int width, int height, int depth)
+{
+	//D3D12_DISPATCH_RAYS_DESC desc = {};
+	//desc.Width = width;
+	//desc.Height = height;
+	//desc.Depth = depth;
+	//GetD3DGraphicsCommandList()->DispatchRays(&desc);
+}
+
 ID3D12GraphicsCommandList3* CommandBufferD3D12::GetD3DGraphicsCommandList() const
 {
 	VERUS_QREF_RENDERER;

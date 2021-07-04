@@ -214,7 +214,7 @@ namespace verus
 			static void InitStatic();
 			static void DoneStatic();
 
-			void Init(PTerrain pTerrain);
+			void Init(PTerrain pTerrain, CSZ url = nullptr);
 			void Done();
 
 			void ResetInstanceCount();

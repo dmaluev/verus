@@ -47,8 +47,9 @@ void ConvertGLTF::ParseData(CSZ pathname)
 
 	LoadFromFile(pathname);
 
+	const String baseDir = IO::FileSystem::ReplaceFilename(pathname, "");
 	std::string err, warn;
-	if (!_context.LoadASCIIFromString(&_model, &err, &warn, _vData.data(), Utils::Cast32(_vData.size()), ""))
+	if (!_context.LoadASCIIFromString(&_model, &err, &warn, _vData.data(), Utils::Cast32(_vData.size()), _C(baseDir)))
 		throw VERUS_RECOVERABLE << "LoadASCIIFromString() failed, err=" << err << ", warn=" << warn;
 
 	_vNodeExtraData.resize(_model.nodes.size());
@@ -265,7 +266,7 @@ void ConvertGLTF::ProcessMesh(const tinygltf::Mesh& mesh, int nodeIndex, int ski
 				OnProgressText(_C(ss.str()));
 			}
 
-			const UINT16* p = reinterpret_cast<const UINT16*>(&buffer.data[bufferView.byteOffset]);
+			const BYTE* p = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
 
 			const int faceCount = static_cast<int>(accessor.count / 3);
 			_pCurrentMesh->SetFaceCount(faceCount);
@@ -274,7 +275,12 @@ void ConvertGLTF::ProcessMesh(const tinygltf::Mesh& mesh, int nodeIndex, int ski
 			{
 				Mesh::Face face;
 				VERUS_FOR(i, 3)
-					face._indices[i] = p[faceIndex * 3 + i];
+				{
+					const UINT16* pSrc = reinterpret_cast<const UINT16*>(p + byteStride * (faceIndex * 3 + i));
+					face._indices[i] = *pSrc;
+				}
+				if (_desc._flipFaces)
+					std::swap(face._indices[1], face._indices[2]);
 				_pCurrentMesh->GetSetFaceAt(faceIndex) = face;
 			}
 			_pCurrentMesh->AddFoundFlag(Mesh::Found::faces);
@@ -301,13 +307,14 @@ void ConvertGLTF::ProcessMesh(const tinygltf::Mesh& mesh, int nodeIndex, int ski
 					OnProgressText(_C(ss.str()));
 				}
 
-				const float* p = reinterpret_cast<const float*>(&buffer.data[bufferView.byteOffset]);
+				const BYTE* p = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
 
 				const int vertCount = Utils::Cast32(accessor.count);
 				TryResizeVertsArray(vertCount);
 				VERUS_FOR(vertIndex, vertCount)
 				{
-					glm::vec3 pos = glm::make_vec3(p + vertIndex * 3);
+					const float* pSrc = reinterpret_cast<const float*>(p + byteStride * vertIndex);
+					glm::vec3 pos = glm::make_vec3(pSrc);
 					pos = glm::vec3(_pCurrentMesh->GetGlobalMatrix() * glm::vec4(pos, 1));
 					_pCurrentMesh->GetSetVertexAt(vertIndex)._pos = pos;
 				}
@@ -327,15 +334,18 @@ void ConvertGLTF::ProcessMesh(const tinygltf::Mesh& mesh, int nodeIndex, int ski
 					OnProgressText(_C(ss.str()));
 				}
 
-				const float* p = reinterpret_cast<const float*>(&buffer.data[bufferView.byteOffset]);
+				const BYTE* p = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
 
 				const int vertCount = Utils::Cast32(accessor.count);
 				TryResizeVertsArray(vertCount);
 				VERUS_FOR(vertIndex, vertCount)
 				{
-					glm::vec3 nrm = glm::make_vec3(p + vertIndex * 3);
+					const float* pSrc = reinterpret_cast<const float*>(p + byteStride * vertIndex);
+					glm::vec3 nrm = glm::make_vec3(pSrc);
 					nrm = glm::vec3(_pCurrentMesh->GetGlobalMatrix() * glm::vec4(nrm, 0));
 					nrm = glm::normalize(nrm);
+					if (_desc._flipNormals)
+						nrm = -nrm;
 					_pCurrentMesh->GetSetVertexAt(vertIndex)._nrm = nrm;
 				}
 				_pCurrentMesh->AddFoundFlag(Mesh::Found::normals);
@@ -355,13 +365,14 @@ void ConvertGLTF::ProcessMesh(const tinygltf::Mesh& mesh, int nodeIndex, int ski
 					OnProgressText(_C(ss.str()));
 				}
 
-				const float* p = reinterpret_cast<const float*>(&buffer.data[bufferView.byteOffset]);
+				const BYTE* p = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
 
 				const int vertCount = Utils::Cast32(accessor.count);
 				TryResizeVertsArray(vertCount);
 				VERUS_FOR(vertIndex, vertCount)
 				{
-					const glm::vec2 tc = glm::make_vec2(p + vertIndex * 2);
+					const float* pSrc = reinterpret_cast<const float*>(p + byteStride * vertIndex);
+					const glm::vec2 tc = glm::make_vec2(pSrc);
 					_pCurrentMesh->GetSetVertexAt(vertIndex)._tc0 = tc;
 				}
 				_pCurrentMesh->AddFoundFlag(Mesh::Found::posAndTexCoord0);
@@ -381,7 +392,7 @@ void ConvertGLTF::ProcessMesh(const tinygltf::Mesh& mesh, int nodeIndex, int ski
 					OnProgressText(_C(ss.str()));
 				}
 
-				const BYTE* p = reinterpret_cast<const BYTE*>(&buffer.data[bufferView.byteOffset]);
+				const BYTE* p = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
 
 				const int vertCount = Utils::Cast32(accessor.count);
 				TryResizeVertsArray(vertCount);
@@ -389,7 +400,7 @@ void ConvertGLTF::ProcessMesh(const tinygltf::Mesh& mesh, int nodeIndex, int ski
 				VERUS_FOR(vertIndex, vertCount)
 				{
 					VERUS_FOR(i, 4)
-						vBlendIndices[vertIndex][i] = p[vertIndex * 4 + i] + _pCurrentMesh->GetBoneCount();
+						vBlendIndices[vertIndex][i] = p[byteStride * vertIndex + i] + _pCurrentMesh->GetBoneCount();
 				}
 			}
 			if (attr.first == "WEIGHTS_0")
@@ -407,13 +418,16 @@ void ConvertGLTF::ProcessMesh(const tinygltf::Mesh& mesh, int nodeIndex, int ski
 					OnProgressText(_C(ss.str()));
 				}
 
-				const float* p = reinterpret_cast<const float*>(&buffer.data[bufferView.byteOffset]);
+				const BYTE* p = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
 
 				const int vertCount = Utils::Cast32(accessor.count);
 				TryResizeVertsArray(vertCount);
 				vBlendWeights.resize(vertCount);
 				VERUS_FOR(vertIndex, vertCount)
-					vBlendWeights[vertIndex] = glm::make_vec4(p + vertIndex * 4);
+				{
+					const float* pSrc = reinterpret_cast<const float*>(p + byteStride * vertIndex);
+					vBlendWeights[vertIndex] = glm::make_vec4(pSrc);
+				}
 			}
 
 			if (!vBlendIndices.empty() && !vBlendWeights.empty())
@@ -565,6 +579,16 @@ void ConvertGLTF::ProcessAnimation(const tinygltf::Animation& an)
 
 		progress++;
 	}
+
+	// Remove empty:
+	_vAnimSets[animSetIndex]._vAnimations.erase(std::remove_if(
+		_vAnimSets[animSetIndex]._vAnimations.begin(),
+		_vAnimSets[animSetIndex]._vAnimations.end(),
+		[](const Animation& anim)
+		{
+			return anim._vAnimKeys.empty();
+		}),
+		_vAnimSets[animSetIndex]._vAnimations.end());
 
 	// Convert data to bone space:
 	progress = 0;

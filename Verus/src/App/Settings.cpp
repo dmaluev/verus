@@ -29,6 +29,11 @@ bool QualitySettings::operator==(RcQualitySettings that) const
 		_sceneWaterQuality == that._sceneWaterQuality;
 }
 
+bool QualitySettings::operator!=(RcQualitySettings that) const
+{
+	return !(*this == that);
+}
+
 void QualitySettings::SetQuality(OverallQuality q)
 {
 	if (OverallQuality::custom == q)

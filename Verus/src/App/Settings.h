@@ -62,6 +62,7 @@ namespace verus
 			WaterQuality _sceneWaterQuality = WaterQuality::solidColor;
 
 			bool operator==(const QualitySettings& that) const;
+			bool operator!=(const QualitySettings& that) const;
 
 			void SetQuality(OverallQuality q);
 			OverallQuality DetectQuality() const;
