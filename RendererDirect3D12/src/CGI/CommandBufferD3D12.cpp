@@ -120,7 +120,7 @@ void CommandBufferD3D12::EndRenderPass()
 {
 	auto pCmdList = GetD3DGraphicsCommandList();
 
-	CD3DX12_RESOURCE_BARRIER barriers[VERUS_MAX_RT];
+	CD3DX12_RESOURCE_BARRIER barriers[VERUS_MAX_CA];
 	int barrierCount = 0;
 	int index = 0;
 	for (const auto& attachment : _pRenderPass->_vAttachments)
@@ -138,7 +138,7 @@ void CommandBufferD3D12::EndRenderPass()
 			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[index], attachment._finalState, subresource);
 		}
 		index++;
-		if (VERUS_MAX_RT == barrierCount)
+		if (VERUS_MAX_CA == barrierCount)
 		{
 			pCmdList->ResourceBarrier(barrierCount, barriers);
 			barrierCount = 0;
@@ -157,16 +157,17 @@ void CommandBufferD3D12::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilte
 	auto& geoD3D12 = static_cast<RGeometryD3D12>(*geo);
 	D3D12_VERTEX_BUFFER_VIEW views[VERUS_MAX_VB];
 	const int count = geoD3D12.GetVertexBufferCount();
-	int at = 0;
+	int filteredCount = 0;
 	VERUS_FOR(i, count)
 	{
 		if ((bindingsFilter >> i) & 0x1)
 		{
-			views[at] = *geoD3D12.GetD3DVertexBufferView(i);
-			at++;
+			VERUS_RT_ASSERT(filteredCount < VERUS_MAX_VB);
+			views[filteredCount] = *geoD3D12.GetD3DVertexBufferView(i);
+			filteredCount++;
 		}
 	}
-	GetD3DGraphicsCommandList()->IASetVertexBuffers(0, at, views);
+	GetD3DGraphicsCommandList()->IASetVertexBuffers(0, filteredCount, views);
 }
 
 void CommandBufferD3D12::BindIndexBuffer(GeometryPtr geo)
@@ -200,7 +201,8 @@ void CommandBufferD3D12::SetViewport(std::initializer_list<Vector4> il, float mi
 		_viewportSize = Vector4(w, h, 1 / w, 1 / h);
 	}
 
-	CD3DX12_VIEWPORT vpD3D12[VERUS_MAX_RT];
+	VERUS_RT_ASSERT(il.size() <= VERUS_MAX_CA);
+	CD3DX12_VIEWPORT vpD3D12[VERUS_MAX_CA];
 	int count = 0;
 	for (const auto& rc : il)
 		vpD3D12[count++] = CD3DX12_VIEWPORT(rc.getX(), rc.getY(), rc.Width(), rc.Height(), minDepth, maxDepth);
@@ -209,7 +211,8 @@ void CommandBufferD3D12::SetViewport(std::initializer_list<Vector4> il, float mi
 
 void CommandBufferD3D12::SetScissor(std::initializer_list<Vector4> il)
 {
-	CD3DX12_RECT rcD3D12[VERUS_MAX_RT];
+	VERUS_RT_ASSERT(il.size() <= VERUS_MAX_CA);
+	CD3DX12_RECT rcD3D12[VERUS_MAX_CA];
 	int count = 0;
 	for (const auto& rc : il)
 		rcD3D12[count++] = CD3DX12_RECT(
@@ -346,6 +349,7 @@ void CommandBufferD3D12::PrepareSubpass()
 		const auto& ref = subpass._vInput[i];
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
+			VERUS_RT_ASSERT(barrierCount < VERUS_MAX_FB_ATTACH);
 			const auto& resources = fs._vResources[resIndex];
 			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state, subresource);
 			_vAttachmentStates[ref._index] = ref._state;
@@ -357,6 +361,7 @@ void CommandBufferD3D12::PrepareSubpass()
 		const auto& ref = subpass._vColor[i];
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
+			VERUS_RT_ASSERT(barrierCount < VERUS_MAX_FB_ATTACH);
 			const auto& resources = fs._vResources[resIndex];
 			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state, subresource);
 			_vAttachmentStates[ref._index] = ref._state;
@@ -368,6 +373,7 @@ void CommandBufferD3D12::PrepareSubpass()
 		const auto& ref = subpass._depthStencil;
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
+			VERUS_RT_ASSERT(barrierCount < VERUS_MAX_FB_ATTACH);
 			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(fs._vResources.back(), _vAttachmentStates[ref._index], ref._state, subresource);
 			_vAttachmentStates[ref._index] = ref._state;
 		}

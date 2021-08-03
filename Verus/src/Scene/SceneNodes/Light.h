@@ -17,7 +17,7 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(LightData);
 
-		//! Light is a scene node with light's info.
+		// Light is a scene node with light's info.
 		class Light : public SceneNode
 		{
 			LightData    _data;

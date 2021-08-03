@@ -130,7 +130,7 @@ Skeleton::PBone Skeleton::FindBoneByIndex(int index)
 	return nullptr;
 }
 
-void Skeleton::ApplyMotion(RMotion motion, float time, int alphaMotionCount, PAlphaMotion pAlphaMotions)
+void Skeleton::ApplyMotion(RMotion motion, float time, int layeredMotionCount, PLayeredMotion pLayeredMotions)
 {
 	if (_ragdollMode)
 	{
@@ -168,8 +168,8 @@ void Skeleton::ApplyMotion(RMotion motion, float time, int alphaMotionCount, PAl
 	if (_pCurrentMotion->IsReversed())
 		_currentTime = _pCurrentMotion->GetNativeDuration() - _currentTime;
 
-	_alphaMotionCount = alphaMotionCount;
-	_pAlphaMotions = pAlphaMotions;
+	_layeredMotionCount = layeredMotionCount;
+	_pLayeredMotions = pLayeredMotions;
 
 	ResetBones();
 	for (auto& kv : _mapBones)
@@ -185,10 +185,10 @@ void Skeleton::ApplyMotion(RMotion motion, float time, int alphaMotionCount, PAl
 
 	// Reset blend motion!
 	motion.BindBlendMotion(nullptr, 0);
-	VERUS_FOR(i, _alphaMotionCount)
+	VERUS_FOR(i, _layeredMotionCount)
 	{
-		if (_pAlphaMotions[i]._pMotion)
-			_pAlphaMotions[i]._pMotion->BindBlendMotion(nullptr, 0);
+		if (_pLayeredMotions[i]._pMotion)
+			_pLayeredMotions[i]._pMotion->BindBlendMotion(nullptr, 0);
 	}
 }
 
@@ -233,32 +233,32 @@ void Skeleton::RecursiveBoneUpdate()
 		pMotionBone->ComputeScaleAt(_currentTime, scale);
 
 		// Blend with other motions:
-		VERUS_FOR(i, _alphaMotionCount)
+		VERUS_FOR(i, _layeredMotionCount)
 		{
-			if (!_pAlphaMotions[i]._pMotion)
+			if (!_pLayeredMotions[i]._pMotion)
 				continue;
 
-			PMotion pAlphaMotion = _pAlphaMotions[i]._pMotion;
-			Motion::PBone pAlphaBone = pAlphaMotion->FindBone(_C(pCurrentBone->_name));
-			const float alpha = _pAlphaMotions[i]._alpha;
-			float time = _pAlphaMotions[i]._time * pAlphaMotion->GetPlaybackSpeed(); // To native time.
-			if (pAlphaMotion->IsReversed())
-				time = pAlphaMotion->GetNativeDuration() - time;
-			if (pAlphaBone && alpha > 0 &&
-				(pCurrentBone->_name == _pAlphaMotions[i]._rootBone ||
-					IsParentOf(_C(pCurrentBone->_name), _pAlphaMotions[i]._rootBone)))
+			PMotion pLayeredMotion = _pLayeredMotions[i]._pMotion;
+			Motion::PBone pLayeredBone = pLayeredMotion->FindBone(_C(pCurrentBone->_name));
+			const float alpha = _pLayeredMotions[i]._alpha;
+			float time = _pLayeredMotions[i]._time * pLayeredMotion->GetPlaybackSpeed(); // To native time.
+			if (pLayeredMotion->IsReversed())
+				time = pLayeredMotion->GetNativeDuration() - time;
+			if (pLayeredBone && alpha > 0 &&
+				(pCurrentBone->_name == _pLayeredMotions[i]._rootBone ||
+					IsParentOf(_C(pCurrentBone->_name), _pLayeredMotions[i]._rootBone)))
 			{
-				// Alpha motion can also be in blend state.
-				Quat qA;
-				Vector3 scaleA, eulerA, posA;
-				pAlphaBone->ComputeRotationAt(time, eulerA, qA);
-				pAlphaBone->ComputePositionAt(time, posA);
-				pAlphaBone->ComputeScaleAt(time, scaleA);
+				// Layered motion can also be in blend state.
+				Quat qL;
+				Vector3 scaleL, eulerL, posL;
+				pLayeredBone->ComputeRotationAt(time, eulerL, qL);
+				pLayeredBone->ComputePositionAt(time, posL);
+				pLayeredBone->ComputeScaleAt(time, scaleL);
 
-				// Mix with alpha motion:
-				q = VMath::slerp(alpha, q, qA);
-				pos = VMath::lerp(alpha, pos, posA);
-				scale = VMath::lerp(alpha, scale, scaleA);
+				// Mix with layered motion:
+				q = VMath::slerp(alpha, q, qL);
+				pos = VMath::lerp(alpha, pos, posL);
+				scale = VMath::lerp(alpha, scale, scaleL);
 			}
 		}
 

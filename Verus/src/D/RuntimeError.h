@@ -5,7 +5,7 @@ namespace verus
 {
 	namespace D
 	{
-		//! See: https://marknelson.us/posts/2007/11/13/no-exceptions.html
+		// See: https://marknelson.us/posts/2007/11/13/no-exceptions.html
 		class RuntimeError : public std::exception
 		{
 			mutable StringStream _ss;

@@ -5,7 +5,7 @@ namespace verus
 {
 	namespace Scene
 	{
-		//! Basic camera without extra features. For shadow map computations, etc.
+		// Basic camera without extra features. For shadow map computations, etc.
 		class Camera
 		{
 		protected:
@@ -100,14 +100,14 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(Camera);
 
-		//! The interface for getting the cursor's position.
+		// The interface for getting the cursor's position.
 		struct CursorPosProvider
 		{
 			virtual void GetPos(int& x, int& y) = 0;
 		};
 		VERUS_TYPEDEFS(CursorPosProvider);
 
-		//! More advanced camera, used to show the world to the user. With motion blur.
+		// More advanced camera, used to show the world to the user. With motion blur.
 		class MainCamera : public Camera
 		{
 			Matrix4            _matPrevVP = Matrix4::identity(); // For motion blur.

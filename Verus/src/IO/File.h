@@ -5,8 +5,7 @@ namespace verus
 {
 	namespace IO
 	{
-		//! Treat a file as a stream.
-		//!
+		// Treat a file as a stream.
 		class File : public SeekableStream
 		{
 			FILE* _pFile = nullptr;

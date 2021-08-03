@@ -5,17 +5,17 @@ namespace verus
 {
 	namespace Scene
 	{
-		//! SceneNode is an element of the scene manager container.
-		//! * has a name
-		//! * can be parent or child
-		//! * has generic parameters
-		//! * has bounds
+		// SceneNode is an element of the scene manager container.
+		// * has a name
+		// * can be parent or child
+		// * has generic parameters
+		// * has bounds
 		class SceneNode : public AllocatorAware, public Physics::UserPtr
 		{
 		protected:
-			Transform3     _tr = Transform3::identity(); //!< Main transformation matrix.
-			Vector3        _uiRotation = Vector3(0); //!< User-friendly rotation used in editor's UI.
-			Vector3        _uiScale = Vector3(1, 1, 1); //!< User-friendly scale used in editor's UI.
+			Transform3     _tr = Transform3::identity(); // Main transformation matrix.
+			Vector3        _uiRotation = Vector3(0); // User-friendly rotation used in editor's UI.
+			Vector3        _uiScale = Vector3(1, 1, 1); // User-friendly scale used in editor's UI.
 			Math::Bounds   _bounds;
 			IO::Dictionary _dict;
 			String         _name;
@@ -24,7 +24,7 @@ namespace verus
 			NodeType       _type = NodeType::unknown;
 			bool           _dynamic = false;
 			bool           _hidden = false;
-			bool           _octreeBindOnce = false; //!< Don't rebind this node after every bounds change.
+			bool           _octreeBindOnce = false; // Don't rebind this node after every bounds change.
 			bool           _selected = false;
 			bool           _transient = false;
 
@@ -71,9 +71,9 @@ namespace verus
 			virtual void RestoreTransform(RcTransform3 tr, RcVector3 rot, RcVector3 scale);
 			VERUS_P(void ComputeTransform());
 
-			Point3 GetPosition() const; //!< Gets the position from the main transformation matrix.
-			Vector3 GetRotation() const; //!< Gets the user-friendly rotation.
-			Vector3 GetScale() const; //!< Gets the user-friendly scale.
+			Point3 GetPosition() const; // Gets the position from the main transformation matrix.
+			Vector3 GetRotation() const; // Gets the user-friendly rotation.
+			Vector3 GetScale() const; // Gets the user-friendly scale.
 			virtual void MoveTo(RcPoint3 pos);
 			virtual void RotateTo(RcVector3 v);
 			virtual void ScaleTo(RcVector3 v);

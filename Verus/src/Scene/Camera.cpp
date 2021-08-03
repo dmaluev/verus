@@ -47,13 +47,7 @@ void Camera::Update()
 void Camera::UpdateView()
 {
 	_frontDir = VMath::normalizeApprox(_atPos - _eyePos);
-#ifdef VERUS_COMPARE_MODE
-	_frontDir = VMath::normalizeApprox(Vector3(glm::round(m_dirFront.GLM() * glm::vec3(4, 4, 4))));
-	_eyePos = Point3(int(_eyePos.getX()), int(_eyePos.getY()), int(_eyePos.getZ()));
-	_matV = Matrix4::lookAt(_eyePos, _eyePos + _frontDir, _upDir);
-#else
 	_matV = Matrix4::lookAt(_eyePos, _atPos, _upDir);
-#endif
 	_matVi = VMath::orthoInverse(_matV);
 }
 

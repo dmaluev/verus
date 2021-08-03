@@ -3,7 +3,7 @@
 
 namespace verus
 {
-	//! This allocator will reserve aligned memory blocks.
+	// This allocator will reserve aligned memory blocks.
 	class AlignedAllocator : public BaseAllocator
 	{
 		INT64 _memUsedTotal = 0;

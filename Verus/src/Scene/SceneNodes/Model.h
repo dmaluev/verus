@@ -5,10 +5,10 @@ namespace verus
 {
 	namespace Scene
 	{
-		//! Model is an element of the scene manager container
-		//! * has a mesh
-		//! * has a material
-		//! * has generic parameters
+		// Model is an element of the scene manager container
+		// * has a mesh
+		// * has a material
+		// * has generic parameters
 		class Model : public Object
 		{
 			Mesh           _mesh;

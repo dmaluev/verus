@@ -1175,7 +1175,7 @@ FBHandle RendererVulkan::CreateFramebuffer(RPHandle renderPassHandle, std::initi
 {
 	VkResult res = VK_SUCCESS;
 
-	VkImageView imageViews[VERUS_MAX_RT] = {};
+	VkImageView imageViews[VERUS_MAX_FB_ATTACH] = {};
 	VkFramebuffer framebuffer = VK_NULL_HANDLE;
 	VkFramebufferCreateInfo vkfci = {};
 	vkfci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -1188,6 +1188,7 @@ FBHandle RendererVulkan::CreateFramebuffer(RPHandle renderPassHandle, std::initi
 	}
 	for (const auto& x : il)
 	{
+		VERUS_RT_ASSERT(count < VERUS_MAX_FB_ATTACH);
 		auto& texVulkan = static_cast<RTextureVulkan>(*x);
 		switch (cubeMapFace)
 		{

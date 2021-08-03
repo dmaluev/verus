@@ -5,10 +5,9 @@ namespace verus
 {
 	namespace GUI
 	{
-		//! Module for drawing texture-based fonts.
-
-		//! Use AngelCode Bitmap Font Generator to create required files.
-		//! Geometry uses -32767 to 32767 short texture coordinates.
+		// Module for drawing texture-based fonts.
+		// Use AngelCode Bitmap Font Generator to create required files.
+		// Geometry uses -32767 to 32767 short texture coordinates.
 		class Font : public Object
 		{
 		public:

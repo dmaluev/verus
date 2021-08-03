@@ -244,7 +244,7 @@ void StreamPlayer::ThreadProc()
 						int processed;
 						alGetSourcei(_source, AL_BUFFERS_PROCESSED, &processed);
 
-#ifdef VERUS_RELEASE_DEBUG
+#ifdef _DEBUG
 						char debug[80];
 						sprintf_s(debug, "ThreadProc() processed=%d", processed);
 						VERUS_LOG_DEBUG(debug);

@@ -10,8 +10,8 @@ namespace verus
 			GeometryPtr                _geometry;
 			ShaderPtr                  _shader;
 			CSZ                        _shaderBranch = nullptr;
-			String                     _colorAttachBlendEqs[VERUS_MAX_RT];
-			String                     _colorAttachWriteMasks[VERUS_MAX_RT];
+			String                     _colorAttachBlendEqs[VERUS_MAX_CA];
+			String                     _colorAttachWriteMasks[VERUS_MAX_CA];
 			PipelineRasterizationState _rasterizationState;
 			PrimitiveTopology          _topology = PrimitiveTopology::triangleList;
 			int                        _sampleCount = 1;

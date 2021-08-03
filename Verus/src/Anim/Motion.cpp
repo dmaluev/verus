@@ -1268,3 +1268,17 @@ int Motion::GetLastKeyframe() const
 		frame = Math::Max(frame, it->second.GetLastKeyframe());
 	return frame;
 }
+
+bool Motion::ExtractNestBone(CSZ name, SZ nestBone)
+{
+	CSZ pBegin = strstr(name, "[");
+	CSZ pEnd = strstr(name, "]:");
+	if (pBegin && pEnd && pBegin < pEnd)
+	{
+		const size_t count = pEnd - pBegin - 1;
+		strncpy(nestBone, pBegin + 1, count);
+		nestBone[count] = 0;
+		return true;
+	}
+	return false;
+}

@@ -3,7 +3,7 @@
 
 namespace verus
 {
-	//! Objects of this class will use the allocator provided by Utils.
+	// Objects of this class will use the allocator provided by Utils.
 	class AllocatorAware
 	{
 	public:

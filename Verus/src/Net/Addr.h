@@ -5,7 +5,7 @@ namespace verus
 {
 	namespace Net
 	{
-		//! Holds IP address and port.
+		// Holds IP address and port.
 		class Addr
 		{
 		public:
@@ -22,13 +22,13 @@ namespace verus
 
 			bool operator==(const Addr& that) const;
 
-			//! Returns localhost address 127.0.0.1.
+			// Returns localhost address 127.0.0.1.
 			static Addr Localhost(int port = 0);
 
 			bool IsNull() const { return !_addr || !_port; }
 			bool IsLocalhost() const;
 
-			//! Accepts IP:Port or URL, which is resolved using getaddrinfo().
+			// Accepts IP:Port or URL, which is resolved using getaddrinfo().
 			void FromString(CSZ addr);
 			String ToString(bool addPort = false) const;
 

@@ -3,7 +3,7 @@
 
 namespace verus
 {
-	//! Custom allocator for the Standard Template Library. Will try to use the allocator provided by Utils.
+	// Custom allocator for the Standard Template Library. Will try to use the allocator provided by Utils.
 	template<typename T>
 	class AllocatorAwareSTL
 	{
@@ -72,14 +72,14 @@ namespace verus
 		}
 	};
 
-	//! This function will compare two allocators.
+	// This function will compare two allocators.
 	template<typename T>
 	bool operator==(const AllocatorAwareSTL<T>& l, const AllocatorAwareSTL<T>& r)
 	{
 		return true;
 	}
 
-	//! This function will compare two allocators.
+	// This function will compare two allocators.
 	template<typename T>
 	bool operator!=(const AllocatorAwareSTL<T>& l, const AllocatorAwareSTL<T>& r)
 	{

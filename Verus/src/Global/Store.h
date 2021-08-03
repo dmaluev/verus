@@ -3,18 +3,15 @@
 
 namespace verus
 {
-	//! A convenient way to store a collection of objects.
-
-	//! It's a good idea not to use new/delete explicitly. Use STL allocator.
-	//! 'Unique' class uses map and supports reference counting.
-	//! The Insert method returns a raw pointer which should be wrapped inside a Ptr.
-	//!
-	//! Types of pointers:
-	//! - raw pointer - very dumb, no automatic initialization.
-	//! - Ptr wrapper - like a smart pointer, but even smarter.
-	//! - Pwn wrapper - owning Ptr, basically calls Done in destructor.
-	//! Use Ptr for function parameters. Use Pwn for class members.
-	//!
+	// A convenient way to store a collection of objects.
+	// It's a good idea not to use new/delete explicitly. Use STL allocator.
+	// 'Unique' class uses map and supports reference counting.
+	// The Insert method returns a raw pointer which should be wrapped inside a Ptr.
+	// Types of pointers:
+	// - raw pointer - very dumb, no automatic initialization.
+	// - Ptr wrapper - like a smart pointer, but even smarter.
+	// - Pwn wrapper - owning Ptr, basically calls Done in destructor.
+	// Use Ptr for function parameters. Use Pwn for class members.
 	template<typename TValue>
 	class Store
 	{

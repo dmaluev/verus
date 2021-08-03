@@ -84,15 +84,16 @@ void CommandBufferVulkan::BeginRenderPass(RPHandle renderPassHandle, FBHandle fr
 	vkrpbi.framebuffer = framebuffer._framebuffer;
 	vkrpbi.renderArea.extent.width = framebuffer._width;
 	vkrpbi.renderArea.extent.height = framebuffer._height;
-	VkClearValue clearValue[VERUS_MAX_FB_ATTACH] = {};
+	VkClearValue clearValues[VERUS_MAX_FB_ATTACH] = {};
+	VERUS_RT_ASSERT(ilClearValues.size() <= VERUS_MAX_FB_ATTACH);
 	int count = 0;
 	for (const auto& x : ilClearValues)
 	{
-		memcpy(clearValue[count].color.float32, x.ToPointer(), sizeof(clearValue[count].color.float32));
+		memcpy(clearValues[count].color.float32, x.ToPointer(), sizeof(clearValues[count].color.float32));
 		count++;
 	}
 	vkrpbi.clearValueCount = count;
-	vkrpbi.pClearValues = clearValue;
+	vkrpbi.pClearValues = clearValues;
 	vkCmdBeginRenderPass(GetVkCommandBuffer(), &vkrpbi, VK_SUBPASS_CONTENTS_INLINE);
 	if (setViewportAndScissor)
 	{
@@ -118,17 +119,18 @@ void CommandBufferVulkan::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilt
 	VkBuffer buffers[VERUS_MAX_VB];
 	VkDeviceSize offsets[VERUS_MAX_VB];
 	const int count = geoVulkan.GetVertexBufferCount();
-	int at = 0;
+	int filteredCount = 0;
 	VERUS_FOR(i, count)
 	{
 		if ((bindingsFilter >> i) & 0x1)
 		{
-			buffers[at] = geoVulkan.GetVkVertexBuffer(i);
-			offsets[at] = geoVulkan.GetVkVertexBufferOffset(i);
-			at++;
+			VERUS_RT_ASSERT(filteredCount < VERUS_MAX_VB);
+			buffers[filteredCount] = geoVulkan.GetVkVertexBuffer(i);
+			offsets[filteredCount] = geoVulkan.GetVkVertexBufferOffset(i);
+			filteredCount++;
 		}
 	}
-	vkCmdBindVertexBuffers(GetVkCommandBuffer(), 0, at, buffers, offsets);
+	vkCmdBindVertexBuffers(GetVkCommandBuffer(), 0, filteredCount, buffers, offsets);
 }
 
 void CommandBufferVulkan::BindIndexBuffer(GeometryPtr geo)
@@ -156,7 +158,8 @@ void CommandBufferVulkan::SetViewport(std::initializer_list<Vector4> il, float m
 		_viewportSize = Vector4(w, h, 1 / w, 1 / h);
 	}
 
-	VkViewport vpVulkan[VERUS_MAX_RT];
+	VERUS_RT_ASSERT(il.size() <= VERUS_MAX_CA);
+	VkViewport vpVulkan[VERUS_MAX_CA];
 	int count = 0;
 	for (const auto& rc : il)
 	{
@@ -173,7 +176,8 @@ void CommandBufferVulkan::SetViewport(std::initializer_list<Vector4> il, float m
 
 void CommandBufferVulkan::SetScissor(std::initializer_list<Vector4> il)
 {
-	VkRect2D rcVulkan[VERUS_MAX_RT];
+	VERUS_RT_ASSERT(il.size() <= VERUS_MAX_CA);
+	VkRect2D rcVulkan[VERUS_MAX_CA];
 	int count = 0;
 	for (const auto& rc : il)
 	{

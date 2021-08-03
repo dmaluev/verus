@@ -5,24 +5,17 @@ namespace verus
 {
 	namespace Anim
 	{
-		//! Warp manages sphere-based deformations to create such effects like dangling and speech.
-
-		//! Any other part of the mesh can also be deformed.
-		//! Warp's zone objects (Zone) can use motion object or can simulate spring physics,
-		//! for example to simulate female's breast. Warp class includes a function to
-		//! convert special audio files to motion (ConvertAudioToMotion()).
-		//!
-		//! If there is a filename.wav, containing character's speech, some additional
-		//! files must be created:
-		//! 1. filename_Jaw.wav; effects: Stretch 400, Dynamic 10 Gate, 8000 8-bit.
-		//! 2. filename_O.wav; effects: Low pass 5000Hz, Keep O noise, Dynamic 10 Gate,
-		//!    8000 8-bit.
-		//! 3. filename_S.wav; effects: Keep S noise, Dynamic 10 Gate, Stretch 400,
-		//!    8000 8-bit.
-		//!
-		//! Motion should be applied to the skeleton before it will be used in Update()
-		//! method. Then _skeletonReady can be set to true for the mesh.
-		//!
+		// Warp manages sphere-based deformations to create such effects like dangling and speech.
+		// Any other part of the mesh can also be deformed.
+		// Warp's zone objects can use motion object or can simulate spring physics,
+		// for example to simulate female's breast.
+		// Warp class includes a function to convert special audio files to motion.
+		// If there is a filename.wav, containing character's speech, some additional files must be created:
+		// 1. filename_Jaw.wav; effects: Stretch 400, Dynamic 10 Gate, 8000 8-bit.
+		// 2. filename_O.wav; effects: Low pass 5000Hz, Keep O noise, Dynamic 10 Gate, 8000 8-bit.
+		// 3. filename_S.wav; effects: Keep S noise, Dynamic 10 Gate, Stretch 400, 8000 8-bit.
+		// Motion should be applied to the skeleton before it will be used in Update() method.
+		// Then _skeletonReady can be set to true for the mesh.
 		class Warp : public Object
 		{
 		public:

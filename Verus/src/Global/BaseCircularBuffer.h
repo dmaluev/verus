@@ -3,7 +3,7 @@
 
 namespace verus
 {
-	//! Uses a single, fixed-size buffer as if it was connected end-to-end.
+	// Uses a single, fixed-size buffer as if it was connected end-to-end.
 	class BaseCircularBuffer
 	{
 		BYTE* _pBase = nullptr;

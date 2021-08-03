@@ -128,14 +128,14 @@ namespace verus
 			int ReservePlayer();
 			void CancelReservation(int id);
 
-			//! Writes the report into the send buffer for some or all players. This will eventually send this report.
-			//! \param id Player's ID. Use -1 to send the report to all players. Server cannot send the report to itself.
-			//! \param p Pointer to report's data. Must not be less than the size of the report.
-			//! \param deferred Will send it as soon as possible if false.
+			// Writes the report into the send buffer for some or all players. This will eventually send this report.
+			// id = Player's ID. Use -1 to send the report to all players. Server cannot send the report to itself.
+			// p = Pointer to report's data. Must not be less than the size of the report.
+			// deferred = Will send it as soon as possible if false.
 			void SendReportAsync(int id, BYTE* p, bool deferred = false);
-			//! Reads reports from recv buffers, cleans them, calls MultiplayerDelegate's callbacks.
+			// Reads reports from recv buffers, cleans them, calls MultiplayerDelegate's callbacks.
 			void ProcessRecvBuffers();
-			//! Writes the KICK report to the player's send buffer. This will eventually kick the specified player.
+			// Writes the KICK report to the player's send buffer. This will eventually kick the specified player.
 			void Kick(int id);
 
 			VERUS_P(int GetIdByAddr(RcAddr addr) const);

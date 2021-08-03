@@ -27,10 +27,9 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(ViewDelegate);
 
-		//! Views contain other controls.
-
-		//! By default they have "done" state.
-		//! You should call ViewManager::FadeTo() after loading.
+		// Views contain other controls.
+		// By default they have "done" state.
+		// You should call ViewManager::FadeTo() after loading.
 		class View : public Widget, public Container
 		{
 			friend class ViewManager;

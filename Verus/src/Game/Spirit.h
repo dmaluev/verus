@@ -85,7 +85,7 @@ namespace verus
 			RcVector3 GetSideDirection() const { return _dv._sideDir; }
 			RcVector3 GetSideDirection2D() const { return _dv._sideDir2D; }
 
-			//! Rotates smoothly across multiple frames.
+			// Rotates smoothly across multiple frames.
 			void Rotate(RcVector3 front, float speed);
 			void LookAt(RcPoint3 point, bool forceTarget = false);
 

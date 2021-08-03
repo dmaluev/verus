@@ -10,21 +10,13 @@
 
 // System:
 #ifdef _WIN32
-#	pragma comment(lib, "ws2_32.lib")
 #	include <WS2tcpip.h>
-#	include <Shlwapi.h>
-#	pragma comment(lib, "Shlwapi.lib")
 #	include <shellapi.h>
-#	include <ShlObj.h>
-#	include <ShellScalingAPI.h>
-#	pragma comment(lib, "Shcore.lib")
-//#	pragma comment(lib, "shell32.lib")
-//#	define _WIN32_DCOM
-//#	include <comdef.h>
-//#	include <wbemidl.h>
-//#	pragma comment(lib, "wbemuuid.lib")
-#	include <tchar.h>
-#	include <mmsystem.h>
+#	include <ShellScalingApi.h>
+#	include <Shlwapi.h>
+#	pragma comment(lib, "WS2_32.lib")
+#	pragma comment(lib, "ShLwApi.lib")
+#	pragma comment(lib, "shcore.lib")
 #else
 #	include <dlfcn.h>
 #endif
@@ -59,7 +51,7 @@ using namespace Microsoft::WRL;
 #	pragma comment(lib, "d3dcompiler.lib")
 #	pragma comment(lib, "dxgi.lib")
 #	pragma comment(lib, "dxguid.lib")
-#	include "ThirdParty/d3dx12.h" // See: https://github.com/microsoft/DirectX-Graphics-Samples/tree/master/Libraries/D3DX12
+#	include "ThirdParty/d3dx12.h" // See: https://github.com/microsoft/DirectX-Headers/tree/main/include/directx
 #	include "ThirdParty/D3D12MemAlloc.h" // See: https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator
 #endif
 
@@ -100,9 +92,9 @@ using namespace Microsoft::WRL;
 #	pragma comment(lib, "libvorbisfile.lib")
 #endif
 
-// AMD Compressonator:
+// AMD Compressonator (use CompressonatorFrameWork_x64):
 #ifdef VERUS_INCLUDE_COMPRESSONATOR
-#	include <CMP_Framework.h>
+#	include <compressonator.h>
 #	pragma comment(lib, "CMP_Framework_MD_DLL.lib")
 #endif
 

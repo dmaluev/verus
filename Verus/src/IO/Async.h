@@ -11,10 +11,10 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(AsyncCallback);
 
-		//! Load resources asynchronously.
-		//! Load method just adds the url to a queue.
-		//! Load and Cancel are virtual so that they can be safely called from another
-		//! DLL. Internally they can allocate and free memory.
+		// Load resources asynchronously.
+		// Load method just adds the url to a queue.
+		// Load and Cancel are virtual so that they can be safely called from another DLL.
+		// Internally they can allocate and free memory.
 		class Async : public Singleton<Async>, public Object, public Lockable
 		{
 		public:

@@ -3,7 +3,7 @@
 
 namespace verus
 {
-	//! This class can transfer singleton pointers to another library.
+	// This class can transfer singleton pointers to another library.
 	class GlobalVarsClipboard
 	{
 		struct Pair

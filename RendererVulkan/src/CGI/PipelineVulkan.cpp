@@ -117,7 +117,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	depthStencilState.depthCompareOp = ToNativeCompareOp(desc._depthCompareOp);
 	depthStencilState.stencilTestEnable = desc._stencilTestEnable;
 
-	VkPipelineColorBlendAttachmentState vkpcbas[VERUS_MAX_RT] = {};
+	VkPipelineColorBlendAttachmentState vkpcbas[VERUS_MAX_CA] = {};
 	FillColorBlendAttachmentStates(desc, attachmentCount, vkpcbas);
 	VkPipelineColorBlendStateCreateInfo colorBlendState = {};
 	colorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;

@@ -32,8 +32,8 @@ namespace verus
 			virtual void HandleInput() override;
 			virtual void Update() override;
 
-			//! Creates the underlying controller (Physics::CharacterController).
-			//! EndRagdoll() calls this method automatically.
+			// Creates the underlying controller.
+			// EndRagdoll() calls this method automatically.
 			void InitController();
 			void DoneController();
 			Physics::RCharacterController GetController() { return _cc; }
@@ -62,9 +62,9 @@ namespace verus
 			void AddExtraForce(RcVector3 v) { _extraForce += v; }
 
 			// For AI:
-			//! Check if the speed is less than expected.
+			// Check if the speed is less than expected.
 			bool IsStuck();
-			//! Is typically called when AI gets a new task.
+			// Is typically called when AI gets a new task.
 			void StartUnstuckCooldown() { _unstuckCooldown.Start(); }
 
 			// Ragdoll:

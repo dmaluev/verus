@@ -21,8 +21,8 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(BlockEmitter);
 
-		//! Block is a scene node which has a model and material info.
-		//! Most blocks form the scene's so called static or immovable geometry.
+		// Block is a scene node which has a model and material info.
+		// Most blocks form the scene's so called static or immovable geometry.
 		class Block : public SceneNode
 		{
 			Vector4              _userColor = Vector4(0);

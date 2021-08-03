@@ -5,7 +5,7 @@ extern int g_singletonAllocCount;
 
 namespace verus
 {
-	//! Restricts the instantiation of a class to one object.
+	// Restricts the instantiation of a class to one object.
 	template<typename T>
 	class Singleton : public AllocatorAware
 	{

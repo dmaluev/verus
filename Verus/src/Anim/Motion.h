@@ -11,12 +11,10 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(MotionDelegate);
 
-		//! Motion holds a series of keyframes and provides the ability to interpolate between them.
-
-		//! Motion can be stored in XAN format. Motion's rate can be
-		//! scaled and even reversed. Animation object (Animation) can be used to
-		//! handle multiple motion objects.
-		//!
+		// Motion holds a series of keyframes and provides the ability to interpolate between them.
+		// Motion can be stored in XAN format.
+		// Motion's rate can be scaled and even reversed.
+		// Animation object can be used to handle multiple motion objects.
 		class Motion : public Object
 		{
 		public:
@@ -62,10 +60,10 @@ namespace verus
 
 				String      _name;
 				Motion* _pMotion = nullptr;
-				TMapRot     _mapRot; //!< Rotation keyframes.
-				TMapPos     _mapPos; //!< Position keyframes.
-				TMapScale   _mapScale; //!< Scaling keyframes.
-				TMapTrigger _mapTrigger; //!< Trigger keyframes.
+				TMapRot     _mapRot; // Rotation keyframes.
+				TMapPos     _mapPos; // Position keyframes.
+				TMapScale   _mapScale; // Scaling keyframes.
+				TMapTrigger _mapTrigger; // Trigger keyframes.
 				int         _lastTriggerState = 0;
 				Flags       _flags = Flags::none;
 
@@ -336,6 +334,8 @@ namespace verus
 			void Exec(CSZ code, PBone pBone = nullptr, Bone::Channel channel = Bone::Channel::rotation);
 
 			int GetLastKeyframe() const;
+
+			static bool ExtractNestBone(CSZ name, SZ nestBone);
 		};
 		VERUS_TYPEDEFS(Motion);
 	}

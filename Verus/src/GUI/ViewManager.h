@@ -5,10 +5,9 @@ namespace verus
 {
 	namespace GUI
 	{
-		//! Ultimate GUI manager.
-
-		//! Contains views ordered by z-depth.
-		//! Contains fonts, cursor and GUI utility functions.
+		// Ultimate GUI manager.
+		// Contains views ordered by z-depth.
+		// Contains fonts, cursor and GUI utility functions.
 		typedef StoreUniqueWithNoRefCount<String, Font> TStoreFonts;
 		class ViewManager : public Singleton<ViewManager>, public Object, private TStoreFonts
 		{

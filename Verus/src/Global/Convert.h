@@ -3,7 +3,7 @@
 
 namespace verus
 {
-	//! This class converts different data types.
+	// This class converts different data types.
 	class Convert
 	{
 	public:

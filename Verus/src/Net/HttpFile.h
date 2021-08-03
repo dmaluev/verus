@@ -5,7 +5,7 @@ namespace verus
 {
 	namespace Net
 	{
-		//! Provides ability to read files from the internet using HTTP.
+		// Provides ability to read files from the internet using HTTP.
 		class HttpFile : public IO::Stream
 		{
 			static const int s_httpPort = 80;

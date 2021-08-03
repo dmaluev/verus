@@ -18,9 +18,9 @@ namespace verus
 		Utils(PBaseAllocator pAlloc);
 		~Utils();
 
-		//! Construct Utils using the provided allocator:
+		// Construct Utils using the provided allocator:
 		static void MakeEx(PBaseAllocator pAlloc);
-		//! Destruct Utils using the provided allocator:
+		// Destruct Utils using the provided allocator:
 		static void FreeEx(PBaseAllocator pAlloc);
 
 		// Called from BaseGame::Initialize():

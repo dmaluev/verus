@@ -12,7 +12,7 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(AnimationDelegate);
 
-		//! Objects of this type are stored in Collection.
+		// Objects of this type are stored in Collection.
 		struct MotionData
 		{
 			Motion _motion;
@@ -22,7 +22,7 @@ namespace verus
 		VERUS_TYPEDEFS(MotionData);
 
 		typedef StoreUniqueWithNoRefCount<String, MotionData> TStoreMotions;
-		//! The collection of motion objects (Motion) that can be reused by multiple animation objects (Animation).
+		// The collection of motion objects that can be reused by multiple animation objects.
 		class Collection : private TStoreMotions, public IO::AsyncCallback
 		{
 		public:
@@ -38,15 +38,12 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(Collection);
 
-		//! Holds the collection (Collection) of motion objects (Motion) and provides the ability to interpolate between them.
-
-		//! Note: triggers will work properly with 'multiple animations' + 'single
-		//! collection' only if you add motions before binding collection.
-		//!
+		// Holds the collection of motion objects and provides the ability to interpolate between them.
+		// Note: triggers will work properly with 'multiple animations' + 'single collection' only if you add motions before binding collection.
 		class Animation : public MotionDelegate
 		{
 		public:
-			static const int s_maxAlphaTracks = 4;
+			static const int s_maxLayers = 8;
 
 			enum class Edge : int
 			{
@@ -54,34 +51,34 @@ namespace verus
 				end = (1 << 1)
 			};
 
-			struct AlphaTrack
+			struct Layer
 			{
 				Animation* _pAnimation = nullptr;
 				CSZ _rootBone = nullptr;
 			};
-			VERUS_TYPEDEFS(AlphaTrack);
+			VERUS_TYPEDEFS(Layer);
 
 		private:
 			PCollection        _pCollection = nullptr;
 			PAnimationDelegate _pDelegate = nullptr;
 			PSkeleton          _pSkeleton = nullptr;
-			Motion             _blendMotion;
+			Motion             _transitionMotion;
 			String             _currentMotion;
 			String             _prevMotion;
 			Vector<int>        _vTriggerStates;
 			Easing             _easing = Easing::quadInOut;
 			float              _time = 0;
-			float              _blendDuration = 0;
-			float              _blendTime = 0;
-			bool               _blending = false;
+			float              _transitionDuration = 0;
+			float              _transitionTime = 0;
+			bool               _transition = false;
 			bool               _playing = false;
 
 		public:
 			Animation();
 			~Animation();
 
-			void Update(int alphaTrackCount = 0, PAlphaTrack pAlphaTracks = nullptr);
-			void UpdateSkeleton(int alphaTrackCount = 0, PAlphaTrack pAlphaTracks = nullptr);
+			void Update(int layerCount = 0, PLayer pLayers = nullptr);
+			void UpdateSkeleton(int layerCount = 0, PLayer pLayers = nullptr);
 
 			void BindCollection(PCollection p);
 			void BindSkeleton(PSkeleton p);
@@ -94,11 +91,11 @@ namespace verus
 
 			Str GetCurrentMotionName() const { return _C(_currentMotion); }
 
-			void BlendTo(CSZ name,
+			void TransitionTo(CSZ name,
 				Range<float> duration = 0.5f, int randTime = -1, PMotion pFromMotion = nullptr);
-			bool BlendToNew(std::initializer_list<CSZ> names,
+			bool TransitionToNew(std::initializer_list<CSZ> names,
 				Range<float> duration = 0.5f, int randTime = -1, PMotion pFromMotion = nullptr);
-			bool IsBlending() const { return _blending; }
+			bool IsInTransition() const { return _transition; }
 
 			void SetEasing(Easing easing) { _easing = easing; }
 

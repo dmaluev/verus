@@ -5,10 +5,8 @@ namespace verus
 {
 	namespace Anim
 	{
-		//! Shaker can load standard wav file, 8-bit mono, and use it as a function of time.
-
-		//! Works well for camera's shaking effects.
-		//!
+		// Shaker can load standard wav file, 8-bit mono, and use it as a function of time.
+		// Works well for camera's shaking effects.
 		class Shaker
 		{
 			Vector<float> _vData;
@@ -26,7 +24,7 @@ namespace verus
 			void Update();
 			void Reset() { _offset = 0; }
 			void Randomize();
-			//! Returns the current value in the range [-1 to 1].
+			// Returns the current value in the range [-1 to 1].
 			float Get();
 			void SetScaleBias(float s, float b);
 		};

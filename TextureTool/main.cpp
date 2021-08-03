@@ -18,7 +18,7 @@ void Run()
 	LPWSTR* argArray = CommandLineToArgvW(GetCommandLine(), &argCount);
 	WideString pathnameW;
 	std::wcout << _T("TextureTool") << std::endl;
-	std::wcout << _T("Copyright (c) 2016-2020 Dmitry Maluev") << std::endl;
+	std::wcout << _T("Copyright (c) 2016-2021 Dmitry Maluev") << std::endl;
 	if (argCount < 2)
 	{
 		std::wcout << _T("Enter file name: ");
@@ -87,7 +87,8 @@ void Run()
 	if (srcMipSet.m_nMipLevels <= 1)
 		CMP_GenerateMIPLevels(&srcMipSet, 0);
 
-	CMP_MipLevel* pMipLevel = srcMipSet.m_pMipLevelTable[0];
+	CMP_MipLevel* pMipLevel = nullptr;
+	CMP_GetMipLevel(&pMipLevel, &srcMipSet, 0, 0);
 	const BYTE* pData = pMipLevel->m_pbData;
 	const int pixelCount = srcMipSet.m_nWidth * srcMipSet.m_nHeight;
 
@@ -273,12 +274,14 @@ void Run()
 			}
 
 			// Save shuffled mip level, read from  inIndex:
-			CMP_MipLevel* pDstMipLevel = srcMipSet.m_pMipLevelTable[mip];
+			CMP_MipLevel* pDstMipLevel = nullptr;
+			CMP_GetMipLevel(&pDstMipLevel, &srcMipSet, mip, 0);
 			memcpy(pDstMipLevel->m_pbData, vMip[inIndex].data(), mipW * mipH * sizeof(UINT32));
 		}
 		else
 		{
-			CMP_MipLevel* pDstMipLevel = srcMipSet.m_pMipLevelTable[mip];
+			CMP_MipLevel* pDstMipLevel = nullptr;
+			CMP_GetMipLevel(&pDstMipLevel, &srcMipSet, mip, 0);
 			memcpy(pDstMipLevel->m_pbData, vMip[outIndex].data(), mipW * mipH * sizeof(UINT32));
 		}
 

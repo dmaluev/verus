@@ -80,10 +80,10 @@
 
 #define VERUS_UBUFFER struct alignas(VERUS_MEMORY_ALIGNMENT)
 
-#define VERUS_MAX_BONES 128
-#define VERUS_MAX_RT 8
-#define VERUS_MAX_FB_ATTACH (VERUS_MAX_RT * 4)
-#define VERUS_MAX_VB 8
+#define VERUS_MAX_BONES     128
+#define VERUS_MAX_CA        8  // Maximum number of color attachments per subpass, similar to D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT.
+#define VERUS_MAX_FB_ATTACH 32 // Maximum number of attachments per framebuffer. Includes color and other attachments for all subpasses.
+#define VERUS_MAX_VB        8  // Maximum number of vertex buffer bindings per draw call.
 
 #define VERUS_COLOR_BLEND_OFF          "off"
 #define VERUS_COLOR_BLEND_ALPHA        "s*(sa)+d*(1-sa)"

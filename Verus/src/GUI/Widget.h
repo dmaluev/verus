@@ -26,12 +26,10 @@ namespace verus
 
 		typedef std::function<void(RcEventArgs)> TFnEvent;
 
-		//! Base class for all controls and even frames.
-
-		//! Control has position, size, id text, value text (for buttons, labels, etc.).
-		//! It can be enabled/disabled, visible/hidden.
-		//! Control belongs to certain view and it's position is relative to sizer or
-		//! owner view if no sizer is specified.
+		// Base class for all controls and even frames.
+		// Control has position, size, id text, value text (for buttons, labels, etc.).
+		// It can be enabled/disabled, visible/hidden.
+		// Control belongs to certain view and it's position is relative to sizer or owner view if no sizer is specified.
 		class Widget : public AllocatorAware
 		{
 			Animator        _animator;
