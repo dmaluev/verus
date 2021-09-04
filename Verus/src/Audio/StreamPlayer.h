@@ -5,7 +5,7 @@ namespace verus
 {
 	namespace Audio
 	{
-		class Track : public IO::AsyncCallback
+		class Track : public IO::AsyncDelegate
 		{
 			Vector<BYTE>     _vOggEncodedTrack;
 			OggDataSource    _ds;
@@ -19,7 +19,7 @@ namespace verus
 			void Init(CSZ url);
 			void Done();
 
-			virtual void Async_Run(CSZ url, RcBlob blob) override;
+			virtual void Async_WhenLoaded(CSZ url, RcBlob blob) override;
 			bool IsLoaded() const { return _loaded; }
 		};
 		VERUS_TYPEDEFS(Track);

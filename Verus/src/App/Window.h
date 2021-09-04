@@ -13,6 +13,8 @@ namespace verus
 			struct Desc
 			{
 				CSZ         _title = nullptr;
+				int         _x = SDL_WINDOWPOS_CENTERED;
+				int         _y = SDL_WINDOWPOS_CENTERED;
 				int         _width = 0;
 				int         _height = 0;
 				Uint32      _flags = 0;

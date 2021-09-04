@@ -246,7 +246,7 @@ Xxx::~Xxx()
 	Async::I().Cancel(this);
 }
 
-void Xxx::Async_Run(CSZ url, RcBlob blob)
+void Xxx::Async_WhenLoaded(CSZ url, RcBlob blob)
 {
 	VERUS_QREF_SM;
 
@@ -318,7 +318,7 @@ void Xxx::DeserializeXXX3(CSZ url, bool sync)
 	{
 		Vector<BYTE> vData;
 		IO::FileSystem::LoadResource(url, vData);
-		Async_Run(url, Blob(vData.data(), vData.size()));
+		Async_WhenLoaded(url, Blob(vData.data(), vData.size()));
 	}
 	else
 		Async::I().Load(url, this);

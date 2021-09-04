@@ -211,30 +211,30 @@ void Blur::OnSwapChainResized()
 		_tex.Done();
 	}
 	{
-		const int swapChainWidth = renderer.GetSwapChainWidth();
-		const int swapChainHeight = renderer.GetSwapChainHeight();
-		const int swapChainHalfWidth = renderer.GetSwapChainWidth() / 2;
-		const int swapChainHalfHeight = renderer.GetSwapChainHeight() / 2;
+		const int scaledSwapChainWidth = settings.Scale(renderer.GetSwapChainWidth());
+		const int scaledSwapChainHeight = settings.Scale(renderer.GetSwapChainHeight());
+		const int scaledSwapChainHalfWidth = scaledSwapChainWidth / 2;
+		const int scaledSwapChainHalfHeight = scaledSwapChainHeight / 2;
 
 		CGI::TextureDesc texDesc;
 		texDesc._name = "Blur.Tex";
 		texDesc._format = CGI::Format::srgbR8G8B8A8;
-		texDesc._width = swapChainWidth;
-		texDesc._height = swapChainHeight;
+		texDesc._width = scaledSwapChainWidth;
+		texDesc._height = scaledSwapChainHeight;
 		texDesc._flags = CGI::TextureDesc::Flags::colorAttachment;
 		_tex.Init(texDesc);
 
 		if (settings._postProcessBloom)
 		{
-			_bloomHandles._fbhU = renderer->CreateFramebuffer(_bloomHandles._rphU, { bloom.GetPongTexture() }, swapChainHalfWidth, swapChainHalfHeight);
-			_bloomHandles._fbhV = renderer->CreateFramebuffer(_bloomHandles._rphV, { bloom.GetTexture() }, swapChainHalfWidth, swapChainHalfHeight);
+			_bloomHandles._fbhU = renderer->CreateFramebuffer(_bloomHandles._rphU, { bloom.GetPongTexture() }, scaledSwapChainHalfWidth, scaledSwapChainHalfHeight);
+			_bloomHandles._fbhV = renderer->CreateFramebuffer(_bloomHandles._rphV, { bloom.GetTexture() }, scaledSwapChainHalfWidth, scaledSwapChainHalfHeight);
 			_bloomHandles._cshU = _shader->BindDescriptorSetTextures(1, { bloom.GetTexture() });
 			_bloomHandles._cshV = _shader->BindDescriptorSetTextures(1, { bloom.GetPongTexture() });
 		}
 
 		{
-			_dofHandles._fbhU = renderer->CreateFramebuffer(_dofHandles._rphU, { renderer.GetDS().GetComposedTextureB() }, swapChainWidth, swapChainHeight);
-			_dofHandles._fbhV = renderer->CreateFramebuffer(_dofHandles._rphV, { renderer.GetDS().GetComposedTextureA() }, swapChainWidth, swapChainHeight);
+			_dofHandles._fbhU = renderer->CreateFramebuffer(_dofHandles._rphU, { renderer.GetDS().GetComposedTextureB() }, scaledSwapChainWidth, scaledSwapChainHeight);
+			_dofHandles._fbhV = renderer->CreateFramebuffer(_dofHandles._rphV, { renderer.GetDS().GetComposedTextureA() }, scaledSwapChainWidth, scaledSwapChainHeight);
 			_dofHandles._cshU = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureA() });
 			_dofHandles._cshV = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureB() });
 			_cshDofExtra = _shader->BindDescriptorSetTextures(2, { renderer.GetDS().GetGBuffer(1), renderer.GetTexDepthStencil() });
@@ -242,28 +242,28 @@ void Blur::OnSwapChainResized()
 
 		if (settings._postProcessSSAO)
 		{
-			_ssaoHandles._fbhU = renderer->CreateFramebuffer(_ssaoHandles._rphU, { _tex }, swapChainWidth, swapChainHeight);
-			_ssaoHandles._fbhV = renderer->CreateFramebuffer(_ssaoHandles._rphV, { ssao.GetTexture() }, swapChainWidth, swapChainHeight);
+			_ssaoHandles._fbhU = renderer->CreateFramebuffer(_ssaoHandles._rphU, { _tex }, scaledSwapChainWidth, scaledSwapChainHeight);
+			_ssaoHandles._fbhV = renderer->CreateFramebuffer(_ssaoHandles._rphV, { ssao.GetTexture() }, scaledSwapChainWidth, scaledSwapChainHeight);
 			_ssaoHandles._cshU = _shader->BindDescriptorSetTextures(1, { ssao.GetTexture() });
 			_ssaoHandles._cshV = _shader->BindDescriptorSetTextures(1, { _tex });
 		}
 
 		{
-			_ssrHandles._fbhU = renderer->CreateFramebuffer(_ssrHandles._rphU, { renderer.GetDS().GetLightAccDiffTexture() }, swapChainWidth, swapChainHeight);
-			_ssrHandles._fbhV = renderer->CreateFramebuffer(_ssrHandles._rphV, { renderer.GetDS().GetLightAccSpecTexture() }, swapChainWidth, swapChainHeight);
+			_ssrHandles._fbhU = renderer->CreateFramebuffer(_ssrHandles._rphU, { renderer.GetDS().GetLightAccDiffTexture() }, scaledSwapChainWidth, scaledSwapChainHeight);
+			_ssrHandles._fbhV = renderer->CreateFramebuffer(_ssrHandles._rphV, { renderer.GetDS().GetLightAccSpecTexture() }, scaledSwapChainWidth, scaledSwapChainHeight);
 			_ssrHandles._cshU = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetLightAccSpecTexture() });
 			_ssrHandles._cshV = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetLightAccDiffTexture() });
 			_cshSsrExtra = _shader->BindDescriptorSetTextures(2, { ssao.GetTexture(), renderer.GetDS().GetGBuffer(2) });
 		}
 
 		{
-			_fbhAntiAliasing = renderer->CreateFramebuffer(_rphAntiAliasing, { renderer.GetDS().GetComposedTextureB() }, swapChainWidth, swapChainHeight);
+			_fbhAntiAliasing = renderer->CreateFramebuffer(_rphAntiAliasing, { renderer.GetDS().GetComposedTextureB() }, scaledSwapChainWidth, scaledSwapChainHeight);
 			_cshAntiAliasing = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureA() });
 			_cshAntiAliasingExtra = _shader->BindDescriptorSetTextures(2, { renderer.GetDS().GetGBuffer(1), renderer.GetTexDepthStencil() });
 		}
 
 		{
-			_fbhMotionBlur = renderer->CreateFramebuffer(_rphMotionBlur, { renderer.GetDS().GetComposedTextureA() }, swapChainWidth, swapChainHeight);
+			_fbhMotionBlur = renderer->CreateFramebuffer(_rphMotionBlur, { renderer.GetDS().GetComposedTextureA() }, scaledSwapChainWidth, scaledSwapChainHeight);
 			_cshMotionBlur = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureB() });
 			_cshMotionBlurExtra = _shader->BindDescriptorSetTextures(2, { renderer.GetDS().GetGBuffer(1), renderer.GetTexDepthStencil() });
 		}

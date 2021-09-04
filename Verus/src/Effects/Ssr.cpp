@@ -75,6 +75,7 @@ void Ssr::OnSwapChainResized()
 	if (!IsInitialized())
 		return;
 
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SSAO;
 	VERUS_QREF_ATMO;
@@ -84,13 +85,15 @@ void Ssr::OnSwapChainResized()
 		renderer->DeleteFramebuffer(_fbh);
 	}
 	{
+		const int scaledSwapChainWidth = settings.Scale(renderer.GetSwapChainWidth());
+		const int scaledSwapChainHeight = settings.Scale(renderer.GetSwapChainHeight());
+
 		_fbh = renderer->CreateFramebuffer(_rph,
 			{
 				renderer.GetDS().GetLightAccSpecTexture(),
 				ssao.GetTexture()
 			},
-			renderer.GetSwapChainWidth(),
-			renderer.GetSwapChainHeight());
+			scaledSwapChainWidth, scaledSwapChainHeight);
 		if (atmo.GetCubeMap().GetColorTexture())
 		{
 			_csh = _shader->BindDescriptorSetTextures(1,
@@ -144,9 +147,9 @@ void Ssr::Generate()
 
 	s_ubSsrVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubSsrVS._matV = Math::ToUVMatrix().UniformBufferFormat();
-	s_ubSsrFS._matInvV = cam.GetMatrixVi().UniformBufferFormat();
+	s_ubSsrFS._matInvV = cam.GetMatrixInvV().UniformBufferFormat();
 	s_ubSsrFS._matPTex = matPTex.UniformBufferFormat();
-	s_ubSsrFS._matInvP = cam.GetMatrixPi().UniformBufferFormat();
+	s_ubSsrFS._matInvP = cam.GetMatrixInvP().UniformBufferFormat();
 	s_ubSsrFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
 	s_ubSsrFS._radius_depthBias_thickness_equalizeDist.x = _radius;
 	s_ubSsrFS._radius_depthBias_thickness_equalizeDist.y = _depthBias;

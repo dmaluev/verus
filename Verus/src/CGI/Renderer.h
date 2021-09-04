@@ -38,6 +38,7 @@ namespace verus
 			{
 				TEX_OFFSCREEN_COLOR,
 				TEX_DEPTH_STENCIL,
+				TEX_DEPTH_STENCIL_SCALED,
 				TEX_COUNT
 			};
 
@@ -117,7 +118,7 @@ namespace verus
 			RDeferredShading GetDS() { return _ds; }
 			CommandBufferPtr GetCommandBuffer() const { return _commandBuffer; }
 			TexturePtr GetTexOffscreenColor() const;
-			TexturePtr GetTexDepthStencil() const;
+			TexturePtr GetTexDepthStencil(bool scaled = true) const;
 
 			void OnShaderError(CSZ s);
 			void OnShaderWarning(CSZ s);

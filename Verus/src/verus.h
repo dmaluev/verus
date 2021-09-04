@@ -14,6 +14,7 @@
 #	include <shellapi.h>
 #	include <ShellScalingApi.h>
 #	include <Shlwapi.h>
+#	include <tchar.h>
 #	pragma comment(lib, "WS2_32.lib")
 #	pragma comment(lib, "ShLwApi.lib")
 #	pragma comment(lib, "shcore.lib")

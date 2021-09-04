@@ -5,7 +5,7 @@ namespace verus
 {
 	namespace Scene
 	{
-		class BaseMesh : public Object, public IO::AsyncCallback, public AllocatorAware
+		class BaseMesh : public Object, public IO::AsyncDelegate, public AllocatorAware
 		{
 		protected:
 			struct VertexInputBinding0 // 16 bytes, common.
@@ -69,7 +69,7 @@ namespace verus
 			int GetIndexCount() const { return _indexCount; }
 			int GetBoneCount() const { return _boneCount; }
 
-			virtual void Async_Run(CSZ url, RcBlob blob) override;
+			virtual void Async_WhenLoaded(CSZ url, RcBlob blob) override;
 
 			VERUS_P(void Load(RcBlob blob));
 			VERUS_P(void LoadX3D3(RcBlob blob));

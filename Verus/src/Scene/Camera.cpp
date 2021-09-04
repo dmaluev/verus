@@ -30,7 +30,7 @@ void Camera::UpdateInternal()
 			}
 			_fovScale = 0.5f / tan(_yFov * 0.5f);
 		}
-		_matPi = VMath::inverse(_matP);
+		_matInvP = VMath::inverse(_matP);
 	}
 }
 
@@ -48,13 +48,33 @@ void Camera::UpdateView()
 {
 	_frontDir = VMath::normalizeApprox(_atPos - _eyePos);
 	_matV = Matrix4::lookAt(_eyePos, _atPos, _upDir);
-	_matVi = VMath::orthoInverse(_matV);
+	_matInvV = VMath::orthoInverse(_matV);
 }
 
 void Camera::UpdateVP()
 {
 	_matVP = _matP * _matV;
 	_frustum.FromMatrix(_matVP);
+}
+
+void Camera::SetFrustumNear(float zNear)
+{
+	_frustum.SetNearPlane(_eyePos, _frontDir, zNear);
+}
+
+void Camera::SetFrustumFar(float zFar)
+{
+	_frustum.SetFarPlane(_eyePos, _frontDir, zFar);
+}
+
+void Camera::SetXFov(float xFov)
+{
+	SetYFov(2 * atan(tan(xFov * 0.5f) / _aspectRatio));
+}
+
+Vector4 Camera::GetZNearFarEx() const
+{
+	return Vector4(_zNear, _zFar, _zFar / (_zFar - _zNear), _zFar * _zNear / (_zNear - _zFar));
 }
 
 void Camera::EnableReflectionMode()
@@ -69,28 +89,8 @@ void Camera::EnableReflectionMode()
 
 	const Transform3 tr = Transform3::scale(Vector3(1, -1, 1));
 	_matV = matV * tr;
-	_matVi = VMath::orthoInverse(_matV);
+	_matInvV = VMath::orthoInverse(_matV);
 	_matVP = _matP * _matV;
-}
-
-Vector4 Camera::GetZNearFarEx() const
-{
-	return Vector4(_zNear, _zFar, _zFar / (_zFar - _zNear), _zFar * _zNear / (_zNear - _zFar));
-}
-
-void Camera::SetFrustumNear(float zNear)
-{
-	_frustum.SetNearPlane(_eyePos, _frontDir, zNear);
-}
-
-void Camera::SetFrustumFar(float zFar)
-{
-	_frustum.SetFarPlane(_eyePos, _frontDir, zFar);
-}
-
-void Camera::SetXFov(float x)
-{
-	SetYFov(2 * atan(tan(x * 0.5f) / _aspectRatio));
 }
 
 void Camera::GetClippingSpacePlane(RVector4 plane) const
@@ -224,6 +224,19 @@ void MainCamera::UpdateVP()
 	}
 }
 
+float MainCamera::ComputeMotionBlur(RcPoint3 pos, RcPoint3 posPrev) const
+{
+	Vector4 ndcPos = GetMatrixVP() * pos;
+	Vector4 ndcPosPrev = GetMatrixPrevVP() * posPrev;
+	ndcPos /= ndcPos.getW();
+	ndcPos.setZ(0);
+	ndcPos.setW(0);
+	ndcPosPrev /= ndcPosPrev.getW();
+	ndcPosPrev.setZ(0);
+	ndcPosPrev.setW(0);
+	return VMath::length(ndcPos - ndcPosPrev) * 10;
+}
+
 void MainCamera::GetPickingRay(RPoint3 pos, RVector3 dir) const
 {
 	VERUS_RT_ASSERT(_pCpp);
@@ -237,19 +250,6 @@ void MainCamera::GetPickingRay(RPoint3 pos, RVector3 dir) const
 		ndcX / GetMatrixP().getElem(0, 0),
 		ndcY / GetMatrixP().getElem(1, 1),
 		-1);
-	dir = GetMatrixVi().getUpper3x3() * v;
-	pos = GetMatrixVi().getTranslation();
-}
-
-float MainCamera::ComputeMotionBlur(RcPoint3 pos, RcPoint3 posPrev) const
-{
-	Vector4 ndcPos = GetMatrixVP() * pos;
-	Vector4 ndcPosPrev = GetMatrixPrevVP() * posPrev;
-	ndcPos /= ndcPos.getW();
-	ndcPos.setZ(0);
-	ndcPos.setW(0);
-	ndcPosPrev /= ndcPosPrev.getW();
-	ndcPosPrev.setZ(0);
-	ndcPosPrev.setW(0);
-	return VMath::length(ndcPos - ndcPosPrev) * 10;
+	dir = GetMatrixInvV().getUpper3x3() * v;
+	pos = GetMatrixInvV().getTranslation();
 }

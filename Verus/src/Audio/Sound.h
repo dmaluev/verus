@@ -18,7 +18,7 @@ namespace verus
 			};
 		};
 
-		class Sound : public Object, public IO::AsyncCallback
+		class Sound : public Object, public IO::AsyncDelegate
 		{
 			Source       _sources[8];
 			String       _url;
@@ -59,7 +59,7 @@ namespace verus
 			void Init(RcDesc desc);
 			bool Done();
 
-			virtual void Async_Run(CSZ url, RcBlob blob) override;
+			virtual void Async_WhenLoaded(CSZ url, RcBlob blob) override;
 			bool IsLoaded() const { return IsFlagSet(SoundFlags::loaded); }
 			void AddRef() { _refCount++; }
 

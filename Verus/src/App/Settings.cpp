@@ -257,6 +257,7 @@ void Settings::HandleCommandLineArgs()
 void Settings::Validate()
 {
 	_displayFOV = Math::Clamp<float>(_displayFOV, 60, 90);
+	_displayOffscreenScale = Math::Clamp(_displayOffscreenScale, 0.25f, 4.f);
 	_displaySizeWidth = Math::Clamp(_displaySizeWidth, 480, 0x2000);
 	_displaySizeHeight = Math::Clamp(_displaySizeHeight, 270, 0x2000);
 	_gpuAnisotropyLevel = Math::Clamp(_gpuAnisotropyLevel, 0, 16);
@@ -366,4 +367,9 @@ int Settings::GetFontSize() const
 	if (_displayAllowHighDPI)
 		return static_cast<int>(15 * _highDpiScale);
 	return 15;
+}
+
+int Settings::Scale(int size) const
+{
+	return _displayOffscreenDraw ? static_cast<int>(size * _displayOffscreenScale + 0.5f) : size;
 }

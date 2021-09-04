@@ -232,7 +232,7 @@ void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout
 	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; // Which stage is waiting to start (BOTTOM_OF_PIPE means nothing is waiting).
 	const VkPipelineStageFlags dstStageMaskXS = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 	VkImageMemoryBarrier vkimb[16];
-	VERUS_RT_ASSERT(mipLevels.GetRange() < VERUS_COUNT_OF(vkimb));
+	VERUS_RT_ASSERT(mipLevels.GetLength() < VERUS_COUNT_OF(vkimb));
 	int index = 0;
 	for (int mip : mipLevels)
 	{

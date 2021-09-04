@@ -137,7 +137,7 @@ void Cutscene::CameraCommand::OnEnd()
 		_pCutscene->_pCurrentCameraCommand = nullptr;
 }
 
-void Cutscene::CameraCommand::Async_Run(CSZ url, RcBlob blob)
+void Cutscene::CameraCommand::Async_WhenLoaded(CSZ url, RcBlob blob)
 {
 	IO::StreamPtr sp(blob);
 	_motion.Init();

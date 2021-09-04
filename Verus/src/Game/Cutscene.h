@@ -50,7 +50,7 @@ namespace verus
 			};
 			VERUS_TYPEDEFS(BarrierCommand);
 
-			class CameraCommand : public Command, public IO::AsyncCallback, public Anim::MotionDelegate
+			class CameraCommand : public Command, public IO::AsyncDelegate, public Anim::MotionDelegate
 			{
 				Anim::Motion _motion;
 				String       _cameraName;
@@ -62,7 +62,7 @@ namespace verus
 				virtual bool Update() override;
 				virtual void OnBegin() override;
 				virtual void OnEnd() override;
-				virtual void Async_Run(CSZ url, RcBlob blob) override;
+				virtual void Async_WhenLoaded(CSZ url, RcBlob blob) override;
 				virtual void Motion_OnTrigger(CSZ name, int state) override;
 			};
 			VERUS_TYPEDEFS(CameraCommand);

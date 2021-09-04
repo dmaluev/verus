@@ -41,7 +41,7 @@ namespace verus
 			HelloTexturedCubeGame();
 			~HelloTexturedCubeGame();
 
-			virtual void BaseGame_UpdateSettings() override;
+			virtual void BaseGame_UpdateSettings(App::Window::RDesc windowDesc) override;
 			virtual void BaseGame_LoadContent() override;
 			virtual void BaseGame_UnloadContent() override;
 			virtual void BaseGame_HandleInput() override;

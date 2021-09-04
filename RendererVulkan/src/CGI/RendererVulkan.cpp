@@ -833,7 +833,7 @@ void RendererVulkan::BeginFrame(bool present)
 	renderer.GetCommandBuffer()->Begin();
 
 	ImGui_ImplVulkan_NewFrame();
-	ImGui_ImplSDL2_NewFrame(renderer.GetMainWindow()->GetSDL());
+	ImGui_ImplSDL2_NewFrame();
 	ImGui::NewFrame();
 }
 

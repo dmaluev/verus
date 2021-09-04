@@ -381,16 +381,18 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 	auto& ub = renderer.GetUbGenerateMips();
 	auto tex = TexturePtr::From(this);
 
+	const int maxMipLevel = _desc._mipLevels - 1;
+
 	// Transition state for sampling in compute shader:
 	if (_mainLayout != ImageLayout::xsReadOnly)
-		pCB->PipelineImageMemoryBarrier(tex, _mainLayout, ImageLayout::xsReadOnly, Range<int>(0, _desc._mipLevels - 1));
+		pCB->PipelineImageMemoryBarrier(tex, _mainLayout, ImageLayout::xsReadOnly, Range<int>(0, maxMipLevel));
 
 	pCB->BindPipeline(renderer.GetPipelineGenerateMips(!!(_desc._flags & TextureDesc::Flags::exposureMips)));
 
 	shader->BeginBindDescriptors();
 	const bool createComplexSets = _vCshGenerateMips.empty();
 	int dispatchIndex = 0;
-	for (int srcMip = 0; srcMip < _desc._mipLevels - 1;)
+	for (int srcMip = 0; srcMip < maxMipLevel;)
 	{
 		const int srcWidth = _desc._width >> srcMip;
 		const int srcHeight = _desc._height >> srcMip;
@@ -403,7 +405,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 
 		ub._srcMipLevel = srcMip;
 		ub._mipLevelCount = dispatchMipCount;
-		ub._srcDimensionCase = (srcHeight & 1) << 1 | (srcWidth & 1);
+		ub._srcDimensionCase = ((srcHeight & 1) << 1) | (srcWidth & 1);
 		ub._srgb = IsSRGBFormat(_desc._format);
 		ub._texelSize.x = 1.f / dstWidth;
 		ub._texelSize.y = 1.f / dstHeight;
@@ -475,7 +477,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 
 	// Revert to main state:
 	if (_mainLayout != ImageLayout::xsReadOnly)
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, _mainLayout, Range<int>(0, _desc._mipLevels - 1));
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, _mainLayout, Range<int>(0, maxMipLevel));
 
 	Schedule(0);
 }

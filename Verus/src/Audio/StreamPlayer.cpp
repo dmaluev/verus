@@ -26,7 +26,7 @@ void Track::Done()
 	IO::Async::Cancel(this);
 }
 
-void Track::Async_Run(CSZ url, RcBlob blob)
+void Track::Async_WhenLoaded(CSZ url, RcBlob blob)
 {
 	_vOggEncodedTrack.assign(blob._p, blob._p + blob._size);
 

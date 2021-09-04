@@ -531,7 +531,7 @@ void RendererD3D12::BeginFrame(bool present)
 	SetDescriptorHeaps(cb.Get());
 
 	ImGui_ImplDX12_NewFrame();
-	ImGui_ImplSDL2_NewFrame(renderer.GetMainWindow()->GetSDL());
+	ImGui_ImplSDL2_NewFrame();
 	ImGui::NewFrame();
 }
 

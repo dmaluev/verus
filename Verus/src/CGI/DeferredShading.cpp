@@ -158,12 +158,12 @@ void DeferredShading::Init()
 	_shader[SHADER_COMPOSE]->CreateDescriptorSet(0, &s_ubComposeVS, sizeof(s_ubComposeVS), 4, {}, ShaderStageFlags::vs);
 	_shader[SHADER_COMPOSE]->CreateDescriptorSet(1, &s_ubComposeFS, sizeof(s_ubComposeFS), 4,
 		{
-			Sampler::nearestClampMipN, // GBuffer0
-			Sampler::nearestClampMipN, // GBuffer1
-			Sampler::nearestClampMipN, // GBuffer2|AO
-			Sampler::nearestClampMipN, // Depth|Composed
+			Sampler::linearClampMipN, // GBuffer0
+			Sampler::linearClampMipN, // GBuffer1
+			Sampler::linearClampMipN, // GBuffer2|AO
+			Sampler::linearClampMipN, // Depth|Composed
 			Sampler::linearClampMipN, // AccDiff|Bloom
-			Sampler::nearestClampMipN // AccSpec
+			Sampler::linearClampMipN // AccSpec
 		}, ShaderStageFlags::fs);
 	_shader[SHADER_COMPOSE]->CreatePipelineLayout();
 
@@ -288,7 +288,11 @@ void DeferredShading::InitByBloom(TexturePtr tex)
 
 void DeferredShading::InitBySsao(TexturePtr tex)
 {
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
+
+	const int scaledSwapChainWidth = settings.Scale(renderer.GetSwapChainWidth());
+	const int scaledSwapChainHeight = settings.Scale(renderer.GetSwapChainHeight());
 
 	_texAO = tex;
 
@@ -297,8 +301,7 @@ void DeferredShading::InitBySsao(TexturePtr tex)
 			tex,
 			renderer.GetTexDepthStencil(),
 		},
-		renderer.GetSwapChainWidth(),
-		renderer.GetSwapChainHeight());
+		scaledSwapChainWidth, scaledSwapChainHeight);
 
 	_shader[SHADER_COMPOSE]->FreeDescriptorSet(_cshCompose);
 	_shader[SHADER_AO]->FreeDescriptorSet(_cshAO);
@@ -326,6 +329,7 @@ void DeferredShading::Done()
 
 void DeferredShading::OnSwapChainResized(bool init, bool done)
 {
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 
 	if (done)
@@ -354,15 +358,18 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 
 	if (init)
 	{
-		InitGBuffers(renderer.GetSwapChainWidth(), renderer.GetSwapChainHeight());
+		const int scaledSwapChainWidth = settings.Scale(renderer.GetSwapChainWidth());
+		const int scaledSwapChainHeight = settings.Scale(renderer.GetSwapChainHeight());
+
+		InitGBuffers(scaledSwapChainWidth, scaledSwapChainHeight);
 
 		TextureDesc texDesc;
 
 		// Light accumulation buffers:
 		// See: https://bartwronski.com/2017/04/02/small-float-formats-r11g11b10f-precision/
 		texDesc._format = Format::floatR11G11B10;
-		texDesc._width = renderer.GetSwapChainWidth();
-		texDesc._height = renderer.GetSwapChainHeight();
+		texDesc._width = scaledSwapChainWidth;
+		texDesc._height = scaledSwapChainHeight;
 		texDesc._flags = TextureDesc::Flags::colorAttachment;
 		texDesc._name = "DeferredShading.LightAccDiff";
 		_tex[TEX_LIGHT_ACC_DIFF].Init(texDesc);
@@ -382,28 +389,24 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 				_tex[TEX_LIGHT_ACC_SPEC],
 				renderer.GetTexDepthStencil()
 			},
-			renderer.GetSwapChainWidth(),
-			renderer.GetSwapChainHeight());
+			scaledSwapChainWidth, scaledSwapChainHeight);
 		_fbhCompose = renderer->CreateFramebuffer(_rphCompose,
 			{
 				_tex[TEX_COMPOSED_A],
 				_tex[TEX_COMPOSED_B]
 			},
-			renderer.GetSwapChainWidth(),
-			renderer.GetSwapChainHeight());
+			scaledSwapChainWidth, scaledSwapChainHeight);
 		_fbhExtraCompose = renderer->CreateFramebuffer(_rphExtraCompose,
 			{
 				_tex[TEX_COMPOSED_A],
 				renderer.GetTexDepthStencil()
 			},
-			renderer.GetSwapChainWidth(),
-			renderer.GetSwapChainHeight());
+			scaledSwapChainWidth, scaledSwapChainHeight);
 		_fbhReflection = renderer->CreateFramebuffer(_rphReflection,
 			{
 				_tex[TEX_COMPOSED_A]
 			},
-			renderer.GetSwapChainWidth(),
-			renderer.GetSwapChainHeight());
+			scaledSwapChainWidth, scaledSwapChainHeight);
 
 		_cshCompose = _shader[SHADER_COMPOSE]->BindDescriptorSetTextures(1,
 			{
@@ -654,7 +657,7 @@ void DeferredShading::BeginCompose(RcVector4 bgColor)
 	s_ubComposeVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubComposeVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 	s_ubComposeFS._matV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
-	s_ubComposeFS._matInvV = sm.GetCamera()->GetMatrixVi().UniformBufferFormat();
+	s_ubComposeFS._matInvV = sm.GetCamera()->GetMatrixInvV().UniformBufferFormat();
 	s_ubComposeFS._matInvVP = matInvVP.UniformBufferFormat();
 	s_ubComposeFS._ambientColor_exposure = float4(atmo.GetAmbientColor().GLM(), renderer.GetExposure());
 	s_ubComposeFS._backgroundColor = bgColor.GLM();
@@ -726,7 +729,7 @@ void DeferredShading::ToneMapping()
 
 	s_ubComposeVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubComposeVS._matV = Math::ToUVMatrix().UniformBufferFormat();
-	s_ubComposeFS._matInvV = sm.GetCamera()->GetMatrixVi().UniformBufferFormat();
+	s_ubComposeFS._matInvV = sm.GetCamera()->GetMatrixInvV().UniformBufferFormat();
 	s_ubComposeFS._ambientColor_exposure = float4(atmo.GetAmbientColor().GLM(), renderer.GetExposure());
 	s_ubComposeFS._fogColor = Vector4(0.5f, 0.5f, 0.5f, 0.002f).GLM();
 	s_ubComposeFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();

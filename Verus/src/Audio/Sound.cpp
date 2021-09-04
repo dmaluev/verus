@@ -51,7 +51,7 @@ bool Sound::Done()
 	return false;
 }
 
-void Sound::Async_Run(CSZ url, RcBlob blob)
+void Sound::Async_WhenLoaded(CSZ url, RcBlob blob)
 {
 	VERUS_RT_ASSERT(_url == url);
 	VERUS_RT_ASSERT(!_buffer);

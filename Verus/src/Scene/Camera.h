@@ -19,9 +19,9 @@ namespace verus
 		private:
 			Math::Frustum    _frustum;
 			Transform3       _matV = Transform3::identity();
-			Transform3       _matVi = Transform3::identity();
+			Transform3       _matInvV = Transform3::identity();
 			Matrix4          _matP = Matrix4::identity();
-			Matrix4          _matPi = Matrix4::identity();
+			Matrix4          _matInvP = Matrix4::identity();
 			Matrix4          _matVP = Matrix4::identity();
 			VERUS_PD(Point3  _eyePos = Point3(0));
 			VERUS_PD(Point3  _atPos = Point3(0, 0, -1));
@@ -42,10 +42,6 @@ namespace verus
 			void UpdateView();
 			void UpdateVP();
 
-			void EnableReflectionMode();
-
-			Vector4 GetZNearFarEx() const;
-
 			// Frustum:
 			void SetFrustumNear(float zNear);
 			void SetFrustumFar(float zFar);
@@ -64,33 +60,36 @@ namespace verus
 
 			// Matrices:
 			RcTransform3 GetMatrixV() const { return _matV; }
-			RcTransform3 GetMatrixVi() const { return _matVi; }
+			RcTransform3 GetMatrixInvV() const { return _matInvV; }
 			RcMatrix4 GetMatrixP() const { return _matP; }
-			RcMatrix4 GetMatrixPi() const { return _matPi; }
+			RcMatrix4 GetMatrixInvP() const { return _matInvP; }
 			RcMatrix4 GetMatrixVP() const { return _matVP; }
 
 			// Perspective:
 			float GetYFov() const { return _yFov; }
-			void SetYFov(float x) { _update |= Update::p; _yFov = x; }
-			void SetXFov(float x); // Set correct aspect ratio before calling this method.
+			void SetYFov(float yFov) { _update |= Update::p; _yFov = yFov; }
+			void SetXFov(float xFov); // Set correct aspect ratio before calling this method.
 			float GetAspectRatio() const { return _aspectRatio; }
-			void SetAspectRatio(float x) { _update |= Update::p; _aspectRatio = x; }
+			void SetAspectRatio(float aspectRatio) { _update |= Update::p; _aspectRatio = aspectRatio; }
 			float GetZNear() const { return _zNear; }
-			void SetZNear(float x) { _update |= Update::p; _zNear = x; }
+			void SetZNear(float zNear) { _update |= Update::p; _zNear = zNear; }
 			float GetZFar() const { return _zFar; }
-			void SetZFar(float x) { _update |= Update::p; _zFar = x; }
+			void SetZFar(float zFar) { _update |= Update::p; _zFar = zFar; }
 			float GetFovScale() const { return _fovScale; } // For converting offsets in meters to offsets in texture coords.
+			Vector4 GetZNearFarEx() const;
 
 			// Ortho:
 			float GetXMag() const { return _xMag; }
 			float GetYMag() const { return _yMag; }
-			void SetXMag(float x) { _update |= Update::p; _xMag = (0 == x) ? _aspectRatio * _yMag : x; }
-			void SetYMag(float x) { _update |= Update::p; _yMag = x; }
+			void SetXMag(float xMag) { _update |= Update::p; _xMag = (0 == xMag) ? _aspectRatio * _yMag : xMag; }
+			void SetYMag(float yMag) { _update |= Update::p; _yMag = yMag; }
 
+			// Reflection, water, special effects:
+			void EnableReflectionMode();
 			void GetClippingSpacePlane(RVector4 plane) const;
-
 			void ExcludeWaterLine(float h = 0.25f);
 
+			// Motion:
 			void ApplyMotion(CSZ boneName, Anim::RMotion motion, float time);
 			void BakeMotion(CSZ boneName, Anim::RMotion motion, int frame);
 
@@ -121,14 +120,14 @@ namespace verus
 			virtual void Update() override;
 			void UpdateVP();
 
-			void GetPickingRay(RPoint3 pos, RVector3 dir) const;
-
+			// Motion blur:
 			RcMatrix4 GetMatrixPrevVP() const { return _matPrevVP; }
-
-			void SetCursorPosProvider(PCursorPosProvider p) { _pCpp = p; }
-
 			float ComputeMotionBlur(RcPoint3 pos, RcPoint3 posPrev) const;
 			void CutMotionBlur() { _cutMotionBlur = true; }
+
+			// Picking:
+			void SetCursorPosProvider(PCursorPosProvider p) { _pCpp = p; }
+			void GetPickingRay(RPoint3 pos, RVector3 dir) const;
 		};
 		VERUS_TYPEDEFS(MainCamera);
 	}

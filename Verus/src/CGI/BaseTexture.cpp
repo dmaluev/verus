@@ -292,7 +292,7 @@ void BaseTexture::LoadDDSArray(CSZ* urls)
 	}
 }
 
-void BaseTexture::Async_Run(CSZ url, RcBlob blob)
+void BaseTexture::Async_WhenLoaded(CSZ url, RcBlob blob)
 {
 	LoadDDS(url, blob);
 }

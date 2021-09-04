@@ -31,15 +31,15 @@ namespace verus
 			enum class Flags : UINT32
 			{
 				none = 0,
-				colorAttachment = (1 << 0),
-				inputAttachment = (1 << 1),
-				depthSampledR = (1 << 2),
-				depthSampledW = (1 << 3),
-				anyShaderResource = (1 << 4), // Will use xsReadOnly as main layout.
+				colorAttachment = (1 << 0), // Texture can be used as a render target.
+				inputAttachment = (1 << 1), // Texture can be used as an input attachment in a framebuffer (optimization for tiled rendering).
+				depthSampledR = (1 << 2), // Depth can be sampled in a shader, initial layout will be depthStencilReadOnly.
+				depthSampledW = (1 << 3), // Depth can be sampled in a shader, initial layout will be depthStencilAttachment.
+				anyShaderResource = (1 << 4), // Will use xsReadOnly as main layout (any shader can sample this texture).
 				generateMips = (1 << 5), // Allows GenerateMips calls.
 				forceArrayTexture = (1 << 6), // Create array texture even if arrayLayers=1.
-				sync = (1 << 7),
-				exposureMips = (1 << 8),
+				sync = (1 << 7), // Load image data synchronously.
+				exposureMips = (1 << 8), // Internal flag for automatic exposure.
 				cubeMap = (1 << 9)
 			};
 
@@ -57,7 +57,7 @@ namespace verus
 			short         _sampleCount = 1;
 			Flags         _flags = Flags::none;
 			short         _texturePart = 0;
-			short         _readbackMip = SHRT_MAX;
+			short         _readbackMip = SHRT_MAX; // -1 means the smallest one, SHRT_MAX means readback is disabled.
 
 			TextureDesc(CSZ url = nullptr) : _url(url) {}
 
@@ -71,7 +71,7 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(TextureDesc);
 
-		class BaseTexture : public Object, public IO::AsyncCallback, public Scheduled
+		class BaseTexture : public Object, public IO::AsyncDelegate, public Scheduled
 		{
 		protected:
 			Vector4     _size = Vector4(0);
@@ -112,7 +112,7 @@ namespace verus
 			void LoadDDS(CSZ url, RcBlob blob);
 			void LoadDDSArray(CSZ* urls);
 
-			virtual void Async_Run(CSZ url, RcBlob blob) override;
+			virtual void Async_WhenLoaded(CSZ url, RcBlob blob) override;
 
 			virtual void UpdateSubresource(const void* p, int mipLevel = 0, int arrayLayer = 0, BaseCommandBuffer* pCB = nullptr) = 0;
 			virtual bool ReadbackSubresource(void* p, bool recordCopyCommand = true, BaseCommandBuffer* pCB = nullptr) = 0;

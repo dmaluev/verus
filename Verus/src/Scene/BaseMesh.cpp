@@ -34,7 +34,7 @@ void BaseMesh::Done()
 	VERUS_DONE(BaseMesh);
 }
 
-void BaseMesh::Async_Run(CSZ url, RcBlob blob)
+void BaseMesh::Async_WhenLoaded(CSZ url, RcBlob blob)
 {
 	if (_url == url)
 	{

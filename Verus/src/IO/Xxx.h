@@ -13,7 +13,7 @@ namespace verus
 {
 	namespace IO
 	{
-		class Xxx : public AsyncCallback
+		class Xxx : public AsyncDelegate
 		{
 			Scene::Terrain* _pTerrain = nullptr;
 
@@ -24,7 +24,7 @@ namespace verus
 			Xxx(Scene::Terrain* pTerrain = nullptr);
 			~Xxx();
 
-			virtual void Async_Run(CSZ url, RcBlob blob) override;
+			virtual void Async_WhenLoaded(CSZ url, RcBlob blob) override;
 
 			void SerializeXXX3(CSZ url);
 			void DeserializeXXX3(CSZ url, bool sync);

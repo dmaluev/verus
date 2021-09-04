@@ -104,7 +104,7 @@ void ShadowMap::End()
 
 	const Matrix4 m = Math::ToUVMatrix();
 	_matShadow = m * _camera.GetMatrixVP();
-	_matShadowDS = _matShadow * _pPrevCamera->GetMatrixVi();
+	_matShadowDS = _matShadow * _pPrevCamera->GetMatrixInvV();
 
 	_pPrevCamera = sm.SetCamera(_pPrevCamera);
 	VERUS_RT_ASSERT(&_camera == _pPrevCamera); // Check camera's integrity.
@@ -358,7 +358,7 @@ void CascadedShadowMap::End(int split)
 
 	const Matrix4 m = Math::ToUVMatrix();
 	_matShadowCSM[_currentSplit] = _matOffset[_currentSplit] * m * _camera.GetMatrixVP();
-	_matShadowCSM_DS[_currentSplit] = _matShadowCSM[_currentSplit] * _pPrevCamera->GetMatrixVi();
+	_matShadowCSM_DS[_currentSplit] = _matShadowCSM[_currentSplit] * _pPrevCamera->GetMatrixInvV();
 
 	_pPrevCamera = sm.SetCamera(_pPrevCamera);
 	VERUS_RT_ASSERT(&_camera == _pPrevCamera); // Check camera's integrity.

@@ -307,6 +307,9 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 	{
 		VERUS_QREF_CONST_SETTINGS;
 
+		const int scaledSwapChainWidth = settings.Scale(_swapChainWidth);
+		const int scaledSwapChainHeight = settings.Scale(_swapChainHeight);
+
 		TextureDesc texDesc;
 		if (settings._displayOffscreenDraw)
 		{
@@ -328,6 +331,22 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 		texDesc._flags = TextureDesc::Flags::inputAttachment | TextureDesc::Flags::depthSampledW;
 		_tex[TEX_DEPTH_STENCIL].Init(texDesc);
 
+		if (_swapChainWidth != scaledSwapChainWidth || _swapChainHeight != scaledSwapChainHeight)
+		{
+			texDesc.Reset();
+			texDesc._clearValue = Vector4(1);
+			texDesc._name = "Renderer.DepthStencilScaled";
+			texDesc._format = Format::unormD24uintS8;
+			texDesc._width = scaledSwapChainWidth;
+			texDesc._height = scaledSwapChainHeight;
+			texDesc._flags = TextureDesc::Flags::inputAttachment | TextureDesc::Flags::depthSampledW;
+			_tex[TEX_DEPTH_STENCIL_SCALED].Init(texDesc);
+		}
+		else
+		{
+			_tex[TEX_DEPTH_STENCIL_SCALED] = _tex[TEX_DEPTH_STENCIL];
+		}
+
 		_fbhSwapChain.resize(_pBaseRenderer->GetSwapChainBufferCount());
 		VERUS_FOR(i, _fbhSwapChain.size())
 			_fbhSwapChain[i] = _pBaseRenderer->CreateFramebuffer(_rphSwapChain, {}, _swapChainWidth, _swapChainHeight, i);
@@ -337,8 +356,10 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 
 		if (settings._displayOffscreenDraw)
 		{
-			_fbhOffscreen = _pBaseRenderer->CreateFramebuffer(_rphSwapChain, { _tex[TEX_OFFSCREEN_COLOR] }, _swapChainWidth, _swapChainHeight);
-			_fbhOffscreenWithDepth = _pBaseRenderer->CreateFramebuffer(_rphSwapChainWithDepth, { _tex[TEX_OFFSCREEN_COLOR], _tex[TEX_DEPTH_STENCIL] }, _swapChainWidth, _swapChainHeight);
+			_fbhOffscreen = _pBaseRenderer->CreateFramebuffer(_rphSwapChain, { _tex[TEX_OFFSCREEN_COLOR] },
+				_swapChainWidth, _swapChainHeight);
+			_fbhOffscreenWithDepth = _pBaseRenderer->CreateFramebuffer(_rphSwapChainWithDepth, { _tex[TEX_OFFSCREEN_COLOR], _tex[TEX_DEPTH_STENCIL] },
+				_swapChainWidth, _swapChainHeight);
 
 			_cshOffscreenColor = _shader[SHADER_QUAD]->BindDescriptorSetTextures(1, { _tex[TEX_OFFSCREEN_COLOR] });
 		}
@@ -398,9 +419,9 @@ TexturePtr Renderer::GetTexOffscreenColor() const
 	return _tex[TEX_OFFSCREEN_COLOR];
 }
 
-TexturePtr Renderer::GetTexDepthStencil() const
+TexturePtr Renderer::GetTexDepthStencil(bool scaled) const
 {
-	return _tex[TEX_DEPTH_STENCIL];
+	return _tex[scaled ? TEX_DEPTH_STENCIL_SCALED : TEX_DEPTH_STENCIL];
 }
 
 void Renderer::OnShaderError(CSZ s)

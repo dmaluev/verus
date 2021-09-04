@@ -186,7 +186,7 @@ void SceneManager::Draw()
 	auto cb = renderer.GetCommandBuffer();
 	auto shader = Mesh::GetShader();
 
-	const int begin = ComputeBegin(NodeType::block);
+	const int begin = FindOffsetFor(NodeType::block);
 	const int end = begin + _visibleCountPerType[+NodeType::block];
 	shader->BeginBindDescriptors();
 	for (int i = begin; i <= end; ++i)
@@ -254,7 +254,7 @@ void SceneManager::DrawSimple(DrawSimpleMode mode)
 	auto cb = renderer.GetCommandBuffer();
 	auto shader = Mesh::GetSimpleShader();
 
-	const int begin = ComputeBegin(NodeType::block);
+	const int begin = FindOffsetFor(NodeType::block);
 	const int end = begin + _visibleCountPerType[+NodeType::block];
 	shader->BeginBindDescriptors();
 	for (int i = begin; i <= end; ++i)
@@ -338,7 +338,7 @@ void SceneManager::DrawLights()
 		}
 	};
 
-	const int begin = ComputeBegin(NodeType::light);
+	const int begin = FindOffsetFor(NodeType::light);
 	const int end = begin + _visibleCountPerType[+NodeType::light];
 	for (int i = begin; i <= end; ++i)
 	{
@@ -406,7 +406,7 @@ bool SceneManager::IsDrawingDepth(DrawDepth dd)
 		return DrawDepth::yes == dd;
 }
 
-int SceneManager::ComputeBegin(NodeType type) const
+int SceneManager::FindOffsetFor(NodeType type) const
 {
 	int ret = 0;
 	VERUS_FOR(i, +type)

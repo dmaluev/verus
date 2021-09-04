@@ -49,7 +49,7 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	vkici.mipLevels = _desc._mipLevels;
 	vkici.arrayLayers = _desc._arrayLayers;
 	vkici.samples = ToNativeSampleCount(_desc._sampleCount);
-	vkici.tiling = VK_IMAGE_TILING_OPTIMAL;
+	vkici.tiling = VK_IMAGE_TILING_OPTIMAL; // Implementation-dependent arrangement for efficient memory access.
 	vkici.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	vkici.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	vkici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -87,7 +87,7 @@ void TextureVulkan::Init(RcTextureDesc desc)
 		}
 		pRendererVulkan->CreateImage(&vkiciStorage, VMA_MEMORY_USAGE_GPU_ONLY, _storageImage, _storageVmaAllocation);
 
-		_vCshGenerateMips.reserve((_desc._mipLevels + 3) / 4);
+		_vCshGenerateMips.reserve(Math::DivideByMultiple<int>(_desc._mipLevels, 4));
 		_vStorageImageViews.resize(vkiciStorage.mipLevels);
 		VERUS_U_FOR(mip, vkiciStorage.mipLevels)
 		{
@@ -306,11 +306,14 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 	auto& ub = renderer.GetUbGenerateMips();
 	auto tex = TexturePtr::From(this);
 
+	const int maxMipLevel = _desc._mipLevels - 1;
+	const int storageMaxMipLevel = _desc._mipLevels - 2; // Largest mip level not included.
+
 	if (!_definedStorage)
 	{
 		_definedStorage = true;
 		std::swap(_image, _storageImage);
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::undefined, ImageLayout::general, Range<int>(0, _desc._mipLevels - 2));
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::undefined, ImageLayout::general, Range<int>(0, storageMaxMipLevel));
 		std::swap(_image, _storageImage);
 	}
 
@@ -320,7 +323,7 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 	if (firstMipLayout != ImageLayout::xsReadOnly)
 		pCB->PipelineImageMemoryBarrier(tex, firstMipLayout, ImageLayout::xsReadOnly, 0);
 	if (otherMipsLayout != ImageLayout::xsReadOnly)
-		pCB->PipelineImageMemoryBarrier(tex, otherMipsLayout, ImageLayout::xsReadOnly, Range<int>(1, _desc._mipLevels - 1));
+		pCB->PipelineImageMemoryBarrier(tex, otherMipsLayout, ImageLayout::xsReadOnly, Range<int>(1, maxMipLevel));
 	VERUS_FOR(mip, _desc._mipLevels)
 		MarkSubresourceDefined(mip, 0);
 
@@ -329,7 +332,7 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 	shader->BeginBindDescriptors();
 	const bool createComplexSets = _vCshGenerateMips.empty();
 	int dispatchIndex = 0;
-	for (int srcMip = 0; srcMip < _desc._mipLevels - 1;)
+	for (int srcMip = 0; srcMip < maxMipLevel;)
 	{
 		const int srcWidth = _desc._width >> srcMip;
 		const int srcHeight = _desc._height >> srcMip;
@@ -342,7 +345,7 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 
 		ub._srcMipLevel = srcMip;
 		ub._mipLevelCount = dispatchMipCount;
-		ub._srcDimensionCase = (srcHeight & 1) << 1 | (srcWidth & 1);
+		ub._srcDimensionCase = ((srcHeight & 1) << 1) | (srcWidth & 1);
 		ub._srgb = IsSRGBFormat(_desc._format);
 		ub._texelSize.x = 1.f / dstWidth;
 		ub._texelSize.y = 1.f / dstHeight;
@@ -399,7 +402,7 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 	// Revert to main layout:
 	const ImageLayout finalMipLayout = GetSubresourceMainLayout(0, 0);
 	if (finalMipLayout != ImageLayout::xsReadOnly)
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, finalMipLayout, Range<int>(0, _desc._mipLevels - 1));
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, finalMipLayout, Range<int>(0, maxMipLevel));
 
 	Schedule(0);
 }

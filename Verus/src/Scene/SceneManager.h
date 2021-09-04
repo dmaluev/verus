@@ -72,7 +72,7 @@ namespace verus
 
 			static bool IsDrawingDepth(DrawDepth dd);
 
-			int ComputeBegin(NodeType type) const;
+			int FindOffsetFor(NodeType type) const;
 
 			String EnsureUniqueName(CSZ name);
 

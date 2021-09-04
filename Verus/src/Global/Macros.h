@@ -63,12 +63,6 @@
 #define VERUS_COLOR_BLACK         VERUS_COLOR_RGBA(0, 0, 0, 255)
 
 #ifdef _WIN32
-#	define VERUS_SDL_CENTERED _putenv("SDL_VIDEO_WINDOW_POS"); _putenv("SDL_VIDEO_CENTERED=1")
-#else
-#	define VERUS_SDL_CENTERED putenv("SDL_VIDEO_WINDOW_POS"); putenv("SDL_VIDEO_CENTERED=1")
-#endif
-
-#ifdef _WIN32
 #	define VERUS_DLL_EXPORT __declspec(dllexport)
 #else
 #	define VERUS_DLL_EXPORT __attribute__ ((visibility("default")))

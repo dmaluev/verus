@@ -34,7 +34,7 @@ void Async::Done()
 	VERUS_DONE(Async);
 }
 
-void Async::Load(CSZ url, PAsyncCallback pCallback, RcTaskDesc desc)
+void Async::Load(CSZ url, PAsyncDelegate pDelegate, RcTaskDesc desc)
 {
 	VERUS_RT_ASSERT(IsInitialized());
 	VERUS_RT_ASSERT(!_inUpdate); // Not allowed to call Load() in Update().
@@ -53,8 +53,8 @@ void Async::Load(CSZ url, PAsyncCallback pCallback, RcTaskDesc desc)
 					// This resource is already scheduled.
 					// Just add a new owner, if it's not already there.
 					RTask task = kv.second;
-					if (std::find(task._vOwners.begin(), task._vOwners.end(), pCallback) == task._vOwners.end())
-						task._vOwners.push_back(pCallback);
+					if (std::find(task._vOwners.begin(), task._vOwners.end(), pDelegate) == task._vOwners.end())
+						task._vOwners.push_back(pDelegate);
 					return;
 				}
 			}
@@ -64,13 +64,13 @@ void Async::Load(CSZ url, PAsyncCallback pCallback, RcTaskDesc desc)
 			if (!full)
 			{
 				char order[16];
-				sprintf_s(order, "%08X", _order); // The order of Load() and callbacks is preserved.
+				sprintf_s(order, "%08X", _order); // The order of Load() and delegates is preserved.
 				_order++;
 				String key = order;
 				key += url;
 
 				RTask task = _mapTasks[key];
-				task._vOwners.push_back(pCallback);
+				task._vOwners.push_back(pDelegate);
 				task._desc = desc;
 				_queue[_cursorWrite] = _C(_mapTasks.find(key)->first);
 				VERUS_CIRCULAR_ADD(_cursorWrite, VERUS_COUNT_OF(_queue));
@@ -87,16 +87,16 @@ void Async::Load(CSZ url, PAsyncCallback pCallback, RcTaskDesc desc)
 	_cv.notify_one();
 }
 
-void Async::_Cancel(PAsyncCallback pCallback)
+void Async::_Cancel(PAsyncDelegate pDelegate)
 {
 	VERUS_RT_ASSERT(IsInitialized());
 	VERUS_LOCK(*this);
 	for (auto& kv : _mapTasks)
 	{
 		RTask task = kv.second;
-		VERUS_WHILE(Vector<PAsyncCallback>, task._vOwners, it)
+		VERUS_WHILE(Vector<PAsyncDelegate>, task._vOwners, it)
 		{
-			if (*it == pCallback)
+			if (*it == pDelegate)
 				it = task._vOwners.erase(it);
 			else
 				++it;
@@ -104,10 +104,10 @@ void Async::_Cancel(PAsyncCallback pCallback)
 	}
 }
 
-void Async::Cancel(PAsyncCallback pCallback)
+void Async::Cancel(PAsyncDelegate pDelegate)
 {
 	if (IsValidSingleton())
-		I()._Cancel(pCallback);
+		I()._Cancel(pDelegate);
 }
 
 void Async::Update()
@@ -131,11 +131,11 @@ void Async::Update()
 			if (!task._v.empty())
 			{
 				for (const auto& pOwner : task._vOwners)
-					pOwner->Async_Run(_C(itTask->first) + s_orderLength, Blob(task._v.data(), task._v.size()));
+					pOwner->Async_WhenLoaded(_C(itTask->first) + s_orderLength, Blob(task._v.data(), task._v.size()));
 			}
 			itTask = _mapTasks.erase(itTask);
 			// Task complete.
-			if (_singleMode)
+			if (_onePerUpdateMode)
 				break;
 		}
 		else
@@ -225,7 +225,7 @@ void Async::ThreadProc()
 				// Finalize this task:
 				VERUS_LOCK(*this);
 				pTask->_loaded = true;
-				// Is it safe to run a callback on this loader thread?
+				// Is it safe to call a delegate on this loader thread?
 				if (!pTask->_desc._runOnMainThread)
 				{
 #ifdef VERUS_RELEASE_DEBUG
@@ -234,7 +234,7 @@ void Async::ThreadProc()
 					if (!pTask->_v.empty())
 					{
 						for (const auto& pOwner : pTask->_vOwners)
-							pOwner->Async_Run(key + s_orderLength, Blob(pTask->_v.data(), pTask->_v.size()));
+							pOwner->Async_WhenLoaded(key + s_orderLength, Blob(pTask->_v.data(), pTask->_v.size()));
 					}
 					_mapTasks.erase(itTask);
 					// Task complete.

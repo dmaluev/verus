@@ -221,7 +221,7 @@ Continue Octree::TraverseVisible(RcFrustum frustum, PResult pResult, int current
 	const float onePixel = Math::ComputeOnePixelDistance(
 		_vNodes[currentNode].GetSphere().GetRadius());
 	const bool notTooSmall = pResult->_depth || VMath::distSqr(
-		frustum.GetEyePosition(), _vNodes[currentNode].GetSphere().GetCenter()) < onePixel * onePixel;
+		frustum.GetZNearPosition(), _vNodes[currentNode].GetSphere().GetCenter()) < onePixel * onePixel;
 
 	if (notTooSmall &&
 		Relation::outside != frustum.ContainsSphere(_vNodes[currentNode].GetSphere()) &&
@@ -238,7 +238,7 @@ Continue Octree::TraverseVisible(RcFrustum frustum, PResult pResult, int current
 				const float onePixel = Math::ComputeOnePixelDistance(
 					client._sphere.GetRadius());
 				const bool notTooSmall = pResult->_depth || VMath::distSqr(
-					frustum.GetEyePosition(), client._sphere.GetCenter()) < onePixel * onePixel;
+					frustum.GetZNearPosition(), client._sphere.GetCenter()) < onePixel * onePixel;
 
 				if (notTooSmall &&
 					Relation::outside != frustum.ContainsSphere(client._sphere) &&

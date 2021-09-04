@@ -165,6 +165,8 @@ namespace verus
 
 			void UpdateHighDpiScale();
 			int GetFontSize() const;
+
+			int Scale(int size) const;
 		};
 		VERUS_TYPEDEFS(Settings);
 	}

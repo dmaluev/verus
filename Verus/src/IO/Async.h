@@ -5,11 +5,11 @@ namespace verus
 {
 	namespace IO
 	{
-		struct AsyncCallback
+		struct AsyncDelegate
 		{
-			virtual void Async_Run(CSZ url, RcBlob blob) = 0;
+			virtual void Async_WhenLoaded(CSZ url, RcBlob blob) = 0;
 		};
-		VERUS_TYPEDEFS(AsyncCallback);
+		VERUS_TYPEDEFS(AsyncDelegate);
 
 		// Load resources asynchronously.
 		// Load method just adds the url to a queue.
@@ -36,7 +36,7 @@ namespace verus
 		private:
 			struct Task
 			{
-				Vector<PAsyncCallback> _vOwners;
+				Vector<PAsyncDelegate> _vOwners;
 				Vector<BYTE>           _v;
 				TaskDesc               _desc;
 				bool                   _loaded = false;
@@ -58,7 +58,7 @@ namespace verus
 			std::atomic_bool        _stopThread;
 			bool                    _inUpdate = false;
 			bool                    _flush = false;
-			bool                    _singleMode = false;
+			bool                    _onePerUpdateMode = false;
 
 		public:
 			Async();
@@ -67,14 +67,14 @@ namespace verus
 			void Init();
 			void Done();
 
-			virtual void Load(CSZ url, PAsyncCallback pCallback, RcTaskDesc desc = TaskDesc());
-			VERUS_P(virtual void _Cancel(PAsyncCallback pCallback));
-			static void Cancel(PAsyncCallback pCallback);
+			virtual void Load(CSZ url, PAsyncDelegate pDelegate, RcTaskDesc desc = TaskDesc());
+			VERUS_P(virtual void _Cancel(PAsyncDelegate pDelegate));
+			static void Cancel(PAsyncDelegate pDelegate);
 
 			virtual void Update();
 
 			void Flush();
-			void SetSingleMode(bool b) { _singleMode = b; }
+			void SetOnePerUpdateMode(bool b) { _onePerUpdateMode = b; }
 
 			VERUS_P(void ThreadProc());
 		};

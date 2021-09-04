@@ -14,7 +14,7 @@ HelloTriangleGame::~HelloTriangleGame()
 	CGI::Renderer::I()->WaitIdle();
 }
 
-void HelloTriangleGame::BaseGame_UpdateSettings()
+void HelloTriangleGame::BaseGame_UpdateSettings(App::Window::RDesc windowDesc)
 {
 	VERUS_QREF_SETTINGS;
 	settings._displayOffscreenDraw = false; // Draw directly to swap chain.

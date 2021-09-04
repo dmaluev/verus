@@ -18,7 +18,7 @@ namespace verus
 				count
 			};
 
-			Matrix4 _matI = Matrix4::identity();
+			Matrix4 _matInvVP = Matrix4::identity();
 			Plane   _planes[static_cast<int>(Name::count)];
 			Point3  _corners[10];
 
@@ -26,14 +26,15 @@ namespace verus
 			Frustum();
 			~Frustum();
 
-			static Frustum MakeFromMatrix(RcMatrix4 m);
-			Frustum& FromMatrix(RcMatrix4 m);
+			static Frustum MakeFromMatrix(RcMatrix4 matVP);
+			Frustum& FromMatrix(RcMatrix4 matVP);
 			Relation ContainsSphere(RcSphere sphere) const;
-			Relation ContainsAabb(RcBounds aabb) const;
+			Relation ContainsAabb(RcBounds bounds) const;
 			void Draw();
 
 			RcPoint3 GetCorner(int index) const { return _corners[index]; }
-			RcPoint3 GetEyePosition() const { return _corners[8]; }
+			RcPoint3 GetZNearPosition() const { return _corners[8]; }
+			RcPoint3 GetZFarPosition() const { return _corners[9]; }
 
 			Vector4 GetBounds(RcMatrix4 m, float& zNear, float& zFar) const;
 

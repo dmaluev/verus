@@ -23,13 +23,15 @@ namespace verus
 
 		typedef StoreUniqueWithNoRefCount<String, MotionData> TStoreMotions;
 		// The collection of motion objects that can be reused by multiple animation objects.
-		class Collection : private TStoreMotions, public IO::AsyncCallback
+		class Collection : private TStoreMotions, public IO::AsyncDelegate
 		{
+			bool _useShortNames = true;
+
 		public:
-			Collection();
+			Collection(bool useShortNames = true);
 			~Collection();
 
-			virtual void Async_Run(CSZ url, RcBlob blob) override;
+			virtual void Async_WhenLoaded(CSZ url, RcBlob blob) override;
 
 			void AddMotion(CSZ name, bool loop = true, float duration = 0);
 			void DeleteAll();

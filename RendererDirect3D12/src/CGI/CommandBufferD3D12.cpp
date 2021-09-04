@@ -280,7 +280,7 @@ void CommandBufferD3D12::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout 
 {
 	auto& texD3D12 = static_cast<RTextureD3D12>(*tex);
 	CD3DX12_RESOURCE_BARRIER rb[16];
-	VERUS_RT_ASSERT(mipLevels.GetRange() < VERUS_COUNT_OF(rb));
+	VERUS_RT_ASSERT(mipLevels.GetLength() < VERUS_COUNT_OF(rb));
 	int index = 0;
 	for (int mip : mipLevels)
 	{

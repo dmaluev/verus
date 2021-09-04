@@ -6,7 +6,8 @@ using namespace verus::Anim;
 
 // Collection:
 
-Collection::Collection()
+Collection::Collection(bool useShortNames) :
+	_useShortNames(useShortNames)
 {
 }
 
@@ -15,12 +16,16 @@ Collection::~Collection()
 	DeleteAll();
 }
 
-void Collection::Async_Run(CSZ url, RcBlob blob)
+void Collection::Async_WhenLoaded(CSZ url, RcBlob blob)
 {
 	IO::StreamPtr sp(blob);
-	CSZ niceName = strrchr(url, '/');
-	niceName = niceName ? niceName + 1 : url;
-	RMotionData md = *TStoreMotions::Insert(niceName);
+	CSZ shortName = url;
+	if (_useShortNames)
+	{
+		shortName = strrchr(url, '/');
+		shortName = shortName ? shortName + 1 : url;
+	}
+	RMotionData md = *TStoreMotions::Insert(shortName);
 	md._motion.Init();
 	md._motion.Deserialize(sp);
 	if (md._duration)
@@ -29,9 +34,13 @@ void Collection::Async_Run(CSZ url, RcBlob blob)
 
 void Collection::AddMotion(CSZ name, bool loop, float duration)
 {
-	CSZ niceName = strrchr(name, '/');
-	niceName = niceName ? niceName + 1 : name;
-	RMotionData md = *TStoreMotions::Insert(niceName);
+	CSZ shortName = name;
+	if (_useShortNames)
+	{
+		shortName = strrchr(name, '/');
+		shortName = shortName ? shortName + 1 : name;
+	}
+	RMotionData md = *TStoreMotions::Insert(shortName);
 	md._duration = duration;
 	md._loop = loop;
 	IO::Async::I().Load(name, this);

@@ -103,8 +103,11 @@ void Bloom::OnSwapChainResized()
 		_tex.Done();
 	}
 	{
-		const int w = renderer.GetSwapChainWidth() / 2;
-		const int h = renderer.GetSwapChainHeight() / 2;
+		const int scaledSwapChainWidth = settings.Scale(renderer.GetSwapChainWidth());
+		const int scaledSwapChainHeight = settings.Scale(renderer.GetSwapChainHeight());
+
+		const int w = scaledSwapChainWidth / 2;
+		const int h = scaledSwapChainHeight / 2;
 		CGI::TextureDesc texDesc;
 		texDesc._name = "Bloom.Pong";
 		texDesc._format = CGI::Format::srgbR8G8B8A8;

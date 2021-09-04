@@ -88,7 +88,7 @@ void Run()
 		std::wcerr << _T("ERROR: Unable to create file ") << g_filename << _T(".pak. Error code: 0x") << std::hex << GetLastError() << std::endl;
 		throw std::exception();
 	}
-	const UINT32 magic = MAKEFOURCC('2', 'P', 'A', 'K');
+	const UINT32 magic = 'KAP2';
 	pakFile << magic;
 	INT64 temp = 0;
 	pakFile << temp;

@@ -84,7 +84,10 @@ void Ssao::OnSwapChainResized()
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 
-	auto InitTex = [this]()
+	const int scaledSwapChainWidth = settings.Scale(renderer.GetSwapChainWidth());
+	const int scaledSwapChainHeight = settings.Scale(renderer.GetSwapChainHeight());
+
+	auto InitTex = [this, scaledSwapChainWidth, scaledSwapChainHeight]()
 	{
 		_tex[TEX_GEN_AO].Done();
 		VERUS_QREF_RENDERER;
@@ -92,8 +95,8 @@ void Ssao::OnSwapChainResized()
 		texDesc._clearValue = Vector4::Replicate(1);
 		texDesc._name = "Ssao.GenAO";
 		texDesc._format = CGI::Format::unormR8;
-		texDesc._width = renderer.GetSwapChainWidth();
-		texDesc._height = renderer.GetSwapChainHeight();
+		texDesc._width = scaledSwapChainWidth;
+		texDesc._height = scaledSwapChainHeight;
 		texDesc._flags = CGI::TextureDesc::Flags::colorAttachment;
 		_tex[TEX_GEN_AO].Init(texDesc);
 		renderer.GetDS().InitBySsao(_tex[TEX_GEN_AO]);
@@ -111,7 +114,7 @@ void Ssao::OnSwapChainResized()
 	}
 	{
 		InitTex();
-		_fbh = renderer->CreateFramebuffer(_rph, { _tex[TEX_GEN_AO] }, renderer.GetSwapChainWidth(), renderer.GetSwapChainHeight());
+		_fbh = renderer->CreateFramebuffer(_rph, { _tex[TEX_GEN_AO] }, scaledSwapChainWidth, scaledSwapChainHeight);
 		_csh = _shader->BindDescriptorSetTextures(1,
 			{
 				_tex[TEX_RAND_NORMALS],

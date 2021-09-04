@@ -74,10 +74,8 @@ BaseGame::~BaseGame()
 		RestartApp();
 }
 
-void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
+void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc windowDesc)
 {
-	VERUS_SDL_CENTERED;
-
 	const int ret = SDL_Init(SDL_INIT_EVERYTHING);
 	if (ret)
 		throw VERUS_RUNTIME_ERROR << "SDL_Init(), " << ret;
@@ -92,7 +90,8 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
 	settings.HandleCommandLineArgs();
 	settings.Validate();
 	settings.Save();
-	BaseGame_UpdateSettings();
+	App::Window::Desc updatedWindowDesc = windowDesc;
+	BaseGame_UpdateSettings(updatedWindowDesc);
 	if (App::Settings::Platform::uwp == settings._platform)
 		settings._gapi = 12;
 
@@ -103,7 +102,7 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc desc)
 	Utils::TestAll();
 #endif
 
-	_window.Init(desc);
+	_window.Init(updatedWindowDesc);
 	CGI::Renderer::I().SetMainWindow(&_window);
 	_engineInit.Init(this, new MyRendererDelegate(this));
 
@@ -205,6 +204,11 @@ void BaseGame::Run(bool relativeMouseMode)
 				{
 					switch (event.window.event)
 					{
+					case SDL_WINDOWEVENT_MOVED:
+					{
+						BaseGame_OnWindowMoved();
+					}
+					break;
 					case SDL_WINDOWEVENT_SIZE_CHANGED:
 					{
 						if (renderer.OnWindowSizeChanged(event.window.data1, event.window.data2))

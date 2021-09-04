@@ -14,45 +14,44 @@ Frustum::~Frustum()
 {
 }
 
-Frustum Frustum::MakeFromMatrix(RcMatrix4 m)
+Frustum Frustum::MakeFromMatrix(RcMatrix4 matVP)
 {
-	Frustum f;
-	f._matI = VMath::inverse(m);
-	const float z = 0;
+	Frustum ret;
+	ret._matInvVP = VMath::inverse(matVP);
 	const Vector4 corners[10] =
 	{
-		Vector4(+1, +1, z, 1),
-		Vector4(-1, +1, z, 1),
-		Vector4(+1, -1, z, 1),
-		Vector4(-1, -1, z, 1),
-		Vector4(+1, +1, 1, 1),
-		Vector4(-1, +1, 1, 1),
-		Vector4(+1, -1, 1, 1),
+		Vector4(-1, -1, 0, 1),
+		Vector4(+1, -1, 0, 1),
+		Vector4(-1, +1, 0, 1),
+		Vector4(+1, +1, 0, 1),
 		Vector4(-1, -1, 1, 1),
-		Vector4(+0, +0, z, 1),
-		Vector4(+0, +0, 1, 1)
+		Vector4(+1, -1, 1, 1),
+		Vector4(-1, +1, 1, 1),
+		Vector4(+1, +1, 1, 1),
+		Vector4(+0, +0, 0, 1), // At zNear.
+		Vector4(+0, +0, 1, 1) // At zFar.
 	};
 	VERUS_FOR(i, 10)
 	{
-		Vector4 inv = f._matI * corners[i];
+		Vector4 inv = ret._matInvVP * corners[i];
 		inv /= inv.getW();
-		f._corners[i] = inv.getXYZ();
+		ret._corners[i] = inv.getXYZ();
 	};
-	const Matrix4 mvp = VMath::transpose(m);
-	f._planes[+Name::left]     /**/ = mvp.getCol3() + mvp.getCol0();
-	f._planes[+Name::right]    /**/ = mvp.getCol3() - mvp.getCol0();
-	f._planes[+Name::bottom]   /**/ = mvp.getCol3() + mvp.getCol1();
-	f._planes[+Name::top]      /**/ = mvp.getCol3() - mvp.getCol1();
-	f._planes[+Name::nearest]  /**/ = mvp.getCol3() + mvp.getCol2();
-	f._planes[+Name::furthest] /**/ = mvp.getCol3() - mvp.getCol2();
+	const Matrix4 mat = VMath::transpose(matVP);
+	ret._planes[+Name::left]     /**/ = mat.getCol3() + mat.getCol0();
+	ret._planes[+Name::right]    /**/ = mat.getCol3() - mat.getCol0();
+	ret._planes[+Name::bottom]   /**/ = mat.getCol3() + mat.getCol1();
+	ret._planes[+Name::top]      /**/ = mat.getCol3() - mat.getCol1();
+	ret._planes[+Name::nearest]  /**/ = mat.getCol3() + mat.getCol2();
+	ret._planes[+Name::furthest] /**/ = mat.getCol3() - mat.getCol2();
 	VERUS_FOR(i, 6)
-		f._planes[i].Normalize();
-	return f;
+		ret._planes[i].Normalize();
+	return ret;
 }
 
-RFrustum Frustum::FromMatrix(RcMatrix4 m)
+RFrustum Frustum::FromMatrix(RcMatrix4 matVP)
 {
-	*this = MakeFromMatrix(m);
+	*this = MakeFromMatrix(matVP);
 	return *this;
 }
 
@@ -71,12 +70,12 @@ Relation Frustum::ContainsSphere(RcSphere sphere) const
 	return Relation::inside;
 }
 
-Relation Frustum::ContainsAabb(RcBounds aabb) const
+Relation Frustum::ContainsAabb(RcBounds bounds) const
 {
 	int totalIn = 0, inCount, allPointsIn;
 	Vector4 res0, res1;
 	Matrix4 m[2];
-	aabb.GetCorners(m);
+	bounds.GetCorners(m);
 	VERUS_FOR(plane, 6)
 	{
 		inCount = 8;

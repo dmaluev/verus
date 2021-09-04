@@ -50,8 +50,8 @@ void Window::Init(RcDesc constDesc)
 
 	_pWnd = SDL_CreateWindow(
 		desc._title ? desc._title : "",
-		SDL_WINDOWPOS_CENTERED,
-		SDL_WINDOWPOS_CENTERED,
+		desc._x,
+		desc._y,
 		desc._width,
 		desc._height,
 		flags);
@@ -65,6 +65,17 @@ void Window::Init(RcDesc constDesc)
 		if (DisplayMode::borderlessWindowed == desc._displayMode)
 			VERUS_LOG_INFO("Window is using Borderless Windowed display mode");
 	}
+
+	// Fix offscreen windows:
+#ifdef _WIN32
+	SDL_SysWMinfo wmInfo = {};
+	SDL_VERSION(&wmInfo.version);
+	if (!SDL_GetWindowWMInfo(_pWnd, &wmInfo))
+		throw VERUS_RUNTIME_ERROR << "SDL_GetWindowWMInfo()";
+	WINDOWPLACEMENT wp = {};
+	GetWindowPlacement(wmInfo.info.win.window, &wp);
+	SetWindowPlacement(wmInfo.info.win.window, &wp);
+#endif
 }
 
 void Window::Done()

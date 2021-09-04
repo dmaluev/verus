@@ -598,7 +598,7 @@ void Forest::DrawSimple(DrawSimpleMode mode)
 	s_ubSimpleForestVS._eyePos_clipDistanceOffset = float4(sm.GetCamera()->GetEyePosition().GLM(), clipDistanceOffset);
 	s_ubSimpleForestVS._eyePosScreen = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
 	s_ubSimpleForestVS._pointSpriteScale = float4(1, pointSpriteScaleY, 0, 0);
-	s_ubSimpleForestFS._matInvV = sm.GetCamera()->GetMatrixVi().UniformBufferFormat();
+	s_ubSimpleForestFS._matInvV = sm.GetCamera()->GetMatrixInvV().UniformBufferFormat();
 	s_ubSimpleForestFS._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0);
 	s_ubSimpleForestFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubSimpleForestFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
