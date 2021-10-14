@@ -220,9 +220,9 @@ void Settings::HandleHighDpi()
 		if (FAILED(hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)))
 		{
 			if (E_ACCESSDENIED != hr)
-				throw VERUS_RUNTIME_ERROR << "SetProcessDpiAwareness(), hr=" << VERUS_HR(hr);
+				throw VERUS_RUNTIME_ERROR << "SetProcessDpiAwareness(); hr=" << VERUS_HR(hr);
 			else
-				VERUS_LOG_INFO("SetProcessDpiAwareness(), E_ACCESSDENIED");
+				VERUS_LOG_INFO("SetProcessDpiAwareness(); E_ACCESSDENIED");
 		}
 		UpdateHighDpiScale();
 	}
@@ -326,7 +326,7 @@ void Settings::LoadLocalizedStrings(CSZ url)
 	pugi::xml_document doc;
 	const pugi::xml_parse_result result = doc.load_buffer_inplace(vData.data(), vData.size());
 	if (!result)
-		throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+		throw VERUS_RECOVERABLE << "load_buffer_inplace(); " << result.description();
 	pugi::xml_node root = doc.first_child();
 
 	_mapLocalizedStrings.clear();
@@ -353,7 +353,7 @@ void Settings::UpdateHighDpiScale()
 	float vdpi = 0;
 	if (SDL_GetDisplayDPI(0, &ddpi, &hdpi, &vdpi) < 0)
 	{
-		VERUS_LOG_INFO("SDL_GetDisplayDPI(), " << SDL_GetError());
+		VERUS_LOG_INFO("SDL_GetDisplayDPI(); " << SDL_GetError());
 		_highDpiScale = 1;
 	}
 	else

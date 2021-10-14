@@ -199,7 +199,7 @@ UINT32 Convert::ColorTextToInt32(CSZ sz)
 UINT16 Convert::QuantizeFloat(float f, float mn, float mx)
 {
 	const float range = mx - mn;
-	return UINT16(Math::Clamp((f - mn) / range * USHRT_MAX, 0.f, float(USHRT_MAX)));
+	return UINT16(Math::Clamp<float>((f - mn) / range * USHRT_MAX + 0.5f, 0, USHRT_MAX));
 }
 
 float Convert::DequantizeFloat(UINT16 i, float mn, float mx)
@@ -211,7 +211,7 @@ float Convert::DequantizeFloat(UINT16 i, float mn, float mx)
 BYTE Convert::QuantizeFloatToByte(float f, float mn, float mx)
 {
 	const float range = mx - mn;
-	return BYTE(Math::Clamp((f - mn) / range * UCHAR_MAX, 0.f, float(UCHAR_MAX)));
+	return BYTE(Math::Clamp<float>((f - mn) / range * UCHAR_MAX + 0.5f, 0, UCHAR_MAX));
 }
 
 float Convert::DequantizeFloatFromByte(BYTE i, float mn, float mx)
@@ -222,8 +222,7 @@ float Convert::DequantizeFloatFromByte(BYTE i, float mn, float mx)
 
 String Convert::ToBase64(const Vector<BYTE>& vBin)
 {
-	Vector<char> vBase64;
-	vBase64.resize(vBin.size() * 2);
+	Vector<char> vBase64(vBin.size() * 2);
 	base64_encodestate state;
 	base64_init_encodestate(&state);
 	const int len = base64_encode_block(reinterpret_cast<CSZ>(vBin.data()), Utils::Cast32(vBin.size()), vBase64.data(), &state);
@@ -234,8 +233,7 @@ String Convert::ToBase64(const Vector<BYTE>& vBin)
 
 Vector<BYTE> Convert::ToBinFromBase64(CSZ base64)
 {
-	Vector<BYTE> vBin;
-	vBin.resize(strlen(base64));
+	Vector<BYTE> vBin(strlen(base64));
 	base64_decodestate state;
 	base64_init_decodestate(&state);
 	const int len = base64_decode_block(base64, Utils::Cast32(strlen(base64)), reinterpret_cast<SZ>(vBin.data()), &state);
@@ -257,8 +255,7 @@ String Convert::ToHex(const Vector<BYTE>& vBin)
 {
 	static const char hexval[] = "0123456789ABCDEF";
 	const int count = Utils::Cast32(vBin.size());
-	Vector<char> vHex;
-	vHex.resize(count * 2);
+	Vector<char> vHex(count * 2);
 	VERUS_FOR(i, count)
 	{
 		vHex[(i << 1) + 0] = hexval[(vBin[i] >> 4) & 0xF];
@@ -363,8 +360,7 @@ void Convert::Test()
 		VERUS_RT_ASSERT(colorIn[i] == colorTest[i]);
 	}
 
-	Vector<BYTE> vBin;
-	vBin.resize(16);
+	Vector<BYTE> vBin(16);
 
 	Random random;
 	random.NextArray(vBin);

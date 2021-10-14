@@ -13,10 +13,6 @@ void State::OnEnter(PState pPrev)
 {
 }
 
-void State::HandleInput()
-{
-}
-
 void State::Update()
 {
 }

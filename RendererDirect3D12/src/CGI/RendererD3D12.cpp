@@ -99,7 +99,7 @@ ComPtr<IDXGIFactory7> RendererD3D12::CreateDXGIFactory()
 	flags = DXGI_CREATE_FACTORY_DEBUG;
 #endif
 	if (FAILED(hr = CreateDXGIFactory2(flags, IID_PPV_ARGS(&pFactory))))
-		throw VERUS_RUNTIME_ERROR << "CreateDXGIFactory2(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "CreateDXGIFactory2(); hr=" << VERUS_HR(hr);
 	return pFactory;
 }
 
@@ -118,7 +118,7 @@ ComPtr<IDXGIAdapter4> RendererD3D12::GetAdapter(ComPtr<IDXGIFactory7> pFactory, 
 	}
 
 	if (!pAdapter)
-		throw VERUS_RUNTIME_ERROR << "GetAdapter(), adapter not found";
+		throw VERUS_RUNTIME_ERROR << "GetAdapter(); Adapter not found";
 
 	DXGI_ADAPTER_DESC1 adapterDesc = {};
 	pAdapter->GetDesc1(&adapterDesc);
@@ -144,7 +144,7 @@ void RendererD3D12::CreateSwapChainBuffersRTVs()
 	{
 		ComPtr<ID3D12Resource> pBuffer;
 		if (FAILED(hr = _pSwapChain->GetBuffer(i, IID_PPV_ARGS(&pBuffer))))
-			throw VERUS_RUNTIME_ERROR << "GetBuffer(), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "GetBuffer(); hr=" << VERUS_HR(hr);
 		D3D12_RENDER_TARGET_VIEW_DESC desc = {};
 		desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
 		desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
@@ -175,12 +175,12 @@ void RendererD3D12::InitD3D()
 	if (FAILED(hr))
 	{
 		if (FAILED(hr = pFactory->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter))))
-			throw VERUS_RUNTIME_ERROR << "EnumWarpAdapter(), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "EnumWarpAdapter(); hr=" << VERUS_HR(hr);
 		hr = D3D12CreateDevice(pAdapter.Get(), featureLevel, IID_PPV_ARGS(&_pDevice));
 	}
 #endif
 	if (FAILED(hr))
-		throw VERUS_RUNTIME_ERROR << "D3D12CreateDevice(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "D3D12CreateDevice(); hr=" << VERUS_HR(hr);
 
 	VERUS_RT_ASSERT(D3D_FEATURE_LEVEL_11_0 == featureLevel);
 	VERUS_LOG_INFO("Using feature level: 11_0");
@@ -188,7 +188,7 @@ void RendererD3D12::InitD3D()
 	D3D12MA::ALLOCATOR_DESC allocatorDesc = {};
 	allocatorDesc.pDevice = _pDevice.Get();
 	if (FAILED(hr = D3D12MA::CreateAllocator(&allocatorDesc, &_pMaAllocator)))
-		throw VERUS_RUNTIME_ERROR << "CreateAllocator(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "CreateAllocator(); hr=" << VERUS_HR(hr);
 
 #if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	ComPtr<ID3D12InfoQueue> pInfoQueue;
@@ -232,19 +232,19 @@ void RendererD3D12::InitD3D()
 	case App::Settings::Platform::classic:
 	{
 		if (FAILED(hr = pFactory->CreateSwapChainForHwnd(_pCommandQueue.Get(), wmInfo.info.win.window, &_swapChainDesc, nullptr, nullptr, &pSwapChain1)))
-			throw VERUS_RUNTIME_ERROR << "CreateSwapChainForHwnd(), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateSwapChainForHwnd(); hr=" << VERUS_HR(hr);
 		pFactory->MakeWindowAssociation(wmInfo.info.win.window, DXGI_MWA_NO_ALT_ENTER);
 	}
 	break;
 	case App::Settings::Platform::uwp:
 	{
 		if (FAILED(hr = pFactory->CreateSwapChainForCoreWindow(_pCommandQueue.Get(), wmInfo.info.winrt.window, &_swapChainDesc, nullptr, &pSwapChain1)))
-			throw VERUS_RUNTIME_ERROR << "CreateSwapChainForCoreWindow(), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateSwapChainForCoreWindow(); hr=" << VERUS_HR(hr);
 	}
 	break;
 	}
 	if (FAILED(hr = pSwapChain1.As(&_pSwapChain)))
-		throw VERUS_RUNTIME_ERROR << "QueryInterface(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "QueryInterface(); hr=" << VERUS_HR(hr);
 
 	_pSwapChain->SetMaximumFrameLatency(3);
 	_hFrameLatencyWaitableObject = _pSwapChain->GetFrameLatencyWaitableObject();
@@ -261,7 +261,7 @@ void RendererD3D12::InitD3D()
 	if (!_hFence)
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
-		throw VERUS_RUNTIME_ERROR << "CreateEvent(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "CreateEvent(); hr=" << VERUS_HR(hr);
 	}
 	_fenceValues[_ringBufferIndex]++;
 
@@ -275,7 +275,7 @@ void RendererD3D12::WaitForFrameLatencyWaitableObject()
 {
 	const DWORD ret = WaitForSingleObjectEx(_hFrameLatencyWaitableObject, 1000, FALSE);
 	if (WAIT_OBJECT_0 != ret)
-		throw VERUS_RUNTIME_ERROR << "WaitForFrameLatencyWaitableObject(), ret=" << VERUS_HR(ret);
+		throw VERUS_RUNTIME_ERROR << "WaitForFrameLatencyWaitableObject(); ret=" << VERUS_HR(ret);
 }
 
 ComPtr<ID3D12CommandQueue> RendererD3D12::CreateCommandQueue(D3D12_COMMAND_LIST_TYPE type)
@@ -287,7 +287,7 @@ ComPtr<ID3D12CommandQueue> RendererD3D12::CreateCommandQueue(D3D12_COMMAND_LIST_
 	desc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
 	desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	if (FAILED(hr = _pDevice->CreateCommandQueue(&desc, IID_PPV_ARGS(&pCommandQueue))))
-		throw VERUS_RUNTIME_ERROR << "CreateCommandQueue(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "CreateCommandQueue(); hr=" << VERUS_HR(hr);
 	return pCommandQueue;
 }
 
@@ -296,7 +296,7 @@ ComPtr<ID3D12CommandAllocator> RendererD3D12::CreateCommandAllocator(D3D12_COMMA
 	HRESULT hr = 0;
 	ComPtr<ID3D12CommandAllocator> pCommandAllocator;
 	if (FAILED(hr = _pDevice->CreateCommandAllocator(type, IID_PPV_ARGS(&pCommandAllocator))))
-		throw VERUS_RUNTIME_ERROR << "CreateCommandAllocator(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "CreateCommandAllocator(); hr=" << VERUS_HR(hr);
 	return pCommandAllocator;
 }
 
@@ -305,9 +305,9 @@ ComPtr<ID3D12GraphicsCommandList3> RendererD3D12::CreateCommandList(D3D12_COMMAN
 	HRESULT hr = 0;
 	ComPtr<ID3D12GraphicsCommandList3> pGraphicsCommandList;
 	if (FAILED(hr = _pDevice->CreateCommandList(0, type, pCommandAllocator.Get(), nullptr, IID_PPV_ARGS(&pGraphicsCommandList))))
-		throw VERUS_RUNTIME_ERROR << "CreateCommandList(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "CreateCommandList(); hr=" << VERUS_HR(hr);
 	if (FAILED(hr = pGraphicsCommandList->Close()))
-		throw VERUS_RUNTIME_ERROR << "Close(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "Close(); hr=" << VERUS_HR(hr);
 	return pGraphicsCommandList;
 }
 
@@ -316,7 +316,7 @@ ComPtr<ID3D12Fence> RendererD3D12::CreateFence()
 	HRESULT hr = 0;
 	ComPtr<ID3D12Fence> pFence;
 	if (FAILED(hr = _pDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pFence))))
-		throw VERUS_RUNTIME_ERROR << "CreateFence(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "CreateFence(); hr=" << VERUS_HR(hr);
 	return pFence;
 }
 
@@ -325,7 +325,7 @@ UINT64 RendererD3D12::QueueSignal()
 	HRESULT hr = 0;
 	const UINT64 value = _fenceValues[_ringBufferIndex];
 	if (FAILED(hr = _pCommandQueue->Signal(_pFence.Get(), value)))
-		throw VERUS_RUNTIME_ERROR << "Signal(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "Signal(); hr=" << VERUS_HR(hr);
 	return value;
 }
 
@@ -335,7 +335,7 @@ void RendererD3D12::WaitForFenceValue(UINT64 value)
 	if (_pFence->GetCompletedValue() < value)
 	{
 		if (FAILED(hr = _pFence->SetEventOnCompletion(value, _hFence)))
-			throw VERUS_RUNTIME_ERROR << "SetEventOnCompletion(), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "SetEventOnCompletion(); hr=" << VERUS_HR(hr);
 		WaitForSingleObjectEx(_hFence, INFINITE, FALSE);
 	}
 }
@@ -524,7 +524,7 @@ void RendererD3D12::BeginFrame(bool present)
 
 	auto pCommandAllocator = _mapCommandAllocators[_ringBufferIndex][std::this_thread::get_id()];
 	if (FAILED(hr = pCommandAllocator->Reset()))
-		throw VERUS_RUNTIME_ERROR << "Reset(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "Reset(); hr=" << VERUS_HR(hr);
 
 	auto cb = renderer.GetCommandBuffer();
 	cb->Begin();
@@ -561,7 +561,7 @@ void RendererD3D12::Present()
 	if (!syncInterval && allowTearing && App::DisplayMode::exclusiveFullscreen != settings._displayMode)
 		flags |= DXGI_PRESENT_ALLOW_TEARING;
 	if (FAILED(hr = _pSwapChain->Present(syncInterval, flags)))
-		throw VERUS_RUNTIME_ERROR << "Present(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "Present(); hr=" << VERUS_HR(hr);
 }
 
 void RendererD3D12::Sync(bool present)
@@ -659,7 +659,7 @@ RPHandle RendererD3D12::CreateRenderPass(std::initializer_list<RP::Attachment> i
 				return index;
 			index++;
 		}
-		throw VERUS_RECOVERABLE << "CreateRenderPass(), attachment not found";
+		throw VERUS_RECOVERABLE << "CreateRenderPass(); Attachment not found";
 	};
 
 	renderPass._vSubpasses.reserve(ilS.size());

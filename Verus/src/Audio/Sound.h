@@ -26,28 +26,28 @@ namespace verus
 			ALuint       _buffer = 0;
 			int          _next = 0;
 			int          _refCount = 0;
-			Range<float> _gain = 1;
-			Range<float> _pitch = 1;
+			Interval     _gain = 1;
+			Interval     _pitch = 1;
 			float        _length = 0;
 			float        _referenceDistance = 4;
 
 		public:
 			struct Desc
 			{
-				CSZ          _url = nullptr;
-				Range<float> _gain = 0.8f;
-				Range<float> _pitch = 1;
-				float        _referenceDistance = 4;
-				bool         _is3D = false;
-				bool         _loop = false;
-				bool         _randomOffset = false;
-				bool         _keepPcmBuffer = false;
+				CSZ      _url = nullptr;
+				Interval _gain = 0.8f;
+				Interval _pitch = 1;
+				float    _referenceDistance = 4;
+				bool     _is3D = false;
+				bool     _loop = false;
+				bool     _randomOffset = false;
+				bool     _keepPcmBuffer = false;
 
 				Desc(CSZ url) : _url(url) {}
 				Desc& Set3D(bool b = true) { _is3D = b; return *this; }
 				Desc& SetLoop(bool b = true) { _loop = b; return *this; }
-				Desc& SetGain(const Range<float>& gain) { _gain = gain; return *this; }
-				Desc& SetPitch(const Range<float>& pitch) { _pitch = pitch; return *this; }
+				Desc& SetGain(Interval gain) { _gain = gain; return *this; }
+				Desc& SetPitch(Interval pitch) { _pitch = pitch; return *this; }
 				Desc& SetRandomOffset(bool b = true) { _randomOffset = b; return *this; }
 				Desc& SetReferenceDistance(float rd) { _referenceDistance = rd; return *this; }
 			};
@@ -70,8 +70,8 @@ namespace verus
 
 			SourcePtr NewSource(PSourcePtr pID = nullptr, Source::RcDesc desc = Source::Desc());
 
-			const Range<float>& GetGain() const { return _gain; }
-			const Range<float>& GetPitch() const { return _pitch; }
+			Interval GetGain() const { return _gain; }
+			Interval GetPitch() const { return _pitch; }
 
 			float GetLength() const { return _length; }
 

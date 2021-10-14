@@ -104,7 +104,7 @@ void GeometryD3D12::CreateVertexBuffer(int count, int binding)
 			nullptr,
 			&vb._pMaAllocation,
 			IID_PPV_ARGS(&vb._pBuffer))))
-			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD); hr=" << VERUS_HR(hr);
 		vb._pBuffer->SetName(_C(Str::Utf8ToWide(_name + " (Dynamic VB, " + std::to_string(binding) + ")")));
 
 		VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
@@ -126,7 +126,7 @@ void GeometryD3D12::CreateVertexBuffer(int count, int binding)
 			nullptr,
 			&vb._pMaAllocation,
 			IID_PPV_ARGS(&vb._pBuffer))))
-			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT); hr=" << VERUS_HR(hr);
 		vb._pBuffer->SetName(_C(Str::Utf8ToWide(_name + " (VB, " + std::to_string(binding) + ")")));
 
 		vb._bufferView[0].BufferLocation = vb._pBuffer->GetGPUVirtualAddress();
@@ -149,7 +149,7 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, PBaseCommandB
 		CD3DX12_RANGE readRange(0, 0);
 		void* pData = nullptr;
 		if (FAILED(hr = vb._pBuffer->Map(0, &readRange, &pData)))
-			throw VERUS_RUNTIME_ERROR << "Map(), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "Map(); hr=" << VERUS_HR(hr);
 		BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererD3D12->GetRingBufferIndex() * vb._bufferSize;
 		memcpy(pMappedData + offset * elementSize, p, size);
 		vb._pBuffer->Unmap(0, nullptr);
@@ -176,7 +176,7 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, PBaseCommandB
 				nullptr,
 				&svb._pMaAllocation,
 				IID_PPV_ARGS(&svb._pBuffer))))
-				throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+				throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD); hr=" << VERUS_HR(hr);
 			vb._pBuffer->SetName(_C(Str::Utf8ToWide(_name + " (Staging VB, " + std::to_string(binding) + ")")));
 		}
 
@@ -225,7 +225,7 @@ void GeometryD3D12::CreateIndexBuffer(int count)
 			nullptr,
 			&_indexBuffer._pMaAllocation,
 			IID_PPV_ARGS(&_indexBuffer._pBuffer))))
-			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD); hr=" << VERUS_HR(hr);
 		_indexBuffer._pBuffer->SetName(_C(Str::Utf8ToWide(_name + " (Dynamic IB)")));
 
 		VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
@@ -247,7 +247,7 @@ void GeometryD3D12::CreateIndexBuffer(int count)
 			nullptr,
 			&_indexBuffer._pMaAllocation,
 			IID_PPV_ARGS(&_indexBuffer._pBuffer))))
-			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT); hr=" << VERUS_HR(hr);
 		_indexBuffer._pBuffer->SetName(_C(Str::Utf8ToWide(_name + " (IB)")));
 
 		_indexBufferView[0].BufferLocation = _indexBuffer._pBuffer->GetGPUVirtualAddress();
@@ -269,7 +269,7 @@ void GeometryD3D12::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, INT
 		CD3DX12_RANGE readRange(0, 0);
 		void* pData = nullptr;
 		if (FAILED(hr = _indexBuffer._pBuffer->Map(0, &readRange, &pData)))
-			throw VERUS_RUNTIME_ERROR << "Map(), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "Map(); hr=" << VERUS_HR(hr);
 		BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererD3D12->GetRingBufferIndex() * _indexBuffer._bufferSize;
 		memcpy(pMappedData + offset * elementSize, p, size);
 		_indexBuffer._pBuffer->Unmap(0, nullptr);
@@ -291,7 +291,7 @@ void GeometryD3D12::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, INT
 				nullptr,
 				&_stagingIndexBuffer._pMaAllocation,
 				IID_PPV_ARGS(&_stagingIndexBuffer._pBuffer))))
-				throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+				throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD); hr=" << VERUS_HR(hr);
 			_stagingIndexBuffer._pBuffer->SetName(_C(Str::Utf8ToWide(_name + " (Staging IB)")));
 		}
 

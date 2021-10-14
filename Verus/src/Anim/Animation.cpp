@@ -176,7 +176,7 @@ void Animation::Pause()
 	_playing = false;
 }
 
-void Animation::TransitionTo(CSZ name, Range<float> duration, int randTime, PMotion pFromMotion)
+void Animation::TransitionTo(CSZ name, Interval duration, int randTime, PMotion pFromMotion)
 {
 	PMotion pMotion = pFromMotion;
 	if (!_currentMotion.empty() || pFromMotion) // Deal with previous motion?
@@ -221,7 +221,7 @@ void Animation::TransitionTo(CSZ name, Range<float> duration, int randTime, PMot
 	_playing = true;
 }
 
-bool Animation::TransitionToNew(std::initializer_list<CSZ> names, Range<float> duration, int randTime, PMotion pFromMotion)
+bool Animation::TransitionToNew(std::initializer_list<CSZ> names, Interval duration, int randTime, PMotion pFromMotion)
 {
 	for (auto name : names)
 	{

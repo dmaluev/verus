@@ -13,7 +13,7 @@
 #define VERUS_QREF_FSYS           IO::RFileSystem         fsys     = IO::FileSystem::I()
 #define VERUS_QREF_GRASS          Scene::RGrass           grass    = Scene::Grass::I()
 #define VERUS_QREF_HELPERS        Scene::RHelpers         helpers  = Scene::Helpers::I()
-#define VERUS_QREF_KM             Input::RKeyMapper       km       = Input::KeyMapper::I()
+#define VERUS_QREF_IM             Input::RInputManager    im       = Input::InputManager::I()
 #define VERUS_QREF_MM             Scene::RMaterialManager mm       = Scene::MaterialManager::I()
 #define VERUS_QREF_MP             Net::RMultiplayer       mp       = Net::Multiplayer::I()
 #define VERUS_QREF_PHYSICS        Physics::RPhysics       physics  = Physics::Physics::I()

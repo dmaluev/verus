@@ -77,7 +77,7 @@ void Cursor::MoveBy(float x, float y)
 
 	VERUS_QREF_CONST_SETTINGS;
 
-	const float scale = Game::BaseGame::GetMouseScale();
+	const float scale = Input::InputManager::GetMouseScale();
 	const float invScale = 1 / scale;
 	_x = Math::Clamp<float>(_x + x * (invScale / settings._displaySizeWidth), 0, 1);
 	_y = Math::Clamp<float>(_y + y * (invScale / settings._displaySizeHeight), 0, 1);

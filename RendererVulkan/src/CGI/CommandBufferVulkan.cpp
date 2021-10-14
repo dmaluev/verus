@@ -63,14 +63,14 @@ void CommandBufferVulkan::Begin()
 	if (_oneTimeSubmit)
 		vkcbbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 	if (VK_SUCCESS != (res = vkBeginCommandBuffer(GetVkCommandBuffer(), &vkcbbi)))
-		throw VERUS_RUNTIME_ERROR << "vkBeginCommandBuffer(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkBeginCommandBuffer(); res=" << res;
 }
 
 void CommandBufferVulkan::End()
 {
 	VkResult res = VK_SUCCESS;
 	if (VK_SUCCESS != (res = vkEndCommandBuffer(GetVkCommandBuffer())))
-		throw VERUS_RUNTIME_ERROR << "vkEndCommandBuffer(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkEndCommandBuffer(); res=" << res;
 }
 
 void CommandBufferVulkan::BeginRenderPass(RPHandle renderPassHandle, FBHandle framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
@@ -225,14 +225,14 @@ void CommandBufferVulkan::PushConstants(ShaderPtr shader, int offset, int size, 
 	vkCmdPushConstants(GetVkCommandBuffer(), shaderVulkan.GetVkPipelineLayout(), vkssf, offset << 2, size << 2, p);
 }
 
-void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, Range<int> mipLevels, int arrayLayer)
+void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, Range mipLevels, int arrayLayer)
 {
 	auto& texVulkan = static_cast<RTextureVulkan>(*tex);
 	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Waiting for this stage to finish (TOP_OF_PIPE means wait for nothing).
 	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; // Which stage is waiting to start (BOTTOM_OF_PIPE means nothing is waiting).
 	const VkPipelineStageFlags dstStageMaskXS = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 	VkImageMemoryBarrier vkimb[16];
-	VERUS_RT_ASSERT(mipLevels.GetLength() < VERUS_COUNT_OF(vkimb));
+	VERUS_RT_ASSERT(mipLevels.GetCount() <= VERUS_COUNT_OF(vkimb));
 	int index = 0;
 	for (int mip : mipLevels)
 	{

@@ -85,11 +85,6 @@ void HelloTriangleGame::BaseGame_UnloadContent()
 {
 }
 
-void HelloTriangleGame::BaseGame_HandleInput()
-{
-	//_stateMachine.HandleInput();
-}
-
 void HelloTriangleGame::BaseGame_Update()
 {
 	//_stateMachine.Update();

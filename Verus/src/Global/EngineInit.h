@@ -3,10 +3,6 @@
 
 namespace verus
 {
-	namespace Input
-	{
-		struct KeyMapperDelegate;
-	}
 	namespace CGI
 	{
 		struct RendererDelegate;
@@ -34,7 +30,7 @@ namespace verus
 		void Make();
 		void Free();
 
-		void Init(Input::KeyMapperDelegate* pKeyMapperDelegate, CGI::RendererDelegate* pRendererDelegate);
+		void Init(CGI::RendererDelegate* pRendererDelegate);
 		void InitCmd();
 
 		void ReducedFeatureSet();

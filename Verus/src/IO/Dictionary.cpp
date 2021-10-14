@@ -38,17 +38,17 @@ void Dictionary::LinkParent(PDictionary p)
 	_pParent = p;
 }
 
-void Dictionary::Insert(CSZ name, CSZ value)
+void Dictionary::Insert(CSZ key, CSZ value)
 {
-	if (!name || !strlen(name) || !value)
+	if (!key || !strlen(key) || !value)
 		return;
-	PDictionaryValue p = TStoreValues::Insert(name);
+	PDictionaryValue p = TStoreValues::Insert(key);
 	p->Set(value);
 }
 
-void Dictionary::Delete(CSZ name)
+void Dictionary::Delete(CSZ key)
 {
-	TStoreValues::Delete(name);
+	TStoreValues::Delete(key);
 }
 
 void Dictionary::DeleteAll()
@@ -56,40 +56,40 @@ void Dictionary::DeleteAll()
 	TStoreValues::DeleteAll();
 }
 
-CSZ Dictionary::Find(CSZ name, CSZ def) const
+CSZ Dictionary::Find(CSZ key, CSZ def) const
 {
-	VERUS_IF_FOUND_IN(TStoreValues::TMap, TStoreValues::_map, name, it)
+	VERUS_IF_FOUND_IN(TStoreValues::TMap, TStoreValues::_map, key, it)
 		return _C(it->second._s);
 	if (_pParent)
-		return _pParent->Find(name, def);
+		return _pParent->Find(key, def);
 	return def;
 }
 
-RcString Dictionary::FindSafe(CSZ name) const
+RcString Dictionary::FindSafe(CSZ key) const
 {
-	VERUS_IF_FOUND_IN(TStoreValues::TMap, TStoreValues::_map, name, it)
+	VERUS_IF_FOUND_IN(TStoreValues::TMap, TStoreValues::_map, key, it)
 		return it->second._s;
 	if (_pParent)
-		return _pParent->FindSafe(name);
+		return _pParent->FindSafe(key);
 	static String null;
 	return null;
 }
 
-int Dictionary::FindInt(CSZ name, int def) const
+int Dictionary::FindInt(CSZ key, int def) const
 {
-	VERUS_IF_FOUND_IN(TStoreValues::TMap, TStoreValues::_map, name, it)
+	VERUS_IF_FOUND_IN(TStoreValues::TMap, TStoreValues::_map, key, it)
 		return it->second._i;
 	if (_pParent)
-		return _pParent->FindInt(name, def);
+		return _pParent->FindInt(key, def);
 	return def;
 }
 
-float Dictionary::FindFloat(CSZ name, float def) const
+float Dictionary::FindFloat(CSZ key, float def) const
 {
-	VERUS_IF_FOUND_IN(TStoreValues::TMap, TStoreValues::_map, name, it)
+	VERUS_IF_FOUND_IN(TStoreValues::TMap, TStoreValues::_map, key, it)
 		return it->second._f;
 	if (_pParent)
-		return _pParent->FindFloat(name, def);
+		return _pParent->FindFloat(key, def);
 	return def;
 }
 
@@ -123,15 +123,15 @@ void Dictionary::Serialize(RStream stream)
 void Dictionary::Deserialize(RStream stream)
 {
 	DeleteAll();
-	char name[Stream::s_bufferSize];
+	char key[Stream::s_bufferSize];
 	char value[Stream::s_bufferSize];
 	BYTE count;
 	stream >> count;
 	VERUS_FOR(i, count)
 	{
-		stream.ReadString(name);
+		stream.ReadString(key);
 		stream.ReadString(value);
-		Insert(name, value);
+		Insert(key, value);
 	}
 }
 

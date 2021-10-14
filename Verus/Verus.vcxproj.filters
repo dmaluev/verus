@@ -100,6 +100,12 @@
     <Filter Include="src\ThirdParty\imgui">
       <UniqueIdentifier>{e5d1efc7-6850-406e-8abe-7dc0084d2ac7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\Game\ECS">
+      <UniqueIdentifier>{7a1b235f-6f61-41be-87dc-78a3aa2f7ae2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Game\Mechanics">
+      <UniqueIdentifier>{e81cdb7e-c6de-41ee-bfe5-76bd2aa3a602}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\CGI\BaseGeometry.h">
@@ -372,7 +378,7 @@
     <ClInclude Include="src\Input\Input.h">
       <Filter>src\Input</Filter>
     </ClInclude>
-    <ClInclude Include="src\Input\KeyMapper.h">
+    <ClInclude Include="src\Input\InputManager.h">
       <Filter>src\Input</Filter>
     </ClInclude>
     <ClInclude Include="src\App\App.h">
@@ -711,15 +717,6 @@
     <ClInclude Include="src\Scene\CubeMap.h">
       <Filter>src\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="src\Game\Cutscene.h">
-      <Filter>src\Game</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Game\Driving.h">
-      <Filter>src\Game</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Game\Mechanics.h">
-      <Filter>src\Game</Filter>
-    </ClInclude>
     <ClInclude Include="src\Game\QuestSystem.h">
       <Filter>src\Game</Filter>
     </ClInclude>
@@ -753,14 +750,38 @@
     <ClInclude Include="src\App\UndoManager.h">
       <Filter>src\App</Filter>
     </ClInclude>
-    <ClInclude Include="src\Game\ActiveMechanics.h">
-      <Filter>src\Game</Filter>
-    </ClInclude>
     <ClInclude Include="src\GUI\Bars.h">
       <Filter>src\GUI</Filter>
     </ClInclude>
     <ClInclude Include="src\ThirdParty\mikktspace.h">
       <Filter>src\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\ECS\Component.h">
+      <Filter>src\Game\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\ECS\Entity.h">
+      <Filter>src\Game\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\ECS\Lot.h">
+      <Filter>src\Game\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\ECS\LotManager.h">
+      <Filter>src\Game\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\Mechanics\ActiveMechanics.h">
+      <Filter>src\Game\Mechanics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\Mechanics\Cutscene.h">
+      <Filter>src\Game\Mechanics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\Mechanics\Driving.h">
+      <Filter>src\Game\Mechanics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game\Mechanics\Mechanics.h">
+      <Filter>src\Game\Mechanics</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\Interval.h">
+      <Filter>src\Global</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -938,7 +959,7 @@
     <ClCompile Include="src\Input\Input.cpp">
       <Filter>src\Input</Filter>
     </ClCompile>
-    <ClCompile Include="src\Input\KeyMapper.cpp">
+    <ClCompile Include="src\Input\InputManager.cpp">
       <Filter>src\Input</Filter>
     </ClCompile>
     <ClCompile Include="src\App\App.cpp">
@@ -1256,15 +1277,6 @@
     <ClCompile Include="src\Scene\CubeMap.cpp">
       <Filter>src\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="src\Game\Cutscene.cpp">
-      <Filter>src\Game</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Game\Driving.cpp">
-      <Filter>src\Game</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Game\Mechanics.cpp">
-      <Filter>src\Game</Filter>
-    </ClCompile>
     <ClCompile Include="src\Game\QuestSystem.cpp">
       <Filter>src\Game</Filter>
     </ClCompile>
@@ -1295,14 +1307,41 @@
     <ClCompile Include="src\App\UndoManager.cpp">
       <Filter>src\App</Filter>
     </ClCompile>
-    <ClCompile Include="src\Game\ActiveMechanics.cpp">
-      <Filter>src\Game</Filter>
-    </ClCompile>
     <ClCompile Include="src\GUI\Bars.cpp">
       <Filter>src\GUI</Filter>
     </ClCompile>
     <ClCompile Include="src\ThirdParty\mikktspace.c">
       <Filter>src\ThirdParty</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\ECS\Component.cpp">
+      <Filter>src\Game\ECS</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\ECS\Entity.cpp">
+      <Filter>src\Game\ECS</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\ECS\Lot.cpp">
+      <Filter>src\Game\ECS</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\ECS\LotManager.cpp">
+      <Filter>src\Game\ECS</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\Mechanics\ActiveMechanics.cpp">
+      <Filter>src\Game\Mechanics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\Mechanics\Cutscene.cpp">
+      <Filter>src\Game\Mechanics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\Mechanics\Driving.cpp">
+      <Filter>src\Game\Mechanics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game\Mechanics\Mechanics.cpp">
+      <Filter>src\Game\Mechanics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Global\Interval.cpp">
+      <Filter>src\Global</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Global\Range.cpp">
+      <Filter>src\Global</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

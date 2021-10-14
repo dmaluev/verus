@@ -94,9 +94,9 @@ namespace verus
 			Str GetCurrentMotionName() const { return _C(_currentMotion); }
 
 			void TransitionTo(CSZ name,
-				Range<float> duration = 0.5f, int randTime = -1, PMotion pFromMotion = nullptr);
+				Interval duration = 0.5f, int randTime = -1, PMotion pFromMotion = nullptr);
 			bool TransitionToNew(std::initializer_list<CSZ> names,
-				Range<float> duration = 0.5f, int randTime = -1, PMotion pFromMotion = nullptr);
+				Interval duration = 0.5f, int randTime = -1, PMotion pFromMotion = nullptr);
 			bool IsInTransition() const { return _transition; }
 
 			void SetEasing(Easing easing) { _easing = easing; }

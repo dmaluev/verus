@@ -56,7 +56,7 @@ void EngineInit::Free()
 		Free_Global();
 }
 
-void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::RendererDelegate* pRendererDelegate)
+void EngineInit::Init(CGI::RendererDelegate* pRendererDelegate)
 {
 	Timer::I().Init();
 
@@ -69,10 +69,7 @@ void EngineInit::Init(Input::PKeyMapperDelegate pKeyMapperDelegate, CGI::Rendere
 	if (_makePhysics)
 		Physics::Bullet::I().Init();
 	if (_makeInput)
-	{
-		Input::KeyMapper::I().Init();
-		Input::KeyMapper::I().SetDelegate(pKeyMapperDelegate);
-	}
+		Input::InputManager::I().Init();
 
 	if (_makeCGI)
 		CGI::Renderer::I().Init(pRendererDelegate, _allowInitShaders);

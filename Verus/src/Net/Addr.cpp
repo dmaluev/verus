@@ -83,7 +83,7 @@ void Addr::FromString(CSZ addr)
 		const int ret = getaddrinfo(addr, 0, &hints, &raii.pAddrInfo);
 		if (ret)
 		{
-			throw VERUS_RECOVERABLE << "getaddrinfo(), " << ret;
+			throw VERUS_RECOVERABLE << "getaddrinfo(); " << ret;
 		}
 		else
 		{

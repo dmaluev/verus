@@ -5,7 +5,7 @@ namespace verus
 {
 	namespace Game
 	{
-		class BaseGame : public Input::KeyMapperDelegate
+		class BaseGame : public Input::InputFocus
 		{
 			struct Pimpl;
 			Pimpl* _p = nullptr;
@@ -19,13 +19,12 @@ namespace verus
 			~BaseGame();
 
 			void Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc windowDesc = App::Window::Desc());
-			void Run(bool relativeMouseMode = true);
+			void Loop(bool relativeMouseMode = true);
 			void Exit();
 
 			virtual void BaseGame_UpdateSettings(App::Window::RDesc windowDesc) {}
 			virtual void BaseGame_LoadContent() = 0;
 			virtual void BaseGame_UnloadContent() = 0;
-			virtual void BaseGame_HandleInput() = 0;
 			virtual void BaseGame_Update() = 0;
 			virtual void BaseGame_Draw() = 0;
 			virtual void BaseGame_DrawOverlay() {}
@@ -33,9 +32,6 @@ namespace verus
 			virtual void BaseGame_OnWindowSizeChanged() {}
 			virtual void BaseGame_OnActivated() {}
 			virtual void BaseGame_OnDeactivated() {}
-			virtual void BaseGame_OnMouseMove(float x, float y) {}
-			virtual void BaseGame_OnKey(int scancode) {}
-			virtual void BaseGame_OnChar(wchar_t c) {}
 			virtual bool BaseGame_CanQuitEventLoop() { return true; }
 
 			// Raw SDL events, for editor:
@@ -46,9 +42,7 @@ namespace verus
 			virtual void BaseGame_SDL_OnMouseWheel(int delta) {}
 			virtual bool BaseGame_SDL_OnKeyboardShortcut(int sym, int mod) { return false; }
 
-			virtual void KeyMapper_OnMouseMove(int x, int y) override;
-			virtual void KeyMapper_OnKey(int scancode) override;
-			virtual void KeyMapper_OnChar(wchar_t c) override;
+			virtual void OnMouseMove(float dx, float dy) override;
 
 			REngineInit GetEngineInit() { return _engineInit; }
 
@@ -67,8 +61,6 @@ namespace verus
 			void ShowFPS(bool b);
 
 			void BulletDebugDraw();
-
-			static float GetMouseScale();
 
 			bool IsRestartAppRequested() const { return _restartApp; }
 			void RestartApp();

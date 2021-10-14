@@ -36,12 +36,12 @@ void Xml::Load(bool fromCache)
 		FileSystem::I().LoadResourceFromCache(_C(_pathname), _vData);
 		const pugi::xml_parse_result result = _doc.load_buffer_inplace(_vData.data(), _vData.size());
 		if (!result)
-			throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+			throw VERUS_RECOVERABLE << "load_buffer_inplace(); " << result.description();
 	}
 	else
 	{
 		StringStream ss;
-		ss << "Load() url=" << _pathname;
+		ss << "Load(); url=" << _pathname;
 		VERUS_LOG_INFO(_C(ss.str()));
 
 		const size_t pakPos = FileSystem::FindPosForPAK(_C(_pathname));
@@ -50,7 +50,7 @@ void Xml::Load(bool fromCache)
 			FileSystem::LoadResource(_C(_pathname), _vData, FileSystem::LoadDesc(true));
 			const pugi::xml_parse_result result = _doc.load_buffer_inplace(_vData.data(), _vData.size());
 			if (!result)
-				throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+				throw VERUS_RECOVERABLE << "load_buffer_inplace(); " << result.description();
 		}
 		else
 		{
@@ -60,7 +60,7 @@ void Xml::Load(bool fromCache)
 				file.ReadAll(_vData, true);
 				const pugi::xml_parse_result result = _doc.load_buffer_inplace(_vData.data(), _vData.size());
 				if (!result)
-					throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+					throw VERUS_RECOVERABLE << "load_buffer_inplace(); " << result.description();
 			}
 		}
 	}
@@ -69,7 +69,7 @@ void Xml::Load(bool fromCache)
 void Xml::Save()
 {
 	StringStream ss;
-	ss << "Save() url=" << _pathname;
+	ss << "Save(); url=" << _pathname;
 	File file;
 	if (file.Open(_C(_pathname), "w"))
 	{

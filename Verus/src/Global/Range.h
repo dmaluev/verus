@@ -3,33 +3,33 @@
 
 namespace verus
 {
-	template<typename T>
 	class Range
 	{
 	public:
 		class Iterator
 		{
-			T _value;
+			int _value;
 
 		public:
-			Iterator(T x) : _value(x) {}
+			Iterator(int x) : _value(x) {}
 
-			T& operator*() { return _value; }
+			int& operator*() { return _value; }
 			Iterator operator++() { ++_value; return *this; }
 			bool operator!=(const Iterator& that) const { return _value != that._value; }
 		};
 
-		T _min;
-		T _max;
+		int _begin;
+		int _end;
 
-		Range() : _min(0), _max(0) {}
-		Range(T x) : _min(x), _max(x) {}
-		Range(T mn, T mx) : _min(mn), _max(mx) { VERUS_RT_ASSERT(_min <= _max); }
+		Range() : _begin(0), _end(0) {}
+		Range(int x) : _begin(x), _end(x + 1) {}
+		Range(int b, int e) : _begin(b), _end(e) { VERUS_RT_ASSERT(_begin <= _end); }
 
-		T GetLength() const { return _max - _min; }
-		T GetRandomValue() const { return _min + Utils::I().GetRandom().NextFloat() * GetLength(); }
+		int GetCount() const;
+		int GetRandomValue() const;
+		Range& OffsetBy(int x);
 
-		Iterator begin() const { return _min; }
-		Iterator end() const { return _max + 1; }
+		Iterator begin() const;
+		Iterator end() const;
 	};
 }

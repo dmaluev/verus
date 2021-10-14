@@ -123,7 +123,7 @@ void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, PBaseCommand
 		size = size ? size * elementSize : vb._bufferSize;
 		void* pData = nullptr;
 		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), vb._vmaAllocation, &pData)))
-			throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
+			throw VERUS_RECOVERABLE << "vmaMapMemory(); res=" << res;
 		BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererVulkan->GetRingBufferIndex() * vb._bufferSize;
 		memcpy(pMappedData + offset * elementSize, p, size);
 		vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), vb._vmaAllocation);
@@ -144,7 +144,7 @@ void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, PBaseCommand
 
 		void* pData = nullptr;
 		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), svb._vmaAllocation, &pData)))
-			throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
+			throw VERUS_RECOVERABLE << "vmaMapMemory(); res=" << res;
 		memcpy(pData, p, vb._bufferSize);
 		vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), svb._vmaAllocation);
 
@@ -184,7 +184,7 @@ void GeometryVulkan::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, IN
 		size = size ? size * elementSize : _indexBuffer._bufferSize;
 		void* pData = nullptr;
 		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), _indexBuffer._vmaAllocation, &pData)))
-			throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
+			throw VERUS_RECOVERABLE << "vmaMapMemory(); res=" << res;
 		BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererVulkan->GetRingBufferIndex() * _indexBuffer._bufferSize;
 		memcpy(pMappedData + offset * elementSize, p, size);
 		vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), _indexBuffer._vmaAllocation);
@@ -200,7 +200,7 @@ void GeometryVulkan::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, IN
 
 		void* pData = nullptr;
 		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), _stagingIndexBuffer._vmaAllocation, &pData)))
-			throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
+			throw VERUS_RECOVERABLE << "vmaMapMemory(); res=" << res;
 		memcpy(pData, p, _indexBuffer._bufferSize);
 		vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), _stagingIndexBuffer._vmaAllocation);
 

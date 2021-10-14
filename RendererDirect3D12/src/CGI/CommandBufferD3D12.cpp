@@ -67,14 +67,14 @@ void CommandBufferD3D12::Begin()
 	if (FAILED(hr = GetD3DGraphicsCommandList()->Reset(
 		_pOneTimeCommandAllocator ? _pOneTimeCommandAllocator.Get() : pRendererD3D12->GetD3DCommandAllocator(pRendererD3D12->GetRingBufferIndex()),
 		nullptr)))
-		throw VERUS_RUNTIME_ERROR << "Reset(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "Reset(); hr=" << VERUS_HR(hr);
 }
 
 void CommandBufferD3D12::End()
 {
 	HRESULT hr = 0;
 	if (FAILED(hr = GetD3DGraphicsCommandList()->Close()))
-		throw VERUS_RUNTIME_ERROR << "Close(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "Close(); hr=" << VERUS_HR(hr);
 }
 
 void CommandBufferD3D12::BeginRenderPass(RPHandle renderPassHandle, FBHandle framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
@@ -276,11 +276,11 @@ void CommandBufferD3D12::PushConstants(ShaderPtr shader, int offset, int size, c
 		GetD3DGraphicsCommandList()->SetGraphicsRoot32BitConstants(0, size, p, offset);
 }
 
-void CommandBufferD3D12::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, Range<int> mipLevels, int arrayLayer)
+void CommandBufferD3D12::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, Range mipLevels, int arrayLayer)
 {
 	auto& texD3D12 = static_cast<RTextureD3D12>(*tex);
 	CD3DX12_RESOURCE_BARRIER rb[16];
-	VERUS_RT_ASSERT(mipLevels.GetLength() < VERUS_COUNT_OF(rb));
+	VERUS_RT_ASSERT(mipLevels.GetCount() <= VERUS_COUNT_OF(rb));
 	int index = 0;
 	for (int mip : mipLevels)
 	{

@@ -114,10 +114,6 @@ void HelloTexturedCubeGame::BaseGame_UnloadContent()
 {
 }
 
-void HelloTexturedCubeGame::BaseGame_HandleInput()
-{
-}
-
 void HelloTexturedCubeGame::BaseGame_Update()
 {
 	VERUS_QREF_TIMER;

@@ -39,7 +39,7 @@ void Json::Load(bool fromCache)
 	else
 	{
 		StringStream ss;
-		ss << "Load() url=" << _pathname;
+		ss << "Load(); url=" << _pathname;
 		VERUS_LOG_INFO(_C(ss.str()));
 
 		const size_t pakPos = FileSystem::FindPosForPAK(_C(_pathname));
@@ -63,7 +63,7 @@ void Json::Load(bool fromCache)
 void Json::Save()
 {
 	StringStream ss;
-	ss << "Save() url=" << _pathname;
+	ss << "Save(); url=" << _pathname;
 	File file;
 	if (file.Open(_C(_pathname), "w"))
 	{

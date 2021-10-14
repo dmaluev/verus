@@ -120,6 +120,8 @@ namespace verus
 			glm::vec4      _texEnableAlbedo = glm::vec4(0.5f, 0.5f, 0.5f, 1);
 			TexturePwn     _texNormal;
 			glm::vec4      _texEnableNormal = glm::vec4(0.5f, 0.5f, 1.0f, 1);
+			TexturePwn     _texPacked;
+			glm::vec4      _texEnablePacked = glm::vec4(0.5f, 0.5f, 1.0f, 1);
 			glm::vec4      _userColor = glm::vec4(0, 0, 0, 0);
 			Pick           _userPick;
 			Blending       _blending = Blending::opaque;
@@ -183,6 +185,7 @@ namespace verus
 		{
 			TexturePwn    _texDefaultAlbedo;
 			TexturePwn    _texDefaultNormal;
+			TexturePwn    _texDefaultPacked;
 			TexturePwn    _texDetail;
 			TexturePwn    _texStrass;
 			CGI::CSHandle _cshDefault; // For missing, non-mandatory materials.

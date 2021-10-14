@@ -227,7 +227,7 @@ DXGI_FORMAT CGI::ToNativeFormat(ViaUsage usage, ViaType type, int components)
 		return shorts[index];
 	}
 	break;
-	default: throw VERUS_RECOVERABLE << "ToNativeFormat(), ViaType=?";
+	default: throw VERUS_RECOVERABLE << "ToNativeFormat(); ViaType=?";
 	}
 }
 

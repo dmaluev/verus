@@ -56,7 +56,7 @@ void Window::Init(RcDesc constDesc)
 		desc._height,
 		flags);
 	if (!_pWnd)
-		throw VERUS_RECOVERABLE << "SDL_CreateWindow(), " << SDL_GetError();
+		throw VERUS_RECOVERABLE << "SDL_CreateWindow(); " << SDL_GetError();
 
 	if (DisplayMode::exclusiveFullscreen == desc._displayMode || DisplayMode::borderlessWindowed == desc._displayMode)
 	{

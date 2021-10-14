@@ -125,7 +125,7 @@ void Async::Update()
 		if (task._loaded) // Only loaded task can be processed:
 		{
 #ifdef VERUS_RELEASE_DEBUG
-			VERUS_LOG_DEBUG("Update() task=" << itTask->first);
+			VERUS_LOG_DEBUG("Update(); task=" << itTask->first);
 #endif
 			VERUS_RT_ASSERT(task._desc._runOnMainThread);
 			if (!task._v.empty())
@@ -218,7 +218,7 @@ void Async::ThreadProc()
 			}
 
 #ifdef VERUS_RELEASE_DEBUG
-			VERUS_LOG_DEBUG("ThreadProc() key=" << key);
+			VERUS_LOG_DEBUG("ThreadProc(); key=" << key);
 #endif
 
 			{
@@ -229,7 +229,7 @@ void Async::ThreadProc()
 				if (!pTask->_desc._runOnMainThread)
 				{
 #ifdef VERUS_RELEASE_DEBUG
-					VERUS_LOG_DEBUG("ThreadProc(), runOnMainThread key=" << key);
+					VERUS_LOG_DEBUG("ThreadProc(); runOnMainThread key=" << key);
 #endif
 					if (!pTask->_v.empty())
 					{

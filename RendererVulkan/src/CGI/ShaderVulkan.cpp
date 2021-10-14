@@ -67,7 +67,7 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		vksmci.codeSize = size;
 		vksmci.pCode = pCode;
 		if (VK_SUCCESS != (res = vkCreateShaderModule(pRendererVulkan->GetVkDevice(), &vksmci, pRendererVulkan->GetAllocator(), &shaderModule)))
-			throw VERUS_RUNTIME_ERROR << "vkCreateShaderModule(), res=" << res;
+			throw VERUS_RUNTIME_ERROR << "vkCreateShaderModule(); res=" << res;
 	};
 
 	while (*branches)
@@ -364,7 +364,7 @@ void ShaderVulkan::CreatePipelineLayout()
 
 				VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
 				if (VK_SUCCESS != (res = vkCreateDescriptorSetLayout(pRendererVulkan->GetVkDevice(), &vkdslci, pRendererVulkan->GetAllocator(), &descriptorSetLayout)))
-					throw VERUS_RUNTIME_ERROR << "vkCreateDescriptorSetLayout(), res=" << res;
+					throw VERUS_RUNTIME_ERROR << "vkCreateDescriptorSetLayout(); res=" << res;
 
 				_vDescriptorSetLayouts.push_back(descriptorSetLayout);
 			}
@@ -394,7 +394,7 @@ void ShaderVulkan::CreatePipelineLayout()
 	_debugInfo = ss.str();
 
 	if (VK_SUCCESS != (res = vkCreatePipelineLayout(pRendererVulkan->GetVkDevice(), &vkplci, pRendererVulkan->GetAllocator(), &_pipelineLayout)))
-		throw VERUS_RUNTIME_ERROR << "vkCreatePipelineLayout(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkCreatePipelineLayout(); res=" << res;
 
 	_vComplexDescriptorSets.reserve(_poolComplexUniformBuffers);
 
@@ -437,7 +437,7 @@ CSHandle ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer
 	vkdsai.pSetLayouts = &_vDescriptorSetLayouts[setNumber];
 	VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
 	if (VK_SUCCESS != (res = vkAllocateDescriptorSets(pRendererVulkan->GetVkDevice(), &vkdsai, &descriptorSet)))
-		throw VERUS_RUNTIME_ERROR << "vkAllocateDescriptorSets(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkAllocateDescriptorSets(); res=" << res;
 	_vComplexDescriptorSets[complexSetHandle] = descriptorSet;
 
 	// Info structures:
@@ -524,7 +524,7 @@ void ShaderVulkan::FreeDescriptorSet(CSHandle& complexSetHandle)
 	if (complexSetHandle.IsSet() && complexSetHandle.Get() < _vComplexDescriptorSets.size() && _vComplexDescriptorSets[complexSetHandle.Get()] != VK_NULL_HANDLE)
 	{
 		if (VK_SUCCESS != (res = vkFreeDescriptorSets(pRendererVulkan->GetVkDevice(), _descriptorPool, 1, &_vComplexDescriptorSets[complexSetHandle.Get()])))
-			throw VERUS_RUNTIME_ERROR << "vkFreeDescriptorSets(), res=" << res;
+			throw VERUS_RUNTIME_ERROR << "vkFreeDescriptorSets(); res=" << res;
 		_vComplexDescriptorSets[complexSetHandle.Get()] = VK_NULL_HANDLE;
 	}
 	complexSetHandle = CSHandle();
@@ -546,7 +546,7 @@ void ShaderVulkan::BeginBindDescriptors()
 		VERUS_RT_ASSERT(!dsd._pMappedData);
 		void* pData = nullptr;
 		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), dsd._vmaAllocation, &pData)))
-			throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
+			throw VERUS_RECOVERABLE << "vmaMapMemory(); res=" << res;
 		dsd._pMappedData = static_cast<BYTE*>(pData);
 		dsd._pMappedData += dsd._capacityInBytes * pRendererVulkan->GetRingBufferIndex(); // Adjust address for this frame.
 		if (resetOffset)
@@ -598,7 +598,7 @@ void ShaderVulkan::CreateDescriptorPool()
 	}
 	vkdpci.pPoolSizes = vkdps;
 	if (VK_SUCCESS != (res = vkCreateDescriptorPool(pRendererVulkan->GetVkDevice(), &vkdpci, pRendererVulkan->GetAllocator(), &_descriptorPool)))
-		throw VERUS_RUNTIME_ERROR << "vkCreateDescriptorPool(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkCreateDescriptorPool(); res=" << res;
 }
 
 void ShaderVulkan::CreateDescriptorSets()
@@ -617,7 +617,7 @@ void ShaderVulkan::CreateDescriptorSets()
 			vkdsai.descriptorSetCount = 1;
 			vkdsai.pSetLayouts = &_vDescriptorSetLayouts[index];
 			if (VK_SUCCESS != (res = vkAllocateDescriptorSets(pRendererVulkan->GetVkDevice(), &vkdsai, &dsd._descriptorSet)))
-				throw VERUS_RUNTIME_ERROR << "vkAllocateDescriptorSets(), res=" << res;
+				throw VERUS_RUNTIME_ERROR << "vkAllocateDescriptorSets(); res=" << res;
 		}
 
 		if (dsd._capacity > 0)

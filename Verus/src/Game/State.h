@@ -17,7 +17,6 @@ namespace verus
 
 			virtual bool IsValidNextState(State* p);
 			virtual void OnEnter(State* pPrev);
-			virtual void HandleInput();
 			virtual void Update();
 			virtual void Draw();
 			virtual void OnExit(State* pNext);

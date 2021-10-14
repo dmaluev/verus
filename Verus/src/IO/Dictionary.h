@@ -32,14 +32,14 @@ namespace verus
 
 			void LinkParent(Dictionary* p);
 
-			void Insert(CSZ name, CSZ value);
-			void Delete(CSZ name);
+			void Insert(CSZ key, CSZ value);
+			void Delete(CSZ key);
 			void DeleteAll();
 
-			CSZ      Find(CSZ name, CSZ def = nullptr) const;
-			RcString FindSafe(CSZ name) const;
-			int      FindInt(CSZ name, int def = 0) const;
-			float    FindFloat(CSZ name, float def = 0) const;
+			CSZ      Find(CSZ key, CSZ def = nullptr) const;
+			RcString FindSafe(CSZ key) const;
+			int      FindInt(CSZ key, int def = 0) const;
+			float    FindFloat(CSZ key, float def = 0) const;
 
 			int GetCount() const;
 

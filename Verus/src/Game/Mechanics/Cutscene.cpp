@@ -345,7 +345,7 @@ void Cutscene::Load(CSZ url)
 	pugi::xml_document doc;
 	const pugi::xml_parse_result result = doc.load_buffer_inplace(vData.data(), vData.size());
 	if (!result)
-		throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+		throw VERUS_RECOVERABLE << "load_buffer_inplace(); " << result.description();
 	pugi::xml_node root = doc.first_child();
 
 	_interactive = root.attribute("interactive").as_bool(_interactive);
@@ -363,7 +363,7 @@ void Cutscene::Load(CSZ url)
 			_vCommands.push_back(pCommand);
 		}
 		else
-			throw VERUS_RECOVERABLE << "CreateCommand(), type=" << commandType;
+			throw VERUS_RECOVERABLE << "CreateCommand(); type=" << commandType;
 	}
 }
 

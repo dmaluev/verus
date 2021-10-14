@@ -110,7 +110,7 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 	gpsDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
 	if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(&_pPipelineState))))
-		throw VERUS_RUNTIME_ERROR << "CreateGraphicsPipelineState(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "CreateGraphicsPipelineState(); hr=" << VERUS_HR(hr);
 	_pPipelineState->SetName(_C(Str::Utf8ToWide(String("PipelineState (") + _C(shader.GetSourceName()) + ", " + desc._shaderBranch + ")")));
 }
 
@@ -140,7 +140,7 @@ void PipelineD3D12::InitCompute(RcPipelineDesc desc)
 	cpsDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
 	if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateComputePipelineState(&cpsDesc, IID_PPV_ARGS(&_pPipelineState))))
-		throw VERUS_RUNTIME_ERROR << "CreateComputePipelineState(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "CreateComputePipelineState(); hr=" << VERUS_HR(hr);
 	_pPipelineState->SetName(_C(Str::Utf8ToWide(String("PipelineState (") + _C(shader.GetSourceName()) + ", " + desc._shaderBranch + ")")));
 }
 
@@ -223,7 +223,7 @@ void PipelineD3D12::InitMeshShading(RcPipelineDesc desc)
 	streamDesc.SizeInBytes = sizeof(meshStateStream);
 	streamDesc.pPipelineStateSubobjectStream = &meshStateStream;
 	if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreatePipelineState(&streamDesc, IID_PPV_ARGS(&_pPipelineState))))
-		throw VERUS_RUNTIME_ERROR << "CreatePipelineState(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "CreatePipelineState(); hr=" << VERUS_HR(hr);
 }
 
 D3D12_SHADER_BYTECODE PipelineD3D12::ToBytecode(ID3DBlob* pBlob)

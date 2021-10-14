@@ -237,7 +237,7 @@ void ShaderD3D12::CreateDescriptorSet(int setNumber, const void* pSrc, int size,
 			nullptr,
 			&dsd._pMaAllocation,
 			IID_PPV_ARGS(&dsd._pConstantBuffer))))
-			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD); hr=" << VERUS_HR(hr);
 		dsd._pConstantBuffer->SetName(_C(Str::Utf8ToWide("Shader.ConstantBuffer (" + _sourceName + ", set=" + std::to_string(setNumber) + ")")));
 
 		const int count = dsd._capacity * BaseRenderer::s_ringBufferSize;
@@ -394,10 +394,10 @@ void ShaderD3D12::CreatePipelineLayout()
 	if (FAILED(hr = D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureSupportData.HighestVersion, &pRootSignatureBlob, &pErrorBlob)))
 	{
 		CSZ errors = pErrorBlob ? static_cast<CSZ>(pErrorBlob->GetBufferPointer()) : "";
-		throw VERUS_RUNTIME_ERROR << "D3DX12SerializeVersionedRootSignature(), hr=" << VERUS_HR(hr) << ", errors=" << errors;
+		throw VERUS_RUNTIME_ERROR << "D3DX12SerializeVersionedRootSignature(); hr=" << VERUS_HR(hr) << ", errors=" << errors;
 	}
 	if (FAILED(hr = pRendererD3D12->GetD3DDevice()->CreateRootSignature(0, pRootSignatureBlob->GetBufferPointer(), pRootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&_pRootSignature))))
-		throw VERUS_RUNTIME_ERROR << "CreateRootSignature(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "CreateRootSignature(); hr=" << VERUS_HR(hr);
 	_pRootSignature->SetName(_C(Str::Utf8ToWide("RootSignature (" + _sourceName + ")")));
 }
 
@@ -489,7 +489,7 @@ void ShaderD3D12::BeginBindDescriptors()
 		CD3DX12_RANGE readRange(0, 0);
 		void* pData = nullptr;
 		if (FAILED(hr = dsd._pConstantBuffer->Map(0, &readRange, &pData)))
-			throw VERUS_RUNTIME_ERROR << "Map(), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "Map(); hr=" << VERUS_HR(hr);
 		dsd._pMappedData = static_cast<BYTE*>(pData);
 		dsd._pMappedData += dsd._capacityInBytes * pRendererD3D12->GetRingBufferIndex(); // Adjust address for this frame.
 		if (resetOffset)

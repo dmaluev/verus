@@ -80,7 +80,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 		(renderTarget || depthFormat) ? &clearValue : nullptr,
 		&_resource._pMaAllocation,
 		IID_PPV_ARGS(&_resource._pResource))))
-		throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT); hr=" << VERUS_HR(hr);
 	_resource._pResource->SetName(_C(Str::Utf8ToWide(_name)));
 
 	if (_desc._flags & TextureDesc::Flags::generateMips)
@@ -108,7 +108,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 			nullptr,
 			&_uaResource._pMaAllocation,
 			IID_PPV_ARGS(&_uaResource._pResource))))
-			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT); hr=" << VERUS_HR(hr);
 		_uaResource._pResource->SetName(_C(Str::Utf8ToWide(_name + " (UAV)")));
 
 		_dhUAV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, uavMipLevels);
@@ -142,7 +142,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 				nullptr,
 				&x._pMaAllocation,
 				IID_PPV_ARGS(&x._pResource))))
-				throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_READBACK), hr=" << VERUS_HR(hr);
+				throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_READBACK); hr=" << VERUS_HR(hr);
 			x._pResource->SetName(_C(Str::Utf8ToWide(_name + " (Readback)")));
 		}
 	}
@@ -280,7 +280,7 @@ void TextureD3D12::UpdateSubresource(const void* p, int mipLevel, int arrayLayer
 			nullptr,
 			&sb._pMaAllocation,
 			IID_PPV_ARGS(&sb._pResource))))
-			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD); hr=" << VERUS_HR(hr);
 		sb._pResource->SetName(_C(Str::Utf8ToWide(_name + " (Staging)")));
 	}
 
@@ -353,7 +353,7 @@ bool TextureD3D12::ReadbackSubresource(void* p, bool recordCopyCommand, PBaseCom
 		CD3DX12_RANGE readRange(0, 0);
 		void* pData = nullptr;
 		if (FAILED(hr = rb._pResource->Map(0, &readRange, &pData)))
-			throw VERUS_RUNTIME_ERROR << "Map(), hr=" << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "Map(); hr=" << VERUS_HR(hr);
 		BYTE* pDst = static_cast<BYTE*>(p);
 		BYTE* pSrc = static_cast<BYTE*>(pData);
 		VERUS_FOR(i, h)
@@ -385,7 +385,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 
 	// Transition state for sampling in compute shader:
 	if (_mainLayout != ImageLayout::xsReadOnly)
-		pCB->PipelineImageMemoryBarrier(tex, _mainLayout, ImageLayout::xsReadOnly, Range<int>(0, maxMipLevel));
+		pCB->PipelineImageMemoryBarrier(tex, _mainLayout, ImageLayout::xsReadOnly, Range(0, _desc._mipLevels));
 
 	pCB->BindPipeline(renderer.GetPipelineGenerateMips(!!(_desc._flags & TextureDesc::Flags::exposureMips)));
 
@@ -394,8 +394,8 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 	int dispatchIndex = 0;
 	for (int srcMip = 0; srcMip < maxMipLevel;)
 	{
-		const int srcWidth = _desc._width >> srcMip;
-		const int srcHeight = _desc._height >> srcMip;
+		const int srcWidth = Math::Max(1, _desc._width >> srcMip);
+		const int srcHeight = Math::Max(1, _desc._height >> srcMip);
 		const int dstWidth = Math::Max(1, srcWidth >> 1);
 		const int dstHeight = Math::Max(1, srcHeight >> 1);
 
@@ -441,7 +441,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 			}
 			pCmdList->ResourceBarrier(barrierCount, barriers);
 
-			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, ImageLayout::transferDst, Range<int>(srcMip + 1, srcMip + dispatchMipCount));
+			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, ImageLayout::transferDst, Range(0, dispatchMipCount).OffsetBy(srcMip + 1));
 		}
 		VERUS_FOR(mip, dispatchMipCount)
 		{
@@ -467,7 +467,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 			}
 			pCmdList->ResourceBarrier(barrierCount, barriers);
 
-			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::xsReadOnly, Range<int>(srcMip + 1, srcMip + dispatchMipCount));
+			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::xsReadOnly, Range(0, dispatchMipCount).OffsetBy(srcMip + 1));
 		}
 
 		srcMip += dispatchMipCount;
@@ -477,7 +477,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 
 	// Revert to main state:
 	if (_mainLayout != ImageLayout::xsReadOnly)
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, _mainLayout, Range<int>(0, maxMipLevel));
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, _mainLayout, Range(0, _desc._mipLevels));
 
 	Schedule(0);
 }

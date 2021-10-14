@@ -5,10 +5,10 @@ namespace verus
 {
 	void Make_Input()
 	{
-		Input::KeyMapper::Make();
+		Input::InputManager::Make();
 	}
 	void Free_Input()
 	{
-		Input::KeyMapper::Free();
+		Input::InputManager::Free();
 	}
 }

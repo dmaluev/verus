@@ -71,7 +71,7 @@ void Grass::Init(RTerrain terrain, CSZ atlasUrl)
 	_bushMask = 0;
 
 	if (!Math::IsPowerOfTwo(_pTerrain->GetMapSide()))
-		throw VERUS_RECOVERABLE << "Init(), mapSide must be power of two";
+		throw VERUS_RECOVERABLE << "Init(); mapSide must be power of two";
 
 	_mapSide = _pTerrain->GetMapSide();
 	_mapShift = Math::HighestBit(_mapSide);
@@ -451,7 +451,7 @@ void Grass::LoadLayersFromFile(CSZ url)
 	pugi::xml_document doc;
 	const pugi::xml_parse_result result = doc.load_buffer_inplace(vData.data(), vData.size());
 	if (!result)
-		throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+		throw VERUS_RECOVERABLE << "load_buffer_inplace(); " << result.description();
 	pugi::xml_node root = doc.first_child();
 	for (auto node : root.children("grass"))
 	{

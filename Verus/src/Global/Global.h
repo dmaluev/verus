@@ -12,6 +12,7 @@
 #include "Str.h"
 #include "Utils.h"
 #include "Parallel.h"
+#include "Interval.h"
 #include "Range.h"
 #include "Object.h"
 #include "Lockable.h"

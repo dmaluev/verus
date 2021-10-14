@@ -102,7 +102,7 @@ void TextureVulkan::Init(RcTextureDesc desc)
 			vkivci.subresourceRange.baseArrayLayer = 0;
 			vkivci.subresourceRange.layerCount = 1;
 			if (VK_SUCCESS != (res = vkCreateImageView(pRendererVulkan->GetVkDevice(), &vkivci, pRendererVulkan->GetAllocator(), &_vStorageImageViews[mip])))
-				throw VERUS_RUNTIME_ERROR << "vkCreateImageView(), res=" << res;
+				throw VERUS_RUNTIME_ERROR << "vkCreateImageView(); res=" << res;
 		}
 	}
 
@@ -136,7 +136,7 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	vkivci.subresourceRange.baseArrayLayer = 0;
 	vkivci.subresourceRange.layerCount = vkici.arrayLayers;
 	if (VK_SUCCESS != (res = vkCreateImageView(pRendererVulkan->GetVkDevice(), &vkivci, pRendererVulkan->GetAllocator(), &_imageView)))
-		throw VERUS_RUNTIME_ERROR << "vkCreateImageView(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkCreateImageView(); res=" << res;
 	if (renderTarget)
 	{
 		vkivci.viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -148,13 +148,13 @@ void TextureVulkan::Init(RcTextureDesc desc)
 			{
 				vkivci.subresourceRange.baseArrayLayer = ToNativeCubeMapFace(static_cast<CubeMapFace>(i));
 				if (VK_SUCCESS != (res = vkCreateImageView(pRendererVulkan->GetVkDevice(), &vkivci, pRendererVulkan->GetAllocator(), _imageViewForFramebuffer + i)))
-					throw VERUS_RUNTIME_ERROR << "vkCreateImageView(LevelZero), res=" << res;
+					throw VERUS_RUNTIME_ERROR << "vkCreateImageView(LevelZero); res=" << res;
 			}
 		}
 		else
 		{
 			if (VK_SUCCESS != (res = vkCreateImageView(pRendererVulkan->GetVkDevice(), &vkivci, pRendererVulkan->GetAllocator(), _imageViewForFramebuffer)))
-				throw VERUS_RUNTIME_ERROR << "vkCreateImageView(LevelZero), res=" << res;
+				throw VERUS_RUNTIME_ERROR << "vkCreateImageView(LevelZero); res=" << res;
 		}
 	}
 
@@ -239,7 +239,7 @@ void TextureVulkan::UpdateSubresource(const void* p, int mipLevel, int arrayLaye
 
 	void* pData = nullptr;
 	if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), sb._vmaAllocation, &pData)))
-		throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
+		throw VERUS_RECOVERABLE << "vmaMapMemory(); res=" << res;
 	memcpy(pData, p, bufferSize);
 	vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), sb._vmaAllocation);
 
@@ -286,7 +286,7 @@ bool TextureVulkan::ReadbackSubresource(void* p, bool recordCopyCommand, PBaseCo
 	{
 		void* pData = nullptr;
 		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), rb._vmaAllocation, &pData)))
-			throw VERUS_RECOVERABLE << "vmaMapMemory(), res=" << res;
+			throw VERUS_RECOVERABLE << "vmaMapMemory(); res=" << res;
 		memcpy(p, pData, bufferSize);
 		vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), rb._vmaAllocation);
 	}
@@ -307,13 +307,12 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 	auto tex = TexturePtr::From(this);
 
 	const int maxMipLevel = _desc._mipLevels - 1;
-	const int storageMaxMipLevel = _desc._mipLevels - 2; // Largest mip level not included.
 
 	if (!_definedStorage)
 	{
 		_definedStorage = true;
 		std::swap(_image, _storageImage);
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::undefined, ImageLayout::general, Range<int>(0, storageMaxMipLevel));
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::undefined, ImageLayout::general, Range(0, maxMipLevel));
 		std::swap(_image, _storageImage);
 	}
 
@@ -323,7 +322,7 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 	if (firstMipLayout != ImageLayout::xsReadOnly)
 		pCB->PipelineImageMemoryBarrier(tex, firstMipLayout, ImageLayout::xsReadOnly, 0);
 	if (otherMipsLayout != ImageLayout::xsReadOnly)
-		pCB->PipelineImageMemoryBarrier(tex, otherMipsLayout, ImageLayout::xsReadOnly, Range<int>(1, maxMipLevel));
+		pCB->PipelineImageMemoryBarrier(tex, otherMipsLayout, ImageLayout::xsReadOnly, Range(1, _desc._mipLevels));
 	VERUS_FOR(mip, _desc._mipLevels)
 		MarkSubresourceDefined(mip, 0);
 
@@ -334,8 +333,8 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 	int dispatchIndex = 0;
 	for (int srcMip = 0; srcMip < maxMipLevel;)
 	{
-		const int srcWidth = _desc._width >> srcMip;
-		const int srcHeight = _desc._height >> srcMip;
+		const int srcWidth = Math::Max(1, _desc._width >> srcMip);
+		const int srcHeight = Math::Max(1, _desc._height >> srcMip);
 		const int dstWidth = Math::Max(1, srcWidth >> 1);
 		const int dstHeight = Math::Max(1, srcHeight >> 1);
 
@@ -369,10 +368,10 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 		// Change layout for upcoming CopyImage():
 		{
 			std::swap(_image, _storageImage);
-			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::general, ImageLayout::transferSrc, Range<int>(srcMip, srcMip + dispatchMipCount - 1));
+			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::general, ImageLayout::transferSrc, Range(0, dispatchMipCount).OffsetBy(srcMip));
 			std::swap(_image, _storageImage);
 
-			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, ImageLayout::transferDst, Range<int>(srcMip + 1, srcMip + dispatchMipCount));
+			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, ImageLayout::transferDst, Range(0, dispatchMipCount).OffsetBy(srcMip + 1));
 		}
 		VERUS_FOR(mip, dispatchMipCount)
 		{
@@ -388,10 +387,10 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 		// Change layout for next Dispatch():
 		{
 			std::swap(_image, _storageImage);
-			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferSrc, ImageLayout::general, Range<int>(srcMip, srcMip + dispatchMipCount - 1));
+			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferSrc, ImageLayout::general, Range(0, dispatchMipCount).OffsetBy(srcMip));
 			std::swap(_image, _storageImage);
 
-			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::xsReadOnly, Range<int>(srcMip + 1, srcMip + dispatchMipCount));
+			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::xsReadOnly, Range(0, dispatchMipCount).OffsetBy(srcMip + 1));
 		}
 
 		srcMip += dispatchMipCount;
@@ -402,7 +401,7 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 	// Revert to main layout:
 	const ImageLayout finalMipLayout = GetSubresourceMainLayout(0, 0);
 	if (finalMipLayout != ImageLayout::xsReadOnly)
-		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, finalMipLayout, Range<int>(0, maxMipLevel));
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, finalMipLayout, Range(0, _desc._mipLevels));
 
 	Schedule(0);
 }
@@ -517,7 +516,7 @@ void TextureVulkan::CreateSampler()
 		vksci.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
 
 	if (VK_SUCCESS != (res = vkCreateSampler(pRendererVulkan->GetVkDevice(), &vksci, pRendererVulkan->GetAllocator(), &_sampler)))
-		throw VERUS_RUNTIME_ERROR << "vkCreateSampler(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkCreateSampler(); res=" << res;
 
 	_desc._pSamplerDesc = nullptr;
 }

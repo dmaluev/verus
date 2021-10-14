@@ -92,27 +92,27 @@ void Socket::Listen(int port)
 	char porttext[16];
 	sprintf_s(porttext, "%d", port);
 	if (ret = getaddrinfo(0, porttext, &hints, &raii.pAddrInfo))
-		throw VERUS_RECOVERABLE << "getaddrinfo(), " << ret;
+		throw VERUS_RECOVERABLE << "getaddrinfo(); " << ret;
 
 	_socket = socket(
 		raii.pAddrInfo->ai_family,
 		raii.pAddrInfo->ai_socktype,
 		raii.pAddrInfo->ai_protocol);
 	if (INVALID_SOCKET == _socket)
-		throw VERUS_RECOVERABLE << "socket(), " << WSAGetLastError();
+		throw VERUS_RECOVERABLE << "socket(); " << WSAGetLastError();
 
 	if (bind(_socket,
 		raii.pAddrInfo->ai_addr,
 		Utils::Cast32(raii.pAddrInfo->ai_addrlen)))
 	{
 		closesocket(_socket);
-		throw VERUS_RECOVERABLE << "bind(), " << WSAGetLastError();
+		throw VERUS_RECOVERABLE << "bind(); " << WSAGetLastError();
 	}
 
 	if (listen(_socket, SOMAXCONN))
 	{
 		closesocket(_socket);
-		throw VERUS_RECOVERABLE << "listen(), " << WSAGetLastError();
+		throw VERUS_RECOVERABLE << "listen(); " << WSAGetLastError();
 	}
 
 	_vClients.resize(_maxClients);
@@ -132,11 +132,11 @@ void Socket::Connect(RcAddr addr)
 		else
 		{
 			closesocket(_socket);
-			throw VERUS_RECOVERABLE << "connect(), " << WSAGetLastError();
+			throw VERUS_RECOVERABLE << "connect(); " << WSAGetLastError();
 		}
 	}
 	else
-		throw VERUS_RECOVERABLE << "socket(), " << WSAGetLastError();
+		throw VERUS_RECOVERABLE << "socket(); " << WSAGetLastError();
 }
 
 void Socket::Udp(int port)
@@ -152,18 +152,18 @@ void Socket::Udp(int port)
 		if (bind(_socket, reinterpret_cast<const sockaddr*>(&sa), sizeof(sa)) < 0)
 		{
 			closesocket(_socket);
-			throw VERUS_RECOVERABLE << "bind(), " << WSAGetLastError();
+			throw VERUS_RECOVERABLE << "bind(); " << WSAGetLastError();
 		}
 		// Non-blocking mode:
 		u_long mode = 1;
 		if (ioctlsocket(_socket, FIONBIO, &mode))
 		{
 			closesocket(_socket);
-			throw VERUS_RECOVERABLE << "ioctlsocket(FIONBIO), " << WSAGetLastError();
+			throw VERUS_RECOVERABLE << "ioctlsocket(FIONBIO); " << WSAGetLastError();
 		}
 	}
 	else
-		throw VERUS_RECOVERABLE << "socket(), " << WSAGetLastError();
+		throw VERUS_RECOVERABLE << "socket(); " << WSAGetLastError();
 }
 
 void Socket::Close()

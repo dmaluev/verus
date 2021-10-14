@@ -32,12 +32,12 @@ void FileSystem::ReadPakHeader(RFile file, UINT32& magic, INT64& entriesOffset, 
 {
 	file >> magic;
 	if (magic != 'KAP2')
-		throw VERUS_RUNTIME_ERROR << "ReadPakHeader(), Invalid magic number in PAK";
+		throw VERUS_RUNTIME_ERROR << "ReadPakHeader(); Invalid magic number in PAK";
 
 	file >> entriesOffset;
 	file >> entriesSize;
 	if (entriesSize % s_entrySize)
-		throw VERUS_RUNTIME_ERROR << "ReadPakHeader(), Invalid size of entries in PAK";
+		throw VERUS_RUNTIME_ERROR << "ReadPakHeader(); Invalid size of entries in PAK";
 }
 
 void FileSystem::PreloadCache(CSZ pak, CSZ types[])
@@ -97,7 +97,7 @@ void FileSystem::PreloadCache(CSZ pak, CSZ types[])
 			uLongf destLen = Utils::Cast32(size);
 			const int ret = uncompress(vData.data(), &destLen, vZip.data(), Utils::Cast32(vZip.size()));
 			if (ret != Z_OK)
-				throw VERUS_RUNTIME_ERROR << "uncompress(), " << ret;
+				throw VERUS_RUNTIME_ERROR << "uncompress(); " << ret;
 
 			_cacheSize += vData.size();
 			String key("[");
@@ -201,7 +201,7 @@ void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc d
 		}
 	}
 	else if (desc._mandatory)
-		throw VERUS_RUNTIME_ERROR << "LoadResourceFromFile(), File not found: " << url << " (" << strUrl << ")";
+		throw VERUS_RUNTIME_ERROR << "LoadResourceFromFile(); File not found: " << url << " (" << strUrl << ")";
 }
 
 void FileSystem::LoadResourceFromCache(CSZ url, Vector<BYTE>& vData, bool mandatory)
@@ -213,7 +213,7 @@ void FileSystem::LoadResourceFromCache(CSZ url, Vector<BYTE>& vData, bool mandat
 	if (it != _mapCache.end())
 		vData = it->second;
 	else if (mandatory)
-		throw VERUS_RUNTIME_ERROR << "LoadResourceFromCache(), File not found in cache: " << url;
+		throw VERUS_RUNTIME_ERROR << "LoadResourceFromCache(); File not found in cache: " << url;
 }
 
 void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc, RFile file, CSZ pakEntry)
@@ -268,7 +268,7 @@ void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc de
 		DDSHeader header;
 		file >> header;
 		if (!header.Validate())
-			throw VERUS_RUNTIME_ERROR << "LoadResourceFromPAK(), Invalid DDS header: " << url;
+			throw VERUS_RUNTIME_ERROR << "LoadResourceFromPAK(); Invalid DDS header: " << url;
 		DDSHeaderDXT10 header10;
 		if (header.IsDXT10())
 		{
@@ -279,7 +279,7 @@ void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc de
 		const int skipPartCount = header.SkipParts(desc._texturePart);
 
 		if (partCount > maxParts)
-			throw VERUS_RUNTIME_ERROR << "LoadResourceFromPAK(), Too many parts in PAK";
+			throw VERUS_RUNTIME_ERROR << "LoadResourceFromPAK(); Too many parts in PAK";
 
 		INT64 totalSize = headerSize;
 		VERUS_FOR(part, partCount)
@@ -309,7 +309,7 @@ void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc de
 				file.Seek(pakDataOffset + partOffset, SEEK_SET);
 				file >> size;
 				if (size != partSize)
-					throw VERUS_RUNTIME_ERROR << "LoadResourceFromPAK(), Invalid size in PAK";
+					throw VERUS_RUNTIME_ERROR << "LoadResourceFromPAK(); Invalid size in PAK";
 				vCip.resize(partZipSize - sizeof(INT64));
 				vZip.resize(partZipSize - sizeof(INT64));
 				file.Read(vCip.data(), vCip.size());
@@ -317,7 +317,7 @@ void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc de
 				uLongf destLen = Utils::Cast32(size);
 				const int ret = uncompress(vData.data() + dataPos, &destLen, vZip.data(), Utils::Cast32(vZip.size()));
 				if (ret != Z_OK)
-					throw VERUS_RUNTIME_ERROR << "uncompress(), " << ret;
+					throw VERUS_RUNTIME_ERROR << "uncompress(); " << ret;
 			}
 			dataPos += size;
 		}
@@ -335,7 +335,7 @@ void FileSystem::LoadResourceFromPAK(CSZ url, Vector<BYTE>& vData, RcLoadDesc de
 		uLongf destLen = Utils::Cast32(size);
 		const int ret = uncompress(vData.data(), &destLen, vZip.data(), Utils::Cast32(vZip.size()));
 		if (ret != Z_OK)
-			throw VERUS_RUNTIME_ERROR << "uncompress(), " << ret;
+			throw VERUS_RUNTIME_ERROR << "uncompress(); " << ret;
 	}
 }
 
@@ -345,7 +345,7 @@ void FileSystem::LoadTextureParts(RFile file, CSZ url, int texturePart, Vector<B
 	DDSHeader header;
 	file >> header;
 	if (!header.Validate())
-		throw VERUS_RUNTIME_ERROR << "LoadTextureParts(), Invalid DDS header: " << url;
+		throw VERUS_RUNTIME_ERROR << "LoadTextureParts(); Invalid DDS header: " << url;
 	DDSHeaderDXT10 header10;
 	if (header.IsDXT10())
 	{
@@ -513,14 +513,14 @@ void FileSystem::SaveImage(CSZ pathname, const UINT32* p, int w, int h, ImageFor
 		file.Close();
 	}
 	else
-		throw VERUS_RUNTIME_ERROR << "SaveImage(), Open()";
+		throw VERUS_RUNTIME_ERROR << "SaveImage(); Open()";
 }
 
 void FileSystem::SaveDDS(CSZ pathname, const UINT32* p, int w, int h, int d)
 {
 	IO::File file;
 	if (!file.Open(pathname, "wb"))
-		throw VERUS_RUNTIME_ERROR << "SaveDDS(), Open()";
+		throw VERUS_RUNTIME_ERROR << "SaveDDS(); Open()";
 
 	DDSHeader header;
 	header._flags |= DDSHeader::Flags::linearSize;

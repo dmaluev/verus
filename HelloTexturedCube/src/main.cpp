@@ -9,7 +9,7 @@ int main(VERUS_MAIN_DEFAULT_ARGS)
 	try
 	{
 		game.Initialize(argc, argv);
-		game.Run();
+		game.Loop();
 	}
 	catch (D::RcRuntimeError e)
 	{

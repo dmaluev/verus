@@ -78,7 +78,7 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc windowDes
 {
 	const int ret = SDL_Init(SDL_INIT_EVERYTHING);
 	if (ret)
-		throw VERUS_RUNTIME_ERROR << "SDL_Init(), " << ret;
+		throw VERUS_RUNTIME_ERROR << "SDL_Init(); " << ret;
 
 	Utils::I().InitPaths();
 
@@ -104,7 +104,10 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc windowDes
 
 	_window.Init(updatedWindowDesc);
 	CGI::Renderer::I().SetMainWindow(&_window);
-	_engineInit.Init(this, new MyRendererDelegate(this));
+	_engineInit.Init(new MyRendererDelegate(this));
+
+	VERUS_QREF_IM;
+	im.GainFocus(this);
 
 	// Configure:
 	VERUS_QREF_RENDERER;
@@ -125,10 +128,10 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc windowDes
 	renderer->Sync(false);
 }
 
-void BaseGame::Run(bool relativeMouseMode)
+void BaseGame::Loop(bool relativeMouseMode)
 {
 	VERUS_QREF_ASYNC;
-	VERUS_QREF_KM;
+	VERUS_QREF_IM;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_TIMER;
 
@@ -190,7 +193,7 @@ void BaseGame::Run(bool relativeMouseMode)
 				}
 			}
 
-			if (!keyboardShortcut && !km.HandleSdlEvent(event))
+			if (!keyboardShortcut && !im.HandleEvent(event))
 			{
 				switch (event.type)
 				{
@@ -250,7 +253,7 @@ void BaseGame::Run(bool relativeMouseMode)
 			}
 		}
 
-		if (_p->_escapeKeyExitGame && km.IsKeyDownEvent(SDL_SCANCODE_ESCAPE))
+		if (_p->_escapeKeyExitGame && im.IsKeyDownEvent(SDL_SCANCODE_ESCAPE))
 			Exit();
 
 		if (_p->_minimized || _restartApp)
@@ -268,18 +271,18 @@ void BaseGame::Run(bool relativeMouseMode)
 
 		if (_p->_defaultCameraMovement)
 		{
-			const float speed = km.IsKeyPressed(SDL_SCANCODE_SPACE) ? 20.f : 2.f;
-			if (km.IsKeyPressed(SDL_SCANCODE_W))
+			const float speed = im.IsKeyPressed(SDL_SCANCODE_SPACE) ? 20.f : 2.f;
+			if (im.IsKeyPressed(SDL_SCANCODE_W))
 				_p->_cameraSpirit.MoveFront(speed);
-			if (km.IsKeyPressed(SDL_SCANCODE_S))
+			if (im.IsKeyPressed(SDL_SCANCODE_S))
 				_p->_cameraSpirit.MoveFront(-speed);
-			if (km.IsKeyPressed(SDL_SCANCODE_A))
+			if (im.IsKeyPressed(SDL_SCANCODE_A))
 				_p->_cameraSpirit.MoveSide(-speed);
-			if (km.IsKeyPressed(SDL_SCANCODE_D))
+			if (im.IsKeyPressed(SDL_SCANCODE_D))
 				_p->_cameraSpirit.MoveSide(speed);
 		}
 
-		BaseGame_HandleInput();
+		im.HandleInput();
 		if (_restartApp)
 			continue;
 
@@ -312,7 +315,7 @@ void BaseGame::Run(bool relativeMouseMode)
 
 		// Draw current frame:
 		renderer.Draw();
-		km.ResetClickState();
+		im.ResetInputState();
 		renderer->EndFrame();
 		renderer.Present();
 		renderer->Sync();
@@ -346,32 +349,15 @@ void BaseGame::Exit()
 	Utils::PushQuitEvent();
 }
 
-void BaseGame::KeyMapper_OnMouseMove(int x, int y)
+void BaseGame::OnMouseMove(float dx, float dy)
 {
 	if (!SDL_GetRelativeMouseMode())
 		return;
-
-	const float scale = GetMouseScale();
-	const float fx = x * scale;
-	const float fy = y * scale;
-
 	if (_p->_defaultCameraMovement)
 	{
-		_p->_cameraSpirit.TurnPitch(fy);
-		_p->_cameraSpirit.TurnYaw(fx);
+		_p->_cameraSpirit.TurnPitch(dy);
+		_p->_cameraSpirit.TurnYaw(dx);
 	}
-
-	BaseGame_OnMouseMove(fx, fy);
-}
-
-void BaseGame::KeyMapper_OnKey(int scancode)
-{
-	BaseGame_OnKey(scancode);
-}
-
-void BaseGame::KeyMapper_OnChar(wchar_t c)
-{
-	BaseGame_OnChar(c);
 }
 
 bool BaseGame::IsFullscreen() const
@@ -421,13 +407,6 @@ void BaseGame::BulletDebugDraw()
 {
 	VERUS_QREF_BULLET;
 	bullet.DebugDraw();
-}
-
-float BaseGame::GetMouseScale()
-{
-	VERUS_QREF_CONST_SETTINGS;
-	const float rad = (VERUS_2PI / 360.f) / 3.f; // 3 pixels = 1 degree.
-	return rad * settings._inputMouseSensitivity;
 }
 
 void BaseGame::RestartApp()

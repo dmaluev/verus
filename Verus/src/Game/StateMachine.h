@@ -13,7 +13,6 @@ namespace verus
 			bool   _changed = false;
 
 		public:
-			void HandleInput();
 			void Update();
 			void Draw();
 

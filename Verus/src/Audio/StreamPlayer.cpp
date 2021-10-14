@@ -165,7 +165,7 @@ void StreamPlayer::SwitchToTrack(PTrack pTrack)
 
 	const int ret = ov_open_callbacks(_pTrack->GetOggDataSource(), &_oggVorbisFile, 0, 0, g_oggCallbacks);
 	if (ret < 0)
-		throw VERUS_RUNTIME_ERROR << "ov_open_callbacks(), " << ret;
+		throw VERUS_RUNTIME_ERROR << "ov_open_callbacks(); " << ret;
 
 	_pVorbisInfo = ov_info(&_oggVorbisFile, -1);
 	_format = (_pVorbisInfo->channels == 1) ? AL_FORMAT_MONO16 : AL_FORMAT_STEREO16;
@@ -246,7 +246,7 @@ void StreamPlayer::ThreadProc()
 
 #ifdef _DEBUG
 						char debug[80];
-						sprintf_s(debug, "ThreadProc() processed=%d", processed);
+						sprintf_s(debug, "ThreadProc(); processed=%d", processed);
 						VERUS_LOG_DEBUG(debug);
 #endif
 

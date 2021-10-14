@@ -4,7 +4,7 @@
 using namespace verus;
 using namespace verus::Input;
 
-KeyMapper::KeyMapper()
+InputManager::InputManager()
 {
 	VERUS_ZERO_MEM(_kbStatePressed);
 	VERUS_ZERO_MEM(_kbStateDownEvent);
@@ -19,14 +19,16 @@ KeyMapper::KeyMapper()
 	VERUS_ZERO_MEM(_joyStateUpEvent);
 }
 
-KeyMapper::~KeyMapper()
+InputManager::~InputManager()
 {
 	Done();
 }
 
-void KeyMapper::Init()
+void InputManager::Init()
 {
 	VERUS_INIT();
+
+	_vInputFocusStack.reserve(16);
 
 	const int count = SDL_NumJoysticks();
 	_vJoysticks.reserve(count);
@@ -38,36 +40,28 @@ void KeyMapper::Init()
 	}
 }
 
-void KeyMapper::Done()
+void InputManager::Done()
 {
 	VERUS_FOREACH_CONST(Vector<SDL_Joystick*>, _vJoysticks, it)
 		SDL_JoystickClose(*it);
 	_vJoysticks.clear();
 
-	VERUS_DONE(KeyMapper);
+	VERUS_DONE(InputManager);
 }
 
-bool KeyMapper::HandleSdlEvent(SDL_Event& event)
+bool InputManager::HandleEvent(SDL_Event& event)
 {
 	VERUS_RT_ASSERT(IsInitialized());
 	VERUS_QREF_CONST_SETTINGS;
 
-	static bool firstTime = true;
-
 	switch (event.type)
 	{
-		// Keyboard:
+		// KEYBOARD:
 	case SDL_KEYDOWN:
 	{
 		if (ImGui::GetIO().WantCaptureKeyboard)
 			return false;
-#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
-		if (SDL_SCANCODE_KP_ENTER == event.key.keysym.scancode)
-		{
-			const SDL_bool rel = SDL_GetRelativeMouseMode();
-			SDL_SetRelativeMouseMode(rel ? SDL_FALSE : SDL_TRUE);
-		}
-#endif
+		SwitchRelativeMouseMode(event.key.keysym.scancode);
 		OnKeyDown(event.key.keysym.scancode);
 	}
 	break;
@@ -84,17 +78,18 @@ bool KeyMapper::HandleSdlEvent(SDL_Event& event)
 			return false;
 		wchar_t wide[4];
 		Str::Utf8ToWide(event.text.text, wide, 4);
-		OnChar(wide[0]);
+		OnTextInput(wide[0]);
 	}
 	break;
 
-	// Mouse:
+	// MOUSE:
 	case SDL_MOUSEMOTION:
 	{
-		if (!firstTime)
-			OnMouseMove(event.motion.xrel, event.motion.yrel);
-		else
-			firstTime = false;
+		OnMouseMove(
+			event.motion.xrel,
+			event.motion.yrel,
+			event.motion.x,
+			event.motion.y);
 	}
 	break;
 	case SDL_MOUSEBUTTONDOWN:
@@ -138,7 +133,7 @@ bool KeyMapper::HandleSdlEvent(SDL_Event& event)
 	}
 	break;
 
-	// Joystick:
+	// JOYSTICK:
 	case SDL_JOYAXISMOTION:
 	{
 		OnJoyAxis(event.jaxis.axis, event.jaxis.value);
@@ -161,81 +156,113 @@ bool KeyMapper::HandleSdlEvent(SDL_Event& event)
 	return true;
 }
 
-void KeyMapper::Load(Action* pAction)
+void InputManager::HandleInput()
+{
+	for (auto p : _vInputFocusStack)
+	{
+		p->HandleInput();
+		if (p->VetoInputFocus())
+			break;
+	}
+}
+
+int InputManager::GainFocus(PInputFocus p)
+{
+	auto it = std::find(_vInputFocusStack.begin(), _vInputFocusStack.end(), p);
+	if (it != _vInputFocusStack.end())
+		std::rotate(it, it + 1, _vInputFocusStack.end());
+	else
+		_vInputFocusStack.push_back(p);
+	return static_cast<int>(_vInputFocusStack.size()) - 1;
+}
+
+int InputManager::LoseFocus(PInputFocus p)
+{
+	auto it = std::find(_vInputFocusStack.begin(), _vInputFocusStack.end(), p);
+	if (it != _vInputFocusStack.end())
+	{
+		const int index = Utils::Cast32(it - _vInputFocusStack.begin());
+		_vInputFocusStack.erase(std::remove(_vInputFocusStack.begin(), _vInputFocusStack.end(), p), _vInputFocusStack.end());
+		return index;
+	}
+	return -1;
+}
+
+void InputManager::Load(Action* pAction)
 {
 	StringStream ss;
 	ss << _C(Utils::I().GetWritablePath()) << "Keys.xml";
 	IO::Xml xml(_C(ss.str()));
 }
 
-bool KeyMapper::IsKeyPressed(int id) const
+bool InputManager::IsKeyPressed(int id) const
 {
 	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_KB - 1);
 	return _kbStatePressed[id] || TranslateJoyPress(id, false);
 }
 
-bool KeyMapper::IsKeyDownEvent(int id) const
+bool InputManager::IsKeyDownEvent(int id) const
 {
 	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_KB - 1);
 	return _kbStateDownEvent[id];
 }
 
-bool KeyMapper::IsKeyUpEvent(int id) const
+bool InputManager::IsKeyUpEvent(int id) const
 {
 	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_KB - 1);
 	return _kbStateUpEvent[id];
 }
 
-bool KeyMapper::IsMousePressed(int id) const
+bool InputManager::IsMousePressed(int id) const
 {
 	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_MOUSE - 1);
 	return _mouseStatePressed[id] || TranslateJoyPress(id, true);
 }
 
-bool KeyMapper::IsMouseDownEvent(int id) const
+bool InputManager::IsMouseDownEvent(int id) const
 {
 	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_MOUSE - 1);
 	return _mouseStateDownEvent[id];
 }
 
-bool KeyMapper::IsMouseUpEvent(int id) const
+bool InputManager::IsMouseUpEvent(int id) const
 {
 	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_MOUSE - 1);
 	return _mouseStateUpEvent[id];
 }
 
-bool KeyMapper::IsMouseDoubleClick(int id) const
+bool InputManager::IsMouseDoubleClick(int id) const
 {
 	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_MOUSE - 1);
 	return _mouseStateDoubleClick[id];
 }
 
-bool KeyMapper::IsActionPressed(int actionID) const
+bool InputManager::IsActionPressed(int actionID) const
 {
 	return false;
 }
 
-bool KeyMapper::IsActionDownEvent(int actionID) const
+bool InputManager::IsActionDownEvent(int actionID) const
 {
 	return false;
 }
 
-bool KeyMapper::IsActionUpEvent(int actionID) const
+bool InputManager::IsActionUpEvent(int actionID) const
 {
 	return false;
 }
 
-float KeyMapper::GetJoyAxisState(int id) const
+float InputManager::GetJoyAxisState(int id) const
 {
 	id = Math::Clamp(id, 0, JOY_AXIS_MAX - 1);
 	return _joyStateAxis[id];
 }
 
-void KeyMapper::BuildLookup()
+void InputManager::BuildLookup()
 {
 }
 
-void KeyMapper::ResetClickState()
+void InputManager::ResetInputState()
 {
 	VERUS_ZERO_MEM(_kbStateDownEvent);
 	VERUS_ZERO_MEM(_kbStateUpEvent);
@@ -246,55 +273,83 @@ void KeyMapper::ResetClickState()
 	VERUS_ZERO_MEM(_joyStateUpEvent);
 }
 
-void KeyMapper::OnKeyDown(int id)
+float InputManager::GetMouseScale()
+{
+	VERUS_QREF_CONST_SETTINGS;
+	const float rad = (VERUS_2PI / 360.f) / 3.f; // 3 pixels = 1 degree.
+	return rad * settings._inputMouseSensitivity;
+}
+
+void InputManager::SwitchRelativeMouseMode(int scancode)
+{
+#if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
+	if (SDL_SCANCODE_KP_ENTER == scancode)
+	{
+		const SDL_bool rel = SDL_GetRelativeMouseMode();
+		SDL_SetRelativeMouseMode(rel ? SDL_FALSE : SDL_TRUE);
+	}
+#endif
+}
+
+void InputManager::OnKeyDown(int id)
 {
 	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_KB - 1);
 	_kbStatePressed[id] = true;
 	_kbStateDownEvent[id] = true;
-	if (_pKeyMapperDelegate)
-		_pKeyMapperDelegate->KeyMapper_OnKey(id);
 }
 
-void KeyMapper::OnKeyUp(int id)
+void InputManager::OnKeyUp(int id)
 {
 	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_KB - 1);
 	_kbStatePressed[id] = false;
 	_kbStateUpEvent[id] = true;
 }
 
-void KeyMapper::OnChar(wchar_t c)
+void InputManager::OnTextInput(wchar_t c)
 {
-	if (c && _pKeyMapperDelegate)
-		_pKeyMapperDelegate->KeyMapper_OnChar(c);
+	for (auto p : _vInputFocusStack)
+	{
+		p->OnTextInput(c);
+		if (p->VetoInputFocus())
+			break;
+	}
 }
 
-void KeyMapper::OnMouseMove(int x, int y)
+void InputManager::OnMouseMove(int dx, int dy, int x, int y)
 {
-	if (_pKeyMapperDelegate)
-		_pKeyMapperDelegate->KeyMapper_OnMouseMove(x, y);
+	const float scale = GetMouseScale();
+	const float fdx = dx * scale;
+	const float fdy = dy * scale;
+	for (auto p : _vInputFocusStack)
+	{
+		p->OnMouseMove(dx, dy, x, y);
+		p->OnMouseMove(fdx, fdy);
+		if (p->VetoInputFocus())
+			break;
+	}
 }
 
-void KeyMapper::OnMouseDown(int id)
+void InputManager::OnMouseDown(int id)
 {
 	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_MOUSE - 1);
 	_mouseStatePressed[id] = true;
 	_mouseStateDownEvent[id] = true;
 }
 
-void KeyMapper::OnMouseUp(int id)
+void InputManager::OnMouseUp(int id)
 {
 	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_MOUSE - 1);
 	_mouseStatePressed[id] = false;
 	_mouseStateUpEvent[id] = true;
 }
 
-void KeyMapper::OnMouseDoubleClick(int id)
+void InputManager::OnMouseDoubleClick(int id)
 {
 	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_MOUSE - 1);
 	_mouseStateDoubleClick[id] = true;
 }
 
-void KeyMapper::OnJoyAxis(int id, int value)
+void InputManager::OnJoyAxis(int id, int value)
 {
 	id = Math::Clamp(id, 0, JOY_AXIS_MAX - 1);
 	const float amount = value * (1.f / SHRT_MAX);
@@ -313,7 +368,7 @@ void KeyMapper::OnJoyAxis(int id, int value)
 	_joyStateAxis[id] = fixedAmount;
 }
 
-void KeyMapper::OnJoyDown(int id)
+void InputManager::OnJoyDown(int id)
 {
 	id = Math::Clamp(id, 0, JOY_BUTTON_MAX - 1);
 	_joyStatePressed[id] = true;
@@ -321,7 +376,7 @@ void KeyMapper::OnJoyDown(int id)
 	TranslateJoy(id, false);
 }
 
-void KeyMapper::OnJoyUp(int id)
+void InputManager::OnJoyUp(int id)
 {
 	id = Math::Clamp(id, 0, JOY_BUTTON_MAX - 1);
 	_joyStatePressed[id] = false;
@@ -329,7 +384,7 @@ void KeyMapper::OnJoyUp(int id)
 	TranslateJoy(id, true);
 }
 
-void KeyMapper::TranslateJoy(int id, bool up)
+void InputManager::TranslateJoy(int id, bool up)
 {
 	switch (id)
 	{
@@ -371,7 +426,7 @@ void KeyMapper::TranslateJoy(int id, bool up)
 	}
 }
 
-bool KeyMapper::TranslateJoyPress(int id, bool mouse) const
+bool InputManager::TranslateJoyPress(int id, bool mouse) const
 {
 	if (mouse)
 	{

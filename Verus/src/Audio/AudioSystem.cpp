@@ -26,10 +26,10 @@ void AudioSystem::Init()
 		throw VERUS_RUNTIME_ERROR << "alcOpenDevice()";
 
 	if (!(_pContext = alcCreateContext(_pDevice, nullptr)))
-		throw VERUS_RUNTIME_ERROR << "alcCreateContext(), " << alcGetError(_pDevice);
+		throw VERUS_RUNTIME_ERROR << "alcCreateContext(); " << alcGetError(_pDevice);
 
 	if (!alcMakeContextCurrent(_pContext))
-		throw VERUS_RUNTIME_ERROR << "alcMakeContextCurrent(), " << alcGetError(_pDevice);
+		throw VERUS_RUNTIME_ERROR << "alcMakeContextCurrent(); " << alcGetError(_pDevice);
 
 	int vMajor = 0, vMinor = 0;
 	alcGetIntegerv(_pDevice, ALC_MAJOR_VERSION, sizeof(vMajor), &vMajor);

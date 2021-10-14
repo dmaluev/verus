@@ -95,7 +95,7 @@ void Forest::Init(PTerrain pTerrain, CSZ url)
 		pugi::xml_document doc;
 		const pugi::xml_parse_result result = doc.load_buffer_inplace(vData.data(), vData.size());
 		if (!result)
-			throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+			throw VERUS_RECOVERABLE << "load_buffer_inplace(); " << result.description();
 		pugi::xml_node root = doc.first_child();
 
 		for (auto layerNode : root.children("layer"))

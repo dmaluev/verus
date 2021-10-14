@@ -65,7 +65,7 @@ void Sound::Async_WhenLoaded(CSZ url, RcBlob blob)
 	vorbis_info* povi;
 	const int ret = ov_open_callbacks(&oggds, &ovf, 0, 0, g_oggCallbacks);
 	if (ret < 0)
-		throw VERUS_RUNTIME_ERROR << "ov_open_callbacks(), " << ret;
+		throw VERUS_RUNTIME_ERROR << "ov_open_callbacks(); " << ret;
 
 	povi = ov_info(&ovf, -1);
 	const ALenum format = (povi->channels == 1) ? AL_FORMAT_MONO16 : AL_FORMAT_STEREO16;

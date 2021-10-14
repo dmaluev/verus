@@ -59,10 +59,10 @@ void BaseMesh::Load(RcBlob blob)
 		}
 		else
 		{
-			throw VERUS_RECOVERABLE << "Load(), invalid magic number";
+			throw VERUS_RECOVERABLE << "Load(); Invalid magic number";
 		}
 	}
-	VERUS_LOG_WARN("Load(), Old X3D version");
+	VERUS_LOG_WARN("Load(); Old X3D version");
 }
 
 void BaseMesh::LoadX3D3(RcBlob blob)

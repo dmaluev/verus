@@ -50,7 +50,7 @@ void ConvertGLTF::ParseData(CSZ pathname)
 	const String baseDir = IO::FileSystem::ReplaceFilename(pathname, "");
 	std::string err, warn;
 	if (!_context.LoadASCIIFromString(&_model, &err, &warn, _vData.data(), Utils::Cast32(_vData.size()), _C(baseDir)))
-		throw VERUS_RECOVERABLE << "LoadASCIIFromString() failed, err=" << err << ", warn=" << warn;
+		throw VERUS_RECOVERABLE << "LoadASCIIFromString(); err=" << err << ", warn=" << warn;
 
 	_vNodeExtraData.resize(_model.nodes.size());
 	const auto& scene = _model.scenes[_model.defaultScene];
@@ -98,7 +98,7 @@ void ConvertGLTF::SerializeAll(CSZ pathname)
 			if (file.Open(path, "wb"))
 				pMesh->SerializeX3D3(file);
 			else
-				throw VERUS_RECOVERABLE << "SerializeAll(), failed to create file: " << path;
+				throw VERUS_RECOVERABLE << "SerializeAll(); Failed to create file: " << path;
 		}
 	}
 
@@ -141,7 +141,7 @@ void ConvertGLTF::LoadFromFile(CSZ pathname)
 		file.Read(_vData.data(), size);
 	}
 	else
-		throw VERUS_RECOVERABLE << "LoadFromFile() failed, " << pathname;
+		throw VERUS_RECOVERABLE << "LoadFromFile(); " << pathname;
 }
 
 void ConvertGLTF::ProcessNodeRecursive(const tinygltf::Node& node, int nodeIndex, bool computeExtraData)

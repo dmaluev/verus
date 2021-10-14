@@ -82,7 +82,7 @@ void RendererVulkan::Init()
 	vmaaci.pAllocationCallbacks = GetAllocator();
 	vmaaci.frameInUseCount = s_ringBufferSize;
 	if (VK_SUCCESS != (res = vmaCreateAllocator(&vmaaci, &_vmaAllocator)))
-		throw VERUS_RUNTIME_ERROR << "vmaCreateAllocator(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vmaCreateAllocator(); res=" << res;
 
 	CreateSwapChain();
 	CreateImageViews();
@@ -281,7 +281,7 @@ void RendererVulkan::CreateInstance()
 	vkici.ppEnabledLayerNames = s_requiredValidationLayers;
 #endif
 	if (VK_SUCCESS != (res = vkCreateInstance(&vkici, GetAllocator(), &_instance)))
-		throw VERUS_RUNTIME_ERROR << "vkCreateInstance(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkCreateInstance(); res=" << res;
 }
 
 void RendererVulkan::FillDebugUtilsMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& vkdumci)
@@ -307,7 +307,7 @@ void RendererVulkan::CreateDebugUtilsMessenger()
 	VkDebugUtilsMessengerCreateInfoEXT vkdumci = {};
 	FillDebugUtilsMessengerCreateInfo(vkdumci);
 	if (VK_SUCCESS != (res = CreateDebugUtilsMessengerEXT(_instance, &vkdumci, GetAllocator(), &_debugUtilsMessenger)))
-		throw VERUS_RUNTIME_ERROR << "CreateDebugUtilsMessengerEXT(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "CreateDebugUtilsMessengerEXT(); res=" << res;
 }
 
 void RendererVulkan::CreateSurface()
@@ -380,7 +380,7 @@ void RendererVulkan::PickPhysicalDevice()
 	uint32_t physicalDeviceCount = 0;
 	vkEnumeratePhysicalDevices(_instance, &physicalDeviceCount, nullptr);
 	if (!physicalDeviceCount)
-		throw VERUS_RUNTIME_ERROR << "vkEnumeratePhysicalDevices(), physicalDeviceCount=0";
+		throw VERUS_RUNTIME_ERROR << "vkEnumeratePhysicalDevices(); physicalDeviceCount=0";
 	Vector<VkPhysicalDevice> vPhysicalDevices(physicalDeviceCount);
 	vkEnumeratePhysicalDevices(_instance, &physicalDeviceCount, vPhysicalDevices.data());
 	for (const auto& physicalDevice : vPhysicalDevices)
@@ -451,7 +451,7 @@ void RendererVulkan::CreateDevice()
 	vkdci.ppEnabledExtensionNames = s_requiredDeviceExtensions;
 	vkdci.pEnabledFeatures = &physicalDeviceFeatures;
 	if (VK_SUCCESS != (res = vkCreateDevice(_physicalDevice, &vkdci, GetAllocator(), &_device)))
-		throw VERUS_RUNTIME_ERROR << "vkCreateDevice(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkCreateDevice(); res=" << res;
 
 	vkGetDeviceQueue(_device, _queueFamilyIndices._graphicsFamilyIndex, 0, &_graphicsQueue);
 	vkGetDeviceQueue(_device, _queueFamilyIndices._presentFamilyIndex, 0, &_presentQueue);
@@ -530,7 +530,7 @@ void RendererVulkan::CreateSwapChain(VkSwapchainKHR oldSwapchain)
 		vksci.pQueueFamilyIndices = queueFamilyIndicesArray;
 	}
 	if (VK_SUCCESS != (res = vkCreateSwapchainKHR(_device, &vksci, GetAllocator(), &_swapChain)))
-		throw VERUS_RUNTIME_ERROR << "vkCreateSwapchainKHR(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkCreateSwapchainKHR(); res=" << res;
 
 	vkGetSwapchainImagesKHR(_device, _swapChain, &_swapChainBufferCount, nullptr);
 	_vSwapChainImages.resize(_swapChainBufferCount);
@@ -558,7 +558,7 @@ void RendererVulkan::CreateImageViews()
 		vkivci.subresourceRange.baseArrayLayer = 0;
 		vkivci.subresourceRange.layerCount = 1;
 		if (VK_SUCCESS != (res = vkCreateImageView(_device, &vkivci, GetAllocator(), &_vSwapChainImageViews[i])))
-			throw VERUS_RUNTIME_ERROR << "vkCreateImageView(), res=" << res;
+			throw VERUS_RUNTIME_ERROR << "vkCreateImageView(); res=" << res;
 	}
 }
 
@@ -571,7 +571,7 @@ void RendererVulkan::CreateCommandPools()
 		vkcpci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		vkcpci.queueFamilyIndex = _queueFamilyIndices._graphicsFamilyIndex;
 		if (VK_SUCCESS != (res = vkCreateCommandPool(_device, &vkcpci, GetAllocator(), &_commandPools[i])))
-			throw VERUS_RUNTIME_ERROR << "vkCreateCommandPool(), res=" << res;
+			throw VERUS_RUNTIME_ERROR << "vkCreateCommandPool(); res=" << res;
 	}
 }
 
@@ -586,11 +586,11 @@ void RendererVulkan::CreateSyncObjects()
 	VERUS_U_FOR(i, s_ringBufferSize)
 	{
 		if (VK_SUCCESS != (res = vkCreateSemaphore(_device, &vksci, GetAllocator(), &_acquireNextImageSemaphores[i])))
-			throw VERUS_RUNTIME_ERROR << "vkCreateSemaphore(), res=" << res;
+			throw VERUS_RUNTIME_ERROR << "vkCreateSemaphore(); res=" << res;
 		if (VK_SUCCESS != (res = vkCreateSemaphore(_device, &vksci, GetAllocator(), &_queueSubmitSemaphores[i])))
-			throw VERUS_RUNTIME_ERROR << "vkCreateSemaphore(), res=" << res;
+			throw VERUS_RUNTIME_ERROR << "vkCreateSemaphore(); res=" << res;
 		if (VK_SUCCESS != (res = vkCreateFence(_device, &vkfci, GetAllocator(), &_queueSubmitFences[i])))
-			throw VERUS_RUNTIME_ERROR << "vkCreateFence(), res=" << res;
+			throw VERUS_RUNTIME_ERROR << "vkCreateFence(); res=" << res;
 	}
 }
 
@@ -625,7 +625,7 @@ void RendererVulkan::CreateSamplers()
 		VkResult res = VK_SUCCESS;
 		VkSampler sampler = VK_NULL_HANDLE;
 		if (VK_SUCCESS != (res = vkCreateSampler(_device, &vksci, GetAllocator(), &sampler)))
-			throw VERUS_RUNTIME_ERROR << "vkCreateSampler(), res=" << res;
+			throw VERUS_RUNTIME_ERROR << "vkCreateSampler(); res=" << res;
 		return sampler;
 	};
 
@@ -719,7 +719,7 @@ VkCommandBuffer RendererVulkan::CreateCommandBuffer(VkCommandPool commandPool)
 	vkcbai.commandBufferCount = 1;
 	VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
 	if (VK_SUCCESS != (res = vkAllocateCommandBuffers(_device, &vkcbai, &commandBuffer)))
-		throw VERUS_RUNTIME_ERROR << "vkAllocateCommandBuffers(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkAllocateCommandBuffers(); res=" << res;
 	return commandBuffer;
 }
 
@@ -731,7 +731,7 @@ const VkSampler* RendererVulkan::GetImmutableSampler(Sampler s) const
 void RendererVulkan::ImGuiCheckVkResultFn(VkResult res)
 {
 	if (VK_SUCCESS != res)
-		throw VERUS_RUNTIME_ERROR << "ImGuiCheckVkResultFn(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "ImGuiCheckVkResultFn(); res=" << res;
 }
 
 void RendererVulkan::ImGuiInit(RPHandle renderPassHandle)
@@ -744,7 +744,7 @@ void RendererVulkan::ImGuiInit(RPHandle renderPassHandle)
 	vkdpci.poolSizeCount = 1;
 	vkdpci.pPoolSizes = &vkdps;
 	if (VK_SUCCESS != (res = vkCreateDescriptorPool(_device, &vkdpci, GetAllocator(), &_descriptorPoolImGui)))
-		throw VERUS_RUNTIME_ERROR << "vkCreateDescriptorPool(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkCreateDescriptorPool(); res=" << res;
 
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_CONST_SETTINGS;
@@ -818,17 +818,17 @@ void RendererVulkan::BeginFrame(bool present)
 	VkResult res = VK_SUCCESS;
 
 	if (VK_SUCCESS != (res = vkResetFences(_device, 1, &_queueSubmitFences[_ringBufferIndex])))
-		throw VERUS_RUNTIME_ERROR << "vkResetFences(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkResetFences(); res=" << res;
 	if (present)
 	{
 		if (VK_SUCCESS != (res = vkAcquireNextImageKHR(_device, _swapChain, UINT64_MAX, _acquireNextImageSemaphores[_ringBufferIndex], VK_NULL_HANDLE, &_swapChainBufferIndex)))
-			throw VERUS_RUNTIME_ERROR << "vkAcquireNextImageKHR(), res=" << res;
+			throw VERUS_RUNTIME_ERROR << "vkAcquireNextImageKHR(); res=" << res;
 	}
 
 	vmaSetCurrentFrameIndex(_vmaAllocator, static_cast<uint32_t>(renderer.GetFrameCount()));
 
 	if (VK_SUCCESS != (res = vkResetCommandPool(_device, _commandPools[_ringBufferIndex], VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT)))
-		throw VERUS_RUNTIME_ERROR << "vkResetCommandPool(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkResetCommandPool(); res=" << res;
 
 	renderer.GetCommandBuffer()->Begin();
 
@@ -869,7 +869,7 @@ void RendererVulkan::EndFrame(bool present)
 		vksi.pSignalSemaphores = &_queueSubmitSemaphore;
 	}
 	if (VK_SUCCESS != (res = vkQueueSubmit(_graphicsQueue, 1, &vksi, _queueSubmitFences[_ringBufferIndex])))
-		throw VERUS_RUNTIME_ERROR << "vkQueueSubmit(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkQueueSubmit(); res=" << res;
 }
 
 void RendererVulkan::Present()
@@ -891,7 +891,7 @@ void RendererVulkan::Present()
 	if (VK_SUCCESS != (res = vkQueuePresentKHR(_presentQueue, &vkpi)))
 	{
 		if (res != VK_ERROR_OUT_OF_DATE_KHR)
-			throw VERUS_RUNTIME_ERROR << "vkQueuePresentKHR(), res=" << res;
+			throw VERUS_RUNTIME_ERROR << "vkQueuePresentKHR(); res=" << res;
 	}
 }
 
@@ -902,7 +902,7 @@ void RendererVulkan::Sync(bool present)
 	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
 
 	if (VK_SUCCESS != (res = vkWaitForFences(_device, 1, &_queueSubmitFences[_ringBufferIndex], VK_TRUE, UINT64_MAX)))
-		throw VERUS_RUNTIME_ERROR << "vkWaitForFences(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkWaitForFences(); res=" << res;
 }
 
 void RendererVulkan::WaitIdle()
@@ -974,7 +974,7 @@ RPHandle RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> 
 		case RP::Attachment::LoadOp::load:     return VK_ATTACHMENT_LOAD_OP_LOAD;
 		case RP::Attachment::LoadOp::clear:    return VK_ATTACHMENT_LOAD_OP_CLEAR;
 		case RP::Attachment::LoadOp::dontCare: return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		default: throw VERUS_RECOVERABLE << "CreateRenderPass(), LoadOp";
+		default: throw VERUS_RECOVERABLE << "CreateRenderPass(); LoadOp";
 		};
 	};
 	auto ToNativeStoreOp = [](RP::Attachment::StoreOp op)
@@ -983,7 +983,7 @@ RPHandle RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> 
 		{
 		case RP::Attachment::StoreOp::store:    return VK_ATTACHMENT_STORE_OP_STORE;
 		case RP::Attachment::StoreOp::dontCare: return VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		default: throw VERUS_RECOVERABLE << "CreateRenderPass(), StoreOp";
+		default: throw VERUS_RECOVERABLE << "CreateRenderPass(); StoreOp";
 		}
 	};
 
@@ -1014,7 +1014,7 @@ RPHandle RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> 
 				return index;
 			index++;
 		}
-		throw VERUS_RECOVERABLE << "CreateRenderPass(), attachment not found";
+		throw VERUS_RECOVERABLE << "CreateRenderPass(); Attachment not found";
 	};
 
 	struct SubpassMetadata
@@ -1084,7 +1084,7 @@ RPHandle RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> 
 
 	// vAttachmentRef is ready, convert indices to actual pointers:
 	if (vAttachmentRef.empty())
-		throw VERUS_RECOVERABLE << "CreateRenderPass(), no attachment references";
+		throw VERUS_RECOVERABLE << "CreateRenderPass(); No attachment references";
 	int index = 0;
 	for (auto& sd : vSubpassDesc)
 	{
@@ -1111,7 +1111,7 @@ RPHandle RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> 
 				return index;
 			index++;
 		}
-		throw VERUS_RECOVERABLE << "CreateRenderPass(), subpass not found";
+		throw VERUS_RECOVERABLE << "CreateRenderPass(); Subpass not found";
 	};
 
 	Vector<VkSubpassDependency> vSubpassDependency;
@@ -1160,7 +1160,7 @@ RPHandle RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> 
 	vkrpci.dependencyCount = Utils::Cast32(vSubpassDependency.size());
 	vkrpci.pDependencies = vSubpassDependency.data();
 	if (VK_SUCCESS != (res = vkCreateRenderPass(_device, &vkrpci, GetAllocator(), &renderPass)))
-		throw VERUS_RUNTIME_ERROR << "vkCreateRenderPass(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkCreateRenderPass(); res=" << res;
 
 	const int nextIndex = GetNextRenderPassIndex();
 	if (nextIndex >= _vRenderPasses.size())
@@ -1204,7 +1204,7 @@ FBHandle RendererVulkan::CreateFramebuffer(RPHandle renderPassHandle, std::initi
 	vkfci.height = h;
 	vkfci.layers = 1;
 	if (VK_SUCCESS != (res = vkCreateFramebuffer(_device, &vkfci, GetAllocator(), &framebuffer)))
-		throw VERUS_RUNTIME_ERROR << "vkCreateFramebuffer(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkCreateFramebuffer(); res=" << res;
 
 	const int nextIndex = GetNextFramebufferIndex();
 	Framebuffer fb;
@@ -1292,7 +1292,7 @@ void RendererVulkan::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, V
 	VmaAllocationCreateInfo vmaaci = {};
 	vmaaci.usage = vmaUsage;
 	if (VK_SUCCESS != (res = vmaCreateBuffer(_vmaAllocator, &vkbci, &vmaaci, &buffer, &vmaAllocation, nullptr)))
-		throw VERUS_RECOVERABLE << "vmaCreateBuffer(), res=" << res;
+		throw VERUS_RECOVERABLE << "vmaCreateBuffer(); res=" << res;
 }
 
 void RendererVulkan::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, PBaseCommandBuffer pCB)
@@ -1315,7 +1315,7 @@ void RendererVulkan::CreateImage(const VkImageCreateInfo* pImageCreateInfo, VmaM
 	VmaAllocationCreateInfo vmaaci = {};
 	vmaaci.usage = vmaUsage;
 	if (VK_SUCCESS != (res = vmaCreateImage(_vmaAllocator, pImageCreateInfo, &vmaaci, &image, &vmaAllocation, nullptr)))
-		throw VERUS_RECOVERABLE << "vmaCreateImage(), res=" << res;
+		throw VERUS_RECOVERABLE << "vmaCreateImage(); res=" << res;
 }
 
 void RendererVulkan::CopyImage(

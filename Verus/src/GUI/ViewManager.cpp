@@ -88,10 +88,10 @@ void ViewManager::HandleInput()
 {
 	if (!_vViews.empty())
 	{
-		VERUS_QREF_KM;
-		if (km.IsMouseDownEvent(SDL_BUTTON_LEFT))
+		VERUS_QREF_IM;
+		if (im.IsMouseDownEvent(SDL_BUTTON_LEFT))
 			_vViews[0]->OnClick();
-		if (km.IsMouseDoubleClick(SDL_BUTTON_LEFT))
+		if (im.IsMouseDoubleClick(SDL_BUTTON_LEFT))
 			_vViews[0]->OnDoubleClick();
 	}
 }
@@ -137,7 +137,7 @@ PView ViewManager::ParseView(CSZ url)
 	pugi::xml_document doc;
 	const pugi::xml_parse_result result = doc.load_buffer_inplace(vData.data(), vData.size(), pugi::parse_default & ~pugi::parse_wconv_attribute);
 	if (!result)
-		throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+		throw VERUS_RECOVERABLE << "load_buffer_inplace(); " << result.description();
 	pugi::xml_node root = doc.first_child();
 
 	PView pView = new View();

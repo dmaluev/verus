@@ -55,7 +55,7 @@ void ConvertX::ParseData(CSZ pathname)
 	StreamSkipWhitespace();
 	StreamReadUntil(buffer, sizeof(buffer), VERUS_WHITESPACE); // xof.
 	if (strcmp(buffer, "xof"))
-		throw VERUS_RECOVERABLE << "ParseData(), invalid file format (no xof)";
+		throw VERUS_RECOVERABLE << "ParseData(); Invalid file format (no xof)";
 	StreamSkipWhitespace();
 	StreamReadUntil(buffer, sizeof(buffer), VERUS_WHITESPACE); // 0303txt.
 	StreamSkipWhitespace();
@@ -182,7 +182,7 @@ void ConvertX::SerializeAll(CSZ pathname)
 			if (file.Open(path, "wb"))
 				pMesh->SerializeX3D3(file);
 			else
-				throw VERUS_RECOVERABLE << "SerializeAll(), failed to create file: " << path;
+				throw VERUS_RECOVERABLE << "SerializeAll(); Failed to create file: " << path;
 		}
 	}
 
@@ -239,7 +239,7 @@ void ConvertX::LoadFromFile(CSZ pathname)
 		_pData = _vData.data();
 	}
 	else
-		throw VERUS_RECOVERABLE << "LoadFromFile() failed, " << pathname;
+		throw VERUS_RECOVERABLE << "LoadFromFile(); " << pathname;
 }
 
 void ConvertX::StreamReadUntil(SZ dest, int destSize, CSZ separator)
@@ -247,7 +247,7 @@ void ConvertX::StreamReadUntil(SZ dest, int destSize, CSZ separator)
 	memset(dest, 0, destSize);
 	size_t len = strcspn(_pData, separator);
 	if (int(len) >= destSize)
-		throw VERUS_RECOVERABLE << "StreamReadUntil() failed, dest=" << destSize << ", length=" << len;
+		throw VERUS_RECOVERABLE << "StreamReadUntil(); dest=" << destSize << ", length=" << len;
 	strncpy(dest, _pData, len);
 	_pData += len;
 }
@@ -350,7 +350,7 @@ void ConvertX::ParseBlockRecursive(CSZ type, CSZ blockName)
 			{
 			case '{':
 			{
-				throw VERUS_RECOVERABLE << "ParseBlockRecursive(), unexpected symbol \"{\" found in Mesh block";
+				throw VERUS_RECOVERABLE << "ParseBlockRecursive(); Unexpected symbol \"{\" found in Mesh block";
 			}
 			break;
 			case '}':
@@ -558,7 +558,7 @@ void ConvertX::ParseBlockData_Mesh()
 		StreamSkipWhitespace();
 
 		if (Math::IsNaN(v.x) || Math::IsNaN(v.y) || Math::IsNaN(v.z))
-			throw VERUS_RECOVERABLE << "ParseBlockData_Mesh(), NaN found";
+			throw VERUS_RECOVERABLE << "ParseBlockData_Mesh(); NaN found";
 
 		// Collapse transformations:
 		if (_desc._convertAsScene)
@@ -600,7 +600,7 @@ void ConvertX::ParseBlockData_Mesh()
 			std::swap(order[1], order[2]);
 		const int count = atoi(_pData); StreamSkipUntil(';'); _pData++;
 		if (3 != count)
-			throw VERUS_RECOVERABLE << "ParseBlockData_Mesh(), only triangles are supported, triangulate the quads";
+			throw VERUS_RECOVERABLE << "ParseBlockData_Mesh(); Only triangles are supported, triangulate the quads";
 		indices[order[0]] = atoi(_pData); StreamSkipUntil(','); _pData++;
 		indices[order[1]] = atoi(_pData); StreamSkipUntil(','); _pData++;
 		indices[order[2]] = atoi(_pData); StreamSkipUntil(';');
@@ -650,7 +650,7 @@ void ConvertX::ParseBlockData_MeshTextureCoords()
 	const int vertCount = atoi(buffer);
 	const int vertEdge = vertCount - 1;
 	if (_pCurrentMesh->GetVertCount() != vertCount)
-		throw VERUS_RECOVERABLE << "ParseBlockData_MeshTextureCoords(), different vertex count (" << vertCount << ")";
+		throw VERUS_RECOVERABLE << "ParseBlockData_MeshTextureCoords(); Different vertex count (" << vertCount << ")";
 	VERUS_FOR(i, vertCount)
 	{
 		OnProgress(float(i) / vertCount * 100);
@@ -661,7 +661,7 @@ void ConvertX::ParseBlockData_MeshTextureCoords()
 		StreamSkipWhitespace();
 
 		if (Math::IsNaN(tc.x) || Math::IsNaN(tc.y))
-			throw VERUS_RECOVERABLE << "ParseBlockData_MeshTextureCoords(), NaN found";
+			throw VERUS_RECOVERABLE << "ParseBlockData_MeshTextureCoords(); NaN found";
 
 		_pCurrentMesh->GetSetVertexAt(i)._tc0 = tc;
 	}
@@ -719,7 +719,7 @@ void ConvertX::ParseBlockData_MeshNormals()
 		StreamSkipWhitespace();
 
 		if (Math::IsNaN(vNormals[i].x) || Math::IsNaN(vNormals[i].y) || Math::IsNaN(vNormals[i].z))
-			throw VERUS_RECOVERABLE << "ParseBlockData_MeshNormals(), NaN found";
+			throw VERUS_RECOVERABLE << "ParseBlockData_MeshNormals(); NaN found";
 
 		// Collapse transformations (no translation here):
 		if (_desc._convertAsScene)
@@ -748,7 +748,7 @@ void ConvertX::ParseBlockData_MeshNormals()
 	const int faceCount = atoi(buffer);
 	const int faceEdge = faceCount - 1;
 	if (_pCurrentMesh->GetFaceCount() != faceCount)
-		throw VERUS_RECOVERABLE << "ParseBlockData_MeshNormals(), different face count (" << faceCount << ")";
+		throw VERUS_RECOVERABLE << "ParseBlockData_MeshNormals(); Different face count (" << faceCount << ")";
 	VERUS_FOR(i, faceCount)
 	{
 		OnProgress(float(i) / faceCount * 50 + 50);
@@ -805,7 +805,7 @@ void ConvertX::ParseBlockData_FVFData(bool declData)
 		StreamReadUntil(buffer, sizeof(buffer), ";");
 		_pData++; // Skip ";"
 		if (atoi(buffer) != 258)
-			throw VERUS_RECOVERABLE << "ParseBlockData_FVFData(), FVFData is not extra texture coords";
+			throw VERUS_RECOVERABLE << "ParseBlockData_FVFData(); FVFData is not extra texture coords";
 	}
 	StreamSkipWhitespace();
 
@@ -815,7 +815,7 @@ void ConvertX::ParseBlockData_FVFData(bool declData)
 	const int vertCount = _pCurrentMesh->GetVertCount();
 	const int vertEdge = vertCount - 1;
 	if (atoi(buffer) != _pCurrentMesh->GetVertCount() * 2)
-		throw VERUS_RECOVERABLE << "ParseBlockData_FVFData(), different vertex count";
+		throw VERUS_RECOVERABLE << "ParseBlockData_FVFData(); Different vertex count";
 	glm::vec2 tcPrev;
 	bool trash = true;
 	VERUS_FOR(i, vertCount)
@@ -936,7 +936,7 @@ void ConvertX::ParseBlockData_SkinWeights()
 			StreamSkipWhitespace();
 			bone._trToBoneSpace[i][j] = (float)atof(buffer);
 			if (Math::IsNaN(bone._trToBoneSpace[i][j]))
-				throw VERUS_RECOVERABLE << "ParseBlockData_SkinWeights(), NaN found";
+				throw VERUS_RECOVERABLE << "ParseBlockData_SkinWeights(); NaN found";
 		}
 	}
 
@@ -970,7 +970,7 @@ void ConvertX::ParseBlockData_Frame(CSZ blockName)
 		{
 		case '{':
 		{
-			throw VERUS_RECOVERABLE << "ParseBlockData_Frame(), unexpected symbol \"{\" found in Frame block";
+			throw VERUS_RECOVERABLE << "ParseBlockData_Frame(); Unexpected symbol \"{\" found in Frame block";
 		}
 		break;
 		case '}':
@@ -1052,7 +1052,7 @@ void ConvertX::ParseBlockData_FrameTransformMatrix()
 			StreamSkipWhitespace();
 			trLocal[i][j] = static_cast<float>(atof(buffer));
 			if (Math::IsNaN(trLocal[i][j]))
-				throw VERUS_RECOVERABLE << "ParseBlockData_FrameTransformMatrix(), NaN found";
+				throw VERUS_RECOVERABLE << "ParseBlockData_FrameTransformMatrix(); NaN found";
 		}
 	}
 	_pData++; // Skip ";"

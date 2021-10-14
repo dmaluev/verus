@@ -154,7 +154,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	vkgpci.subpass = desc._subpass;
 	vkgpci.basePipelineHandle = VK_NULL_HANDLE;
 	if (VK_SUCCESS != (res = vkCreateGraphicsPipelines(pRendererVulkan->GetVkDevice(), VK_NULL_HANDLE, 1, &vkgpci, pRendererVulkan->GetAllocator(), &_pipeline)))
-		throw VERUS_RUNTIME_ERROR << "vkCreateGraphicsPipelines(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkCreateGraphicsPipelines(); res=" << res;
 }
 
 void PipelineVulkan::Done()
@@ -185,7 +185,7 @@ void PipelineVulkan::InitCompute(RcPipelineDesc desc)
 	vkcpci.stage.pName = _C(entryName);
 	vkcpci.layout = shader.GetVkPipelineLayout();
 	if (VK_SUCCESS != (res = vkCreateComputePipelines(pRendererVulkan->GetVkDevice(), VK_NULL_HANDLE, 1, &vkcpci, pRendererVulkan->GetAllocator(), &_pipeline)))
-		throw VERUS_RUNTIME_ERROR << "vkCreateComputePipelines(), res=" << res;
+		throw VERUS_RUNTIME_ERROR << "vkCreateComputePipelines(); res=" << res;
 }
 
 void PipelineVulkan::FillColorBlendAttachmentStates(RcPipelineDesc desc, int attachmentCount, VkPipelineColorBlendAttachmentState vkpcbas[])

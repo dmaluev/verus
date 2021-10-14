@@ -16,7 +16,7 @@ void DescriptorHeap::Create(ID3D12Device* pDevice, D3D12_DESCRIPTOR_HEAP_TYPE ty
 	desc.NumDescriptors = count;
 	desc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	if (FAILED(hr = pDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_pDescriptorHeap))))
-		throw VERUS_RUNTIME_ERROR << "CreateDescriptorHeap(), hr=" << VERUS_HR(hr);
+		throw VERUS_RUNTIME_ERROR << "CreateDescriptorHeap(); hr=" << VERUS_HR(hr);
 	_hCPUHandleForHeapStart = _pDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	_hGPUHandleForHeapStart = _pDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 	_handleIncrementSize = pDevice->GetDescriptorHandleIncrementSize(desc.Type);

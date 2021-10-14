@@ -61,7 +61,7 @@ void Block::LoadExtra(SZ xml)
 	pugi::xml_document doc;
 	const pugi::xml_parse_result result = doc.load_buffer_inplace(xml, strlen(xml));
 	if (!result)
-		throw VERUS_RECOVERABLE << "load_buffer_inplace(), " << result.description();
+		throw VERUS_RECOVERABLE << "load_buffer_inplace(); " << result.description();
 	pugi::xml_node root = doc.first_child();
 
 	int lightCount = 0;

@@ -11,13 +11,15 @@ namespace verus
 {
 	namespace Input
 	{
-		struct KeyMapperDelegate
+		struct InputFocus
 		{
-			virtual void KeyMapper_OnMouseMove(int x, int y) = 0;
-			virtual void KeyMapper_OnKey(int scancode) = 0;
-			virtual void KeyMapper_OnChar(wchar_t c) = 0;
+			virtual bool VetoInputFocus() { return false; }
+			virtual void HandleInput() {}
+			virtual void OnMouseMove(int dx, int dy, int x, int y) {}
+			virtual void OnMouseMove(float dx, float dy) {}
+			virtual void OnTextInput(wchar_t c) {}
 		};
-		VERUS_TYPEDEFS(KeyMapperDelegate);
+		VERUS_TYPEDEFS(InputFocus);
 
 		enum
 		{
@@ -50,7 +52,7 @@ namespace verus
 			JOY_BUTTON_MAX
 		};
 
-		class KeyMapper : public Singleton<KeyMapper>, public Object
+		class InputManager : public Singleton<InputManager>, public Object
 		{
 			struct Action
 			{
@@ -62,6 +64,7 @@ namespace verus
 
 			typedef Map<int, int> TMapLookup;
 
+			Vector<PInputFocus>   _vInputFocusStack;
 			Vector<Action>        _mapAction;
 			TMapLookup            _mapLookupByKey;
 			TMapLookup            _mapLookupByAction;
@@ -72,7 +75,6 @@ namespace verus
 			bool                  _mouseStateDownEvent[VERUS_INPUT_MAX_MOUSE];
 			bool                  _mouseStateUpEvent[VERUS_INPUT_MAX_MOUSE];
 			bool                  _mouseStateDoubleClick[VERUS_INPUT_MAX_MOUSE];
-			PKeyMapperDelegate    _pKeyMapperDelegate = nullptr;
 			Vector<SDL_Joystick*> _vJoysticks;
 			float                 _joyStateAxis[JOY_AXIS_MAX];
 			bool                  _joyStatePressed[JOY_BUTTON_MAX];
@@ -80,13 +82,17 @@ namespace verus
 			bool                  _joyStateUpEvent[JOY_BUTTON_MAX];
 
 		public:
-			KeyMapper();
-			~KeyMapper();
+			InputManager();
+			~InputManager();
 
 			void Init();
 			void Done();
 
-			bool HandleSdlEvent(SDL_Event& event);
+			bool HandleEvent(SDL_Event& event);
+			void HandleInput();
+
+			int GainFocus(PInputFocus p);
+			int LoseFocus(PInputFocus p);
 
 			void Load(Action* pAction);
 
@@ -107,18 +113,20 @@ namespace verus
 
 			void BuildLookup();
 
-			void ResetClickState();
+			void ResetInputState();
 
-			PKeyMapperDelegate SetDelegate(PKeyMapperDelegate p) { return Utils::Swap(_pKeyMapperDelegate, p); }
+			static float GetMouseScale();
 
 			static CSZ GetSingletonFailMessage() { return "Make_Input(); // FAIL.\r\n"; }
 
 		private:
+			void SwitchRelativeMouseMode(int scancode);
+
 			void OnKeyDown(int id);
 			void OnKeyUp(int id);
-			void OnChar(wchar_t c);
+			void OnTextInput(wchar_t c);
 
-			void OnMouseMove(int x, int y);
+			void OnMouseMove(int dx, int dy, int x, int y);
 			void OnMouseDown(int id);
 			void OnMouseUp(int id);
 			void OnMouseDoubleClick(int id);
@@ -129,6 +137,6 @@ namespace verus
 			void TranslateJoy(int id, bool up);
 			bool TranslateJoyPress(int id, bool mouse) const;
 		};
-		VERUS_TYPEDEFS(KeyMapper);
+		VERUS_TYPEDEFS(InputManager);
 	}
 }

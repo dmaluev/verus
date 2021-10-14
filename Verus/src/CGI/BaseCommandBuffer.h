@@ -39,7 +39,7 @@ namespace verus
 			virtual void PushConstants(ShaderPtr shader, int offset, int size, const void* p, ShaderStageFlags stageFlags = ShaderStageFlags::vs_fs) = 0;
 
 			virtual void PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout,
-				Range<int> mipLevels, int arrayLayer = 0) = 0;
+				Range mipLevels, int arrayLayer = 0) = 0;
 
 			virtual void Draw(int vertexCount, int instanceCount = 1, int firstVertex = 0, int firstInstance = 0) = 0;
 			virtual void DrawIndexed(int indexCount, int instanceCount = 1, int firstIndex = 0, int vertexOffset = 0, int firstInstance = 0) = 0;

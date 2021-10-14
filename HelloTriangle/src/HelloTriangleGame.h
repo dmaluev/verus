@@ -44,7 +44,6 @@ namespace verus
 			virtual void BaseGame_UpdateSettings(App::Window::RDesc windowDesc) override;
 			virtual void BaseGame_LoadContent() override;
 			virtual void BaseGame_UnloadContent() override;
-			virtual void BaseGame_HandleInput() override;
 			virtual void BaseGame_Update() override;
 			virtual void BaseGame_Draw() override;
 		};
