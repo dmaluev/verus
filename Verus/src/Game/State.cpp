@@ -13,6 +13,14 @@ void State::OnEnter(PState pPrev)
 {
 }
 
+void State::InputFocus_HandleInput()
+{
+}
+
+void State::HandleActions()
+{
+}
+
 void State::Update()
 {
 }

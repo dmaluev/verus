@@ -9,7 +9,7 @@ namespace verus
 		// Contains views ordered by z-depth.
 		// Contains fonts, cursor and GUI utility functions.
 		typedef StoreUniqueWithNoRefCount<String, Font> TStoreFonts;
-		class ViewManager : public Singleton<ViewManager>, public Object, private TStoreFonts
+		class ViewManager : public Singleton<ViewManager>, public Object, public Input::InputFocus, private TStoreFonts
 		{
 		public:
 #include "../Shaders/GUI.inc.hlsl"
@@ -51,7 +51,10 @@ namespace verus
 			void Init(bool hasCursor = true, bool canDebug = true);
 			void Done();
 
-			void HandleInput();
+			virtual void InputFocus_HandleInput() override;
+			virtual void InputFocus_OnKeyDown(int scancode) override;
+			virtual void InputFocus_OnTextInput(wchar_t c) override;
+			virtual void InputFocus_OnMouseMove(float dx, float dy) override;
 			bool Update();
 			void Draw();
 
@@ -94,9 +97,6 @@ namespace verus
 
 			static float ParseCoordX(CSZ coord, float def = 0);
 			static float ParseCoordY(CSZ coord, float def = 0);
-
-			void OnKey(int scancode);
-			void OnChar(wchar_t c);
 
 			static CSZ GetSingletonFailMessage() { return "Make_GUI(); // FAIL.\r\n"; }
 		};

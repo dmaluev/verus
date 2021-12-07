@@ -226,7 +226,7 @@
     <ClInclude Include="src\Math\Frustum.h" />
     <ClInclude Include="src\Math\Math.h" />
     <ClInclude Include="src\Math\Matrix.h" />
-    <ClInclude Include="src\Math\NormalComputer.h" />
+    <ClInclude Include="src\Math\TangentSpaceTools.h" />
     <ClInclude Include="src\Math\Octree.h" />
     <ClInclude Include="src\Math\Plane.h" />
     <ClInclude Include="src\Math\Quadtree.h" />
@@ -252,7 +252,7 @@
     <ClInclude Include="src\Scene\BaseMesh.h" />
     <ClInclude Include="src\Scene\Camera.h" />
     <ClInclude Include="src\Scene\CameraOrbit.h" />
-    <ClInclude Include="src\Scene\CubeMap.h" />
+    <ClInclude Include="src\Scene\CubeMapBaker.h" />
     <ClInclude Include="src\Scene\EditorTerrain.h" />
     <ClInclude Include="src\Scene\Forest.h" />
     <ClInclude Include="src\Scene\Grass.h" />
@@ -273,7 +273,7 @@
     <ClInclude Include="src\Scene\SceneNodes\Site.h" />
     <ClInclude Include="src\Scene\SceneNodes\Trigger.h" />
     <ClInclude Include="src\Scene\SceneNodes\Types.h" />
-    <ClInclude Include="src\Scene\ShadowMap.h" />
+    <ClInclude Include="src\Scene\ShadowMapBaker.h" />
     <ClInclude Include="src\Scene\Terrain.h" />
     <ClInclude Include="src\Scene\Water.h" />
     <ClInclude Include="src\Security\CipherRC4.h" />
@@ -423,7 +423,7 @@
     <ClCompile Include="src\Math\Frustum.cpp" />
     <ClCompile Include="src\Math\Math.cpp" />
     <ClCompile Include="src\Math\Matrix.cpp" />
-    <ClCompile Include="src\Math\NormalComputer.cpp" />
+    <ClCompile Include="src\Math\TangentSpaceTools.cpp" />
     <ClCompile Include="src\Math\Octree.cpp" />
     <ClCompile Include="src\Math\Plane.cpp" />
     <ClCompile Include="src\Math\Quadtree.cpp" />
@@ -450,7 +450,7 @@
     <ClCompile Include="src\Scene\BaseMesh.cpp" />
     <ClCompile Include="src\Scene\Camera.cpp" />
     <ClCompile Include="src\Scene\CameraOrbit.cpp" />
-    <ClCompile Include="src\Scene\CubeMap.cpp" />
+    <ClCompile Include="src\Scene\CubeMapBaker.cpp" />
     <ClCompile Include="src\Scene\EditorTerrain.cpp" />
     <ClCompile Include="src\Scene\Forest.cpp" />
     <ClCompile Include="src\Scene\Grass.cpp" />
@@ -470,7 +470,7 @@
     <ClCompile Include="src\Scene\SceneNodes\SceneParticles.cpp" />
     <ClCompile Include="src\Scene\SceneNodes\Site.cpp" />
     <ClCompile Include="src\Scene\SceneNodes\Trigger.cpp" />
-    <ClCompile Include="src\Scene\ShadowMap.cpp" />
+    <ClCompile Include="src\Scene\ShadowMapBaker.cpp" />
     <ClCompile Include="src\Scene\Terrain.cpp" />
     <ClCompile Include="src\Scene\Water.cpp" />
     <ClCompile Include="src\ThirdParty\fast_atof.c">

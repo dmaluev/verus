@@ -4,16 +4,16 @@
 using namespace verus;
 using namespace verus::Scene;
 
-CubeMap::CubeMap()
+CubeMapBaker::CubeMapBaker()
 {
 }
 
-CubeMap::~CubeMap()
+CubeMapBaker::~CubeMapBaker()
 {
 	Done();
 }
 
-void CubeMap::Init(int side)
+void CubeMapBaker::Init(int side)
 {
 	VERUS_INIT();
 
@@ -35,14 +35,14 @@ void CubeMap::Init(int side)
 		{});
 
 	CGI::TextureDesc texDesc;
-	texDesc._name = "CubeMap.ColorTex";
+	texDesc._name = "CubeMapBaker.ColorTex";
 	texDesc._format = CGI::Format::floatR11G11B10;
 	texDesc._width = _side;
 	texDesc._height = _side;
 	texDesc._flags = CGI::TextureDesc::Flags::colorAttachment | CGI::TextureDesc::Flags::cubeMap;
 	_tex[TEX_COLOR].Init(texDesc);
 	texDesc.Reset();
-	texDesc._name = "CubeMap.DepthTex";
+	texDesc._name = "CubeMapBaker.DepthTex";
 	texDesc._clearValue = Vector4(1);
 	texDesc._format = CGI::Format::unormD24uintS8;
 	texDesc._width = _side;
@@ -63,12 +63,12 @@ void CubeMap::Init(int side)
 	}
 }
 
-void CubeMap::Done()
+void CubeMapBaker::Done()
 {
-	VERUS_DONE(CubeMap);
+	VERUS_DONE(CubeMapBaker);
 }
 
-void CubeMap::BeginEnvMap(CGI::CubeMapFace cubeMapFace, RcPoint3 center)
+void CubeMapBaker::BeginEnvMap(CGI::CubeMapFace cubeMapFace, RcPoint3 center)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
@@ -105,7 +105,7 @@ void CubeMap::BeginEnvMap(CGI::CubeMapFace cubeMapFace, RcPoint3 center)
 		});
 }
 
-void CubeMap::EndEnvMap()
+void CubeMapBaker::EndEnvMap()
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
@@ -115,12 +115,12 @@ void CubeMap::EndEnvMap()
 	sm.SetCamera(_pPrevCamera);
 }
 
-CGI::TexturePtr CubeMap::GetColorTexture()
+CGI::TexturePtr CubeMapBaker::GetColorTexture()
 {
 	return _tex[TEX_COLOR];
 }
 
-CGI::TexturePtr CubeMap::GetDepthTexture()
+CGI::TexturePtr CubeMapBaker::GetDepthTexture()
 {
 	return _tex[TEX_DEPTH];
 }

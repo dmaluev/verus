@@ -4,6 +4,22 @@
 using namespace verus;
 using namespace verus::Game;
 
+void StateMachine::InputFocus_HandleInput()
+{
+	PcState pCheck = _pCurrentState;
+	_pCurrentState->SetStateMachine(this);
+	_pCurrentState->InputFocus_HandleInput();
+	_changed = (_pCurrentState != pCheck);
+}
+
+void StateMachine::HandleActions()
+{
+	PcState pCheck = _pCurrentState;
+	_pCurrentState->SetStateMachine(this);
+	_pCurrentState->HandleActions();
+	_changed = (_pCurrentState != pCheck);
+}
+
 void StateMachine::Update()
 {
 	VERUS_UPDATE_ONCE_CHECK;

@@ -585,7 +585,7 @@ void Terrain::Init(RcDesc desc)
 	}
 
 	{
-		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#Depth", atmo.GetShadowMap().GetRenderPassHandle());
+		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#Depth", atmo.GetShadowMapBaker().GetRenderPassHandle());
 		pipeDesc._colorAttachBlendEqs[0] = "";
 		_pipe[PIPE_DEPTH_LIST].Init(pipeDesc);
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
@@ -594,7 +594,7 @@ void Terrain::Init(RcDesc desc)
 	}
 	if (settings._gpuTessellation)
 	{
-		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#DepthTess", atmo.GetShadowMap().GetRenderPassHandle());
+		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#DepthTess", atmo.GetShadowMapBaker().GetRenderPassHandle());
 		pipeDesc._colorAttachBlendEqs[0] = "";
 		pipeDesc._topology = CGI::PrimitiveTopology::patchList3;
 		_pipe[PIPE_DEPTH_TESS].Init(pipeDesc);
@@ -616,7 +616,7 @@ void Terrain::Init(RcDesc desc)
 	}
 
 	{
-		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], "#", atmo.GetCubeMap().GetRenderPassHandle());
+		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], "#", atmo.GetCubeMapBaker().GetRenderPassHandle());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._rasterizationState._cullMode = CGI::CullMode::front;
 		_pipe[PIPE_SIMPLE_ENV_MAP_LIST].Init(pipeDesc);
@@ -725,9 +725,9 @@ void Terrain::Layout()
 
 	PCamera pPrevCamera = nullptr;
 	// For CSM we need to create geometry beyond the view frustum (1st slice):
-	if (settings._sceneShadowQuality >= App::Settings::Quality::high && atmo.GetShadowMap().IsRendering())
+	if (settings._sceneShadowQuality >= App::Settings::Quality::high && atmo.GetShadowMapBaker().IsBaking())
 	{
-		PCamera pCameraCSM = atmo.GetShadowMap().GetCameraCSM();
+		PCamera pCameraCSM = atmo.GetShadowMapBaker().GetCameraCSM();
 		if (pCameraCSM)
 			pPrevCamera = sm.SetCamera(pCameraCSM);
 	}
@@ -884,13 +884,13 @@ void Terrain::DrawSimple(DrawSimpleMode mode)
 	s_ubSimpleTerrainFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubSimpleTerrainFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
 	s_ubSimpleTerrainFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-	s_ubSimpleTerrainFS._matShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
-	s_ubSimpleTerrainFS._matShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
-	s_ubSimpleTerrainFS._matShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
-	s_ubSimpleTerrainFS._matShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
-	s_ubSimpleTerrainFS._matScreenCSM = atmo.GetShadowMap().GetScreenMatrixVP().UniformBufferFormat();
-	s_ubSimpleTerrainFS._csmSplitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
-	memcpy(&s_ubSimpleTerrainFS._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubSimpleTerrainFS._shadowConfig));
+	s_ubSimpleTerrainFS._matShadow = atmo.GetShadowMapBaker().GetShadowMatrix(0).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matShadowCSM1 = atmo.GetShadowMapBaker().GetShadowMatrix(1).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrix(2).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrix(3).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixVP().UniformBufferFormat();
+	s_ubSimpleTerrainFS._csmSplitRanges = atmo.GetShadowMapBaker().GetSplitRanges().GLM();
+	memcpy(&s_ubSimpleTerrainFS._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubSimpleTerrainFS._shadowConfig));
 
 	cb->BindVertexBuffers(_geo);
 	cb->BindIndexBuffer(_geo);
@@ -1243,7 +1243,7 @@ void Terrain::LoadLayerTextures()
 	s_shader[SHADER_MAIN]->FreeDescriptorSet(_cshFS);
 	_cshFS = s_shader[SHADER_MAIN]->BindDescriptorSetTextures(1, { _tex[TEX_NORMALS], _tex[TEX_BLEND], _tex[TEX_LAYERS], _tex[TEX_LAYERS_NM], mm.GetDetailTexture() });
 	s_shader[SHADER_SIMPLE]->FreeDescriptorSet(_cshSimpleFS);
-	_cshSimpleFS = s_shader[SHADER_SIMPLE]->BindDescriptorSetTextures(1, { _tex[TEX_NORMALS], _tex[TEX_BLEND], _tex[TEX_LAYERS], atmo.GetShadowMap().GetTexture() });
+	_cshSimpleFS = s_shader[SHADER_SIMPLE]->BindDescriptorSetTextures(1, { _tex[TEX_NORMALS], _tex[TEX_BLEND], _tex[TEX_LAYERS], atmo.GetShadowMapBaker().GetTexture() });
 }
 
 int Terrain::GetMainLayerAt(const int ij[2]) const

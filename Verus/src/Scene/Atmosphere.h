@@ -89,8 +89,8 @@ namespace verus
 			Sun                           _sun;
 			Wind                          _wind;
 			Vector3                       _ambientColor = Vector3(0);
-			CubeMap                       _cubeMap;
-			CascadedShadowMap             _shadowMap;
+			CubeMapBaker                  _cubeMapBaker;
+			CascadedShadowMapBaker        _shadowMapBaker;
 			Mesh                          _skyDome;
 			CGI::TextureRAM               _texSky;
 			float                         _time = 0.5f;
@@ -157,12 +157,12 @@ namespace verus
 			float GetWindSpeed() const;
 
 			// CubeMap:
-			RCubeMap GetCubeMap() { return _cubeMap; }
+			RCubeMapBaker GetCubeMapBaker() { return _cubeMapBaker; }
 
 			// ShadowMap:
 			void BeginShadow(int split);
 			void EndShadow(int split);
-			RCascadedShadowMap GetShadowMap() { return _shadowMap; }
+			RCascadedShadowMapBaker GetShadowMapBaker() { return _shadowMapBaker; }
 
 			void CreateCelestialBodyMesh();
 

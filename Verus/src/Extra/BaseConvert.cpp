@@ -253,10 +253,10 @@ void BaseConvert::Mesh::Optimize()
 		_pBaseConvert->_pDelegate->BaseConvert_Optimize(_vUberVerts, _vFaces);
 }
 
-void BaseConvert::Mesh::ComputeTangentSpace()
+void BaseConvert::Mesh::RecalculateTangentSpace()
 {
 	StringStream ss;
-	ss << _name << ": ComputeTangentSpace";
+	ss << _name << ": RecalculateTangentSpace";
 	_pBaseConvert->OnProgressText(_C(ss.str()));
 
 	Vector<glm::vec3> vPos, vN, vTan, vBin;
@@ -287,11 +287,11 @@ void BaseConvert::Mesh::ComputeTangentSpace()
 	}
 	else
 	{
-		Math::NormalComputer::ComputeNormals(vIndices, vPos, vN, _pBaseConvert->UseAreaBasedNormals());
+		Math::TangentSpaceTools::RecalculateNormals(vIndices, vPos, vN, _pBaseConvert->UseAreaBasedNormals());
 	}
 
 	_pBaseConvert->OnProgress(50);
-	Math::NormalComputer::ComputeTangentSpace(vIndices, vPos, vN, vTc0, vTan, vBin);
+	Math::TangentSpaceTools::RecalculateTangentSpace(vIndices, vPos, vN, vTc0, vTan, vBin);
 
 	_vZipNormal.resize(_vertCount);
 	_vZipTan.resize(_vertCount);
@@ -391,7 +391,7 @@ void BaseConvert::Mesh::SerializeX3D3(IO::RFile file)
 
 	CleanBones();
 	Optimize();
-	ComputeTangentSpace();
+	RecalculateTangentSpace();
 	Compress();
 
 	file.WriteText("<X3D>");

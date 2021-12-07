@@ -5,7 +5,7 @@ namespace verus
 {
 	namespace Scene
 	{
-		class ShadowMap : public Object
+		class ShadowMapBaker : public Object
 		{
 		public:
 			struct Config
@@ -30,14 +30,14 @@ namespace verus
 			bool            _snapToTexels = true;
 
 		public:
-			ShadowMap();
-			~ShadowMap();
+			ShadowMapBaker();
+			~ShadowMapBaker();
 
 			void Init(int side);
 			void Done();
 
 			void SetSnapToTexels(bool b) { _snapToTexels = b; }
-			bool IsRendering() const { return !!_pPrevCamera; }
+			bool IsBaking() const { return !!_pPrevCamera; }
 
 			CGI::RPHandle GetRenderPassHandle() const { return _rph; }
 
@@ -51,9 +51,9 @@ namespace verus
 
 			CGI::TexturePtr GetTexture() const;
 		};
-		VERUS_TYPEDEFS(ShadowMap);
+		VERUS_TYPEDEFS(ShadowMapBaker);
 
-		class CascadedShadowMap : public ShadowMap
+		class CascadedShadowMapBaker : public ShadowMapBaker
 		{
 			Matrix4 _matShadowCSM[4];
 			Matrix4 _matShadowCSM_DS[4]; // For WV positions in Deferred Shading.
@@ -66,8 +66,8 @@ namespace verus
 			float   _depth = 0;
 
 		public:
-			CascadedShadowMap();
-			~CascadedShadowMap();
+			CascadedShadowMapBaker();
+			~CascadedShadowMapBaker();
 
 			void Init(int side);
 			void Done();
@@ -86,6 +86,6 @@ namespace verus
 
 			PCamera GetCameraCSM();
 		};
-		VERUS_TYPEDEFS(CascadedShadowMap);
+		VERUS_TYPEDEFS(CascadedShadowMapBaker);
 	}
 }

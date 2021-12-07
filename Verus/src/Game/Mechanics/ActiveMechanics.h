@@ -5,7 +5,7 @@ namespace verus
 {
 	namespace Game
 	{
-		class ActiveMechanics : public Object
+		class ActiveMechanics : public Object, public Input::InputFocus
 		{
 			Vector<PMechanics> _vStack;
 
@@ -16,7 +16,8 @@ namespace verus
 			void Init();
 			void Done();
 
-			bool HandleInput();
+			virtual bool InputFocus_Veto() override;
+			virtual void InputFocus_HandleInput() override;
 			bool Update();
 			bool Draw();
 			bool DrawOverlay();
@@ -24,7 +25,7 @@ namespace verus
 			void ApplyReport(const void* pReport);
 			bool GetBotDomainCenter(int id, RPoint3 center);
 			bool GetSpawnPosition(int id, RPoint3 pos);
-			bool IsInputEnabled();
+			bool IsDefaultInputEnabled();
 			bool OnDie(int id);
 			bool OnMouseMove(float x, float y);
 			bool OnTakeDamage(int id, float amount);

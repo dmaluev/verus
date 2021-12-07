@@ -5,7 +5,7 @@ namespace verus
 {
 	namespace Game
 	{
-		class StateMachine : public Object
+		class StateMachine : public Object, public Input::InputFocus
 		{
 			PState _pCurrentState = nullptr;
 			PState _pRequestedState = nullptr;
@@ -13,6 +13,8 @@ namespace verus
 			bool   _changed = false;
 
 		public:
+			virtual void InputFocus_HandleInput() override;
+			void HandleActions();
 			void Update();
 			void Draw();
 

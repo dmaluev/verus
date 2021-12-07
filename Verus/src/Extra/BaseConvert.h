@@ -127,7 +127,7 @@ namespace verus
 
 				VERUS_P(void CleanBones());
 				VERUS_P(void Optimize());
-				VERUS_P(void ComputeTangentSpace());
+				VERUS_P(void RecalculateTangentSpace());
 				VERUS_P(void Compress());
 				void SerializeX3D3(IO::RFile file);
 

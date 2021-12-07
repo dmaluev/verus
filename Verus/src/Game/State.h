@@ -7,7 +7,7 @@ namespace verus
 	{
 		class StateMachine;
 
-		class State
+		class State : public Input::InputFocus
 		{
 			StateMachine* _pStateMachine = nullptr;
 
@@ -17,6 +17,8 @@ namespace verus
 
 			virtual bool IsValidNextState(State* p);
 			virtual void OnEnter(State* pPrev);
+			virtual void InputFocus_HandleInput() override;
+			virtual void HandleActions();
 			virtual void Update();
 			virtual void Draw();
 			virtual void OnExit(State* pNext);

@@ -89,7 +89,7 @@ namespace verus
 #include "Bounds.h"
 #include "Plane.h"
 #include "Frustum.h"
-#include "NormalComputer.h"
+#include "TangentSpaceTools.h"
 #include "QuadtreeIntegral.h"
 #include "Quadtree.h"
 #include "Octree.h"

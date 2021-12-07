@@ -447,7 +447,7 @@ void Material::BindDescriptorSetTextures()
 	if (!_cshTiny.IsSet())
 		_cshTiny = Mesh::GetShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTinyTex(), _texNormal->GetTinyTex(), mm.GetDetailTexture(), mm.GetStrassTexture() });
 	if (!_cshSimple.IsSet())
-		_cshSimple = Mesh::GetSimpleShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTinyTex(), atmo.GetShadowMap().GetTexture() });
+		_cshSimple = Mesh::GetSimpleShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTinyTex(), atmo.GetShadowMapBaker().GetTexture() });
 	_csh = Mesh::GetShader()->BindDescriptorSetTextures(1, { _texAlbedo->GetTex(), _texNormal->GetTex(), mm.GetDetailTexture(), mm.GetStrassTexture() });
 }
 

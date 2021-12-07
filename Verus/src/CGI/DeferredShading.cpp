@@ -786,13 +786,13 @@ void DeferredShading::OnNewLightType(CommandBufferPtr cb, LightType type, bool w
 	cb->BindDescriptors(_shader[SHADER_LIGHT], 1, _cshLight);
 
 	// Shadow:
-	s_ubShadowFS._matShadow = atmo.GetShadowMap().GetShadowMatrixDS(0).UniformBufferFormat();
-	s_ubShadowFS._matShadowCSM1 = atmo.GetShadowMap().GetShadowMatrixDS(1).UniformBufferFormat();
-	s_ubShadowFS._matShadowCSM2 = atmo.GetShadowMap().GetShadowMatrixDS(2).UniformBufferFormat();
-	s_ubShadowFS._matShadowCSM3 = atmo.GetShadowMap().GetShadowMatrixDS(3).UniformBufferFormat();
-	s_ubShadowFS._matScreenCSM = atmo.GetShadowMap().GetScreenMatrixP().UniformBufferFormat();
-	s_ubShadowFS._csmSplitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
-	memcpy(&s_ubShadowFS._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubShadowFS._shadowConfig));
+	s_ubShadowFS._matShadow = atmo.GetShadowMapBaker().GetShadowMatrixDS(0).UniformBufferFormat();
+	s_ubShadowFS._matShadowCSM1 = atmo.GetShadowMapBaker().GetShadowMatrixDS(1).UniformBufferFormat();
+	s_ubShadowFS._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrixDS(2).UniformBufferFormat();
+	s_ubShadowFS._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrixDS(3).UniformBufferFormat();
+	s_ubShadowFS._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixP().UniformBufferFormat();
+	s_ubShadowFS._csmSplitRanges = atmo.GetShadowMapBaker().GetSplitRanges().GLM();
+	memcpy(&s_ubShadowFS._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubShadowFS._shadowConfig));
 	cb->BindDescriptors(_shader[SHADER_LIGHT], 3);
 }
 

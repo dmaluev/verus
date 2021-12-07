@@ -107,7 +107,8 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc windowDes
 	_engineInit.Init(new MyRendererDelegate(this));
 
 	VERUS_QREF_IM;
-	im.GainFocus(this);
+	const int focus = im.GainFocus(this);
+	VERUS_RT_ASSERT(0 == focus);
 
 	// Configure:
 	VERUS_QREF_RENDERER;
@@ -269,7 +270,7 @@ void BaseGame::Loop(bool relativeMouseMode)
 
 		timer.Update();
 
-		if (_p->_defaultCameraMovement)
+		if (_p->_defaultCameraMovement) // Handle input:
 		{
 			const float speed = im.IsKeyPressed(SDL_SCANCODE_SPACE) ? 20.f : 2.f;
 			if (im.IsKeyPressed(SDL_SCANCODE_W))
@@ -281,7 +282,6 @@ void BaseGame::Loop(bool relativeMouseMode)
 			if (im.IsKeyPressed(SDL_SCANCODE_D))
 				_p->_cameraSpirit.MoveSide(speed);
 		}
-
 		im.HandleInput();
 		if (_restartApp)
 			continue;
@@ -291,7 +291,7 @@ void BaseGame::Loop(bool relativeMouseMode)
 
 		if (_p->_defaultCameraMovement)
 		{
-			_p->_cameraSpirit.HandleInput();
+			_p->_cameraSpirit.HandleActions();
 			_p->_cameraSpirit.Update();
 			_p->_camera.MoveEyeTo(_p->_cameraSpirit.GetPosition());
 			_p->_camera.MoveAtTo(_p->_cameraSpirit.GetPosition() + _p->_cameraSpirit.GetFrontDirection());
@@ -349,7 +349,7 @@ void BaseGame::Exit()
 	Utils::PushQuitEvent();
 }
 
-void BaseGame::OnMouseMove(float dx, float dy)
+void BaseGame::InputFocus_OnMouseMove(float dx, float dy)
 {
 	if (!SDL_GetRelativeMouseMode())
 		return;

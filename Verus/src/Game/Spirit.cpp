@@ -72,7 +72,7 @@ void Spirit::SetYaw(float rad)
 	_yaw = Math::WrapAngle(rad);
 }
 
-void Spirit::HandleInput()
+void Spirit::HandleActions()
 {
 	VERUS_QREF_TIMER;
 
@@ -83,28 +83,37 @@ void Spirit::HandleInput()
 		if (_moveLen >= VERUS_FLOAT_THRESHOLD)
 			_move /= _moveLen;
 
-		_velocity += _move * (dt * _accel);
+		const Vector3 v0 = _endVelocity;
 
-		const float speed = VMath::length(_velocity);
+		_endVelocity += _move * (_accel * dt);
 
-		if (speed > _maxSpeed) // Too fast?
+		// Speed limit & friction:
+		const float speed = VMath::length(_endVelocity);
+		if (speed > _maxSpeed) // Max?
 		{
-			_velocity /= speed;
-			_velocity *= _maxSpeed;
+			_endVelocity /= speed;
+			_endVelocity *= _maxSpeed;
 		}
-		else if (speed < VERUS_FLOAT_THRESHOLD) // Too slow slowpoke.jpg?
+		else if (speed < VERUS_FLOAT_THRESHOLD) // Min?
 		{
-			_velocity = Vector3(0);
+			_endVelocity = Vector3(0);
+		}
+		else if (_decel && _moveLen < VERUS_FLOAT_THRESHOLD)
+		{
+			const Vector3 dir = _endVelocity / speed;
+			_endVelocity = dir * Math::Reduce(speed, _decel * dt);
 		}
 
-		_move = _velocity;
+		_avgVelocity = VMath::lerp(0.5f, v0, _endVelocity);
+
+		_move = _avgVelocity;
 	}
 	else // No accel:
 	{
-		_velocity = _move;
+		_avgVelocity = _endVelocity = _move;
 	}
 
-	// At this point _move == _velocity.
+	// At this point _move == _avgVelocity.
 }
 
 void Spirit::Update()
@@ -114,30 +123,15 @@ void Spirit::Update()
 	_pitch.Update();
 	_yaw.Update();
 
-	// <Position>
 	_prevPosition = _position;
 	_smoothPrevPosition = _smoothPosition;
-	_position += _velocity * dt;
+	_position += _avgVelocity * dt;
 	_smoothPosition = _position;
 	_smoothPosition.Update();
-	// </Position>
 
 	_speed = VMath::dist(_smoothPosition, _smoothPrevPosition) * timer.GetDeltaTimeInv();
 	_smoothSpeed = _speed;
 	_smoothSpeed.Update();
-
-	// <Friction>
-	if (_decel && _moveLen < VERUS_FLOAT_THRESHOLD)
-	{
-		float speed = VMath::length(_velocity);
-		if (speed >= VERUS_FLOAT_THRESHOLD)
-		{
-			const Vector3 dir = _velocity / speed;
-			speed = Math::Reduce(speed, _decel * dt);
-			_velocity = dir * speed;
-		}
-	}
-	// </Friction>
 
 	_move = Vector3(0);
 	ComputeDerivedVars();
@@ -181,7 +175,7 @@ bool Spirit::FitRemotePosition()
 		_smoothPosition.ForceTarget(_position);
 		_smoothPrevPosition = _position;
 	}
-	_remotePosition += _velocity * dt; // Predict.
+	_remotePosition += _avgVelocity * dt; // Predict.
 	return warp;
 }
 

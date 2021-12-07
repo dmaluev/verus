@@ -244,7 +244,7 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 		}
 		else if (pipe >= PIPE_SIMPLE_ENV_MAP)
 		{
-			CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], branches[pipe], atmo.GetCubeMap().GetRenderPassHandle());
+			CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], branches[pipe], atmo.GetCubeMapBaker().GetRenderPassHandle());
 			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
 			pipeDesc._rasterizationState._cullMode = CGI::CullMode::front;
 			pipeDesc._vertexInputBindingsFilter = _bindingsMask;
@@ -290,7 +290,7 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 			case PIPE_DEPTH_SKINNED:
 			{
 				pipeDesc._colorAttachBlendEqs[0] = "";
-				pipeDesc._renderPassHandle = atmo.GetShadowMap().GetRenderPassHandle();
+				pipeDesc._renderPassHandle = atmo.GetShadowMapBaker().GetRenderPassHandle();
 			}
 			break;
 			case PIPE_DEPTH_TESS:
@@ -300,7 +300,7 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 			case PIPE_DEPTH_TESS_SKINNED:
 			{
 				pipeDesc._colorAttachBlendEqs[0] = "";
-				pipeDesc._renderPassHandle = atmo.GetShadowMap().GetRenderPassHandle();
+				pipeDesc._renderPassHandle = atmo.GetShadowMapBaker().GetRenderPassHandle();
 				if (settings._gpuTessellation)
 					pipeDesc._topology = CGI::PrimitiveTopology::patchList3;
 			}
@@ -334,7 +334,7 @@ void Mesh::BindPipeline(CGI::CommandBufferPtr cb, bool allowTess)
 	VERUS_QREF_ATMO;
 	if (_skeleton.IsInitialized())
 	{
-		if (atmo.GetShadowMap().IsRendering())
+		if (atmo.GetShadowMapBaker().IsBaking())
 		{
 			if (allowTess)
 				BindPipeline(PIPE_DEPTH_TESS_SKINNED, cb);
@@ -351,7 +351,7 @@ void Mesh::BindPipeline(CGI::CommandBufferPtr cb, bool allowTess)
 	}
 	else
 	{
-		if (atmo.GetShadowMap().IsRendering())
+		if (atmo.GetShadowMapBaker().IsBaking())
 		{
 			if (allowTess)
 				BindPipeline(PIPE_DEPTH_TESS, cb);
@@ -371,7 +371,7 @@ void Mesh::BindPipeline(CGI::CommandBufferPtr cb, bool allowTess)
 void Mesh::BindPipelineInstanced(CGI::CommandBufferPtr cb, bool allowTess, bool plant)
 {
 	VERUS_QREF_ATMO;
-	if (atmo.GetShadowMap().IsRendering())
+	if (atmo.GetShadowMapBaker().IsBaking())
 	{
 		if (allowTess)
 			BindPipeline(plant ? PIPE_DEPTH_TESS_PLANT : PIPE_DEPTH_TESS_INSTANCED, cb);
@@ -460,13 +460,13 @@ void Mesh::UpdateUniformBufferSimplePerFrame(DrawSimpleMode mode)
 	s_ubSimplePerFrame._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubSimplePerFrame._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
 	s_ubSimplePerFrame._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-	s_ubSimplePerFrame._matShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
-	s_ubSimplePerFrame._matShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
-	s_ubSimplePerFrame._matShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
-	s_ubSimplePerFrame._matShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
-	s_ubSimplePerFrame._matScreenCSM = atmo.GetShadowMap().GetScreenMatrixVP().UniformBufferFormat();
-	s_ubSimplePerFrame._csmSplitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
-	memcpy(&s_ubSimplePerFrame._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubSimplePerFrame._shadowConfig));
+	s_ubSimplePerFrame._matShadow = atmo.GetShadowMapBaker().GetShadowMatrix(0).UniformBufferFormat();
+	s_ubSimplePerFrame._matShadowCSM1 = atmo.GetShadowMapBaker().GetShadowMatrix(1).UniformBufferFormat();
+	s_ubSimplePerFrame._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrix(2).UniformBufferFormat();
+	s_ubSimplePerFrame._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrix(3).UniformBufferFormat();
+	s_ubSimplePerFrame._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixVP().UniformBufferFormat();
+	s_ubSimplePerFrame._csmSplitRanges = atmo.GetShadowMapBaker().GetSplitRanges().GLM();
+	memcpy(&s_ubSimplePerFrame._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubSimplePerFrame._shadowConfig));
 }
 
 void Mesh::UpdateUniformBufferSimpleSkeletonVS()

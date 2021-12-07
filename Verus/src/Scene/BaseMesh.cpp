@@ -299,7 +299,7 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 	if (!hasTBN)
 	{
 		_vBinding2.resize(_vertCount);
-		ComputeTangentSpace();
+		RecalculateTangentSpace();
 	}
 
 	if (_initShape)
@@ -451,7 +451,7 @@ void BaseMesh::DequantizeTanBin(const short* in, RVector3 out)
 		Convert::Sint16ToSnorm(in[2]));
 }
 
-void BaseMesh::ComputeTangentSpace()
+void BaseMesh::RecalculateTangentSpace()
 {
 	Vector<glm::vec3> vV, vN, vTan, vBin;
 	Vector<glm::vec2> vTex;
@@ -464,13 +464,13 @@ void BaseMesh::ComputeTangentSpace()
 		DequantizeUsingDeq2D(_vBinding0[i]._tc0, _tc0Deq, vTex[i]);
 	}
 
-	Math::NormalComputer::ComputeNormals(_vIndices, vV, vN, 1);
+	Math::TangentSpaceTools::RecalculateNormals(_vIndices, vV, vN, 1);
 	VERUS_FOR(i, _vertCount)
 		Convert::SnormToSint8(&vN[i].x, _vBinding0[i]._nrm, 3);
 
 	if (!_vBinding2.empty())
 	{
-		Math::NormalComputer::ComputeTangentSpace(_vIndices, vV, vN, vTex, vTan, vBin);
+		Math::TangentSpaceTools::RecalculateTangentSpace(_vIndices, vV, vN, vTex, vTan, vBin);
 		VERUS_FOR(i, _vertCount)
 		{
 			Convert::SnormToSint16(&vTan[i].x, _vBinding2[i]._tan, 3);

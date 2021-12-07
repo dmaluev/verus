@@ -4,7 +4,7 @@
 using namespace verus;
 using namespace verus::Math;
 
-void NormalComputer::ComputeNormals(
+void TangentSpaceTools::RecalculateNormals(
 	const Vector<UINT16>& vIndices,
 	const Vector<glm::vec3>& vPositions,
 	Vector<glm::vec3>& vNormals,
@@ -72,7 +72,7 @@ void NormalComputer::ComputeNormals(
 	});
 }
 
-void NormalComputer::ComputeTangentSpace(
+void TangentSpaceTools::RecalculateTangentSpace(
 	const Vector<UINT16>& vIndices,
 	const Vector<glm::vec3>& vPositions,
 	const Vector<glm::vec3>& vNormals,

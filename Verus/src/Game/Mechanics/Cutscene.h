@@ -163,7 +163,7 @@ namespace verus
 
 			virtual Continue Update() override;
 			virtual Continue DrawOverlay() override;
-			virtual bool IsInputEnabled() override;
+			virtual bool IsDefaultInputEnabled() override;
 			virtual Continue OnMouseMove(float x, float y) override;
 			virtual Scene::PMainCamera GetMainCamera() override;
 

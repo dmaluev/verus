@@ -41,11 +41,11 @@ void Atmosphere::Init()
 	_shader->CreateDescriptorSet(3, &s_ubPerObject, sizeof(s_ubPerObject), settings.GetLimits()._sky_ubPerObjectCapacity);
 	_shader->CreatePipelineLayout();
 
-	_cubeMap.Init(512);
-	_shadowMap.Init(4096);
+	_cubeMapBaker.Init(512);
+	_shadowMapBaker.Init(4096);
 
-	renderer.GetDS().InitByAtmosphere(_shadowMap.GetTexture());
-	bloom.InitByAtmosphere(_shadowMap.GetTexture());
+	renderer.GetDS().InitByAtmosphere(_shadowMapBaker.GetTexture());
+	bloom.InitByAtmosphere(_shadowMapBaker.GetTexture());
 
 	CreateCelestialBodyMesh();
 
@@ -475,12 +475,12 @@ float Atmosphere::GetWindSpeed() const
 
 void Atmosphere::BeginShadow(int split)
 {
-	_shadowMap.Begin(_sun._dirTo, split);
+	_shadowMapBaker.Begin(_sun._dirTo, split);
 }
 
 void Atmosphere::EndShadow(int split)
 {
-	_shadowMap.End(split);
+	_shadowMapBaker.End(split);
 }
 
 void Atmosphere::CreateCelestialBodyMesh()

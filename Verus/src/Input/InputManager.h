@@ -13,11 +13,13 @@ namespace verus
 	{
 		struct InputFocus
 		{
-			virtual bool VetoInputFocus() { return false; }
-			virtual void HandleInput() {}
-			virtual void OnMouseMove(int dx, int dy, int x, int y) {}
-			virtual void OnMouseMove(float dx, float dy) {}
-			virtual void OnTextInput(wchar_t c) {}
+			virtual bool InputFocus_Veto() { return false; }
+			virtual void InputFocus_HandleInput() {}
+			virtual void InputFocus_OnKeyDown(int scancode) {}
+			virtual void InputFocus_OnKeyUp(int scancode) {}
+			virtual void InputFocus_OnTextInput(wchar_t c) {}
+			virtual void InputFocus_OnMouseMove(int dx, int dy, int x, int y) {}
+			virtual void InputFocus_OnMouseMove(float dx, float dy) {}
 		};
 		VERUS_TYPEDEFS(InputFocus);
 
@@ -96,20 +98,20 @@ namespace verus
 
 			void Load(Action* pAction);
 
-			bool IsKeyPressed(int id) const;
-			bool IsKeyDownEvent(int id) const;
-			bool IsKeyUpEvent(int id) const;
+			bool IsKeyPressed(int scancode) const;
+			bool IsKeyDownEvent(int scancode) const;
+			bool IsKeyUpEvent(int scancode) const;
 
-			bool IsMousePressed(int id) const;
-			bool IsMouseDownEvent(int id) const;
-			bool IsMouseUpEvent(int id) const;
-			bool IsMouseDoubleClick(int id) const;
+			bool IsMousePressed(int button) const;
+			bool IsMouseDownEvent(int button) const;
+			bool IsMouseUpEvent(int button) const;
+			bool IsMouseDoubleClick(int button) const;
 
 			bool IsActionPressed(int actionID) const;
 			bool IsActionDownEvent(int actionID) const;
 			bool IsActionUpEvent(int actionID) const;
 
-			float GetJoyAxisState(int id) const;
+			float GetJoyAxisState(int button) const;
 
 			void BuildLookup();
 
@@ -122,20 +124,20 @@ namespace verus
 		private:
 			void SwitchRelativeMouseMode(int scancode);
 
-			void OnKeyDown(int id);
-			void OnKeyUp(int id);
+			void OnKeyDown(int scancode);
+			void OnKeyUp(int scancode);
 			void OnTextInput(wchar_t c);
 
 			void OnMouseMove(int dx, int dy, int x, int y);
-			void OnMouseDown(int id);
-			void OnMouseUp(int id);
-			void OnMouseDoubleClick(int id);
+			void OnMouseDown(int button);
+			void OnMouseUp(int button);
+			void OnMouseDoubleClick(int button);
 
-			void OnJoyAxis(int id, int value);
-			void OnJoyDown(int id);
-			void OnJoyUp(int id);
-			void TranslateJoy(int id, bool up);
-			bool TranslateJoyPress(int id, bool mouse) const;
+			void OnJoyAxis(int button, int value);
+			void OnJoyDown(int button);
+			void OnJoyUp(int button);
+			void TranslateJoy(int button, bool up);
+			bool TranslateJoyPress(int button, bool mouse) const;
 		};
 		VERUS_TYPEDEFS(InputManager);
 	}

@@ -5,16 +5,16 @@ namespace verus
 {
 	namespace Math
 	{
-		class NormalComputer
+		class TangentSpaceTools
 		{
 		public:
-			static void ComputeNormals(
+			static void RecalculateNormals(
 				const Vector<UINT16>& vIndices,
 				const Vector<glm::vec3>& vPositions,
 				Vector<glm::vec3>& vNormals,
 				float areaBasedNormals);
 
-			static void ComputeTangentSpace(
+			static void RecalculateTangentSpace(
 				const Vector<UINT16>& vIndices,
 				const Vector<glm::vec3>& vPositions,
 				const Vector<glm::vec3>& vNormals,
@@ -23,6 +23,6 @@ namespace verus
 				Vector<glm::vec3>& vBin,
 				bool useMikkTSpace = true);
 		};
-		VERUS_TYPEDEFS(NormalComputer);
+		VERUS_TYPEDEFS(TangentSpaceTools);
 	}
 }

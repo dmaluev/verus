@@ -541,7 +541,7 @@ Continue Cutscene::DrawOverlay()
 	return Continue::yes;
 }
 
-bool Cutscene::IsInputEnabled()
+bool Cutscene::IsDefaultInputEnabled()
 {
 	return _interactive;
 }

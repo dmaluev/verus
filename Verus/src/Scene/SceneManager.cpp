@@ -105,9 +105,9 @@ void SceneManager::Layout()
 
 	PCamera pPrevCamera = nullptr;
 	// For CSM we need to create geometry beyond the view frustum (1st slice):
-	if (settings._sceneShadowQuality >= App::Settings::Quality::high && atmo.GetShadowMap().IsRendering())
+	if (settings._sceneShadowQuality >= App::Settings::Quality::high && atmo.GetShadowMapBaker().IsBaking())
 	{
-		PCamera pCameraCSM = atmo.GetShadowMap().GetCameraCSM();
+		PCamera pCameraCSM = atmo.GetShadowMapBaker().GetCameraCSM();
 		if (pCameraCSM)
 			pPrevCamera = sm.SetCamera(pCameraCSM);
 	}
@@ -400,7 +400,7 @@ bool SceneManager::IsDrawingDepth(DrawDepth dd)
 	if (DrawDepth::automatic == dd)
 	{
 		VERUS_QREF_ATMO;
-		return atmo.GetShadowMap().IsRendering();
+		return atmo.GetShadowMapBaker().IsBaking();
 	}
 	else
 		return DrawDepth::yes == dd;

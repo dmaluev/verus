@@ -158,10 +158,10 @@ bool InputManager::HandleEvent(SDL_Event& event)
 
 void InputManager::HandleInput()
 {
-	for (auto p : _vInputFocusStack)
+	VERUS_FOREACH_REVERSE(Vector<PInputFocus>, _vInputFocusStack, it)
 	{
-		p->HandleInput();
-		if (p->VetoInputFocus())
+		(*it)->InputFocus_HandleInput();
+		if ((*it)->InputFocus_Veto())
 			break;
 	}
 }
@@ -195,46 +195,46 @@ void InputManager::Load(Action* pAction)
 	IO::Xml xml(_C(ss.str()));
 }
 
-bool InputManager::IsKeyPressed(int id) const
+bool InputManager::IsKeyPressed(int scancode) const
 {
-	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_KB - 1);
-	return _kbStatePressed[id] || TranslateJoyPress(id, false);
+	scancode = Math::Clamp(scancode, 0, VERUS_INPUT_MAX_KB - 1);
+	return _kbStatePressed[scancode] || TranslateJoyPress(scancode, false);
 }
 
-bool InputManager::IsKeyDownEvent(int id) const
+bool InputManager::IsKeyDownEvent(int scancode) const
 {
-	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_KB - 1);
-	return _kbStateDownEvent[id];
+	scancode = Math::Clamp(scancode, 0, VERUS_INPUT_MAX_KB - 1);
+	return _kbStateDownEvent[scancode];
 }
 
-bool InputManager::IsKeyUpEvent(int id) const
+bool InputManager::IsKeyUpEvent(int scancode) const
 {
-	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_KB - 1);
-	return _kbStateUpEvent[id];
+	scancode = Math::Clamp(scancode, 0, VERUS_INPUT_MAX_KB - 1);
+	return _kbStateUpEvent[scancode];
 }
 
-bool InputManager::IsMousePressed(int id) const
+bool InputManager::IsMousePressed(int button) const
 {
-	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_MOUSE - 1);
-	return _mouseStatePressed[id] || TranslateJoyPress(id, true);
+	button = Math::Clamp(button, 0, VERUS_INPUT_MAX_MOUSE - 1);
+	return _mouseStatePressed[button] || TranslateJoyPress(button, true);
 }
 
-bool InputManager::IsMouseDownEvent(int id) const
+bool InputManager::IsMouseDownEvent(int button) const
 {
-	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_MOUSE - 1);
-	return _mouseStateDownEvent[id];
+	button = Math::Clamp(button, 0, VERUS_INPUT_MAX_MOUSE - 1);
+	return _mouseStateDownEvent[button];
 }
 
-bool InputManager::IsMouseUpEvent(int id) const
+bool InputManager::IsMouseUpEvent(int button) const
 {
-	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_MOUSE - 1);
-	return _mouseStateUpEvent[id];
+	button = Math::Clamp(button, 0, VERUS_INPUT_MAX_MOUSE - 1);
+	return _mouseStateUpEvent[button];
 }
 
-bool InputManager::IsMouseDoubleClick(int id) const
+bool InputManager::IsMouseDoubleClick(int button) const
 {
-	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_MOUSE - 1);
-	return _mouseStateDoubleClick[id];
+	button = Math::Clamp(button, 0, VERUS_INPUT_MAX_MOUSE - 1);
+	return _mouseStateDoubleClick[button];
 }
 
 bool InputManager::IsActionPressed(int actionID) const
@@ -252,10 +252,10 @@ bool InputManager::IsActionUpEvent(int actionID) const
 	return false;
 }
 
-float InputManager::GetJoyAxisState(int id) const
+float InputManager::GetJoyAxisState(int button) const
 {
-	id = Math::Clamp(id, 0, JOY_AXIS_MAX - 1);
-	return _joyStateAxis[id];
+	button = Math::Clamp(button, 0, JOY_AXIS_MAX - 1);
+	return _joyStateAxis[button];
 }
 
 void InputManager::BuildLookup()
@@ -291,26 +291,38 @@ void InputManager::SwitchRelativeMouseMode(int scancode)
 #endif
 }
 
-void InputManager::OnKeyDown(int id)
+void InputManager::OnKeyDown(int scancode)
 {
-	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_KB - 1);
-	_kbStatePressed[id] = true;
-	_kbStateDownEvent[id] = true;
+	scancode = Math::Clamp(scancode, 0, VERUS_INPUT_MAX_KB - 1);
+	_kbStatePressed[scancode] = true;
+	_kbStateDownEvent[scancode] = true;
+	VERUS_FOREACH_REVERSE(Vector<PInputFocus>, _vInputFocusStack, it)
+	{
+		(*it)->InputFocus_OnKeyDown(scancode);
+		if ((*it)->InputFocus_Veto())
+			break;
+	}
 }
 
-void InputManager::OnKeyUp(int id)
+void InputManager::OnKeyUp(int scancode)
 {
-	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_KB - 1);
-	_kbStatePressed[id] = false;
-	_kbStateUpEvent[id] = true;
+	scancode = Math::Clamp(scancode, 0, VERUS_INPUT_MAX_KB - 1);
+	_kbStatePressed[scancode] = false;
+	_kbStateUpEvent[scancode] = true;
+	VERUS_FOREACH_REVERSE(Vector<PInputFocus>, _vInputFocusStack, it)
+	{
+		(*it)->InputFocus_OnKeyUp(scancode);
+		if ((*it)->InputFocus_Veto())
+			break;
+	}
 }
 
 void InputManager::OnTextInput(wchar_t c)
 {
-	for (auto p : _vInputFocusStack)
+	VERUS_FOREACH_REVERSE(Vector<PInputFocus>, _vInputFocusStack, it)
 	{
-		p->OnTextInput(c);
-		if (p->VetoInputFocus())
+		(*it)->InputFocus_OnTextInput(c);
+		if ((*it)->InputFocus_Veto())
 			break;
 	}
 }
@@ -320,40 +332,40 @@ void InputManager::OnMouseMove(int dx, int dy, int x, int y)
 	const float scale = GetMouseScale();
 	const float fdx = dx * scale;
 	const float fdy = dy * scale;
-	for (auto p : _vInputFocusStack)
+	VERUS_FOREACH_REVERSE(Vector<PInputFocus>, _vInputFocusStack, it)
 	{
-		p->OnMouseMove(dx, dy, x, y);
-		p->OnMouseMove(fdx, fdy);
-		if (p->VetoInputFocus())
+		(*it)->InputFocus_OnMouseMove(dx, dy, x, y);
+		(*it)->InputFocus_OnMouseMove(fdx, fdy);
+		if ((*it)->InputFocus_Veto())
 			break;
 	}
 }
 
-void InputManager::OnMouseDown(int id)
+void InputManager::OnMouseDown(int button)
 {
-	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_MOUSE - 1);
-	_mouseStatePressed[id] = true;
-	_mouseStateDownEvent[id] = true;
+	button = Math::Clamp(button, 0, VERUS_INPUT_MAX_MOUSE - 1);
+	_mouseStatePressed[button] = true;
+	_mouseStateDownEvent[button] = true;
 }
 
-void InputManager::OnMouseUp(int id)
+void InputManager::OnMouseUp(int button)
 {
-	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_MOUSE - 1);
-	_mouseStatePressed[id] = false;
-	_mouseStateUpEvent[id] = true;
+	button = Math::Clamp(button, 0, VERUS_INPUT_MAX_MOUSE - 1);
+	_mouseStatePressed[button] = false;
+	_mouseStateUpEvent[button] = true;
 }
 
-void InputManager::OnMouseDoubleClick(int id)
+void InputManager::OnMouseDoubleClick(int button)
 {
-	id = Math::Clamp(id, 0, VERUS_INPUT_MAX_MOUSE - 1);
-	_mouseStateDoubleClick[id] = true;
+	button = Math::Clamp(button, 0, VERUS_INPUT_MAX_MOUSE - 1);
+	_mouseStateDoubleClick[button] = true;
 }
 
-void InputManager::OnJoyAxis(int id, int value)
+void InputManager::OnJoyAxis(int button, int value)
 {
-	id = Math::Clamp(id, 0, JOY_AXIS_MAX - 1);
+	button = Math::Clamp(button, 0, JOY_AXIS_MAX - 1);
 	const float amount = value * (1.f / SHRT_MAX);
-	const bool oneWay = (JOY_AXIS_TRIGGERLEFT == id || JOY_AXIS_TRIGGERRIGHT == id);
+	const bool oneWay = (JOY_AXIS_TRIGGERLEFT == button || JOY_AXIS_TRIGGERRIGHT == button);
 	float fixedAmount = amount;
 	if (oneWay)
 	{
@@ -365,28 +377,28 @@ void InputManager::OnJoyAxis(int id, int value)
 		fixedAmount = Math::Clamp<float>((abs(fixedAmount) - VERUS_INPUT_JOYAXIS_THRESHOLD) / (1 - VERUS_INPUT_JOYAXIS_THRESHOLD), 0, 1);
 		fixedAmount *= glm::sign(amount);
 	}
-	_joyStateAxis[id] = fixedAmount;
+	_joyStateAxis[button] = fixedAmount;
 }
 
-void InputManager::OnJoyDown(int id)
+void InputManager::OnJoyDown(int button)
 {
-	id = Math::Clamp(id, 0, JOY_BUTTON_MAX - 1);
-	_joyStatePressed[id] = true;
-	_joyStateDownEvent[id] = true;
-	TranslateJoy(id, false);
+	button = Math::Clamp(button, 0, JOY_BUTTON_MAX - 1);
+	_joyStatePressed[button] = true;
+	_joyStateDownEvent[button] = true;
+	TranslateJoy(button, false);
 }
 
-void InputManager::OnJoyUp(int id)
+void InputManager::OnJoyUp(int button)
 {
-	id = Math::Clamp(id, 0, JOY_BUTTON_MAX - 1);
-	_joyStatePressed[id] = false;
-	_joyStateUpEvent[id] = true;
-	TranslateJoy(id, true);
+	button = Math::Clamp(button, 0, JOY_BUTTON_MAX - 1);
+	_joyStatePressed[button] = false;
+	_joyStateUpEvent[button] = true;
+	TranslateJoy(button, true);
 }
 
-void InputManager::TranslateJoy(int id, bool up)
+void InputManager::TranslateJoy(int button, bool up)
 {
-	switch (id)
+	switch (button)
 	{
 	case JOY_BUTTON_DPAD_UP:
 		break;
@@ -426,11 +438,11 @@ void InputManager::TranslateJoy(int id, bool up)
 	}
 }
 
-bool InputManager::TranslateJoyPress(int id, bool mouse) const
+bool InputManager::TranslateJoyPress(int button, bool mouse) const
 {
 	if (mouse)
 	{
-		switch (id)
+		switch (button)
 		{
 		case SDL_BUTTON_LEFT:
 			return _joyStateAxis[JOY_AXIS_TRIGGERRIGHT] >= 0.25f;
@@ -441,7 +453,7 @@ bool InputManager::TranslateJoyPress(int id, bool mouse) const
 		const float forward = 0.1f;
 		const float walk = 0.25f;
 		const float run = 0.6f;
-		switch (id)
+		switch (button)
 		{
 		case SDL_SCANCODE_A: // Strafe left when attacking?
 		{

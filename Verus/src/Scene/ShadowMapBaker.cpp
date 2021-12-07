@@ -4,20 +4,20 @@
 using namespace verus;
 using namespace verus::Scene;
 
-// ShadowMap:
+// ShadowMapBaker:
 
-ShadowMap::ShadowMap()
+ShadowMapBaker::ShadowMapBaker()
 {
 	_matShadow = Matrix4::identity();
 	_matShadowDS = Matrix4::identity();
 }
 
-ShadowMap::~ShadowMap()
+ShadowMapBaker::~ShadowMapBaker()
 {
 	Done();
 }
 
-void ShadowMap::Init(int side)
+void ShadowMapBaker::Init(int side)
 {
 	VERUS_INIT();
 
@@ -29,7 +29,7 @@ void ShadowMap::Init(int side)
 
 	CGI::TextureDesc texDesc;
 	texDesc._clearValue = Vector4(1);
-	texDesc._name = "ShadowMap.Tex";
+	texDesc._name = "ShadowMapBaker.Tex";
 	texDesc._format = CGI::Format::unormD24uintS8;
 	texDesc._width = _side;
 	texDesc._height = _side;
@@ -44,12 +44,12 @@ void ShadowMap::Init(int side)
 		_side);
 }
 
-void ShadowMap::Done()
+void ShadowMapBaker::Done()
 {
-	VERUS_DONE(ShadowMap);
+	VERUS_DONE(ShadowMapBaker);
 }
 
-void ShadowMap::Begin(RcVector3 dirToSun)
+void ShadowMapBaker::Begin(RcVector3 dirToSun)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
@@ -95,7 +95,7 @@ void ShadowMap::Begin(RcVector3 dirToSun)
 		});
 }
 
-void ShadowMap::End()
+void ShadowMapBaker::End()
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
@@ -111,26 +111,26 @@ void ShadowMap::End()
 	_pPrevCamera = nullptr;
 }
 
-RcMatrix4 ShadowMap::GetShadowMatrix() const
+RcMatrix4 ShadowMapBaker::GetShadowMatrix() const
 {
 	return _matShadow;
 }
 
-RcMatrix4 ShadowMap::GetShadowMatrixDS() const
+RcMatrix4 ShadowMapBaker::GetShadowMatrixDS() const
 {
 	return _matShadowDS;
 }
 
-CGI::TexturePtr ShadowMap::GetTexture() const
+CGI::TexturePtr ShadowMapBaker::GetTexture() const
 {
 	if (!IsInitialized())
 		return nullptr;
 	return _tex;
 }
 
-// CascadedShadowMap::
+// CascadedShadowMapBaker::
 
-CascadedShadowMap::CascadedShadowMap()
+CascadedShadowMapBaker::CascadedShadowMapBaker()
 {
 	_matShadowCSM[0] = Matrix4::identity();
 	_matShadowCSM[1] = Matrix4::identity();
@@ -142,15 +142,15 @@ CascadedShadowMap::CascadedShadowMap()
 	_matShadowCSM_DS[3] = Matrix4::identity();
 }
 
-CascadedShadowMap::~CascadedShadowMap()
+CascadedShadowMapBaker::~CascadedShadowMapBaker()
 {
 }
 
-void CascadedShadowMap::Init(int side)
+void CascadedShadowMapBaker::Init(int side)
 {
 	VERUS_QREF_CONST_SETTINGS;
 	if (settings._sceneShadowQuality < App::Settings::Quality::high)
-		return ShadowMap::Init(side);
+		return ShadowMapBaker::Init(side);
 
 	VERUS_INIT();
 	VERUS_QREF_RENDERER;
@@ -163,7 +163,7 @@ void CascadedShadowMap::Init(int side)
 
 	CGI::TextureDesc texDesc;
 	texDesc._clearValue = Vector4(1);
-	texDesc._name = "ShadowMap.Tex (CSM)";
+	texDesc._name = "ShadowMapBaker.Tex (CSM)";
 	texDesc._format = CGI::Format::unormD24uintS8;
 	texDesc._width = _side;
 	texDesc._height = _side;
@@ -185,15 +185,15 @@ void CascadedShadowMap::Init(int side)
 	_matOffset[3] = VMath::appendScale(Matrix4::translation(Vector3(x, x, 0)), s);
 }
 
-void CascadedShadowMap::Done()
+void CascadedShadowMapBaker::Done()
 {
 }
 
-void CascadedShadowMap::Begin(RcVector3 dirToSun, int split)
+void CascadedShadowMapBaker::Begin(RcVector3 dirToSun, int split)
 {
 	VERUS_QREF_CONST_SETTINGS;
 	if (settings._sceneShadowQuality < App::Settings::Quality::high)
-		return ShadowMap::Begin(dirToSun);
+		return ShadowMapBaker::Begin(dirToSun);
 
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
@@ -343,11 +343,11 @@ void CascadedShadowMap::Begin(RcVector3 dirToSun, int split)
 	}
 }
 
-void CascadedShadowMap::End(int split)
+void CascadedShadowMapBaker::End(int split)
 {
 	VERUS_QREF_CONST_SETTINGS;
 	if (settings._sceneShadowQuality < App::Settings::Quality::high)
-		return ShadowMap::End();
+		return ShadowMapBaker::End();
 
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
@@ -367,23 +367,23 @@ void CascadedShadowMap::End(int split)
 	_currentSplit = -1;
 }
 
-RcMatrix4 CascadedShadowMap::GetShadowMatrix(int split) const
+RcMatrix4 CascadedShadowMapBaker::GetShadowMatrix(int split) const
 {
 	VERUS_QREF_CONST_SETTINGS;
 	if (settings._sceneShadowQuality < App::Settings::Quality::high)
-		return ShadowMap::GetShadowMatrix();
+		return ShadowMapBaker::GetShadowMatrix();
 	return _matShadowCSM[split];
 }
 
-RcMatrix4 CascadedShadowMap::GetShadowMatrixDS(int split) const
+RcMatrix4 CascadedShadowMapBaker::GetShadowMatrixDS(int split) const
 {
 	VERUS_QREF_CONST_SETTINGS;
 	if (settings._sceneShadowQuality < App::Settings::Quality::high)
-		return ShadowMap::GetShadowMatrixDS();
+		return ShadowMapBaker::GetShadowMatrixDS();
 	return _matShadowCSM_DS[split];
 }
 
-PCamera CascadedShadowMap::GetCameraCSM()
+PCamera CascadedShadowMapBaker::GetCameraCSM()
 {
 	VERUS_QREF_CONST_SETTINGS;
 	if (settings._sceneShadowQuality < App::Settings::Quality::high)

@@ -95,7 +95,7 @@ namespace verus
 			void CopyTexCoord0Deq(float* p) const { memcpy(p, _tc0Deq, sizeof(float) * 4); }
 			void CopyTexCoord1Deq(float* p) const { memcpy(p, _tc1Deq, sizeof(float) * 4); }
 
-			void ComputeTangentSpace();
+			void RecalculateTangentSpace();
 
 			// GPU:
 			virtual void CreateDeviceBuffers() {}

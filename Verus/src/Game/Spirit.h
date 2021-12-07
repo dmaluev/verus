@@ -27,7 +27,8 @@ namespace verus
 			Point3                     _position = Point3(0);
 			Point3                     _prevPosition = Point3(0);
 			Point3                     _remotePosition = Point3(0);
-			Vector3                    _velocity = Vector3(0);
+			Vector3                    _avgVelocity = Vector3(0);
+			Vector3                    _endVelocity = Vector3(0);
 			Vector3                    _move = Vector3(0);
 			Point3                     _smoothPrevPosition = Point3(0);
 			Anim::Elastic<Point3>      _smoothPosition;
@@ -62,7 +63,7 @@ namespace verus
 			float GetPitch() const { return _pitch; }
 			float GetYaw() const { return _yaw; }
 
-			virtual void HandleInput();
+			virtual void HandleActions();
 			virtual void Update();
 
 			void SetAcceleration(float accel = 5, float decel = 5);
@@ -77,8 +78,8 @@ namespace verus
 			void         SetRemotePosition(RcPoint3 pos);
 			virtual bool FitRemotePosition();
 
-			RcVector3 GetVelocity() const { return _velocity; }
-			void      SetVelocity(RcVector3 v) { _velocity = v; }
+			RcVector3 GetVelocity() const { return _avgVelocity; }
+			void      SetVelocity(RcVector3 v) { _avgVelocity = _endVelocity = v; }
 
 			RcVector3 GetFrontDirection() const { return _dv._frontDir; }
 			RcVector3 GetFrontDirection2D() const { return _dv._frontDir2D; }

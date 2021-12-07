@@ -42,7 +42,7 @@ namespace verus
 			virtual void BaseGame_SDL_OnMouseWheel(int delta) {}
 			virtual bool BaseGame_SDL_OnKeyboardShortcut(int sym, int mod) { return false; }
 
-			virtual void OnMouseMove(float dx, float dy) override;
+			virtual void InputFocus_OnMouseMove(float dx, float dy) override;
 
 			REngineInit GetEngineInit() { return _engineInit; }
 

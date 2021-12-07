@@ -94,14 +94,14 @@ void Ssr::OnSwapChainResized()
 				ssao.GetTexture()
 			},
 			scaledSwapChainWidth, scaledSwapChainHeight);
-		if (atmo.GetCubeMap().GetColorTexture())
+		if (atmo.GetCubeMapBaker().GetColorTexture())
 		{
 			_csh = _shader->BindDescriptorSetTextures(1,
 				{
 					renderer.GetDS().GetComposedTextureA(),
 					renderer.GetDS().GetGBuffer(1),
 					renderer.GetTexDepthStencil(),
-					atmo.GetCubeMap().GetColorTexture()
+					atmo.GetCubeMapBaker().GetColorTexture()
 				});
 		}
 	}
@@ -116,14 +116,14 @@ void Ssr::Generate()
 
 	if (!_csh.IsSet())
 	{
-		if (atmo.GetCubeMap().GetColorTexture())
+		if (atmo.GetCubeMapBaker().GetColorTexture())
 		{
 			_csh = _shader->BindDescriptorSetTextures(1,
 				{
 					renderer.GetDS().GetComposedTextureA(),
 					renderer.GetDS().GetGBuffer(1),
 					renderer.GetTexDepthStencil(),
-					atmo.GetCubeMap().GetColorTexture()
+					atmo.GetCubeMapBaker().GetColorTexture()
 				});
 		}
 		else

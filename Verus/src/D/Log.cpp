@@ -12,6 +12,8 @@ void Log::Write(CSZ txt, std::thread::id tid, CSZ filename, UINT32 line, Severit
 		return;
 	if (strstr(txt, "UNASSIGNED-BestPractices-vkBindMemory-small-dedicated-allocation"))
 		return;
+	if (strstr(txt, "UNASSIGNED-CoreValidation-Shader-InconsistentSpirv"))
+		return;
 	if (strstr(txt, "UNASSIGNED-CoreValidation-Shader-OutputNotConsumed"))
 		return;
 

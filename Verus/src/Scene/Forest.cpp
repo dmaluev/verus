@@ -225,7 +225,7 @@ void Forest::Update()
 						plant._tex[Plant::TEX_GBUFFER_0],
 						plant._tex[Plant::TEX_GBUFFER_1],
 						plant._tex[Plant::TEX_GBUFFER_2],
-						atmo.GetShadowMap().GetTexture()
+						atmo.GetShadowMapBaker().GetTexture()
 					});
 			}
 		}
@@ -300,13 +300,13 @@ void Forest::Update()
 				_pipe[PIPE_MAIN].Init(pipeDesc);
 			}
 			{
-				CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#Depth", atmo.GetShadowMap().GetRenderPassHandle());
+				CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#Depth", atmo.GetShadowMapBaker().GetRenderPassHandle());
 				pipeDesc._colorAttachBlendEqs[0] = "";
 				pipeDesc._topology = CGI::PrimitiveTopology::pointList;
 				_pipe[PIPE_DEPTH].Init(pipeDesc);
 			}
 			{
-				CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], "#", atmo.GetCubeMap().GetRenderPassHandle());
+				CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], "#", atmo.GetCubeMapBaker().GetRenderPassHandle());
 				pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
 				pipeDesc._rasterizationState._cullMode = CGI::CullMode::none;
 				pipeDesc._topology = CGI::PrimitiveTopology::pointList;
@@ -603,13 +603,13 @@ void Forest::DrawSimple(DrawSimpleMode mode)
 	s_ubSimpleForestFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubSimpleForestFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
 	s_ubSimpleForestFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-	s_ubSimpleForestFS._matShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
-	s_ubSimpleForestFS._matShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
-	s_ubSimpleForestFS._matShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
-	s_ubSimpleForestFS._matShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
-	s_ubSimpleForestFS._matScreenCSM = atmo.GetShadowMap().GetScreenMatrixVP().UniformBufferFormat();
-	s_ubSimpleForestFS._csmSplitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
-	memcpy(&s_ubSimpleForestFS._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubSimpleForestFS._shadowConfig));
+	s_ubSimpleForestFS._matShadow = atmo.GetShadowMapBaker().GetShadowMatrix(0).UniformBufferFormat();
+	s_ubSimpleForestFS._matShadowCSM1 = atmo.GetShadowMapBaker().GetShadowMatrix(1).UniformBufferFormat();
+	s_ubSimpleForestFS._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrix(2).UniformBufferFormat();
+	s_ubSimpleForestFS._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrix(3).UniformBufferFormat();
+	s_ubSimpleForestFS._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixVP().UniformBufferFormat();
+	s_ubSimpleForestFS._csmSplitRanges = atmo.GetShadowMapBaker().GetSplitRanges().GLM();
+	memcpy(&s_ubSimpleForestFS._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubSimpleForestFS._shadowConfig));
 
 	switch (mode)
 	{

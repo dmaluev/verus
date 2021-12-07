@@ -348,7 +348,7 @@
     <ClInclude Include="src\IO\StreamPtr.h">
       <Filter>src\IO</Filter>
     </ClInclude>
-    <ClInclude Include="src\Math\NormalComputer.h">
+    <ClInclude Include="src\Math\TangentSpaceTools.h">
       <Filter>src\Math</Filter>
     </ClInclude>
     <ClInclude Include="src\Anim\Anim.h">
@@ -504,7 +504,7 @@
     <ClInclude Include="src\IO\Dictionary.h">
       <Filter>src\IO</Filter>
     </ClInclude>
-    <ClInclude Include="src\Scene\ShadowMap.h">
+    <ClInclude Include="src\Scene\ShadowMapBaker.h">
       <Filter>src\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\Physics\BulletDebugDraw.h">
@@ -714,7 +714,7 @@
     <ClInclude Include="src\Effects\Ssr.h">
       <Filter>src\Effects</Filter>
     </ClInclude>
-    <ClInclude Include="src\Scene\CubeMap.h">
+    <ClInclude Include="src\Scene\CubeMapBaker.h">
       <Filter>src\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\Game\QuestSystem.h">
@@ -929,7 +929,7 @@
     <ClCompile Include="src\Scene\Mesh.cpp">
       <Filter>src\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="src\Math\NormalComputer.cpp">
+    <ClCompile Include="src\Math\TangentSpaceTools.cpp">
       <Filter>src\Math</Filter>
     </ClCompile>
     <ClCompile Include="src\Anim\Anim.cpp">
@@ -1085,7 +1085,7 @@
     <ClCompile Include="src\IO\Dictionary.cpp">
       <Filter>src\IO</Filter>
     </ClCompile>
-    <ClCompile Include="src\Scene\ShadowMap.cpp">
+    <ClCompile Include="src\Scene\ShadowMapBaker.cpp">
       <Filter>src\Scene</Filter>
     </ClCompile>
     <ClCompile Include="src\Physics\BulletDebugDraw.cpp">
@@ -1274,7 +1274,7 @@
     <ClCompile Include="src\Effects\Ssr.cpp">
       <Filter>src\Effects</Filter>
     </ClCompile>
-    <ClCompile Include="src\Scene\CubeMap.cpp">
+    <ClCompile Include="src\Scene\CubeMapBaker.cpp">
       <Filter>src\Scene</Filter>
     </ClCompile>
     <ClCompile Include="src\Game\QuestSystem.cpp">

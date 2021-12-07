@@ -5,7 +5,7 @@ namespace verus
 {
 	namespace Scene
 	{
-		class CubeMap : public Object
+		class CubeMapBaker : public Object
 		{
 		public:
 			enum TEX
@@ -25,8 +25,8 @@ namespace verus
 			int                         _side = 0;
 
 		public:
-			CubeMap();
-			~CubeMap();
+			CubeMapBaker();
+			~CubeMapBaker();
 
 			void Init(int side);
 			void Done();
@@ -40,6 +40,6 @@ namespace verus
 
 			RcPoint3 GetCenter() const { return _center; }
 		};
-		VERUS_TYPEDEFS(CubeMap);
+		VERUS_TYPEDEFS(CubeMapBaker);
 	}
 }

@@ -17,7 +17,7 @@ BaseCharacter::~BaseCharacter()
 	DoneController();
 }
 
-void BaseCharacter::HandleInput()
+void BaseCharacter::HandleActions()
 {
 	VERUS_QREF_TIMER;
 
@@ -28,41 +28,50 @@ void BaseCharacter::HandleInput()
 		if (_moveLen >= VERUS_FLOAT_THRESHOLD)
 			_move /= _moveLen;
 
-		if (_airborne) // Move command from user.
-			_velocity += _move * (dt * _accel * _airborneControl);
-		else
-			_velocity += _move * (dt * _accel);
+		const Vector3 v0 = _endVelocity;
 
-		// 2D motion rules (on the ground):
+		if (_airborne) // Move action from user.
+			_endVelocity += _move * (dt * _accel * _airborneControl);
+		else
+			_endVelocity += _move * (dt * _accel);
+
+		// Speed limit & friction (on the ground):
 		if (!_airborne)
 		{
-			Vector3 velocity2D = _velocity;
+			Vector3 velocity2D = _endVelocity;
 			velocity2D.setY(0);
 			const float speed2D = VMath::length(velocity2D);
-			if (speed2D > _maxSpeed) // Too fast?
+			if (speed2D > _maxSpeed) // Max?
 			{
 				velocity2D /= speed2D;
 				velocity2D *= _maxSpeed;
 			}
-			else if (speed2D < VERUS_FLOAT_THRESHOLD) // Too slow slowpoke.jpg?
+			else if (speed2D < VERUS_FLOAT_THRESHOLD) // Min?
 			{
 				velocity2D = Vector3(0);
 			}
-			_velocity = velocity2D;
+			else if (_decel && _moveLen < VERUS_FLOAT_THRESHOLD)
+			{
+				const Vector3 dir = velocity2D / speed2D;
+				velocity2D = dir * Math::Reduce(speed2D, _decel * dt);
+			}
+			_endVelocity = velocity2D;
 		}
 
 		// Extra force:
-		_velocity += _extraForce * dt;
+		_endVelocity += _extraForce * dt;
 		_extraForce = Vector3(0);
 
-		_move = _velocity;
+		_avgVelocity = VMath::lerp(0.5f, v0, _endVelocity);
+
+		_move = _avgVelocity;
 	}
 	else // No accel:
 	{
-		_velocity = _move;
+		_avgVelocity = _endVelocity = _move;
 	}
 
-	// At this point _move == _velocity.
+	// At this point _move == _avgVelocity.
 	_cc.Move(_move);
 }
 
@@ -87,7 +96,7 @@ void BaseCharacter::Update()
 	}
 	else
 	{
-		_position += _velocity * dt;
+		_position += _avgVelocity * dt;
 		_airborne = true;
 	}
 	_smoothPosition = _position;
@@ -114,26 +123,6 @@ void BaseCharacter::Update()
 	_smoothSpeed.Update();
 	_smoothSpeedOnGround = _airborne ? 0.f : _speed;
 	_smoothSpeedOnGround.Update();
-
-	// <Friction>
-	if (_decel && _moveLen < VERUS_FLOAT_THRESHOLD)
-	{
-		if (_airborne)
-		{
-			// No friction in the air.
-		}
-		else
-		{
-			float speed = VMath::length(_velocity);
-			if (speed >= VERUS_FLOAT_THRESHOLD)
-			{
-				const Vector3 dir = _velocity / speed;
-				speed = Math::Reduce(speed, _decel * dt);
-				_velocity = dir * speed;
-			}
-		}
-	}
-	// </Friction>
 
 	_move = Vector3(0);
 	ComputeDerivedVars(_smoothSpeedOnGround);
@@ -219,7 +208,7 @@ bool BaseCharacter::IsStuck()
 	VERUS_QREF_TIMER;
 	if (!_unstuckCooldown.IsFinished())
 		return false;
-	const float desiredSpeedSq = VMath::lengthSqr(_velocity);
+	const float desiredSpeedSq = VMath::lengthSqr(_avgVelocity);
 	const bool stuck = (desiredSpeedSq >= 1) && (_speed * _speed * 10 < desiredSpeedSq);
 	if (stuck)
 		_unstuckCooldown.Start();
@@ -242,7 +231,7 @@ void BaseCharacter::BeginRagdoll()
 	_ragdoll = true;
 	BaseCharacter_OnInitRagdoll(GetMatrix());
 
-	_velocity = Vector3(0);
+	_avgVelocity = _endVelocity = Vector3(0);
 	_move = Vector3(0);
 	_extraForce = Vector3(0);
 

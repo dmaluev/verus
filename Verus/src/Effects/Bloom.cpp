@@ -179,13 +179,13 @@ void Bloom::Generate()
 		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.y = _sunGloss;
 		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.z = _wideStrength;
 		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.w = _sunStrength;
-		s_ubBloomLightShaftsFS._matShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
-		s_ubBloomLightShaftsFS._matShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
-		s_ubBloomLightShaftsFS._matShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
-		s_ubBloomLightShaftsFS._matShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
-		s_ubBloomLightShaftsFS._matScreenCSM = atmo.GetShadowMap().GetScreenMatrixVP().UniformBufferFormat();
-		s_ubBloomLightShaftsFS._csmSplitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
-		memcpy(&s_ubBloomLightShaftsFS._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubBloomLightShaftsFS._shadowConfig));
+		s_ubBloomLightShaftsFS._matShadow = atmo.GetShadowMapBaker().GetShadowMatrix(0).UniformBufferFormat();
+		s_ubBloomLightShaftsFS._matShadowCSM1 = atmo.GetShadowMapBaker().GetShadowMatrix(1).UniformBufferFormat();
+		s_ubBloomLightShaftsFS._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrix(2).UniformBufferFormat();
+		s_ubBloomLightShaftsFS._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrix(3).UniformBufferFormat();
+		s_ubBloomLightShaftsFS._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixVP().UniformBufferFormat();
+		s_ubBloomLightShaftsFS._csmSplitRanges = atmo.GetShadowMapBaker().GetSplitRanges().GLM();
+		memcpy(&s_ubBloomLightShaftsFS._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubBloomLightShaftsFS._shadowConfig));
 
 		cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
 		cb->BeginRenderPass(_rphLightShafts, _fbh, { _tex[TEX_PING]->GetClearValue() });

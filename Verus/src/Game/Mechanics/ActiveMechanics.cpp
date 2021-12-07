@@ -24,14 +24,24 @@ void ActiveMechanics::Done()
 	VERUS_DONE(ActiveMechanics);
 }
 
-bool ActiveMechanics::HandleInput()
+bool ActiveMechanics::InputFocus_Veto()
 {
-	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	for (auto p : _vStack)
 	{
-		if (Continue::no == (*it)->HandleInput())
+		if (p->VetoInputFocus())
 			return true;
 	}
 	return false;
+}
+
+void ActiveMechanics::InputFocus_HandleInput()
+{
+	for (auto p : _vStack)
+	{
+		p->HandleInput();
+		if (p->VetoInputFocus())
+			break;
+	}
 }
 
 bool ActiveMechanics::Update()
@@ -53,9 +63,9 @@ bool ActiveMechanics::Update()
 		std::sort(_vStack.begin(), _vStack.end());
 		ActiveMechanics_OnChanged();
 	}
-	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	for (auto p : _vStack)
 	{
-		if (Continue::no == (*it)->Update())
+		if (Continue::no == p->Update())
 			return true;
 	}
 	return false;
@@ -63,9 +73,9 @@ bool ActiveMechanics::Update()
 
 bool ActiveMechanics::Draw()
 {
-	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	for (auto p : _vStack)
 	{
-		if (Continue::no == (*it)->Draw())
+		if (Continue::no == p->Draw())
 			return true;
 	}
 	return false;
@@ -73,9 +83,9 @@ bool ActiveMechanics::Draw()
 
 bool ActiveMechanics::DrawOverlay()
 {
-	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	for (auto p : _vStack)
 	{
-		if (Continue::no == (*it)->DrawOverlay())
+		if (Continue::no == p->DrawOverlay())
 			return true;
 	}
 	return false;
@@ -83,15 +93,15 @@ bool ActiveMechanics::DrawOverlay()
 
 void ActiveMechanics::ApplyReport(const void* pReport)
 {
-	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
-		(*it)->ApplyReport(pReport);
+	for (auto p : _vStack)
+		p->ApplyReport(pReport);
 }
 
 bool ActiveMechanics::GetBotDomainCenter(int id, RPoint3 center)
 {
-	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	for (auto p : _vStack)
 	{
-		if (Continue::no == (*it)->GetBotDomainCenter(id, center))
+		if (Continue::no == p->GetBotDomainCenter(id, center))
 			return true;
 	}
 	return false;
@@ -99,19 +109,19 @@ bool ActiveMechanics::GetBotDomainCenter(int id, RPoint3 center)
 
 bool ActiveMechanics::GetSpawnPosition(int id, RPoint3 pos)
 {
-	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	for (auto p : _vStack)
 	{
-		if (Continue::no == (*it)->GetSpawnPosition(id, pos))
+		if (Continue::no == p->GetSpawnPosition(id, pos))
 			return true;
 	}
 	return false;
 }
 
-bool ActiveMechanics::IsInputEnabled()
+bool ActiveMechanics::IsDefaultInputEnabled()
 {
-	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	for (auto p : _vStack)
 	{
-		if (!(*it)->IsInputEnabled())
+		if (!p->IsDefaultInputEnabled())
 			return false;
 	}
 	return true;
@@ -119,9 +129,9 @@ bool ActiveMechanics::IsInputEnabled()
 
 bool ActiveMechanics::OnDie(int id)
 {
-	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	for (auto p : _vStack)
 	{
-		if (Continue::no == (*it)->OnDie(id))
+		if (Continue::no == p->OnDie(id))
 			return true;
 	}
 	return false;
@@ -129,9 +139,9 @@ bool ActiveMechanics::OnDie(int id)
 
 bool ActiveMechanics::OnMouseMove(float x, float y)
 {
-	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	for (auto p : _vStack)
 	{
-		if (Continue::no == (*it)->OnMouseMove(x, y))
+		if (Continue::no == p->OnMouseMove(x, y))
 			return true;
 	}
 	return false;
@@ -139,9 +149,9 @@ bool ActiveMechanics::OnMouseMove(float x, float y)
 
 bool ActiveMechanics::OnTakeDamage(int id, float amount)
 {
-	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	for (auto p : _vStack)
 	{
-		if (Continue::no == (*it)->OnTakeDamage(id, amount))
+		if (Continue::no == p->OnTakeDamage(id, amount))
 			return true;
 	}
 	return false;
@@ -149,9 +159,9 @@ bool ActiveMechanics::OnTakeDamage(int id, float amount)
 
 bool ActiveMechanics::UpdateMultiplayer()
 {
-	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	for (auto p : _vStack)
 	{
-		if (Continue::no == (*it)->UpdateMultiplayer())
+		if (Continue::no == p->UpdateMultiplayer())
 			return true;
 	}
 	return false;
@@ -159,9 +169,9 @@ bool ActiveMechanics::UpdateMultiplayer()
 
 Scene::PMainCamera ActiveMechanics::GetMainCamera()
 {
-	for (auto it = _vStack.begin(); it != _vStack.end(); ++it)
+	for (auto p : _vStack)
 	{
-		Scene::PMainCamera pCamera = (*it)->GetMainCamera();
+		Scene::PMainCamera pCamera = p->GetMainCamera();
 		if (pCamera)
 			return pCamera;
 	}

@@ -258,13 +258,13 @@ void Water::Draw()
 		s_ubWaterFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubWaterFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
 	s_ubWaterFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-	s_ubWaterFS._matShadow = atmo.GetShadowMap().GetShadowMatrix(0).UniformBufferFormat();
-	s_ubWaterFS._matShadowCSM1 = atmo.GetShadowMap().GetShadowMatrix(1).UniformBufferFormat();
-	s_ubWaterFS._matShadowCSM2 = atmo.GetShadowMap().GetShadowMatrix(2).UniformBufferFormat();
-	s_ubWaterFS._matShadowCSM3 = atmo.GetShadowMap().GetShadowMatrix(3).UniformBufferFormat();
-	s_ubWaterFS._matScreenCSM = atmo.GetShadowMap().GetScreenMatrixVP().UniformBufferFormat();
-	s_ubWaterFS._csmSplitRanges = atmo.GetShadowMap().GetSplitRanges().GLM();
-	memcpy(&s_ubWaterFS._shadowConfig, &atmo.GetShadowMap().GetConfig(), sizeof(s_ubWaterFS._shadowConfig));
+	s_ubWaterFS._matShadow = atmo.GetShadowMapBaker().GetShadowMatrix(0).UniformBufferFormat();
+	s_ubWaterFS._matShadowCSM1 = atmo.GetShadowMapBaker().GetShadowMatrix(1).UniformBufferFormat();
+	s_ubWaterFS._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrix(2).UniformBufferFormat();
+	s_ubWaterFS._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrix(3).UniformBufferFormat();
+	s_ubWaterFS._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixVP().UniformBufferFormat();
+	s_ubWaterFS._csmSplitRanges = atmo.GetShadowMapBaker().GetSplitRanges().GLM();
+	memcpy(&s_ubWaterFS._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubWaterFS._shadowConfig));
 
 	cb->BindPipeline(_pipe[PIPE_MAIN]);
 	cb->BindVertexBuffers(_geo);
@@ -297,8 +297,8 @@ void Water::OnSwapChainResized()
 			_tex[TEX_FOAM],
 			_tex[TEX_REFLECTION],
 			renderer.GetDS().GetComposedTextureB(),
-			atmo.GetShadowMap().GetTexture(),
-			atmo.GetShadowMap().GetTexture(),
+			atmo.GetShadowMapBaker().GetTexture(),
+			atmo.GetShadowMapBaker().GetTexture(),
 		});
 }
 

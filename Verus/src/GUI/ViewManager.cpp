@@ -84,7 +84,7 @@ void ViewManager::Done()
 	VERUS_DONE(ViewManager);
 }
 
-void ViewManager::HandleInput()
+void ViewManager::InputFocus_HandleInput()
 {
 	if (!_vViews.empty())
 	{
@@ -94,6 +94,23 @@ void ViewManager::HandleInput()
 		if (im.IsMouseDoubleClick(SDL_BUTTON_LEFT))
 			_vViews[0]->OnDoubleClick();
 	}
+}
+
+void ViewManager::InputFocus_OnKeyDown(int scancode)
+{
+	if (!_vViews.empty())
+		_vViews[0]->OnKey(scancode);
+}
+
+void ViewManager::InputFocus_OnTextInput(wchar_t c)
+{
+	if (!_vViews.empty())
+		_vViews[0]->OnChar(c);
+}
+
+void ViewManager::InputFocus_OnMouseMove(float dx, float dy)
+{
+	_cursor.MoveBy(dx, dy);
 }
 
 bool ViewManager::Update()
@@ -408,16 +425,4 @@ float ViewManager::ParseCoordY(CSZ coord, float def)
 	if (Str::EndsWith(coord, "%"))
 		return static_cast<float>(atof(coord)) * 0.01f;
 	return static_cast<float>(atof(coord));
-}
-
-void ViewManager::OnKey(int scancode)
-{
-	if (!_vViews.empty())
-		_vViews[0]->OnKey(scancode);
-}
-
-void ViewManager::OnChar(wchar_t c)
-{
-	if (!_vViews.empty())
-		_vViews[0]->OnChar(c);
 }

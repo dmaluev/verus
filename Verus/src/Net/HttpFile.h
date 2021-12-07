@@ -14,15 +14,15 @@ namespace verus
 
 			typedef Map<String, String> TMapHeader;
 
-			String            _url;
-			Vector<BYTE>      _vData;
-			Socket            _socket;
-			std::thread       _thread;
-			TMapHeader        _mapHeader;
-			BYTE              _buffer[200];
-			INT64             _offset = 0;
-			INT64             _size = 0;
-			int               _contentPart = 0;
+			String           _url;
+			Vector<BYTE>     _vData;
+			Socket           _socket;
+			std::thread      _thread;
+			TMapHeader       _mapHeader;
+			BYTE             _buffer[200];
+			INT64            _offset = 0;
+			INT64            _size = 0;
+			int              _contentPart = 0;
 			std::atomic_bool _ready;
 			bool             _nullTerm = false;
 

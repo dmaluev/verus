@@ -29,7 +29,7 @@ namespace verus
 			BaseCharacter();
 			virtual ~BaseCharacter();
 
-			virtual void HandleInput() override;
+			virtual void HandleActions() override;
 			virtual void Update() override;
 
 			// Creates the underlying controller.
