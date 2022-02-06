@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -65,8 +65,8 @@ void QuadtreeIntegral::Init(int mapSide, int limit, PQuadtreeIntegralDelegate p,
 
 	_pDelegate = p;
 
-	_limit = limit;
 	_mapSide = mapSide;
+	_limit = limit;
 	_fattenBy = fattenBy;
 
 	AllocNodes();

@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -52,8 +52,8 @@ namespace verus
 			int                       _nodeCount = 0;
 			int                       _testCount = 0;
 			int                       _passedTestCount = 0;
-			int                       _limit = 0;
 			int                       _mapSide = 0;
+			int                       _limit = 0;
 			int                       _maxDepth = 0;
 			bool                      _distCoarseMode = false;
 
@@ -64,9 +64,7 @@ namespace verus
 			void Init(int mapSide, int limit, PQuadtreeIntegralDelegate p, float fattenBy = 0.5f);
 			void Done();
 
-			void SetDistCoarseMode(bool b) { _distCoarseMode = b; }
-
-			void SetDelegate(PQuadtreeIntegralDelegate p) { _pDelegate = p; }
+			PQuadtreeIntegralDelegate SetDelegate(PQuadtreeIntegralDelegate p) { return Utils::Swap(_pDelegate, p); }
 
 			VERUS_P(void AllocNodes());
 			VERUS_P(void InitNodes(int currentNode = 0, int depth = 0));
@@ -75,6 +73,8 @@ namespace verus
 
 			int GetTestCount()       const { return _testCount; }
 			int GetPassedTestCount() const { return _passedTestCount; }
+
+			void SetDistCoarseMode(bool b) { _distCoarseMode = b; }
 		};
 		VERUS_TYPEDEFS(QuadtreeIntegral);
 	}

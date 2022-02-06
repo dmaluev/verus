@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 #define VERUS_QREF_ASYNC          IO::RAsync              async    = IO::Async::I()
@@ -14,6 +14,7 @@
 #define VERUS_QREF_GRASS          Scene::RGrass           grass    = Scene::Grass::I()
 #define VERUS_QREF_HELPERS        Scene::RHelpers         helpers  = Scene::Helpers::I()
 #define VERUS_QREF_IM             Input::RInputManager    im       = Input::InputManager::I()
+#define VERUS_QREF_LMB            Scene::RLightMapBaker   lmb      = Scene::LightMapBaker::I()
 #define VERUS_QREF_MM             Scene::RMaterialManager mm       = Scene::MaterialManager::I()
 #define VERUS_QREF_MP             Net::RMultiplayer       mp       = Net::Multiplayer::I()
 #define VERUS_QREF_PHYSICS        Physics::RPhysics       physics  = Physics::Physics::I()

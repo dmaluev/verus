@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -263,7 +263,7 @@ void Forest::Update()
 					for (auto& s : bc._vSprites)
 						bc._bounds.Include(s._pos);
 					bc._bounds.FattenBy(plant.GetSize());
-					_octree.BindClient(Math::Octree::Client(bc._bounds, &bc));
+					_octree.BindElement(Math::Octree::Element(bc._bounds, &bc));
 					bc._bounds.FattenBy(10); // For shadow map.
 
 					if (!bc._vSprites.empty())

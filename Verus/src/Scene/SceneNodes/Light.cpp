@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -33,7 +33,7 @@ void Light::Init(RcDesc desc)
 
 void Light::Done()
 {
-	SceneManager::I().GetOctree().UnbindClient(this);
+	SceneManager::I().GetOctree().UnbindElement(this);
 }
 
 void Light::Update()
@@ -216,13 +216,13 @@ void Light::UpdateBounds()
 		if (!_octreeBindOnce)
 		{
 			_bounds = Math::Bounds::MakeFromOrientedBox(mesh.GetBounds(), _tr);
-			SceneManager::I().GetOctree().BindClient(Math::Octree::Client(_bounds, this), octreeRoot);
+			SceneManager::I().GetOctree().BindElement(Math::Octree::Element(_bounds, this), octreeRoot);
 			_octreeBindOnce = octreeRoot;
 		}
 		if (_dynamic)
 		{
 			_bounds = Math::Bounds::MakeFromOrientedBox(mesh.GetBounds(), _tr);
-			SceneManager::I().GetOctree().UpdateDynamicBounds(Math::Octree::Client(_bounds, this));
+			SceneManager::I().GetOctree().UpdateDynamicBounds(Math::Octree::Element(_bounds, this));
 		}
 	}
 }

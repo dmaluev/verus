@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+﻿// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -105,63 +105,6 @@ int Str::ReplaceAll(RString s, CSZ was, CSZ with)
 	return count;
 }
 
-void Str::ReplaceExtension(RString pathname, CSZ ext)
-{
-	const size_t pos = pathname.rfind('.');
-	if (String::npos != pos)
-	{
-		const size_t count = pathname.length() - pos;
-		pathname.replace(pos, count, ext);
-	}
-}
-
-void Str::ReplaceFilename(RString pathname, CSZ filename)
-{
-	size_t pos = pathname.rfind('/');
-	if (String::npos == pos)
-		pos = pathname.rfind('\\');
-	if (String::npos != pos)
-	{
-		const size_t count = pathname.length() - pos;
-		pathname.replace(pos + 1, count, filename);
-	}
-}
-
-String Str::GetPath(CSZ pathname)
-{
-	CSZ p = strrchr(pathname, '/');
-	if (!p)
-		p = strrchr(pathname, '\\');
-	if (p)
-		return String(pathname, p);
-	return pathname;
-}
-
-String Str::GetFilename(CSZ pathname)
-{
-	CSZ p = strrchr(pathname, '/');
-	if (!p)
-		p = strrchr(pathname, '\\');
-	if (p)
-		return String(p + 1);
-	return pathname;
-}
-
-String Str::ToPakFriendlyUrl(CSZ url)
-{
-	if (!url || !url[0] || url[0] != '[')
-		return url;
-	String ret(url + 1);
-	const size_t pos = ret.find("]:");
-	if (pos != String::npos)
-	{
-		ret.replace(pos, 2, "-");
-		ReplaceAll(ret, "/", ".");
-		return ret;
-	}
-	return url;
-}
-
 String Str::FromInt(int n)
 {
 	StringStream ss;
@@ -244,6 +187,76 @@ String Str::GetDate(bool andTime)
 	char buffer[40];
 	strftime(buffer, sizeof(buffer), andTime ? "%Y-%m-%d %H-%M-%S" : "%Y-%m-%d", pTM);
 	return buffer;
+}
+
+String Str::GetPath(CSZ pathname)
+{
+	CSZ p = strrchr(pathname, '/');
+	if (!p)
+		p = strrchr(pathname, '\\');
+	if (p)
+		return String(pathname, p);
+	return pathname;
+}
+
+String Str::GetFilename(CSZ pathname)
+{
+	CSZ p = strrchr(pathname, '/');
+	if (!p)
+		p = strrchr(pathname, '\\');
+	if (p)
+		return String(p + 1);
+	return pathname;
+}
+
+String Str::GetExtension(CSZ pathname, bool toLower)
+{
+	CSZ p = strrchr(pathname, '.');
+	if (p)
+	{
+		String ext(p + 1);
+		if (toLower)
+			std::transform(ext.begin(), ext.end(), ext.begin(), [](char c) { return tolower(c); });
+		return ext;
+	}
+	return "";
+}
+
+void Str::ReplaceFilename(RString pathname, CSZ filename)
+{
+	size_t pos = pathname.rfind('/');
+	if (String::npos == pos)
+		pos = pathname.rfind('\\');
+	if (String::npos != pos)
+	{
+		const size_t count = pathname.length() - pos;
+		pathname.replace(pos + 1, count, filename);
+	}
+}
+
+void Str::ReplaceExtension(RString pathname, CSZ ext)
+{
+	const size_t pos = pathname.rfind('.');
+	if (String::npos != pos)
+	{
+		const size_t count = pathname.length() - pos;
+		pathname.replace(pos, count, ext);
+	}
+}
+
+String Str::ToPakFriendlyUrl(CSZ url)
+{
+	if (!url || !url[0] || url[0] != '[')
+		return url;
+	String ret(url + 1);
+	const size_t pos = ret.find("]:");
+	if (pos != String::npos)
+	{
+		ret.replace(pos, 2, "-");
+		ReplaceAll(ret, "/", ".");
+		return ret;
+	}
+	return url;
 }
 
 glm::vec2 Str::FromStringVec2(CSZ s)

@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 #include "Lib.hlsl"
 #include "LibColor.hlsl"
@@ -65,7 +65,7 @@ VSO mainVS(VSI si)
 	const float2 posBlend = pos.xz + edgeCorrection * 0.5f;
 
 	// <HeightAndNormal>
-	float3 intactNrm;
+	float3 inNrm;
 	{
 		const float approxHeight = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + (0.5f * mapSideInv) * 16.f, 4.f).r);
 		pos.y = approxHeight;
@@ -81,13 +81,13 @@ VSO mainVS(VSI si)
 		pos.y = lerp(yA, yB, geomipsLodFrac);
 
 		const float4 rawNormal = g_texNormalVS.SampleLevel(g_samNormalVS, tcMap + texelCenterAB.xx, geomipsLodBase);
-		intactNrm = float3(rawNormal.x, 0, rawNormal.y) * 2.f - 1.f;
-		intactNrm.y = ComputeNormalZ(intactNrm.xz);
+		inNrm = float3(rawNormal.x, 0, rawNormal.y) * 2.f - 1.f;
+		inNrm.y = ComputeNormalZ(inNrm.xz);
 	}
 	// </HeightAndNormal>
 
 	so.pos = MulTessPos(float4(pos, 1), g_ubTerrainVS._matV, g_ubTerrainVS._matVP);
-	so.nrmWV = mul(intactNrm, (float3x3)g_ubTerrainVS._matWV);
+	so.nrmWV = mul(inNrm, (float3x3)g_ubTerrainVS._matWV);
 #if !defined(DEF_DEPTH)
 	so.layerForChannel = si.layerForChannel;
 #if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)

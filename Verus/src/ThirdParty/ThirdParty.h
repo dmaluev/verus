@@ -1,7 +1,7 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-// Last updated on 4-Sep-2021
+// Last updated on 6-Feb-2022
 
 // Base64 (https://sourceforge.net/projects/libb64/):
 #ifdef _WIN32

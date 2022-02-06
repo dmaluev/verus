@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -32,7 +32,7 @@ void Prefab::Done()
 {
 	for (auto& f : _vFragments)
 		f._block.Done();
-	SceneManager::I().GetOctree().UnbindClient(this);
+	SceneManager::I().GetOctree().UnbindElement(this);
 }
 
 void Prefab::LoadPrefab(SZ xml)
@@ -146,12 +146,12 @@ void Prefab::UpdateBounds()
 
 		if (!_octreeBindOnce)
 		{
-			SceneManager::I().GetOctree().BindClient(Math::Octree::Client(_bounds, this), _dynamic);
+			SceneManager::I().GetOctree().BindElement(Math::Octree::Element(_bounds, this), _dynamic);
 			_octreeBindOnce = _dynamic;
 		}
 		if (_dynamic)
 		{
-			SceneManager::I().GetOctree().UpdateDynamicBounds(Math::Octree::Client(_bounds, this));
+			SceneManager::I().GetOctree().UpdateDynamicBounds(Math::Octree::Element(_bounds, this));
 		}
 	}
 }

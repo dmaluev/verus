@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 namespace verus
@@ -10,9 +10,11 @@ namespace verus
 		Scene::SceneManager::Make();
 		Scene::Atmosphere::Make();
 		Scene::Water::Make();
+		Scene::LightMapBaker::Make();
 	}
 	void Free_Scene()
 	{
+		Scene::LightMapBaker::Free();
 		Scene::Water::Free();
 		Scene::Atmosphere::Free();
 		Scene::SceneManager::Free();

@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 #define VERUS_LOG_ERROR(txt) {StringStream ss_Log; ss_Log << txt; D::Log::I().Write(_C(ss_Log.str()), std::this_thread::get_id(), __FILE__, __LINE__, D::Log::Severity::error);}

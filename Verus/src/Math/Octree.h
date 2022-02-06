@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -15,21 +15,21 @@ namespace verus
 		class Octree : public Object
 		{
 		public:
-			class Client
+			class Element
 			{
 			public:
 				Bounds _bounds;
 				Sphere _sphere;
 				void* _pToken = nullptr;
 
-				Client() {}
-				Client(RcBounds bounds, void* pToken) :
+				Element() {}
+				Element(RcBounds bounds, void* pToken) :
 					_bounds(bounds), _pToken(pToken)
 				{
 					_sphere = _bounds.GetSphere();
 				}
 			};
-			VERUS_TYPEDEFS(Client);
+			VERUS_TYPEDEFS(Element);
 
 			class Result
 			{
@@ -44,9 +44,9 @@ namespace verus
 		private:
 			class Node : public AllocatorAware
 			{
-				Bounds         _bounds;
-				Sphere         _sphere;
-				Vector<Client> _vClients;
+				Bounds          _bounds;
+				Sphere          _sphere;
+				Vector<Element> _vElements;
 
 			public:
 				Node();
@@ -57,14 +57,14 @@ namespace verus
 
 				RcSphere GetSphere() const { return _sphere; }
 				RcBounds GetBounds() const { return _bounds; }
-				void SetBounds(RcBounds b) { _bounds = b; _sphere = b.GetSphere(); }
+				void     SetBounds(RcBounds b) { _bounds = b; _sphere = b.GetSphere(); }
 
-				void BindClient(RcClient client);
-				void UnbindClient(void* pToken);
-				void UpdateDynamicClient(RcClient client);
+				void BindElement(RcElement element);
+				void UnbindElement(void* pToken);
+				void UpdateDynamicElement(RcElement element);
 
-				int GetClientCount() const { return Utils::Cast32(_vClients.size()); }
-				RcClient GetClientAt(int i) const { return _vClients[i]; }
+				int GetElementCount() const { return Utils::Cast32(_vElements.size()); }
+				RcElement GetElementAt(int i) const { return _vElements[i]; }
 			};
 			VERUS_TYPEDEFS(Node);
 
@@ -85,9 +85,9 @@ namespace verus
 
 			VERUS_P(void Build(int currentNode = 0, int depth = 0));
 
-			bool BindClient(RcClient client, bool forceRoot = false, int currentNode = 0);
-			void UnbindClient(void* pToken);
-			void UpdateDynamicBounds(RcClient client);
+			bool BindElement(RcElement element, bool forceRoot = false, int currentNode = 0);
+			void UnbindElement(void* pToken);
+			void UpdateDynamicBounds(RcElement element);
 			VERUS_P(bool MustBind(int currentNode, RcBounds bounds) const);
 
 			Continue TraverseVisible(RcFrustum frustum, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr);

@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 VERUS_CT_ASSERT(sizeof(glm::vec2) == 8);
@@ -210,22 +210,64 @@ Quat Math::NLerp(float t, RcQuat qA, RcQuat qB)
 	return ret;
 }
 
+Vector3 Math::Barycentric(RcPoint3 a, RcPoint3 b, RcPoint3 c, RcPoint3 p)
+{
+	const Vector3 ab = b - a;
+	const Vector3 ac = c - a;
+	const Vector3 pa = a - p;
+	const Vector3 pb = b - p;
+	const Vector3 pc = c - p;
+	const Vector3 crossABAC = VMath::cross(ab, ac);
+	const Vector3 n = VMath::normalize(crossABAC); // Compute the normal of the triangle.
+	const float areaABC = VMath::dot(n, crossABAC); // Compute twice area of triangle ABC.
+	const float areaPCA = VMath::dot(n, VMath::cross(pc, pa)); // Compute b.
+	const float areaPAB = VMath::dot(n, VMath::cross(pa, pb)); // Compute c.
+	return Vector3(areaPCA / areaABC, areaPAB / areaABC);
+}
+
+bool Math::IsPointInsideBarycentric(RcVector3 bc)
+{
+	const float sum = bc.getX() + bc.getY();
+	return
+		(bc.getX() >= 0 && bc.getX() < 1) &&
+		(bc.getY() >= 0 && bc.getY() < 1) &&
+		(sum >= 0 && sum < 1);
+}
+
 Vector3 Math::TriangleNormal(RcPoint3 a, RcPoint3 b, RcPoint3 c)
 {
 	return VMath::normalize(VMath::cross(a - b, a - c));
 }
 
 float Math::TriangleArea(
-	const glm::vec3& p0,
-	const glm::vec3& p1,
-	const glm::vec3& p2)
+	const glm::vec3& a,
+	const glm::vec3& b,
+	const glm::vec3& c)
 {
 	// https://en.wikipedia.org/wiki/Heron%27s_formula
-	const float a = glm::length(p2 - p1);
-	const float b = glm::length(p0 - p2);
-	const float c = glm::length(p1 - p0);
-	const float s = (a + b + c) * 0.5f;
-	return sqrt(s * (s - a) * (s - b) * (s - c));
+	const float bc = glm::length(c - b);
+	const float ca = glm::length(a - c);
+	const float ab = glm::length(b - a);
+	const float s = (bc + ca + ab) * 0.5f;
+	return sqrt(s * (s - bc) * (s - ca) * (s - ab));
+}
+
+bool Math::IsPointInsideTriangle(
+	const glm::vec2& a,
+	const glm::vec2& b,
+	const glm::vec2& c,
+	const glm::vec2& p)
+{
+	const float dx = p.x - c.x;
+	const float dy = p.y - c.y;
+	const float dx21 = c.x - b.x;
+	const float dy12 = b.y - c.y;
+	const float d = dy12 * (a.x - c.x) + dx21 * (a.y - c.y);
+	const float s = dy12 * dx + dx21 * dy;
+	const float t = (c.y - a.y) * dx + (a.x - c.x) * dy;
+	if (d < 0)
+		return s <= 0 && t <= 0 && s + t >= d;
+	return s >= 0 && t >= 0 && s + t <= d;
 }
 
 int Math::StripGridIndexCount(int polyCountWidth, int polyCountHeight)
@@ -577,11 +619,11 @@ void Math::Test()
 	}
 
 	{
-		//const Point3 a(0, 0, 0), b(0, 0, 1), c(1, 0, 0);
-		//Point3 p(0.1f, 0, 0.25f);
-		//const Vector3 bc = Barycentric(a, b, c, p);
-		//VERUS_RT_ASSERT(glm::all(glm::epsilonEqual(bc.GLM(), glm::vec3(0.25f, 0.1f, 0), eps)));
-		//VERUS_RT_ASSERT(IsPointInsideBarycentric(bc));
+		const Point3 a(0, 0, 0), b(0, 0, 1), c(1, 0, 0);
+		Point3 p(0.1f, 0, 0.25f);
+		const Vector3 bc = Barycentric(a, b, c, p);
+		VERUS_RT_ASSERT(glm::all(glm::epsilonEqual(bc.GLM(), glm::vec3(0.25f, 0.1f, 0), eps)));
+		VERUS_RT_ASSERT(IsPointInsideBarycentric(bc));
 	}
 
 	{

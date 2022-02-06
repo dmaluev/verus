@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -14,24 +14,28 @@ namespace verus
 				short _tc0[2];
 				char  _nrm[4];
 			};
+			VERUS_TYPEDEFS(VertexInputBinding0);
 
 			struct VertexInputBinding1 // 16 bytes, skinned mesh.
 			{
 				short _bw[4];
 				short _bi[4];
 			};
+			VERUS_TYPEDEFS(VertexInputBinding1);
 
 			struct VertexInputBinding2 // 16 bytes, per-pixel lighting / normal maps.
 			{
 				short _tan[4];
 				short _bin[4];
 			};
+			VERUS_TYPEDEFS(VertexInputBinding2);
 
 			struct VertexInputBinding3 // 8 bytes, static light maps / extra color.
 			{
 				short _tc1[2];
 				BYTE  _clr[4];
 			};
+			VERUS_TYPEDEFS(VertexInputBinding3);
 
 			Vector<UINT16>              _vIndices;
 			Vector<UINT32>              _vIndices32;
@@ -80,6 +84,14 @@ namespace verus
 			VERUS_P(void LoadRig());
 			VERUS_P(void LoadWarp());
 
+			// Data:
+			const UINT16* GetIndices() const { return _vIndices.data(); }
+			const UINT32* GetIndices32() const { return _vIndices32.data(); }
+			PcVertexInputBinding0 GetVertexInputBinding0() const { return _vBinding0.data(); }
+			PcVertexInputBinding1 GetVertexInputBinding1() const { return _vBinding1.data(); }
+			PcVertexInputBinding2 GetVertexInputBinding2() const { return _vBinding2.data(); }
+			PcVertexInputBinding3 GetVertexInputBinding3() const { return _vBinding3.data(); }
+
 			// Quantization / dequantization:
 			static void ComputeDeq(glm::vec3& scale, glm::vec3& bias, const glm::vec3& extents, const glm::vec3& minPos);
 			static void QuantizeV(glm::vec3& v, const glm::vec3& extents, const glm::vec3& minPos);
@@ -111,35 +123,17 @@ namespace verus
 			Math::Bounds GetBounds() const;
 
 			template<typename T>
-			void ForEachVertex(const T& fn, bool boneIndices = false)
+			void ForEachVertex(const T& fn) const
 			{
 				VERUS_FOR(i, _vertCount)
 				{
-					Point3 pos, uv;
+					Point3 pos, tc;
+					Vector3 nrm;
 					DequantizeUsingDeq3D(_vBinding0[i]._pos, _posDeq, pos);
-					DequantizeUsingDeq2D(_vBinding0[i]._tc0, _tc0Deq, uv);
-					if (_vBinding1.empty() || !boneIndices)
-					{
-						if (Continue::no == fn(pos, -1, uv))
-							break;
-					}
-					else
-					{
-						bool done = false;
-						VERUS_FOR(j, 4)
-						{
-							if (_vBinding1[i]._bw[j] > 0)
-							{
-								if (Continue::no == fn(pos, _vBinding1[i]._bi[j], uv))
-								{
-									done = true;
-									break;
-								}
-							}
-						}
-						if (done)
-							break;
-					}
+					DequantizeNrm(_vBinding0[i]._nrm, nrm);
+					DequantizeUsingDeq2D(_vBinding0[i]._tc0, _tc0Deq, tc);
+					if (Continue::no == fn(i, pos, nrm, tc))
+						break;
 				}
 			}
 

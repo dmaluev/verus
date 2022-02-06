@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -477,6 +477,18 @@ void FileSystem::SaveImage(CSZ pathname, const UINT32* p, int w, int h, ImageFor
 {
 	Vector<BYTE> v(w * h * 8);
 	MutableBlob context(v.data());
+
+	if (ImageFormat::extension == format)
+	{
+		format = ImageFormat::tga;
+		const String ext = Str::GetExtension(pathname);
+		if (ext == "png")
+			format = ImageFormat::png;
+		else if (ext == "tga")
+			format = ImageFormat::tga;
+		else if (ext == "jpg")
+			format = ImageFormat::jpg;
+	}
 
 	auto WriteFunc = [](void* context, void* data, int len)
 	{

@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 // Convert non-linear z-buffer value to positive linear form:
 float ToLinearDepth(float dz, float4 zNearFarEx)
@@ -186,7 +186,7 @@ float ShadowMapCSM(
 	SamplerComparisonState samCmp,
 	Texture2D tex,
 	SamplerState sam,
-	float3 intactPos,
+	float3 inPos,
 	float3 biasedPos,
 	matrix mat0,
 	matrix mat1,
@@ -200,7 +200,7 @@ float ShadowMapCSM(
 	float ret = 1.f;
 	float contrast = 1.f;
 	const float contrastScale = config.w;
-	const float4 clipSpacePos = mul(float4(intactPos, 1.f), matScreen);
+	const float4 clipSpacePos = mul(float4(inPos, 1.f), matScreen);
 	const float depth = clipSpacePos.w;
 
 	if (IsClippedCSM(clipSpacePos))
@@ -248,7 +248,7 @@ float ShadowMapCSM(
 float SimpleShadowMapCSM(
 	Texture2D texCmp,
 	SamplerComparisonState samCmp,
-	float3 intactPos,
+	float3 inPos,
 	float3 biasedPos,
 	matrix mat0,
 	matrix mat1,
@@ -263,7 +263,7 @@ float SimpleShadowMapCSM(
 	float ret = 1.f;
 	float contrast = 1.f;
 	const float contrastScale = config.w;
-	const float4 clipSpacePos = mul(float4(intactPos, 1.f), matScreen);
+	const float4 clipSpacePos = mul(float4(inPos, 1.f), matScreen);
 	const float depth = clipSpacePos.w;
 
 	if (!clipping || IsClippedCSM(clipSpacePos))

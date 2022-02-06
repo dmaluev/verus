@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 #include "Lib.hlsl"
 #include "LibColor.hlsl"
@@ -72,11 +72,11 @@ VSO mainVS(VSI si)
 #endif
 
 	// Dequantize:
-	const float3 intactPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubSimplePerMeshVS._posDeqScale.xyz, g_ubSimplePerMeshVS._posDeqBias.xyz);
-	const float2 intactTc0 = DequantizeUsingDeq2D(si.tc0.xy, g_ubSimplePerMeshVS._tc0DeqScaleBias.xy, g_ubSimplePerMeshVS._tc0DeqScaleBias.zw);
-	const float3 intactNrm = si.nrm.xyz;
+	const float3 inPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubSimplePerMeshVS._posDeqScale.xyz, g_ubSimplePerMeshVS._posDeqBias.xyz);
+	const float2 inTc0 = DequantizeUsingDeq2D(si.tc0.xy, g_ubSimplePerMeshVS._tc0DeqScaleBias.xy, g_ubSimplePerMeshVS._tc0DeqScaleBias.zw);
+	const float3 inNrm = si.nrm.xyz;
 
-	const float3 pos = intactPos;
+	const float3 pos = inPos;
 
 	float3 posW;
 	float3 nrmW;
@@ -92,7 +92,7 @@ VSO mainVS(VSI si)
 		{
 			const mataff matBone = g_ubSimpleSkeletonVS._vMatBones[indices[i]];
 			posSkinned += mul(float4(pos, 1), matBone).xyz * weights[i];
-			nrmSkinned += mul(intactNrm, (float3x3)matBone) * weights[i];
+			nrmSkinned += mul(inNrm, (float3x3)matBone) * weights[i];
 		}
 
 		posW = mul(float4(posSkinned, 1), matW).xyz;
@@ -103,20 +103,20 @@ VSO mainVS(VSI si)
 		const mataff matBone = g_ubSimpleSkeletonVS._vMatBones[index];
 
 		const float3 posSkinned = mul(float4(pos, 1), matBone).xyz;
-		nrmW = mul(intactNrm, (float3x3)matBone);
+		nrmW = mul(inNrm, (float3x3)matBone);
 
 		posW = mul(float4(posSkinned, 1), matW).xyz;
 		nrmW = mul(nrmW, (float3x3)matW);
 #else
 		posW = mul(float4(pos, 1), matW).xyz;
-		nrmW = mul(intactNrm, (float3x3)matW);
+		nrmW = mul(inNrm, (float3x3)matW);
 #endif
 	}
 
 	so.pos = mul(float4(posW, 1), g_ubSimplePerFrame._matVP);
 	so.posW_depth = float4(posW, so.pos.z);
 	so.color0 = userColor;
-	so.tc0 = intactTc0;
+	so.tc0 = inTc0;
 #if !defined(DEF_TEXTURE)
 	so.nrmW = nrmW;
 	so.dirToEye = eyePos - posW;

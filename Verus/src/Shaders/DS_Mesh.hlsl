@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 #include "Lib.hlsl"
 #include "LibColor.hlsl"
@@ -78,11 +78,11 @@ VSO mainVS(VSI si)
 #endif
 
 	// Dequantize:
-	const float3 intactPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMeshVS._posDeqScale.xyz, g_ubPerMeshVS._posDeqBias.xyz);
-	const float2 intactTc0 = DequantizeUsingDeq2D(si.tc0.xy, g_ubPerMeshVS._tc0DeqScaleBias.xy, g_ubPerMeshVS._tc0DeqScaleBias.zw);
-	const float3 intactNrm = si.nrm.xyz;
-	const float3 intactTan = si.tan.xyz;
-	const float3 intactBin = si.bin.xyz;
+	const float3 inPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMeshVS._posDeqScale.xyz, g_ubPerMeshVS._posDeqBias.xyz);
+	const float2 inTc0 = DequantizeUsingDeq2D(si.tc0.xy, g_ubPerMeshVS._tc0DeqScaleBias.xy, g_ubPerMeshVS._tc0DeqScaleBias.zw);
+	const float3 inNrm = si.nrm.xyz;
+	const float3 inTan = si.tan.xyz;
+	const float3 inBin = si.bin.xyz;
 
 	float addLamBias = 0.f;
 #if defined(DEF_SKINNED) || defined(DEF_ROBOTIC)
@@ -91,7 +91,7 @@ VSO mainVS(VSI si)
 		si.pos.w,
 		si.tan.w,
 		si.bin.w) * GetWarpScale();
-	const float3 pos = ApplyWarp(intactPos, g_ubSkeletonVS._vWarpZones, warpMask);
+	const float3 pos = ApplyWarp(inPos, g_ubSkeletonVS._vWarpZones, warpMask);
 #elif defined(DEF_PLANT)
 	{
 		const float3 normPos = NormalizePosition(si.pos.xyz);
@@ -100,7 +100,7 @@ VSO mainVS(VSI si)
 		const float weightXZ = saturate((dot(offsetXYZ.xz, offsetXYZ.xz) - 0.01f) * 0.4f);
 
 		const float phaseShiftY = frac(userColor.x + userColor.z);
-		const float phaseShiftXZ = frac(phaseShiftY + intactPos.x + intactPos.z);
+		const float phaseShiftXZ = frac(phaseShiftY + inPos.x + inPos.z);
 		const float2 bending = (float2(0.7f, 0.5f) + float2(0.3f, 0.5f) *
 			sin((g_ubPerObject._userColor.rg + float2(phaseShiftY, phaseShiftXZ)) * (_PI * 2.f))) * float2(weightY, weightXZ);
 
@@ -124,9 +124,9 @@ VSO mainVS(VSI si)
 		const float weight = 1.f - saturate(dot(offsetXYZ, offsetXYZ));
 		addLamBias = (-(weight * weight * weight)) * saturate(userColor.a);
 	}
-	const float3 pos = intactPos;
+	const float3 pos = inPos;
 #else
-	const float3 pos = intactPos;
+	const float3 pos = inPos;
 #endif
 
 	const matrix matWV = mul(ToFloat4x4(matW), ToFloat4x4(g_ubPerFrame._matV));
@@ -149,9 +149,9 @@ VSO mainVS(VSI si)
 		{
 			const mataff matBone = g_ubSkeletonVS._vMatBones[indices[i]];
 			posSkinned += mul(float4(pos, 1), matBone).xyz * weights[i];
-			nrmSkinned += mul(intactNrm, (float3x3)matBone) * weights[i];
-			tanSkinned += mul(intactTan, (float3x3)matBone) * weights[i];
-			binSkinned += mul(intactBin, (float3x3)matBone) * weights[i];
+			nrmSkinned += mul(inNrm, (float3x3)matBone) * weights[i];
+			tanSkinned += mul(inTan, (float3x3)matBone) * weights[i];
+			binSkinned += mul(inBin, (float3x3)matBone) * weights[i];
 		}
 
 		posW = mul(float4(posSkinned, 1), matW).xyz;
@@ -164,9 +164,9 @@ VSO mainVS(VSI si)
 		const mataff matBone = g_ubSkeletonVS._vMatBones[index];
 
 		const float3 posSkinned = mul(float4(pos, 1), matBone).xyz;
-		nrmWV = mul(intactNrm, (float3x3)matBone);
-		tanWV = mul(intactTan, (float3x3)matBone);
-		binWV = mul(intactBin, (float3x3)matBone);
+		nrmWV = mul(inNrm, (float3x3)matBone);
+		tanWV = mul(inTan, (float3x3)matBone);
+		binWV = mul(inBin, (float3x3)matBone);
 
 		posW = mul(float4(posSkinned, 1), matW).xyz;
 		nrmWV = mul(nrmWV, (float3x3)matWV);
@@ -174,14 +174,14 @@ VSO mainVS(VSI si)
 		binWV = mul(binWV, (float3x3)matWV);
 #else
 		posW = mul(float4(pos, 1), matW).xyz;
-		nrmWV = mul(intactNrm, (float3x3)matWV);
-		tanWV = mul(intactTan, (float3x3)matWV);
-		binWV = mul(intactBin, (float3x3)matWV);
+		nrmWV = mul(inNrm, (float3x3)matWV);
+		tanWV = mul(inTan, (float3x3)matWV);
+		binWV = mul(inBin, (float3x3)matWV);
 #endif
 	}
 
 	so.pos = MulTessPos(float4(posW, 1), g_ubPerFrame._matV, g_ubPerFrame._matVP);
-	so.tc0 = intactTc0;
+	so.tc0 = inTc0;
 	so.matTBN2 = float4(nrmWV, posW.z);
 #ifdef DEF_TESS
 	so.matTBN2.xyz = normalize(so.matTBN2.xyz);

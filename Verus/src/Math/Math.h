@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 #define VERUS_PI  3.141592654f
@@ -118,9 +118,28 @@ namespace verus
 		CSZ EasingToString(Easing easing);
 		Quat NLerp(float t, RcQuat qA, RcQuat qB);
 
+		// Barycentric:
+		Vector3 Barycentric(RcPoint3 a, RcPoint3 b, RcPoint3 c, RcPoint3 p);
+		bool IsPointInsideBarycentric(RcVector3 bc);
+		template<typename T>
+		T BarycentricInterpolation(const T& a, const T& b, const T& c, RcVector3 bc)
+		{
+			const T ab = b - a;
+			const T ac = c - a;
+			return a + ab * static_cast<float>(bc.getX()) + ac * static_cast<float>(bc.getY());
+		}
+
 		// Shapes:
 		Vector3 TriangleNormal(RcPoint3 a, RcPoint3 b, RcPoint3 c);
-		float TriangleArea(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2);
+		float TriangleArea(
+			const glm::vec3& a,
+			const glm::vec3& b,
+			const glm::vec3& c);
+		bool IsPointInsideTriangle(
+			const glm::vec2& a,
+			const glm::vec2& b,
+			const glm::vec2& c,
+			const glm::vec2& p);
 
 		// Geometry:
 		int StripGridIndexCount(int polyCountWidth, int polyCountHeight);

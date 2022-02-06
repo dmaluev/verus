@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -51,7 +51,7 @@ void Block::Done()
 	RemoveRigidBody();
 	_material.Done();
 	_model.Done();
-	SceneManager::I().GetOctree().UnbindClient(this);
+	SceneManager::I().GetOctree().UnbindElement(this);
 	_vLights.clear();
 	_vEmitters.clear();
 }
@@ -145,13 +145,13 @@ void Block::UpdateBounds()
 		if (!_octreeBindOnce)
 		{
 			_bounds = Math::Bounds::MakeFromOrientedBox(_model->GetMesh().GetBounds(), _tr);
-			SceneManager::I().GetOctree().BindClient(Math::Octree::Client(_bounds, this), _dynamic);
+			SceneManager::I().GetOctree().BindElement(Math::Octree::Element(_bounds, this), _dynamic);
 			_octreeBindOnce = _dynamic;
 		}
 		if (_dynamic)
 		{
 			_bounds = Math::Bounds::MakeFromOrientedBox(_model->GetMesh().GetBounds(), _tr);
-			SceneManager::I().GetOctree().UpdateDynamicBounds(Math::Octree::Client(_bounds, this));
+			SceneManager::I().GetOctree().UpdateDynamicBounds(Math::Octree::Element(_bounds, this));
 		}
 	}
 

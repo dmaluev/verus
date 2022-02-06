@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -28,6 +28,7 @@ namespace verus
 #include "EditorTerrain.h"
 #include "Grass.h"
 #include "CubeMapBaker.h"
+#include "LightMapBaker.h"
 #include "ShadowMapBaker.h"
 #include "Water.h"
 #include "MaterialManager.h"

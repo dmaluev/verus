@@ -783,6 +783,9 @@
     <ClInclude Include="src\Global\Interval.h">
       <Filter>src\Global</Filter>
     </ClInclude>
+    <ClInclude Include="src\Scene\LightMapBaker.h">
+      <Filter>src\Scene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -1342,6 +1345,9 @@
     </ClCompile>
     <ClCompile Include="src\Global\Range.cpp">
       <Filter>src\Global</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene\LightMapBaker.cpp">
+      <Filter>src\Scene</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

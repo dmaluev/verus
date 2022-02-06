@@ -257,6 +257,7 @@
     <ClInclude Include="src\Scene\Forest.h" />
     <ClInclude Include="src\Scene\Grass.h" />
     <ClInclude Include="src\Scene\Helpers.h" />
+    <ClInclude Include="src\Scene\LightMapBaker.h" />
     <ClInclude Include="src\Scene\MaterialManager.h" />
     <ClInclude Include="src\Scene\Mesh.h" />
     <ClInclude Include="src\Scene\Scatter.h" />
@@ -455,6 +456,7 @@
     <ClCompile Include="src\Scene\Forest.cpp" />
     <ClCompile Include="src\Scene\Grass.cpp" />
     <ClCompile Include="src\Scene\Helpers.cpp" />
+    <ClCompile Include="src\Scene\LightMapBaker.cpp" />
     <ClCompile Include="src\Scene\MaterialManager.cpp" />
     <ClCompile Include="src\Scene\Mesh.cpp" />
     <ClCompile Include="src\Scene\Scatter.cpp" />

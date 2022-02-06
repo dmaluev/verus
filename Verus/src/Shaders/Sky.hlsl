@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 #include "Lib.hlsl"
 #include "LibColor.hlsl"
@@ -62,15 +62,15 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
-	const float3 intactPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMeshVS._posDeqScale.xyz, g_ubPerMeshVS._posDeqBias.xyz);
+	const float3 inPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMeshVS._posDeqScale.xyz, g_ubPerMeshVS._posDeqBias.xyz);
 
-	so.pos = mul(float4(intactPos, 1), g_ubPerObject._matWVP).xyww; // Peg the depth. (c) ATI
-	so.color0 = pow(saturate(dot(normalize(intactPos * float3(1, 0.25f, 1)), g_ubPerFrame._dirToSun.xyz)), 4.f);
-	so.tc0 = float2(g_ubPerFrame._time_cloudiness.x, 0.5f - intactPos.y);
-	so.tcStars = intactPos.xz * 16.f; // Stars.
+	so.pos = mul(float4(inPos, 1), g_ubPerObject._matWVP).xyww; // Peg the depth. (c) ATI
+	so.color0 = pow(saturate(dot(normalize(inPos * float3(1, 0.25f, 1)), g_ubPerFrame._dirToSun.xyz)), 4.f);
+	so.tc0 = float2(g_ubPerFrame._time_cloudiness.x, 0.5f - inPos.y);
+	so.tcStars = inPos.xz * 16.f; // Stars.
 #ifdef DEF_CLOUDS
-	so.tcPhaseA = intactPos.xz * (4.f - 4.f * intactPos.y) + g_ubPerFrame._phaseAB.xy;
-	so.tcPhaseB = intactPos.xz * (2.f - 2.f * intactPos.y) + g_ubPerFrame._phaseAB.zw;
+	so.tcPhaseA = inPos.xz * (4.f - 4.f * inPos.y) + g_ubPerFrame._phaseAB.xy;
+	so.tcPhaseB = inPos.xz * (2.f - 2.f * inPos.y) + g_ubPerFrame._phaseAB.zw;
 #endif
 
 	return so;

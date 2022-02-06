@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -36,11 +36,6 @@ namespace verus
 		static void ToLower(SZ s);
 		static void ToUpper(SZ s);
 		static int ReplaceAll(RString s, CSZ was, CSZ with);
-		static void ReplaceExtension(RString pathname, CSZ ext);
-		static void ReplaceFilename(RString pathname, CSZ filename);
-		static String GetPath(CSZ pathname);
-		static String GetFilename(CSZ pathname);
-		static String ToPakFriendlyUrl(CSZ url);
 		static String FromInt(int n);
 		static void Explode(CSZ s, CSZ delimiter, Vector<String>& pieces);
 		static void Trim(RString s);
@@ -48,6 +43,14 @@ namespace verus
 		static void ReadLines(CSZ s, Vector<String>& lines);
 		static BYTE ByteFromHex(CSZ s);
 		static String GetDate(bool andTime = true);
+
+		// File system:
+		static String GetPath(CSZ pathname);
+		static String GetFilename(CSZ pathname);
+		static String GetExtension(CSZ pathname, bool toLower = true);
+		static void ReplaceFilename(RString pathname, CSZ filename);
+		static void ReplaceExtension(RString pathname, CSZ ext);
+		static String ToPakFriendlyUrl(CSZ url);
 
 		// From/To string:
 		static glm::vec2 FromStringVec2(CSZ s);

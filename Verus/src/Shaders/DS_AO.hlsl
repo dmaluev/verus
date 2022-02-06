@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 #include "Lib.hlsl"
 #include "LibColor.hlsl"
@@ -63,9 +63,9 @@ VSO mainVS(VSI si)
 
 	const float3x3 matW33 = (float3x3)matW;
 
-	const float3 intactPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubAOPerMeshVS._posDeqScale.xyz, g_ubAOPerMeshVS._posDeqBias.xyz);
+	const float3 inPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubAOPerMeshVS._posDeqScale.xyz, g_ubAOPerMeshVS._posDeqBias.xyz);
 
-	const float3 posW = mul(float4(intactPos, 1), matW);
+	const float3 posW = mul(float4(inPos, 1), matW);
 	so.pos = mul(float4(posW, 1), g_ubAOPerFrame._matVP);
 	so.clipSpacePos = so.pos;
 

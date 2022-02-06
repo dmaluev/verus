@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #include "verus.h"
 
 using namespace verus;
@@ -24,29 +24,29 @@ bool Octree::Node::HasChildren(int currentNode, int nodeCount)
 	return GetChildIndex(currentNode, 7) < nodeCount;
 }
 
-void Octree::Node::BindClient(RcClient client)
+void Octree::Node::BindElement(RcElement element)
 {
-	_vClients.push_back(client);
+	_vElements.push_back(element);
 }
 
-void Octree::Node::UnbindClient(void* pToken)
+void Octree::Node::UnbindElement(void* pToken)
 {
-	VERUS_WHILE(Vector<Client>, _vClients, it)
+	VERUS_WHILE(Vector<Element>, _vElements, it)
 	{
 		if (pToken == (*it)._pToken)
-			it = _vClients.erase(it);
+			it = _vElements.erase(it);
 		else
 			it++;
 	}
 }
 
-void Octree::Node::UpdateDynamicClient(RcClient client)
+void Octree::Node::UpdateDynamicElement(RcElement element)
 {
-	for (auto& x : _vClients)
+	for (auto& x : _vElements)
 	{
-		if (x._pToken == client._pToken)
+		if (x._pToken == element._pToken)
 		{
-			x = client;
+			x = element;
 			return;
 		}
 	}
@@ -136,25 +136,25 @@ void Octree::Build(int currentNode, int depth)
 	}
 }
 
-bool Octree::BindClient(RcClient client, bool forceRoot, int currentNode)
+bool Octree::BindElement(RcElement element, bool forceRoot, int currentNode)
 {
 	if (!currentNode)
 	{
 		if (_vNodes.empty())
 			return false; // Octree is not ready.
-		UnbindClient(client._pToken);
+		UnbindElement(element._pToken);
 	}
 
-	Client clientEx = client;
+	Element elementEx = element;
 	if (forceRoot)
 	{
-		clientEx._bounds = _vNodes[currentNode].GetBounds();
-		clientEx._sphere = clientEx._bounds.GetSphere();
+		elementEx._bounds = _vNodes[currentNode].GetBounds();
+		elementEx._sphere = elementEx._bounds.GetSphere();
 	}
 
-	if (MustBind(currentNode, clientEx._bounds))
+	if (MustBind(currentNode, elementEx._bounds))
 	{
-		_vNodes[currentNode].BindClient(clientEx);
+		_vNodes[currentNode].BindElement(elementEx);
 		return true;
 	}
 	else if (Node::HasChildren(currentNode, Utils::Cast32(_vNodes.size())))
@@ -162,25 +162,25 @@ bool Octree::BindClient(RcClient client, bool forceRoot, int currentNode)
 		VERUS_FOR(i, 8)
 		{
 			const int childIndex = Node::GetChildIndex(currentNode, i);
-			if (BindClient(client, false, childIndex))
+			if (BindElement(element, false, childIndex))
 				return true;
 		}
 	}
 	return false;
 }
 
-void Octree::UnbindClient(void* pToken)
+void Octree::UnbindElement(void* pToken)
 {
 	for (auto& node : _vNodes)
-		node.UnbindClient(pToken);
+		node.UnbindElement(pToken);
 }
 
-void Octree::UpdateDynamicBounds(RcClient client)
+void Octree::UpdateDynamicBounds(RcElement element)
 {
 	if (_vNodes.empty())
 		return; // Octree is not ready.
 
-	_vNodes[0].UpdateDynamicClient(client);
+	_vNodes[0].UpdateDynamicElement(element);
 }
 
 bool Octree::MustBind(int currentNode, RcBounds bounds) const
@@ -229,24 +229,24 @@ Continue Octree::TraverseVisible(RcFrustum frustum, PResult pResult, int current
 	{
 		{
 			RcNode node = _vNodes[currentNode];
-			const int count = node.GetClientCount();
+			const int count = node.GetElementCount();
 			VERUS_FOR(i, count)
 			{
-				RcClient client = node.GetClientAt(i);
+				RcElement element = node.GetElementAt(i);
 
 				pResult->_testCount++;
 				const float onePixel = Math::ComputeOnePixelDistance(
-					client._sphere.GetRadius());
+					element._sphere.GetRadius());
 				const bool notTooSmall = pResult->_depth || VMath::distSqr(
-					frustum.GetZNearPosition(), client._sphere.GetCenter()) < onePixel * onePixel;
+					frustum.GetZNearPosition(), element._sphere.GetCenter()) < onePixel * onePixel;
 
 				if (notTooSmall &&
-					Relation::outside != frustum.ContainsSphere(client._sphere) &&
-					Relation::outside != frustum.ContainsAabb(client._bounds))
+					Relation::outside != frustum.ContainsSphere(element._sphere) &&
+					Relation::outside != frustum.ContainsAabb(element._bounds))
 				{
-					pResult->_pLastFoundToken = client._pToken;
 					pResult->_passedTestCount++;
-					if (Continue::no == _pDelegate->Octree_ProcessNode(pResult->_pLastFoundToken, pUser))
+					pResult->_pLastFoundToken = element._pToken;
+					if (Continue::no == _pDelegate->Octree_ProcessNode(element._pToken, pUser))
 						return Continue::no;
 				}
 			}
@@ -285,16 +285,16 @@ Continue Octree::TraverseVisible(RcPoint3 point, PResult pResult, int currentNod
 	{
 		{
 			RcNode node = _vNodes[currentNode];
-			const int count = node.GetClientCount();
+			const int count = node.GetElementCount();
 			VERUS_FOR(i, count)
 			{
-				RcClient client = node.GetClientAt(i);
+				RcElement element = node.GetElementAt(i);
 				pResult->_testCount++;
-				if (client._bounds.IsInside(point))
+				if (element._bounds.IsInside(point))
 				{
-					pResult->_pLastFoundToken = client._pToken;
 					pResult->_passedTestCount++;
-					if (Continue::no == _pDelegate->Octree_ProcessNode(pResult->_pLastFoundToken, pUser))
+					pResult->_pLastFoundToken = element._pToken;
+					if (Continue::no == _pDelegate->Octree_ProcessNode(element._pToken, pUser))
 						return Continue::no;
 				}
 			}

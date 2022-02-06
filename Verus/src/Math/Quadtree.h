@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
 namespace verus
@@ -8,47 +8,56 @@ namespace verus
 		class QuadtreeDelegate
 		{
 		public:
-			virtual Continue Quadtree_ProcessNode(int index, void* pUser) = 0;
+			virtual Continue Quadtree_ProcessNode(void* pToken, void* pUser) = 0;
 		};
 		VERUS_TYPEDEFS(QuadtreeDelegate);
 
 		class Quadtree : public Object
 		{
 		public:
-			class Client
+			class Element
 			{
 			public:
 				Bounds _bounds;
-				int    _userIndex;
+				void* _pToken = nullptr;
 
-				Client() {}
-				Client(RcBounds bounds, int index) :
-					_bounds(bounds), _userIndex(index) {}
+				Element() {}
+				Element(RcBounds bounds, void* pToken) :
+					_bounds(bounds), _pToken(pToken) {}
 			};
-			VERUS_TYPEDEFS(Client);
+			VERUS_TYPEDEFS(Element);
+
+			class Result
+			{
+			public:
+				void* _pLastFoundToken = nullptr;
+				int   _testCount = 0;
+				int   _passedTestCount = 0;
+			};
+			VERUS_TYPEDEFS(Result);
 
 		private:
 			class Node : public AllocatorAware
 			{
-				Bounds         _bounds;
-				Vector<Client> _vClients;
-				int            _children[4];
+				Bounds          _bounds;
+				Vector<Element> _vElements;
 
 			public:
 				Node();
 				~Node();
 
+				static int GetChildIndex(int currentNode, int child);
+				static bool HasChildren(int currentNode, int nodeCount);
+
 				RcBounds GetBounds() const { return _bounds; }
 				void     SetBounds(RcBounds b) { _bounds = b; }
 
-				int  GetChildIndex(int child) const { return _children[child]; }
-				void SetChildIndex(int child, int index) { _children[child] = index; }
+				void BindElement(RcElement element);
+				void UnbindElement(void* pToken);
+				void UpdateDynamicElement(RcElement element);
 
-				void BindClient(RcClient client);
-				void UnbindClient(int index);
-
-				int GetClientCount() const { return Utils::Cast32(_vClients.size()); }
-				RcClient GetClientAt(int i) const { return _vClients[i]; }
+				int GetElementCount() const { return Utils::Cast32(_vElements.size()); }
+				RcElement GetElementAt(int i) const { return _vElements[i]; }
 			};
 			VERUS_TYPEDEFS(Node);
 
@@ -56,18 +65,9 @@ namespace verus
 			Vector3           _limit = Vector3(0);
 			Vector<Node>      _vNodes;
 			PQuadtreeDelegate _pDelegate = nullptr;
-			int               _nodeCount = 0;
+			Result            _defaultResult;
 
 		public:
-			class Result
-			{
-			public:
-				int _testCount = 0;
-				int _passedTestCount = 0;
-				int _lastFoundIndex = -1;
-			};
-			VERUS_TYPEDEFS(Result);
-
 			Quadtree();
 			~Quadtree();
 
@@ -76,13 +76,14 @@ namespace verus
 
 			PQuadtreeDelegate SetDelegate(PQuadtreeDelegate p) { return Utils::Swap(_pDelegate, p); }
 
-			VERUS_P(void Build(int currentNode = 0, int level = 0));
+			VERUS_P(void Build(int currentNode = 0, int depth = 0));
 
-			bool BindClient(RcClient client, bool forceRoot = false, int currentNode = 0);
-			void UnbindClient(int index);
+			bool BindElement(RcElement element, bool forceRoot = false, int currentNode = 0);
+			void UnbindElement(void* pToken);
+			void UpdateDynamicBounds(RcElement element);
 			VERUS_P(bool MustBind(int currentNode, RcBounds bounds) const);
 
-			Continue TraverseVisible(RcPoint3 point, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr) const;
+			Continue TraverseVisible(RcPoint3 point, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr);
 
 			VERUS_P(static void RemapChildIndices(RcPoint3 point, RcPoint3 center, BYTE childIndices[4]));
 

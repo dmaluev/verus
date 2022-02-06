@@ -1,4 +1,4 @@
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 #include "Lib.hlsl"
 #include "LibColor.hlsl"
@@ -54,7 +54,7 @@ VSO mainVS(VSI si)
 #endif
 
 	// <FromTextures>
-	float3 intactPos;
+	float3 inPos;
 	float3 pos;
 	float2 center;
 	float2 pointSpriteSize = 1.f;
@@ -63,11 +63,11 @@ VSO mainVS(VSI si)
 	float2 tc0;
 	bool bushMaskOK = true;
 	{
-		intactPos = si.pos.xyz * (1.f / 1000.f);
-		pos = intactPos + float3(si.patchPos.x, 0, si.patchPos.z);
+		inPos = si.pos.xyz * (1.f / 1000.f);
+		pos = inPos + float3(si.patchPos.x, 0, si.patchPos.z);
 		center = si.tc.zw * (1.f / 1000.f) + si.patchPos.xz;
 #ifdef DEF_BILLBOARDS
-		pointSpriteSize = intactPos.y;
+		pointSpriteSize = inPos.y;
 		pos = float3(center.x, 0.45f * pointSpriteSize.y, center.y);
 #endif
 
@@ -112,7 +112,7 @@ VSO mainVS(VSI si)
 		windWarp = 0.f;
 		top = 0.28f;
 #else
-		if (intactPos.y >= 0.1f)
+		if (inPos.y >= 0.1f)
 		{
 			phaseShift = frac(si.pos.w * (1.f / 100.f));
 			windWarp = warp.xz * (1.f + turbulence * sin((phase + phaseShift) * (_PI * 2.f)));
