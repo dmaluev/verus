@@ -48,15 +48,15 @@ FSO mainFS(VSO si)
 {
 	FSO so;
 
-	const float4 rawGBuffer0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.f);
-	const float4 rawGBuffer2 = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.f);
-	const float4 rawReflect = g_texReflect.SampleLevel(g_samReflect, si.tc0, 0.f);
+	const float4 rawGBuffer0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.0);
+	const float4 rawGBuffer2 = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.0);
+	const float4 rawReflect = g_texReflect.SampleLevel(g_samReflect, si.tc0, 0.0);
 
 	const float specMask = rawGBuffer0.a;
 	const float3 metalColor = ToMetalColor(rawGBuffer0.rgb);
 	const float2 metalMask = DS_GetMetallicity(rawGBuffer2);
-	so.color.rgb = rawReflect.rgb * lerp(1.f, metalColor, metalMask.x) * specMask;
-	so.color.a = 1.f;
+	so.color.rgb = rawReflect.rgb * lerp(1.0, metalColor, metalMask.x) * specMask;
+	so.color.a = 1.0;
 
 	return so;
 }

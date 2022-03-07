@@ -13,29 +13,29 @@ Timer::~Timer()
 
 void Timer::Init()
 {
-	const TTimePoint timeNow = std::chrono::high_resolution_clock::now();
+	_tpInit = std::chrono::high_resolution_clock::now();
 	for (auto& data : _data)
 	{
 		data._t = data._dt = 0;
-		data._timePrev = timeNow;
+		data._tpPrev = _tpInit;
 	}
 }
 
 void Timer::Update()
 {
-	const TTimePoint timeNow = std::chrono::high_resolution_clock::now();
+	const TTimePoint tpNow = std::chrono::high_resolution_clock::now();
 	VERUS_FOR(i, +Type::count)
 	{
 		_data[i]._dtPrev = _data[i]._dt;
 
 		_data[i]._dt = std::chrono::duration_cast<std::chrono::duration<float>>(
-			timeNow - _data[i]._timePrev).count() * GetGameSpeed(static_cast<Type>(i));
+			tpNow - _data[i]._tpPrev).count() * GetGameSpeed(static_cast<Type>(i));
 		if (_data[i]._dt > 0.25f) // Prevent long gaps.
 			_data[i]._dt = 0.25f;
 
 		_data[i]._t += _data[i]._dt;
-		_data[i]._timePrev2 = _data[i]._timePrev;
-		_data[i]._timePrev = timeNow;
+		_data[i]._tpPrev2 = _data[i]._tpPrev;
+		_data[i]._tpPrev = tpNow;
 
 		_data[i]._dtInv = _data[i]._dt > 0.0001f ? 1 / _data[i]._dt : 10000;
 		_data[i]._dtSq = _data[i]._dt * _data[i]._dt;
@@ -54,9 +54,15 @@ void Timer::Update()
 
 bool Timer::IsEventEvery(int ms) const
 {
-	auto a = std::chrono::duration_cast<std::chrono::milliseconds>(_data[+Type::game]._timePrev.time_since_epoch());
-	auto b = std::chrono::duration_cast<std::chrono::milliseconds>(_data[+Type::game]._timePrev2.time_since_epoch());
+	auto a = std::chrono::duration_cast<std::chrono::milliseconds>(_data[+Type::game]._tpPrev.time_since_epoch());
+	auto b = std::chrono::duration_cast<std::chrono::milliseconds>(_data[+Type::game]._tpPrev2.time_since_epoch());
 	return a.count() / ms != b.count() / ms;
+}
+
+float Timer::GetTime() const
+{
+	const TTimePoint tpNow = std::chrono::high_resolution_clock::now();
+	return std::chrono::duration_cast<std::chrono::duration<float>>(tpNow - _tpInit).count();
 }
 
 int Timer::InsertCountdown(float duration, int existingID)

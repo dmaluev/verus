@@ -140,7 +140,7 @@ void RendererD3D12::CreateSwapChainBuffersRTVs()
 	HRESULT hr = 0;
 	_vSwapChainBuffers.resize(_swapChainBufferCount);
 	_dhSwapChainBuffersRTVs.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, _swapChainBufferCount);
-	VERUS_U_FOR(i, _swapChainBufferCount)
+	VERUS_FOR(i, _swapChainBufferCount)
 	{
 		ComPtr<ID3D12Resource> pBuffer;
 		if (FAILED(hr = _pSwapChain->GetBuffer(i, IID_PPV_ARGS(&pBuffer))))
@@ -648,7 +648,7 @@ RPHandle RendererD3D12::CreateRenderPass(std::initializer_list<RP::Attachment> i
 		renderPass._vAttachments.push_back(std::move(d3dAttach));
 	}
 
-	auto GetAttachmentIndexByName = [&ilA](CSZ name) -> uint32_t
+	auto GetAttachmentIndexByName = [&ilA](CSZ name) -> int
 	{
 		if (!name)
 			return -1;

@@ -20,7 +20,9 @@ bool BaseTexture::IsSRGB() const
 	return
 		!Str::EndsWith(_C(_name), ".NM.dds") &&
 		!Str::EndsWith(_C(_name), ".FX.dds") &&
-		!Str::EndsWith(_C(_name), ".H.dds");
+		!Str::EndsWith(_C(_name), ".H.dds") &&
+		!Str::EndsWith(_C(_name), ".N.dds") &&
+		!Str::EndsWith(_C(_name), ".X.dds");
 }
 
 void BaseTexture::LoadDDS(CSZ url, int texturePart)

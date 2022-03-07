@@ -19,10 +19,12 @@ namespace verus
 
 		bool IsOrthogonal(float e = VERUS_FLOAT_THRESHOLD) const;
 
-		static Matrix3 MakeAimZ(RcVector3 zAxis, PcVector3 pUp = nullptr);
-		Matrix3            AimZ(RcVector3 zAxis, PcVector3 pUp = nullptr);
-		static Matrix3 MakeRotateTo(RcVector3 v0, RcVector3 v1);
-		Matrix3            RotateTo(RcVector3 v0, RcVector3 v1);
+		// More stable than Quat::rotation(), tries to maintain the up vector:
+		static Matrix3 MakeTrackToZ(RcVector3 zAxis, PcVector3 pUp = nullptr);
+		Matrix3            TrackToZ(RcVector3 zAxis, PcVector3 pUp = nullptr);
+		// More stable than Quat::rotation(), perpendicular vector is somewhat random:
+		static Matrix3 MakeTrackTo(RcVector3 vFrom, RcVector3 vTo);
+		Matrix3            TrackTo(RcVector3 vFrom, RcVector3 vTo);
 
 		static Matrix3 Lerp(const Matrix3& a, const Matrix3& b, float t);
 	};

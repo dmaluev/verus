@@ -285,7 +285,7 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 				sp >> index;
 				pVB[i]._pos[3] = index;
 			}
-			_rigidSkeleton = true;
+			_robotic = true;
 		}
 		break;
 		default:
@@ -477,6 +477,13 @@ void BaseMesh::RecalculateTangentSpace()
 			Convert::SnormToSint16(&vBin[i].x, _vBinding2[i]._bin, 3);
 		}
 	}
+}
+
+int BaseMesh::GetPipelineIndex(bool instanced) const
+{
+	if (_skeleton.IsInitialized())
+		return _robotic ? 2 : 3;
+	return instanced ? 1 : 0;
 }
 
 btBvhTriangleMeshShape* BaseMesh::InitShape(RcTransform3 tr, CSZ url)

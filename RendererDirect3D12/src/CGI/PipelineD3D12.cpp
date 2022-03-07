@@ -72,7 +72,7 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 	gpsDesc.RasterizerState.DepthBias = static_cast<INT>(desc._rasterizationState._depthBiasConstantFactor);
 	gpsDesc.RasterizerState.DepthBiasClamp = desc._rasterizationState._depthBiasClamp;
 	gpsDesc.RasterizerState.SlopeScaledDepthBias = desc._rasterizationState._depthBiasSlopeFactor;
-	gpsDesc.RasterizerState.DepthClipEnable = desc._rasterizationState._depthClampEnable;
+	gpsDesc.RasterizerState.DepthClipEnable = TRUE;
 	gpsDesc.RasterizerState.MultisampleEnable = FALSE;
 	gpsDesc.RasterizerState.AntialiasedLineEnable = (desc._colorAttachBlendEqs[0] == VERUS_COLOR_BLEND_ALPHA) ? TRUE : FALSE;
 	gpsDesc.RasterizerState.ForcedSampleCount = 0;
@@ -184,7 +184,7 @@ void PipelineD3D12::InitMeshShading(RcPipelineDesc desc)
 	mspsDesc.RasterizerState.DepthBias = static_cast<INT>(desc._rasterizationState._depthBiasConstantFactor);
 	mspsDesc.RasterizerState.DepthBiasClamp = desc._rasterizationState._depthBiasClamp;
 	mspsDesc.RasterizerState.SlopeScaledDepthBias = desc._rasterizationState._depthBiasSlopeFactor;
-	mspsDesc.RasterizerState.DepthClipEnable = desc._rasterizationState._depthClampEnable;
+	mspsDesc.RasterizerState.DepthClipEnable = TRUE;
 	mspsDesc.RasterizerState.MultisampleEnable = FALSE;
 	mspsDesc.RasterizerState.AntialiasedLineEnable = (desc._colorAttachBlendEqs[0] == VERUS_COLOR_BLEND_ALPHA) ? TRUE : FALSE;
 	mspsDesc.RasterizerState.ForcedSampleCount = 0;

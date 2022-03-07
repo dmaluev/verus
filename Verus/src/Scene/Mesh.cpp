@@ -87,62 +87,88 @@ void Mesh::Done()
 	VERUS_DONE(Mesh);
 }
 
-void Mesh::Draw(RcDrawDesc dd, CGI::CommandBufferPtr cb)
+void Mesh::Draw(RcDrawDesc drawDesc, CGI::CommandBufferPtr cb)
 {
 	auto shader = GetShader();
 
-	if (dd._pipe != PIPE_COUNT)
-		BindPipeline(dd._pipe, cb);
-	else
-		BindPipeline(cb, dd._allowTess);
+	if (drawDesc._bindPipeline)
+	{
+		if (drawDesc._pipe != PIPE_COUNT)
+			BindPipeline(drawDesc._pipe, cb);
+		else
+			BindPipeline(cb, drawDesc._allowTess); // Auto.
+	}
 	BindGeo(cb);
 
+	// Set 0:
 	UpdateUniformBufferPerFrame();
+	if (drawDesc._pOverrideFogColor)
+		s_ubSimplePerFrame._fogColor = drawDesc._pOverrideFogColor->GLM();
 	cb->BindDescriptors(shader, 0);
-	if (dd._bindMaterial)
+
+	// Set 1:
+	if (drawDesc._bindMaterial)
 	{
 		// Material buffer should already be updated. For example call Material::UpdateMeshUniformBuffer.
-		cb->BindDescriptors(shader, 1, dd._cshMaterial);
+		cb->BindDescriptors(shader, 1, drawDesc._cshMaterial);
 	}
+
+	// Set 2:
 	UpdateUniformBufferPerMeshVS();
 	cb->BindDescriptors(shader, 2);
-	if (dd._bindSkeleton)
+
+	// Set 3:
+	if (drawDesc._bindSkeleton)
 	{
 		UpdateUniformBufferSkeletonVS();
 		cb->BindDescriptors(shader, 3);
 	}
-	UpdateUniformBufferPerObject(dd._matW, dd._userColor);
+
+	// Set 4:
+	UpdateUniformBufferPerObject(drawDesc._matW, drawDesc._userColor);
 	cb->BindDescriptors(shader, 4);
 
 	cb->DrawIndexed(GetIndexCount());
 }
 
-void Mesh::DrawSimple(RcDrawDesc dd, CGI::CommandBufferPtr cb)
+void Mesh::DrawSimple(RcDrawDesc drawDesc, CGI::CommandBufferPtr cb)
 {
 	DrawSimpleMode mode = DrawSimpleMode::envMap;
-	if (dd._pipe >= PIPE_SIMPLE_PLANAR_REF && dd._pipe <= PIPE_SIMPLE_PLANAR_REF_SKINNED)
+	if (drawDesc._pipe >= PIPE_SIMPLE_PLANAR_REF && drawDesc._pipe <= PIPE_SIMPLE_PLANAR_REF_SKINNED)
 		mode = DrawSimpleMode::planarReflection;
 
 	auto shader = GetSimpleShader();
 
-	BindPipeline(dd._pipe, cb);
+	if (drawDesc._bindPipeline)
+		BindPipeline(drawDesc._pipe, cb);
 	BindGeo(cb);
 
+	// Set 0:
 	UpdateUniformBufferSimplePerFrame(mode);
+	if (drawDesc._pOverrideFogColor)
+		s_ubSimplePerFrame._fogColor = drawDesc._pOverrideFogColor->GLM();
 	cb->BindDescriptors(shader, 0);
-	if (dd._bindMaterial)
+
+	// Set 1:
+	if (drawDesc._bindMaterial)
 	{
 		// Material buffer should already be updated. For example call Material::UpdateMeshUniformBuffer.
-		cb->BindDescriptors(shader, 1, dd._cshMaterial);
+		cb->BindDescriptors(shader, 1, drawDesc._cshMaterial);
 	}
+
+	// Set 2:
 	UpdateUniformBufferPerMeshVS();
 	cb->BindDescriptors(shader, 2);
-	if (dd._bindSkeleton)
+
+	// Set 3:
+	if (drawDesc._bindSkeleton)
 	{
 		UpdateUniformBufferSimpleSkeletonVS();
 		cb->BindDescriptors(shader, 3);
 	}
-	UpdateUniformBufferPerObject(dd._matW, dd._userColor);
+
+	// Set 4:
+	UpdateUniformBufferPerObject(drawDesc._matW, drawDesc._userColor);
 	cb->BindDescriptors(shader, 4);
 
 	cb->DrawIndexed(GetIndexCount());
@@ -161,15 +187,15 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 		{
 		case PIPE_TESS:           pipe = PIPE_MAIN; break;
 		case PIPE_TESS_INSTANCED: pipe = PIPE_INSTANCED; break;
-		case PIPE_TESS_PLANT:     pipe = PIPE_PLANT; break;
 		case PIPE_TESS_ROBOTIC:   pipe = PIPE_ROBOTIC; break;
 		case PIPE_TESS_SKINNED:   pipe = PIPE_SKINNED; break;
+		case PIPE_TESS_PLANT:     pipe = PIPE_PLANT; break;
 
 		case PIPE_DEPTH_TESS:           pipe = PIPE_DEPTH; break;
 		case PIPE_DEPTH_TESS_INSTANCED: pipe = PIPE_DEPTH_INSTANCED; break;
-		case PIPE_DEPTH_TESS_PLANT:     pipe = PIPE_DEPTH_PLANT; break;
 		case PIPE_DEPTH_TESS_ROBOTIC:   pipe = PIPE_DEPTH_ROBOTIC; break;
 		case PIPE_DEPTH_TESS_SKINNED:   pipe = PIPE_DEPTH_SKINNED; break;
+		case PIPE_DEPTH_TESS_PLANT:     pipe = PIPE_DEPTH_PLANT; break;
 		};
 	}
 
@@ -179,27 +205,27 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 		{
 			"#",
 			"#Instanced",
-			"#Plant",
 			"#Robotic",
 			"#Skinned",
+			"#Plant",
 
 			"#Tess",
 			"#TessInstanced",
-			"#TessPlant",
 			"#TessRobotic",
 			"#TessSkinned",
+			"#TessPlant",
 
 			"#Depth",
 			"#DepthInstanced",
-			"#DepthPlant",
 			"#DepthRobotic",
 			"#DepthSkinned",
+			"#DepthPlant",
 
 			"#DepthTess",
 			"#DepthTessInstanced",
-			"#DepthTessPlant",
 			"#DepthTessRobotic",
 			"#DepthTessSkinned",
+			"#DepthTessPlant",
 
 			"#SolidColor",
 			"#SolidColorInstanced",
@@ -265,18 +291,18 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 			{
 			case PIPE_MAIN:
 			case PIPE_INSTANCED:
-			case PIPE_PLANT:
 			case PIPE_ROBOTIC:
 			case PIPE_SKINNED:
+			case PIPE_PLANT:
 			{
 				SetBlendEqsForDS();
 			}
 			break;
 			case PIPE_TESS:
 			case PIPE_TESS_INSTANCED:
-			case PIPE_TESS_PLANT:
 			case PIPE_TESS_ROBOTIC:
 			case PIPE_TESS_SKINNED:
+			case PIPE_TESS_PLANT:
 			{
 				SetBlendEqsForDS();
 				if (settings._gpuTessellation)
@@ -285,9 +311,9 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 			break;
 			case PIPE_DEPTH:
 			case PIPE_DEPTH_INSTANCED:
-			case PIPE_DEPTH_PLANT:
 			case PIPE_DEPTH_ROBOTIC:
 			case PIPE_DEPTH_SKINNED:
+			case PIPE_DEPTH_PLANT:
 			{
 				pipeDesc._colorAttachBlendEqs[0] = "";
 				pipeDesc._renderPassHandle = atmo.GetShadowMapBaker().GetRenderPassHandle();
@@ -295,9 +321,9 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 			break;
 			case PIPE_DEPTH_TESS:
 			case PIPE_DEPTH_TESS_INSTANCED:
-			case PIPE_DEPTH_TESS_PLANT:
 			case PIPE_DEPTH_TESS_ROBOTIC:
 			case PIPE_DEPTH_TESS_SKINNED:
+			case PIPE_DEPTH_TESS_PLANT:
 			{
 				pipeDesc._colorAttachBlendEqs[0] = "";
 				pipeDesc._renderPassHandle = atmo.GetShadowMapBaker().GetRenderPassHandle();
@@ -332,40 +358,40 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 void Mesh::BindPipeline(CGI::CommandBufferPtr cb, bool allowTess)
 {
 	VERUS_QREF_ATMO;
-	if (_skeleton.IsInitialized())
+
+	static PIPE pipes[] =
 	{
-		if (atmo.GetShadowMapBaker().IsBaking())
-		{
-			if (allowTess)
-				BindPipeline(PIPE_DEPTH_TESS_SKINNED, cb);
-			else
-				BindPipeline(PIPE_DEPTH_SKINNED, cb);
-		}
-		else
-		{
-			if (allowTess)
-				BindPipeline(PIPE_TESS_SKINNED, cb);
-			else
-				BindPipeline(PIPE_SKINNED, cb);
-		}
-	}
+		PIPE_MAIN,
+		PIPE_INSTANCED,
+		PIPE_ROBOTIC,
+		PIPE_SKINNED
+	};
+	static PIPE tessPipes[] =
+	{
+		PIPE_TESS,
+		PIPE_TESS_INSTANCED,
+		PIPE_TESS_ROBOTIC,
+		PIPE_TESS_SKINNED
+	};
+	static PIPE depthPipes[] =
+	{
+		PIPE_DEPTH,
+		PIPE_DEPTH_INSTANCED,
+		PIPE_DEPTH_ROBOTIC,
+		PIPE_DEPTH_SKINNED
+	};
+	static PIPE depthTessPipes[] =
+	{
+		PIPE_DEPTH_TESS,
+		PIPE_DEPTH_TESS_INSTANCED,
+		PIPE_DEPTH_TESS_ROBOTIC,
+		PIPE_DEPTH_TESS_SKINNED
+	};
+
+	if (atmo.GetShadowMapBaker().IsBaking())
+		BindPipeline(allowTess ? depthTessPipes[GetPipelineIndex()] : depthPipes[GetPipelineIndex()], cb);
 	else
-	{
-		if (atmo.GetShadowMapBaker().IsBaking())
-		{
-			if (allowTess)
-				BindPipeline(PIPE_DEPTH_TESS, cb);
-			else
-				BindPipeline(PIPE_DEPTH, cb);
-		}
-		else
-		{
-			if (allowTess)
-				BindPipeline(PIPE_TESS, cb);
-			else
-				BindPipeline(PIPE_MAIN, cb);
-		}
-	}
+		BindPipeline(allowTess ? tessPipes[GetPipelineIndex()] : pipes[GetPipelineIndex()], cb);
 }
 
 void Mesh::BindPipelineInstanced(CGI::CommandBufferPtr cb, bool allowTess, bool plant)

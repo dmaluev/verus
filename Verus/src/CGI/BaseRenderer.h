@@ -28,9 +28,9 @@ namespace verus
 		protected:
 			Vector<PScheduled> _vScheduled;
 			BaseRendererDesc   _desc;
-			UINT32             _swapChainBufferCount = 0;
-			UINT32             _swapChainBufferIndex = 0;
-			UINT32             _ringBufferIndex = 0;
+			int                _swapChainBufferCount = 0;
+			int                _swapChainBufferIndex = 0;
+			int                _ringBufferIndex = 0;
 
 			BaseRenderer();
 			virtual ~BaseRenderer();
@@ -43,9 +43,9 @@ namespace verus
 
 			void SetDesc(RBaseRendererDesc desc) { _desc = desc; }
 
-			UINT32 GetSwapChainBufferCount() const { return _swapChainBufferCount; }
-			UINT32 GetSwapChainBufferIndex() const { return _swapChainBufferIndex; }
-			UINT32 GetRingBufferIndex() const { return _ringBufferIndex; }
+			int GetSwapChainBufferCount() const { return _swapChainBufferCount; }
+			int GetSwapChainBufferIndex() const { return _swapChainBufferIndex; }
+			int GetRingBufferIndex() const { return _ringBufferIndex; }
 
 			void Schedule(PScheduled p);
 			void Unschedule(PScheduled p);

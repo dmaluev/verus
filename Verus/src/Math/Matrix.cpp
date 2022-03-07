@@ -38,56 +38,57 @@ bool Matrix3::IsOrthogonal(float e) const
 		glm::epsilonEqual<float>(dotZX, 0, e);
 }
 
-Matrix3 Matrix3::MakeAimZ(RcVector3 zAxis, PcVector3 pUp)
+Matrix3 Matrix3::MakeTrackToZ(RcVector3 zAxis, PcVector3 pUp)
 {
 	if (zAxis.IsZero())
 		return Matrix3::identity();
 	const Vector3 zNorm = VMath::normalizeApprox(zAxis);
-	if (zNorm.getY() > 0.999f)
-		return Matrix3::rotationX(-VERUS_PI * 0.5f);
-	if (zNorm.getY() < -0.999f)
-		return Matrix3::rotationX(VERUS_PI * 0.5f);
+	Vector3 up = pUp ? *pUp : Vector3(0, 1, 0);
+	const float d = VMath::dot(zNorm, up);
+	if (d + VERUS_FLOAT_THRESHOLD >= 1) // Same?
+	{
+		up = -zAxis.Perpendicular();
+	}
+	else if (d - VERUS_FLOAT_THRESHOLD < -1) // Opposite?
+	{
+		up = zAxis.Perpendicular();
+	}
 	return VMath::transpose(
-		Matrix4::lookAt(Point3(0), Point3(-zAxis), pUp ? *pUp : Vector3(0, 1, 0)).getUpper3x3());
+		Matrix4::lookAt(Point3(0), Point3(-zAxis), up).getUpper3x3());
 }
 
-Matrix3 Matrix3::AimZ(RcVector3 zAxis, PcVector3 pUp)
+Matrix3 Matrix3::TrackToZ(RcVector3 zAxis, PcVector3 pUp)
 {
-	*this = MakeAimZ(zAxis, pUp);
+	*this = MakeTrackToZ(zAxis, pUp);
 	return *this;
 }
 
-Matrix3 Matrix3::MakeRotateTo(RcVector3 v0, RcVector3 v1)
+Matrix3 Matrix3::MakeTrackTo(RcVector3 vFrom, RcVector3 vTo)
 {
-	const float e = 1e-6f;
 	Quat q;
-	const float d = VMath::dot(v0, v1);
-	if (d >= 1 - e)
+	const float d = VMath::dot(vFrom, vTo);
+	if (d + VERUS_FLOAT_THRESHOLD >= 1) // Same?
 	{
 		return Matrix3::identity();
 	}
-	if (d < e - 1)
+	else if (d - VERUS_FLOAT_THRESHOLD < -1) // Opposite?
 	{
-		Vector3 axis = VMath::cross(Vector3(1, 0, 0), v0);
-		if (VMath::lengthSqr(axis) < e * e)
-			axis = VMath::cross(Vector3(0, 1, 0), v0);
-		axis = VMath::normalize(axis);
-		q = Quat::rotation(VERUS_PI, axis);
+		q = Quat::rotation(VERUS_PI, vFrom.Perpendicular());
 	}
 	else
 	{
 		const float s = sqrt((1 + d) * 2);
 		const float invs = 1 / s;
-		const Vector3 c = VMath::cross(v0, v1);
+		const Vector3 c = VMath::cross(vFrom, vTo);
 		q = Quat(c * invs, s * 0.5f);
 		q = VMath::normalize(q);
 	}
 	return Matrix3(q);
 }
 
-Matrix3 Matrix3::RotateTo(RcVector3 v0, RcVector3 v1)
+Matrix3 Matrix3::TrackTo(RcVector3 vFrom, RcVector3 vTo)
 {
-	*this = MakeRotateTo(v0, v1);
+	*this = MakeTrackTo(vFrom, vTo);
 	return *this;
 }
 

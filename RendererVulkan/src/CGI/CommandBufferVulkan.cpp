@@ -76,8 +76,8 @@ void CommandBufferVulkan::End()
 void CommandBufferVulkan::BeginRenderPass(RPHandle renderPassHandle, FBHandle framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
 {
 	VERUS_QREF_RENDERER_VULKAN;
-	VERUS_QREF_CONST_SETTINGS;
 	RendererVulkan::RcFramebuffer framebuffer = pRendererVulkan->GetFramebuffer(framebufferHandle);
+	// The application must ensure (using scissor if necessary) that all rendering is contained within the render area.
 	VkRenderPassBeginInfo vkrpbi = {};
 	vkrpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	vkrpbi.renderPass = pRendererVulkan->GetRenderPass(renderPassHandle);
@@ -94,6 +94,7 @@ void CommandBufferVulkan::BeginRenderPass(RPHandle renderPassHandle, FBHandle fr
 	}
 	vkrpbi.clearValueCount = count;
 	vkrpbi.pClearValues = clearValues;
+	// There may be a performance cost for using a render area smaller than the framebuffer, unless it matches the render area granularity for the render pass.
 	vkCmdBeginRenderPass(GetVkCommandBuffer(), &vkrpbi, VK_SUBPASS_CONTENTS_INLINE);
 	if (setViewportAndScissor)
 	{

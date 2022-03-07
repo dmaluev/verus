@@ -532,16 +532,18 @@ void RendererVulkan::CreateSwapChain(VkSwapchainKHR oldSwapchain)
 	if (VK_SUCCESS != (res = vkCreateSwapchainKHR(_device, &vksci, GetAllocator(), &_swapChain)))
 		throw VERUS_RUNTIME_ERROR << "vkCreateSwapchainKHR(); res=" << res;
 
-	vkGetSwapchainImagesKHR(_device, _swapChain, &_swapChainBufferCount, nullptr);
-	_vSwapChainImages.resize(_swapChainBufferCount);
-	vkGetSwapchainImagesKHR(_device, _swapChain, &_swapChainBufferCount, _vSwapChainImages.data());
+	uint32_t swapchainImageCount = _swapChainBufferCount;
+	vkGetSwapchainImagesKHR(_device, _swapChain, &swapchainImageCount, nullptr);
+	_vSwapChainImages.resize(swapchainImageCount);
+	vkGetSwapchainImagesKHR(_device, _swapChain, &swapchainImageCount, _vSwapChainImages.data());
+	_swapChainBufferCount = swapchainImageCount;
 }
 
 void RendererVulkan::CreateImageViews()
 {
 	VkResult res = VK_SUCCESS;
 	_vSwapChainImageViews.resize(_swapChainBufferCount);
-	VERUS_U_FOR(i, _swapChainBufferCount)
+	VERUS_FOR(i, _swapChainBufferCount)
 	{
 		VkImageViewCreateInfo vkivci = {};
 		vkivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -583,7 +585,7 @@ void RendererVulkan::CreateSyncObjects()
 	VkFenceCreateInfo vkfci = {};
 	vkfci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	vkfci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-	VERUS_U_FOR(i, s_ringBufferSize)
+	VERUS_FOR(i, s_ringBufferSize)
 	{
 		if (VK_SUCCESS != (res = vkCreateSemaphore(_device, &vksci, GetAllocator(), &_acquireNextImageSemaphores[i])))
 			throw VERUS_RUNTIME_ERROR << "vkCreateSemaphore(); res=" << res;
@@ -821,8 +823,10 @@ void RendererVulkan::BeginFrame(bool present)
 		throw VERUS_RUNTIME_ERROR << "vkResetFences(); res=" << res;
 	if (present)
 	{
-		if (VK_SUCCESS != (res = vkAcquireNextImageKHR(_device, _swapChain, UINT64_MAX, _acquireNextImageSemaphores[_ringBufferIndex], VK_NULL_HANDLE, &_swapChainBufferIndex)))
+		uint32_t imageIndex = _swapChainBufferIndex;
+		if (VK_SUCCESS != (res = vkAcquireNextImageKHR(_device, _swapChain, UINT64_MAX, _acquireNextImageSemaphores[_ringBufferIndex], VK_NULL_HANDLE, &imageIndex)))
 			throw VERUS_RUNTIME_ERROR << "vkAcquireNextImageKHR(); res=" << res;
+		_swapChainBufferIndex = imageIndex;
 	}
 
 	vmaSetCurrentFrameIndex(_vmaAllocator, static_cast<uint32_t>(renderer.GetFrameCount()));
@@ -878,6 +882,7 @@ void RendererVulkan::Present()
 
 	const VkSwapchainKHR swapChains[] = { _swapChain };
 
+	const uint32_t imageIndex = _swapChainBufferIndex;
 	VkPresentInfoKHR vkpi = {};
 	vkpi.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	if (!_queueFamilyIndices.IsSameQueue())
@@ -887,7 +892,7 @@ void RendererVulkan::Present()
 	}
 	vkpi.swapchainCount = VERUS_COUNT_OF(swapChains);
 	vkpi.pSwapchains = swapChains;
-	vkpi.pImageIndices = &_swapChainBufferIndex;
+	vkpi.pImageIndices = &imageIndex;
 	if (VK_SUCCESS != (res = vkQueuePresentKHR(_presentQueue, &vkpi)))
 	{
 		if (res != VK_ERROR_OUT_OF_DATE_KHR)
@@ -1019,17 +1024,17 @@ RPHandle RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> 
 
 	struct SubpassMetadata
 	{
-		int inputRefIndex = -1;
-		int colorRefIndex = -1;
-		int resolveRefIndex = -1;
-		int depthStencilRefIndex = -1;
-		int preserveIndex = -1;
+		int inputRefsOffset = -1;
+		int colorRefsOffset = -1;
+		int resolveRefsOffset = -1;
+		int depthStencilRefOffset = -1;
+		int preserveOffset = -1;
 	};
 
-	Vector<VkAttachmentReference> vAttachmentRef;
-	vAttachmentRef.reserve(20);
-	Vector<uint32_t> vAttachmentIndex;
-	vAttachmentIndex.reserve(20);
+	Vector<VkAttachmentReference> vAttachmentRefs;
+	vAttachmentRefs.reserve(20);
+	Vector<uint32_t> vAttachmentIndices;
+	vAttachmentIndices.reserve(20);
 
 	Vector<SubpassMetadata> vSubpassMetadata;
 	vSubpassMetadata.reserve(ilS.size());
@@ -1042,61 +1047,61 @@ RPHandle RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> 
 		vksd.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
 		vksd.inputAttachmentCount = Utils::Cast32(subpass._ilInput.size());
-		subpassMetadata.inputRefIndex = Utils::Cast32(vAttachmentRef.size());
+		subpassMetadata.inputRefsOffset = Utils::Cast32(vAttachmentRefs.size());
 		for (const auto& input : subpass._ilInput)
 		{
 			VkAttachmentReference vkar = {};
 			vkar.attachment = GetAttachmentIndexByName(input._name);
 			vkar.layout = ToNativeImageLayout(input._layout);
-			vAttachmentRef.push_back(vkar);
+			vAttachmentRefs.push_back(vkar);
 		}
 
 		vksd.colorAttachmentCount = Utils::Cast32(subpass._ilColor.size());
-		subpassMetadata.colorRefIndex = Utils::Cast32(vAttachmentRef.size());
+		subpassMetadata.colorRefsOffset = Utils::Cast32(vAttachmentRefs.size());
 		for (const auto& color : subpass._ilColor)
 		{
 			VkAttachmentReference vkar = {};
 			vkar.attachment = GetAttachmentIndexByName(color._name);
 			vkar.layout = ToNativeImageLayout(color._layout);
-			vAttachmentRef.push_back(vkar);
+			vAttachmentRefs.push_back(vkar);
 		}
 
 		if (subpass._depthStencil._name)
 		{
-			subpassMetadata.depthStencilRefIndex = Utils::Cast32(vAttachmentRef.size());
+			subpassMetadata.depthStencilRefOffset = Utils::Cast32(vAttachmentRefs.size());
 			VkAttachmentReference vkar = {};
 			vkar.attachment = GetAttachmentIndexByName(subpass._depthStencil._name);
 			vkar.layout = ToNativeImageLayout(subpass._depthStencil._layout);
-			vAttachmentRef.push_back(vkar);
+			vAttachmentRefs.push_back(vkar);
 		}
 
 		vksd.preserveAttachmentCount = Utils::Cast32(subpass._ilPreserve.size());
-		subpassMetadata.preserveIndex = Utils::Cast32(vAttachmentIndex.size());
+		subpassMetadata.preserveOffset = Utils::Cast32(vAttachmentIndices.size());
 		for (const auto& preserve : subpass._ilPreserve)
 		{
 			const uint32_t index = GetAttachmentIndexByName(preserve._name);
-			vAttachmentIndex.push_back(index);
+			vAttachmentIndices.push_back(index);
 		}
 
 		vSubpassDesc.push_back(vksd);
 		vSubpassMetadata.push_back(subpassMetadata);
 	}
 
-	// vAttachmentRef is ready, convert indices to actual pointers:
-	if (vAttachmentRef.empty())
+	// vAttachmentRefs is ready, convert offsets to actual pointers:
+	if (vAttachmentRefs.empty())
 		throw VERUS_RECOVERABLE << "CreateRenderPass(); No attachment references";
 	int index = 0;
 	for (auto& sd : vSubpassDesc)
 	{
 		const SubpassMetadata& sm = vSubpassMetadata[index];
 		if (sd.inputAttachmentCount)
-			sd.pInputAttachments = &vAttachmentRef[sm.inputRefIndex];
+			sd.pInputAttachments = &vAttachmentRefs[sm.inputRefsOffset];
 		if (sd.colorAttachmentCount)
-			sd.pColorAttachments = &vAttachmentRef[sm.colorRefIndex];
-		if (sm.depthStencilRefIndex >= 0)
-			sd.pDepthStencilAttachment = &vAttachmentRef[sm.depthStencilRefIndex];
+			sd.pColorAttachments = &vAttachmentRefs[sm.colorRefsOffset];
+		if (sm.depthStencilRefOffset >= 0)
+			sd.pDepthStencilAttachment = &vAttachmentRefs[sm.depthStencilRefOffset];
 		if (sd.preserveAttachmentCount)
-			sd.pPreserveAttachments = &vAttachmentIndex[sm.preserveIndex];
+			sd.pPreserveAttachments = &vAttachmentIndices[sm.preserveOffset];
 		index++;
 	}
 

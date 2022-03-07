@@ -346,8 +346,8 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 		ub._mipLevelCount = dispatchMipCount;
 		ub._srcDimensionCase = ((srcHeight & 1) << 1) | (srcWidth & 1);
 		ub._srgb = IsSRGBFormat(_desc._format);
-		ub._texelSize.x = 1.f / dstWidth;
-		ub._texelSize.y = 1.f / dstHeight;
+		ub._dstTexelSize.x = 1.f / dstWidth;
+		ub._dstTexelSize.y = 1.f / dstHeight;
 
 		if (createComplexSets)
 		{

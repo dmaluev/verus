@@ -814,7 +814,7 @@ void Skeleton::AdaptBindPoseOf(RcSkeleton that)
 				continue;
 			vd /= ld;
 			vs /= ls;
-			const Matrix3 matWorldR = Matrix3::MakeRotateTo(vd, vs);
+			const Matrix3 matWorldR = Matrix3::MakeTrackTo(vd, vs);
 
 			const Point3 offset = pParentDst->_matFromBoneSpace * origin;
 			const Transform3 matToBoneOrigin = Transform3::translation(-Vector3(offset));
@@ -836,7 +836,7 @@ void Skeleton::SimpleIK(CSZ boneDriven, CSZ boneDriver, RcVector3 dirDriverSpace
 	}
 	Vector3 dirDesired = dirDesiredMeshSpace;
 	dirDesired.LimitDot(dirActual, limitDot);
-	const Matrix3 matR = Matrix3::MakeRotateTo(
+	const Matrix3 matR = Matrix3::MakeTrackTo(
 		dirActual,
 		VMath::normalizeApprox(VMath::lerp(alpha, dirActual, dirDesired)));
 	const Matrix3 matDrivenFrom = pBoneDriven->_matFinal.getUpper3x3() * pBoneDriven->_matFromBoneSpace.getUpper3x3();
@@ -943,7 +943,7 @@ void Skeleton::ProcessKinectData(const BYTE* p, RMotion motion, int frame)
 			const Vector3 kinePoseDir = VMath::normalize(bone._matExternal.getTranslation() - kinePosePos);
 
 			Matrix3 matR3;
-			matR3.RotateTo(bindPoseDir, kinePoseDir);
+			matR3.TrackTo(bindPoseDir, kinePoseDir);
 			const Transform3 matR(matR3, Vector3(0));
 			const Transform3 matT = Transform3::translation(kinePosePos - bindPosePos);
 			const Transform3 matOffset = Transform3::translation(kinePosePos);

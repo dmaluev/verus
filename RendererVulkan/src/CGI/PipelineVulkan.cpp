@@ -96,7 +96,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	VkPipelineRasterizationStateCreateInfo rasterizationState = {};
 	rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	rasterizationState.pNext = &rasterizationLineState;
-	rasterizationState.depthClampEnable = desc._rasterizationState._depthClampEnable;
+	rasterizationState.depthClampEnable = VK_FALSE;
 	rasterizationState.polygonMode = ToNativePolygonMode(desc._rasterizationState._polygonMode);
 	rasterizationState.cullMode = ToNativeCullMode(desc._rasterizationState._cullMode);
 	rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;

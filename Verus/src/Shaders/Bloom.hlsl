@@ -57,7 +57,7 @@ FSO mainFS(VSO si)
 	const float sunStrength = g_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.w;
 
 	const float2 ndcPos = ToNdcPos(si.tc0);
-	const float rawDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f).r;
+	const float rawDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
 	const float3 posW = DS_GetPosition(rawDepth, g_ubBloomLightShaftsFS._matInvVP, ndcPos);
 
 	const float3 eyePos = g_ubBloomLightShaftsFS._eyePos.xyz;
@@ -67,8 +67,8 @@ FSO mainFS(VSO si)
 	const float2 spec = pow(saturate(dot(g_ubBloomLightShaftsFS._dirToSun.xyz, pickingRayDir)), float2(7, sunGloss));
 	const float strength = dot(spec, float2(wideStrength, sunStrength));
 
-	float3 lightShafts = 0.f;
-	if (strength >= 0.0001f)
+	float3 lightShafts = 0.0;
+	if (strength >= 0.0001)
 	{
 		const float3 rand = Rand(si.pos.xy);
 
@@ -84,7 +84,7 @@ FSO mainFS(VSO si)
 		const float stride = maxDist / sampleCount;
 
 		float pickingRayLen = rand.y * stride;
-		float acc = 0.f;
+		float acc = 0.0;
 		[unroll] for (int i = 0; i < sampleCount; ++i)
 		{
 			const float3 pos = eyePos + pickingRayDir * pickingRayLen;
@@ -104,7 +104,7 @@ FSO mainFS(VSO si)
 			acc += shadowMask * step(pickingRayLen, depth);
 			pickingRayLen += stride;
 		}
-		lightShafts = acc * (1.f / sampleCount) * g_ubBloomLightShaftsFS._sunColor.rgb * g_ubBloomFS._exposure.x * strength;
+		lightShafts = acc * (1.0 / sampleCount) * g_ubBloomLightShaftsFS._sunColor.rgb * g_ubBloomFS._exposure.x * strength;
 	}
 
 	so.color.rgb = lightShafts;
@@ -112,14 +112,14 @@ FSO mainFS(VSO si)
 	const float colorScale = g_ubBloomFS._colorScale_colorBias.x;
 	const float colorBias = g_ubBloomFS._colorScale_colorBias.y;
 
-	const float4 rawColor = g_texColor.SampleLevel(g_samColor, si.tc0, 0.f);
+	const float4 rawColor = g_texColor.SampleLevel(g_samColor, si.tc0, 0.0);
 	const float3 color = rawColor.rgb * g_ubBloomFS._exposure.x;
 	const float3 bloom = saturate((color - colorBias) * colorScale);
 
 	so.color.rgb = bloom;
 #endif
 
-	so.color.a = 1.f;
+	so.color.a = 1.0;
 
 	return so;
 }

@@ -25,8 +25,8 @@ namespace verus
 
 		struct Data
 		{
-			TTimePoint _timePrev;
-			TTimePoint _timePrev2;
+			TTimePoint _tpPrev;
+			TTimePoint _tpPrev2;
 			double     _t = 0;
 			float      _dt = 0;
 			float      _dtInv = 0;
@@ -38,6 +38,7 @@ namespace verus
 			bool       _pause = false;
 		};
 
+		TTimePoint        _tpInit;
 		Vector<Countdown> _vCountdowns;
 		Data              _data[static_cast<int>(Type::count)];
 
@@ -50,7 +51,8 @@ namespace verus
 
 		bool IsEventEvery(int ms) const;
 
-		float GetTime(Type type = Type::game) const { return static_cast<float>(_data[+type]._t); }
+		float GetTime() const;
+		float GetAccumulatedTime(Type type = Type::game) const { return static_cast<float>(_data[+type]._t); }
 		float GetDeltaTime(Type type = Type::game) const { return _data[+type]._dt; }
 		float GetGameSpeed(Type type = Type::game) const { return _data[+type]._pause ? 0 : _data[+type]._gameSpeed; }
 		void SetGameSpeed(float speed, Type type = Type::game) { _data[+type]._gameSpeed = speed; }
@@ -88,5 +90,5 @@ namespace verus
 	VERUS_TYPEDEFS(PerfTimer);
 }
 
-#define VERUS_PERF_BEGIN	Utils::PerfTimer perfTimer; perfTimer.Begin();
-#define VERUS_PERF_END	perfTimer.End(__FUNCTION__);
+#define VERUS_PERF_BEGIN Utils::PerfTimer perfTimer; perfTimer.Begin();
+#define VERUS_PERF_END   perfTimer.End(__FUNCTION__);

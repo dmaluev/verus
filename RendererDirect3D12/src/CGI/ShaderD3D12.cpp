@@ -420,12 +420,22 @@ CSHandle ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_
 		_vComplexSets.resize(complexSetHandle + 1);
 	}
 
+	bool toViewHeap = false;
+	if (setNumber & ShaderD3D12::SET_MOD_TO_VIEW_HEAP)
+	{
+		setNumber &= ~ShaderD3D12::SET_MOD_TO_VIEW_HEAP;
+		toViewHeap = true;
+	}
+
 	auto& dsd = _vDescriptorSetDesc[setNumber];
 	VERUS_RT_ASSERT(dsd._vSamplers.size() == il.size());
 
 	RComplexSet complexSet = _vComplexSets[complexSetHandle];
 	complexSet._vTextures.reserve(il.size());
-	complexSet._dhViews.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Utils::Cast32(il.size()));
+	if (toViewHeap)
+		complexSet._hpBase = pRendererD3D12->GetViewHeap().GetNextHandlePair(1 + Utils::Cast32(il.size()));
+	else
+		complexSet._dhViews.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Utils::Cast32(il.size()));
 	if (!dsd._staticSamplersOnly)
 		complexSet._dhSamplers.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, Utils::Cast32(il.size()));
 	int index = 0;
@@ -436,17 +446,37 @@ CSHandle ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_
 		auto& texD3D12 = static_cast<RTextureD3D12>(*x);
 		if (Sampler::storage == dsd._vSamplers[index])
 		{
-			pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
-				complexSet._dhViews.AtCPU(index),
-				texD3D12.GetDescriptorHeapUAV().AtCPU(mip),
-				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			if (toViewHeap)
+			{
+				pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
+					CD3DX12_CPU_DESCRIPTOR_HANDLE(complexSet._hpBase._hCPU, 1 + index, pRendererD3D12->GetViewHeap().GetHandleIncrementSize()),
+					texD3D12.GetDescriptorHeapUAV().AtCPU(mip),
+					D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			}
+			else
+			{
+				pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
+					complexSet._dhViews.AtCPU(index),
+					texD3D12.GetDescriptorHeapUAV().AtCPU(mip),
+					D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			}
 		}
 		else
 		{
-			pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
-				complexSet._dhViews.AtCPU(index),
-				texD3D12.GetDescriptorHeapSRV().AtCPU(mip),
-				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			if (toViewHeap)
+			{
+				pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
+					CD3DX12_CPU_DESCRIPTOR_HANDLE(complexSet._hpBase._hCPU, 1 + index, pRendererD3D12->GetViewHeap().GetHandleIncrementSize()),
+					texD3D12.GetDescriptorHeapSRV().AtCPU(mip),
+					D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			}
+			else
+			{
+				pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
+					complexSet._dhViews.AtCPU(index),
+					texD3D12.GetDescriptorHeapSRV().AtCPU(mip),
+					D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			}
 			if (Sampler::custom == dsd._vSamplers[index])
 			{
 				pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
@@ -540,7 +570,9 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, in
 	auto& dsd = _vDescriptorSetDesc[setNumber];
 	int at = 0;
 	if (copyDescOnly)
+	{
 		at = dsd._capacity * pRendererD3D12->GetRingBufferIndex();
+	}
 	else
 	{
 		if (dsd._offset + dsd._alignedSize > dsd._capacityInBytes)
@@ -557,14 +589,26 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, in
 		dsd._index++;
 	}
 
-	auto hpBase = pRendererD3D12->GetViewHeap().GetNextHandlePair();
+	bool hpBaseUsed = false;
+	HandlePair hpBase;
+	if (complexSetHandle >= 0)
+	{
+		const auto& complexSet = _vComplexSets[complexSetHandle];
+		if (!complexSet._dhViews.GetD3DDescriptorHeap())
+		{
+			hpBase = complexSet._hpBase;
+			hpBaseUsed = true;
+		}
+	}
+	if (!hpBaseUsed)
+		hpBase = pRendererD3D12->GetViewHeap().GetNextHandlePair();
 
 	// Copy CBV:
 	pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
 		hpBase._hCPU,
 		dsd._dhDynamicOffsets.AtCPU(at),
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	if (complexSetHandle >= 0)
+	if (complexSetHandle >= 0 && !hpBaseUsed)
 	{
 		// Copy SRVs:
 		const auto& complexSet = _vComplexSets[complexSetHandle];

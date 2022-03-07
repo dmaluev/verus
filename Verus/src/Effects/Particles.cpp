@@ -316,7 +316,7 @@ void Particles::Update()
 		}
 
 		Matrix3 matAim3;
-		matAim3.AimZ(normal, &up);
+		matAim3.TrackToZ(normal, &up);
 		Transform3 matAim(matAim3, Vector3(0));
 
 		VERUS_FOR(i, _capacity)
@@ -750,7 +750,7 @@ Transform3 Particles::GetBillboardMatrix(int index, float size, float spin, RcVe
 		if (_decal)
 		{
 			Matrix3 matAim3;
-			matAim3.AimZ(-normal2, &up2);
+			matAim3.TrackToZ(-normal2, &up2);
 			matAim = Transform3(matAim3, Vector3(0));
 		}
 		else
@@ -759,7 +759,7 @@ Transform3 Particles::GetBillboardMatrix(int index, float size, float spin, RcVe
 			const Vector3 right = VMath::cross(up2, normal2);
 			normal2 = VMath::normalizeApprox(VMath::cross(right, up2));
 			Matrix3 matAim3;
-			matAim3.AimZ(normal2, &up2);
+			matAim3.TrackToZ(normal2, &up2);
 			matAim = Transform3(matAim3, Vector3(0));
 		}
 	}

@@ -73,7 +73,7 @@ FSO mainFS(VSO si)
 	const float4 rawColor = g_tex.Sample(g_sam, si.tc0);
 
 	so.color = rawColor * si.color0;
-	so.color.a *= 1.f - si.additive;
+	so.color.a *= 1.0 - si.additive;
 
 	return so;
 }

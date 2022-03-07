@@ -6,6 +6,7 @@ using namespace verus::Scene;
 
 LightMapBaker::LightMapBaker()
 {
+	VERUS_ZERO_MEM(_queuedCount);
 }
 
 LightMapBaker::~LightMapBaker()
@@ -17,10 +18,14 @@ void LightMapBaker::Init(RcDesc desc)
 {
 	VERUS_INIT();
 	VERUS_QREF_RENDERER;
+	VERUS_QREF_TIMER;
 
 	_desc = desc;
 	_pathname = desc._pathname;
 	_desc._pathname = nullptr;
+
+	_stats = Stats();
+	_stats._startTime = timer.GetTime();
 
 	_currentI = 0;
 	_currentJ = 0;
@@ -77,8 +82,8 @@ void LightMapBaker::Init(RcDesc desc)
 
 	_rph = renderer->CreateRenderPass(
 		{
-			CGI::RP::Attachment("Color", CGI::Format::unormR8).LoadOpClear().Layout(CGI::ImageLayout::fsReadOnly),
-			CGI::RP::Attachment("Depth", CGI::Format::unormD16).LoadOpClear().Layout(CGI::ImageLayout::depthStencilAttachment),
+			CGI::RP::Attachment("Color", CGI::Format::floatR32).LoadOpClear().Layout(CGI::ImageLayout::fsReadOnly),
+			CGI::RP::Attachment("Depth", CGI::Format::unormD24uintS8).LoadOpClear().Layout(CGI::ImageLayout::depthStencilAttachment),
 		},
 		{
 			CGI::RP::Subpass("Sp0").Color(
@@ -88,37 +93,95 @@ void LightMapBaker::Init(RcDesc desc)
 		},
 		{});
 
+	{
+		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), renderer.GetShaderQuad(), "#HemicubeMask", _rph);
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_MUL;
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc.DisableDepthTest();
+		_pipe[PIPE_HEMICUBE_MASK].Init(pipeDesc);
+	}
+	{
+		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), renderer.GetShaderQuad(), "#", renderer.GetRenderPassHandle_AutoWithDepth());
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc.DisableDepthTest();
+		_pipe[PIPE_QUAD].Init(pipeDesc);
+	}
+
 	CGI::TextureDesc texDesc;
-	texDesc._name = "LightMapBaker.ColorTex";
-	texDesc._clearValue = Vector4::Replicate(1);
-	texDesc._format = CGI::Format::unormR8;
-	texDesc._width = _desc._texLumelSide;
-	texDesc._height = _desc._texLumelSide;
-	texDesc._mipLevels = 0;
-	texDesc._flags = CGI::TextureDesc::Flags::colorAttachment | CGI::TextureDesc::Flags::generateMips;
-	texDesc._readbackMip = -1;
-	_tex[TEX_COLOR].Init(texDesc);
-	texDesc.Reset();
 	texDesc._name = "LightMapBaker.DepthTex";
 	texDesc._clearValue = Vector4(1);
-	texDesc._format = CGI::Format::unormD16;
+	texDesc._format = CGI::Format::unormD24uintS8;
 	texDesc._width = _desc._texLumelSide;
 	texDesc._height = _desc._texLumelSide;
 	_tex[TEX_DEPTH].Init(texDesc);
+	texDesc.Reset();
+	texDesc._name = "LightMapBaker.Dummy";
+	texDesc._format = CGI::Format::unormR8G8B8A8;
+	texDesc._width = 16;
+	texDesc._height = 16;
+	_tex[TEX_DUMMY].Init(texDesc);
 
-	_fbh = renderer->CreateFramebuffer(_rph,
+	VERUS_FOR(ringBufferIndex, CGI::BaseRenderer::s_ringBufferSize)
+	{
+		VERUS_FOR(batchIndex, s_batchSize)
 		{
-			_tex[TEX_COLOR],
-			_tex[TEX_DEPTH]
-		},
-		_desc._texLumelSide,
-		_desc._texLumelSide);
+			CGI::TextureDesc texDesc;
+			texDesc._name = "LightMapBaker.ColorTex";
+			texDesc._clearValue = Vector4::Replicate(1);
+			texDesc._format = CGI::Format::floatR32;
+			texDesc._width = _desc._texLumelSide;
+			texDesc._height = _desc._texLumelSide;
+			texDesc._mipLevels = 0;
+			texDesc._flags = CGI::TextureDesc::Flags::colorAttachment | CGI::TextureDesc::Flags::generateMips;
+			texDesc._readbackMip = -1;
+			_texColor[ringBufferIndex][batchIndex].Init(texDesc);
+		}
+		_cshQuad[ringBufferIndex] = renderer.GetShaderQuad()->BindDescriptorSetTextures(1, { _texColor[ringBufferIndex][0] });
+	}
+	_cshHemicubeMask = renderer.GetShaderQuad()->BindDescriptorSetTextures(1, { _tex[TEX_DUMMY] });
+
+	VERUS_FOR(ringBufferIndex, CGI::BaseRenderer::s_ringBufferSize)
+	{
+		VERUS_FOR(batchIndex, s_batchSize)
+		{
+			CGI::TexturePtr tex = _texColor[ringBufferIndex][batchIndex];
+			_fbh[ringBufferIndex][batchIndex] = renderer->CreateFramebuffer(_rph,
+				{
+					tex,
+					_tex[TEX_DEPTH]
+				},
+				_desc._texLumelSide,
+				_desc._texLumelSide);
+
+			// Define texture:
+			renderer.GetCommandBuffer()->BeginRenderPass(_rph, _fbh[ringBufferIndex][batchIndex],
+				{
+					tex->GetClearValue(),
+					_tex[TEX_DEPTH]->GetClearValue()
+				});
+			renderer.GetCommandBuffer()->EndRenderPass();
+			tex->GenerateMips();
+		}
+		_vQueued[ringBufferIndex].resize(s_batchSize);
+	}
+
+	_drawEmptyState = CGI::BaseRenderer::s_ringBufferSize + 1;
 }
 
 void LightMapBaker::Done()
 {
 	VERUS_QREF_RENDERER;
-	renderer->DeleteFramebuffer(_fbh);
+	if (renderer.GetShaderQuad())
+	{
+		VERUS_FOR(ringBufferIndex, CGI::BaseRenderer::s_ringBufferSize)
+			renderer.GetShaderQuad()->FreeDescriptorSet(_cshQuad[ringBufferIndex]);
+		renderer.GetShaderQuad()->FreeDescriptorSet(_cshHemicubeMask);
+	}
+	VERUS_FOR(ringBufferIndex, CGI::BaseRenderer::s_ringBufferSize)
+	{
+		VERUS_FOR(batchIndex, s_batchSize)
+			renderer->DeleteFramebuffer(_fbh[ringBufferIndex][batchIndex]);
+	}
 	renderer->DeleteRenderPass(_rph);
 	VERUS_DONE(LightMapBaker);
 }
@@ -127,42 +190,251 @@ void LightMapBaker::Update()
 {
 	if (!IsInitialized() || !IsBaking())
 		return;
-	VERUS_FOR(rep, _repsPerUpdate)
+
+	if (_drawEmptyState)
 	{
-		if (_currentI == _desc._texHeight)
+		if (CGI::BaseRenderer::s_ringBufferSize + 1 == _drawEmptyState)
+			DrawEmpty();
+		_drawEmptyState--;
+		if (!_drawEmptyState)
 		{
-			Save();
-			_desc._mode = Mode::idle;
-			break;
+			float value = 0;
+			_texColor[0][0]->ReadbackSubresource(&value, false);
+			_normalizationFactor = 1 / value;
 		}
+		else
+		{
+			return;
+		}
+	}
 
-		_currentUV = glm::vec2(
-			(_currentJ + 0.5f) / _desc._texWidth,
-			(_currentI + 0.5f) / _desc._texHeight);
+	VERUS_QREF_RENDERER;
 
-		_quadtree.TraverseVisible(_currentUV);
+	const int ringBufferIndex = renderer->GetRingBufferIndex();
 
+	auto NextLumel = [this]()
+	{
 		_currentJ++;
 		if (_currentJ == _desc._texWidth)
 		{
 			_currentJ = 0;
 			_currentI++;
 		}
+	};
+
+	int& queuedCount = _queuedCount[ringBufferIndex];
+	if (queuedCount > 0) // Was there anything queued?
+	{
+		VERUS_FOR(i, queuedCount)
+		{
+			float value = 0;
+			_texColor[ringBufferIndex][i]->ReadbackSubresource(&value, false);
+			const BYTE value8 = Convert::UnormToUint8(Math::Clamp<float>(value * _normalizationFactor, 0, 1));
+
+			BYTE* pDst = reinterpret_cast<BYTE*>(_vQueued[ringBufferIndex][i]._pDst);
+			VERUS_FOR(j, 3)
+				pDst[j] = Math::Max(pDst[j], value8);
+			pDst[3] = 0xFF;
+		}
 	}
-	_progress = Math::Clamp<float>((_currentI * _desc._texWidth + _currentJ) * _invMapSize, 0, 1);
+	// Clear queued:
+	memset(_vQueued[ringBufferIndex].data(), 0, sizeof(Queued) * s_batchSize);
+	queuedCount = 0;
+
+	if (_currentI >= _desc._texHeight)
+	{
+		bool finish = true;
+		VERUS_FOR(ringBufferIndex, CGI::BaseRenderer::s_ringBufferSize)
+		{
+			if (_queuedCount[ringBufferIndex])
+			{
+				finish = false;
+				break;
+			}
+		}
+		if (finish)
+		{
+			ComputeEdgePadding();
+			Save();
+			_desc._mode = Mode::idle;
+		}
+		return;
+	}
+
+	VERUS_FOR(rep, _repsPerUpdate)
+	{
+		// Fill queue:
+		int& queuedCount = _queuedCount[ringBufferIndex];
+		VERUS_RT_ASSERT(!queuedCount);
+		while (queuedCount + s_maxLayers <= s_batchSize) // Enough space for this lumel?
+		{
+			_currentUV = glm::vec2(
+				(_currentJ + 0.5f) / _desc._texWidth,
+				(_currentI + 0.5f) / _desc._texHeight);
+
+			_currentLayer = 0;
+			_quadtree.TraverseVisible(_currentUV);
+			_stats._maxLayer = Math::Max<int>(_stats._maxLayer, _currentLayer);
+
+			NextLumel();
+			if (_currentI >= _desc._texHeight)
+				break; // No more lumels.
+		}
+
+		// Draw queue:
+		VERUS_FOR(i, queuedCount)
+		{
+			RQueued queued = _vQueued[ringBufferIndex][i];
+			DrawLumel(queued._pos, queued._nrm, i);
+		}
+	}
+
+	const int progressPrev = static_cast<int>(_stats._progress * 100);
+	_stats._progress = Math::Clamp<float>((_currentI * _desc._texWidth + _currentJ) * _invMapSize, 0, 1);
+	const int progressNext = static_cast<int>(_stats._progress * 100);
+	if (progressPrev != progressNext)
+	{
+		VERUS_QREF_TIMER;
+		const float elapsedTime = timer.GetTime() - _stats._startTime;
+		char buffer[80];
+		sprintf_s(buffer, "Elapsed time: %.1fs, max layer: %d, progress: %.1f%%", elapsedTime, _stats._maxLayer, _stats._progress * 100);
+		_stats._info = buffer;
+	}
 }
 
-void LightMapBaker::DrawLumel(RcPoint3 eyePos, RcVector3 frontDir)
+void LightMapBaker::Draw()
 {
+	if (!IsInitialized() || !IsBaking())
+		return;
+
 	VERUS_QREF_RENDERER;
 
-	renderer.GetCommandBuffer()->BeginRenderPass(_rph, _fbh,
+	const int ringBufferIndex = renderer->GetRingBufferIndex();
+	auto cb = renderer.GetCommandBuffer();
+	auto shader = renderer.GetShaderQuad();
+
+	cb->BindPipeline(_pipe[PIPE_QUAD]);
+	shader->BeginBindDescriptors();
+	cb->BindDescriptors(shader, 0);
+	cb->BindDescriptors(shader, 1, _cshQuad[ringBufferIndex]);
+	shader->EndBindDescriptors();
+	renderer.DrawQuad(cb.Get());
+}
+
+void LightMapBaker::DrawEmpty()
+{
+	// Let's compute normalization factor by drawing an empty scene.
+	VERUS_QREF_RENDERER;
+
+	auto cb = renderer.GetCommandBuffer();
+	CGI::TexturePtr tex = _texColor[0][0];
+
+	cb->BeginRenderPass(_rph, _fbh[0][0],
 		{
-			_tex[TEX_COLOR]->GetClearValue(),
+			tex->GetClearValue(),
 			_tex[TEX_DEPTH]->GetClearValue()
 		});
 
-	renderer.GetCommandBuffer()->EndRenderPass();
+	DrawHemicubeMask();
+
+	cb->EndRenderPass();
+
+	tex->GenerateMips();
+	tex->ReadbackSubresource(nullptr);
+}
+
+void LightMapBaker::DrawHemicubeMask()
+{
+	VERUS_QREF_RENDERER;
+
+	auto cb = renderer.GetCommandBuffer();
+	auto shader = renderer.GetShaderQuad();
+
+	const float side = static_cast<float>(_desc._texLumelSide);
+	cb->BindPipeline(_pipe[PIPE_HEMICUBE_MASK]);
+	cb->SetViewport({ Vector4(0, 0, side, side) });
+	shader->BeginBindDescriptors();
+	cb->BindDescriptors(shader, 0);
+	cb->BindDescriptors(shader, 1, _cshHemicubeMask);
+	shader->EndBindDescriptors();
+	renderer.DrawQuad(cb.Get());
+}
+
+void LightMapBaker::DrawLumel(RcPoint3 pos, RcVector3 nrm, int batchIndex)
+{
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_SM;
+
+	const int ringBufferIndex = renderer->GetRingBufferIndex();
+	auto cb = renderer.GetCommandBuffer();
+	auto shader = renderer.GetShaderQuad();
+	CGI::TexturePtr tex = _texColor[ringBufferIndex][batchIndex];
+
+	cb->BeginRenderPass(_rph, _fbh[ringBufferIndex][batchIndex],
+		{
+			tex->GetClearValue(),
+			_tex[TEX_DEPTH]->GetClearValue()
+		});
+	if (_pDelegate)
+	{
+		const glm::vec2 randVec = glm::circularRand(1.f);
+		const Matrix3 m3 = Matrix3::MakeTrackTo(Vector3(0, 0, 1), nrm);
+		const Vector3 perpVecA = m3 * Vector3(randVec.x, randVec.y, 0); // Up.
+		const Vector3 perpVecB = VMath::cross(perpVecA, nrm); // Side.
+
+		DrawLumelDesc drawLumelDesc;
+		drawLumelDesc._eyePos = pos;
+		drawLumelDesc._frontDir = nrm;
+		_pDelegate->LightMapBaker_Draw(CGI::CubeMapFace::none, drawLumelDesc);
+		VERUS_FOR(i, 5)
+		{
+			const CGI::CubeMapFace cubeMapFace = static_cast<CGI::CubeMapFace>(i);
+
+			Camera cam;
+			cam.MoveEyeTo(drawLumelDesc._eyePos);
+			switch (cubeMapFace)
+			{
+			case CGI::CubeMapFace::posX:
+				cam.MoveAtTo(drawLumelDesc._eyePos + perpVecB);
+				cam.SetUpDirection(perpVecA);
+				break;
+			case CGI::CubeMapFace::negX:
+				cam.MoveAtTo(drawLumelDesc._eyePos - perpVecB);
+				cam.SetUpDirection(perpVecA);
+				break;
+			case CGI::CubeMapFace::posY:
+				cam.MoveAtTo(drawLumelDesc._eyePos + perpVecA);
+				cam.SetUpDirection(-nrm);
+				break;
+			case CGI::CubeMapFace::negY:
+				cam.MoveAtTo(drawLumelDesc._eyePos - perpVecA);
+				cam.SetUpDirection(nrm);
+				break;
+			case CGI::CubeMapFace::posZ:
+				cam.MoveAtTo(drawLumelDesc._eyePos + nrm);
+				cam.SetUpDirection(perpVecA);
+				break;
+			}
+			cam.SetYFov(VERUS_PI * 0.5f);
+			cam.SetAspectRatio(1);
+			cam.SetZNear(0.00001f);
+			cam.SetZFar(_desc._distance);
+			cam.Update();
+			PCamera pPrevCamera = sm.SetCamera(&cam);
+
+			drawLumelDesc._frontDir = cam.GetFrontDirection();
+			_pDelegate->LightMapBaker_Draw(cubeMapFace, drawLumelDesc);
+
+			sm.SetCamera(pPrevCamera);
+		}
+		_pDelegate->LightMapBaker_Draw(CGI::CubeMapFace::negZ, drawLumelDesc);
+
+		DrawHemicubeMask();
+	}
+	cb->EndRenderPass();
+
+	tex->GenerateMips();
+	tex->ReadbackSubresource(nullptr);
 }
 
 Continue LightMapBaker::Quadtree_ProcessNode(void* pToken, void* pUser)
@@ -171,6 +443,7 @@ Continue LightMapBaker::Quadtree_ProcessNode(void* pToken, void* pUser)
 	const int index = _currentI * _desc._texWidth + _currentJ;
 	if (Math::IsPointInsideTriangle(face._v[0]._tc, face._v[1]._tc, face._v[2]._tc, _currentUV))
 	{
+		VERUS_QREF_RENDERER;
 		switch (GetMode())
 		{
 		case Mode::faces:
@@ -180,15 +453,23 @@ Continue LightMapBaker::Quadtree_ProcessNode(void* pToken, void* pUser)
 		break;
 		case Mode::ambientOcclusion:
 		{
+			VERUS_RT_ASSERT(_currentLayer < s_maxLayers);
+
 			const Vector3 bc = Math::Barycentric(face._v[0]._tc, face._v[1]._tc, face._v[2]._tc, _currentUV);
 			const glm::vec3 pos = Math::BarycentricInterpolation(face._v[0]._pos, face._v[1]._pos, face._v[2]._pos, bc);
 			const glm::vec3 nrm = Math::BarycentricInterpolation(face._v[0]._nrm, face._v[1]._nrm, face._v[2]._nrm, bc);
 
-			const glm::vec4 nrm2 = glm::vec4(glm::normalize(nrm) * 0.5f + 0.5f, 1.f);
+			const int ringBufferIndex = renderer->GetRingBufferIndex();
+			int& queuedCount = _queuedCount[ringBufferIndex];
+			RQueued queued = _vQueued[ringBufferIndex][queuedCount];
+			queued._pos = pos;
+			queued._nrm = glm::normalize(nrm);
+			queued._pDst = &_vMap[index];
 
-			_vMap[index] = Convert::ColorFloatToInt32(&nrm2.x);
+			_currentLayer++;
+			queuedCount++;
 
-			DrawLumel(pos, nrm);
+			return (_currentLayer >= s_maxLayers) ? Continue::no : Continue::yes;
 		}
 		break;
 		}
@@ -196,7 +477,98 @@ Continue LightMapBaker::Quadtree_ProcessNode(void* pToken, void* pUser)
 	return Continue::yes;
 }
 
+void LightMapBaker::ComputeEdgePadding(int radius)
+{
+	const int radiusSq = radius * radius;
+	VERUS_P_FOR(i, _desc._texHeight)
+	{
+		const int offset = i * _desc._texWidth;
+		VERUS_FOR(j, _desc._texWidth)
+		{
+			BYTE* pOriginChannels = reinterpret_cast<BYTE*>(&_vMap[offset + j]);
+			if (pOriginChannels[3])
+				continue;
+
+			int minRadiusSq = INT_MAX;
+			BYTE color[4] = {};
+			for (int di = -radius; di <= radius; ++di)
+			{
+				const int ki = i + di;
+				if (ki < 0 || ki >= _desc._texHeight)
+					continue;
+				for (int dj = -radius; dj <= radius; ++dj)
+				{
+					const int kj = j + dj;
+					if (kj < 0 || kj >= _desc._texWidth)
+						continue;
+					if (!di && !dj)
+						continue;
+					const int lenSq = di * di + dj * dj;
+					if (lenSq > radiusSq)
+						continue;
+					BYTE* pKernelChannels = reinterpret_cast<BYTE*>(&_vMap[ki * _desc._texWidth + kj]);
+					if (!pKernelChannels[3])
+						continue;
+					if (lenSq < minRadiusSq)
+					{
+						minRadiusSq = lenSq;
+						memcpy(color, pKernelChannels, 3);
+					}
+				}
+			}
+
+			if (minRadiusSq != INT_MAX)
+				memcpy(pOriginChannels, color, 3);
+		}
+	});
+}
+
 void LightMapBaker::Save()
 {
 	IO::FileSystem::SaveImage(_C(_pathname), _vMap.data(), _desc._texWidth, _desc._texHeight, IO::ImageFormat::extension);
+}
+
+void LightMapBaker::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
+{
+	VERUS_RT_ASSERT(pipe >= PIPE_MESH_SIMPLE_BAKE_AO && pipe <= PIPE_MESH_SIMPLE_BAKE_AO_SKINNED);
+
+	if (!_pipe[pipe])
+	{
+		static CSZ branches[] =
+		{
+			"#BakeAO",
+			"#BakeAOInstanced",
+			"#BakeAORobotic",
+			"#BakeAOSkinned"
+		};
+		CGI::PipelineDesc pipeDesc(_desc._pMesh->GetGeometry(), Mesh::GetSimpleShader(), branches[pipe], _rph);
+		pipeDesc._vertexInputBindingsFilter = _desc._pMesh->GetBindingsMask();
+		_pipe[pipe].Init(pipeDesc);
+	}
+
+	cb->BindPipeline(_pipe[pipe]);
+}
+
+void LightMapBaker::SetViewportFor(CGI::CubeMapFace cubeMapFace, CGI::CommandBufferPtr cb)
+{
+	const float sideDiv2 = static_cast<float>(_desc._texLumelSide >> 1);
+	const float sideDiv4 = static_cast<float>(_desc._texLumelSide >> 2);
+	switch (cubeMapFace)
+	{
+	case CGI::CubeMapFace::posX:
+		cb->SetViewport({ Vector4(-sideDiv4, sideDiv4, sideDiv2, sideDiv2) });
+		break;
+	case CGI::CubeMapFace::negX:
+		cb->SetViewport({ Vector4(sideDiv2 + sideDiv4, sideDiv4, sideDiv2, sideDiv2) });
+		break;
+	case CGI::CubeMapFace::posY:
+		cb->SetViewport({ Vector4(sideDiv4, -sideDiv4, sideDiv2, sideDiv2) });
+		break;
+	case CGI::CubeMapFace::negY:
+		cb->SetViewport({ Vector4(sideDiv4, sideDiv2 + sideDiv4, sideDiv2, sideDiv2) });
+		break;
+	case CGI::CubeMapFace::posZ:
+		cb->SetViewport({ Vector4(sideDiv4, sideDiv4, sideDiv2, sideDiv2) });
+		break;
+	}
 }

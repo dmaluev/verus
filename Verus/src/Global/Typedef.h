@@ -1,6 +1,8 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
+// Remember kids, unsigned integers are bad, mkay?
+
 #define FALSE          0
 #define TRUE           1
 typedef int            BOOL;

@@ -390,7 +390,6 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 	pCB->BindPipeline(renderer.GetPipelineGenerateMips(!!(_desc._flags & TextureDesc::Flags::exposureMips)));
 
 	shader->BeginBindDescriptors();
-	const bool createComplexSets = _vCshGenerateMips.empty();
 	int dispatchIndex = 0;
 	for (int srcMip = 0; srcMip < maxMipLevel;)
 	{
@@ -407,22 +406,15 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 		ub._mipLevelCount = dispatchMipCount;
 		ub._srcDimensionCase = ((srcHeight & 1) << 1) | (srcWidth & 1);
 		ub._srgb = IsSRGBFormat(_desc._format);
-		ub._texelSize.x = 1.f / dstWidth;
-		ub._texelSize.y = 1.f / dstHeight;
+		ub._dstTexelSize.x = 1.f / dstWidth;
+		ub._dstTexelSize.y = 1.f / dstHeight;
 
-		if (createComplexSets)
-		{
-			int mips[5] = {}; // For input texture (always mip 0) and 4 UAV mips.
-			VERUS_FOR(mip, dispatchMipCount)
-				mips[mip + 1] = srcMip + mip;
-			const CSHandle complexSetHandle = shader->BindDescriptorSetTextures(0, { tex, tex, tex, tex, tex }, mips);
-			_vCshGenerateMips.push_back(complexSetHandle);
-			pCB->BindDescriptors(shader, 0, complexSetHandle);
-		}
-		else
-		{
-			pCB->BindDescriptors(shader, 0, _vCshGenerateMips[dispatchIndex]);
-		}
+		int mips[5] = {}; // For input texture (always mip 0) and 4 UAV mips.
+		VERUS_FOR(mip, dispatchMipCount)
+			mips[mip + 1] = srcMip + mip;
+		const CSHandle complexSetHandle = shader->BindDescriptorSetTextures(0 | ShaderD3D12::SET_MOD_TO_VIEW_HEAP, { tex, tex, tex, tex, tex }, mips);
+		_vCshGenerateMips.push_back(complexSetHandle);
+		pCB->BindDescriptors(shader, 0, complexSetHandle);
 
 		pCB->Dispatch(Math::DivideByMultiple(dstWidth, 8), Math::DivideByMultiple(dstHeight, 8));
 
@@ -479,6 +471,7 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 	if (_mainLayout != ImageLayout::xsReadOnly)
 		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, _mainLayout, Range(0, _desc._mipLevels));
 
+	ClearCshGenerateMips();
 	Schedule(0);
 }
 
@@ -495,6 +488,13 @@ Continue TextureD3D12::Scheduled_Update()
 	}
 	_vStagingBuffers.clear();
 
+	ClearCshGenerateMips();
+
+	return Continue::no;
+}
+
+void TextureD3D12::ClearCshGenerateMips()
+{
 	if (!_vCshGenerateMips.empty())
 	{
 		VERUS_QREF_RENDERER;
@@ -503,8 +503,6 @@ Continue TextureD3D12::Scheduled_Update()
 			shader->FreeDescriptorSet(csh);
 		_vCshGenerateMips.clear();
 	}
-
-	return Continue::no;
 }
 
 void TextureD3D12::CreateSampler()

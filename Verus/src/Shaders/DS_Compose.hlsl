@@ -70,14 +70,14 @@ FSO2 mainFS(VSO si)
 	const float2 ndcPos = si.clipSpacePos.xy;
 
 	// <Sample>
-	const float4 rawGBuffer0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.f);
-	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.f);
+	const float4 rawGBuffer0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.0);
+	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
 #ifdef DEF_AO
-	const float4 rawGBuffer2 = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.f);
+	const float4 rawGBuffer2 = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.0);
 #endif
-	const float rawDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f).r;
-	const float4 rawAccDiff = g_texAccDiff.SampleLevel(g_samAccDiff, si.tc0, 0.f);
-	const float4 rawAccSpec = g_texAccSpec.SampleLevel(g_samAccSpec, si.tc0, 0.f);
+	const float rawDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
+	const float4 rawAccDiff = g_texAccDiff.SampleLevel(g_samAccDiff, si.tc0, 0.0);
+	const float4 rawAccSpec = g_texAccSpec.SampleLevel(g_samAccSpec, si.tc0, 0.0);
 	// </Sample>
 
 	// White color means 50% albedo, black is not really black:
@@ -88,18 +88,18 @@ FSO2 mainFS(VSO si)
 	const float depth = ToLinearDepth(rawDepth, g_ubComposeFS._zNearFarEx);
 
 #ifdef DEF_AO
-	const float aoDiff = 0.5f + 0.5f * rawGBuffer2.r;
+	const float aoDiff = 0.5 + 0.5 * rawGBuffer2.r;
 	const float aoSpec = aoDiff;
 	const float aoAmb = rawGBuffer2.r;
 #else
-	const float aoDiff = 1.f;
-	const float aoSpec = 1.f;
-	const float aoAmb = 1.f;
+	const float aoDiff = 1.0;
+	const float aoSpec = 1.0;
+	const float aoAmb = 1.0;
 #endif
 
 	const float3 normalW = mul(normalWV, (float3x3)g_ubComposeFS._matInvV);
 	const float grayAmbient = Grayscale(ambientColor);
-	const float3 finalAmbientColor = lerp(grayAmbient * 0.25f, ambientColor, normalW.y * 0.5f + 0.5f);
+	const float3 finalAmbientColor = lerp(grayAmbient * 0.25, ambientColor, normalW.y * 0.5 + 0.5);
 
 	const float3 color = realAlbedo * (rawAccDiff.rgb * aoDiff + finalAmbientColor * aoAmb + emission.x) + rawAccSpec.rgb * aoSpec;
 
@@ -107,17 +107,17 @@ FSO2 mainFS(VSO si)
 	float3 underwaterColor;
 	{
 		const float diffuseMask = ToWaterDiffuseMask(posW.y);
-		const float refractMask = saturate((diffuseMask - 0.5f) * 2.f);
+		const float refractMask = saturate((diffuseMask - 0.5) * 2.0);
 		const float3 waterDiffColorShallowAmbient = g_ubComposeFS._waterDiffColorShallow.rgb * ambientColor;
 		const float3 waterDiffColorDeepAmbient = g_ubComposeFS._waterDiffColorDeep.rgb * ambientColor;
-		const float deepAmbientColor = 0.5f + 0.5f * refractMask;
+		const float deepAmbientColor = 0.5 + 0.5 * refractMask;
 		const float3 planktonColor = lerp(
 			waterDiffColorDeepAmbient * deepAmbientColor,
 			waterDiffColorShallowAmbient,
 			diffuseMask);
-		underwaterColor = lerp(realAlbedo * planktonColor * 10.f, color, refractMask);
+		underwaterColor = lerp(realAlbedo * planktonColor * 10.0, color, refractMask);
 		const float fog = ComputeFog(depth, g_ubComposeFS._waterDiffColorShallow.a);
-		underwaterColor = lerp(underwaterColor, planktonColor * 0.1f, fog * saturate(1.f - refractMask + g_ubComposeFS._waterDiffColorDeep.a));
+		underwaterColor = lerp(underwaterColor, planktonColor * 0.1, fog * saturate(1.0 - refractMask + g_ubComposeFS._waterDiffColorDeep.a));
 	}
 	// </Underwater>
 
@@ -131,11 +131,11 @@ FSO2 mainFS(VSO si)
 
 	so.target0.rgb = lerp(colorWithFog, realAlbedo, floor(rawDepth));
 	so.target0.rgb = ToSafeHDR(so.target0.rgb);
-	so.target0.a = 1.f;
+	so.target0.a = 1.0;
 
 	// <BackgroundColor>
 	const float2 normalWasSet = ceil(rawGBuffer1.rg);
-	const float bg = 1.f - saturate(normalWasSet.r + normalWasSet.g);
+	const float bg = 1.0 - saturate(normalWasSet.r + normalWasSet.g);
 	so.target0.rgb = lerp(so.target0.rgb, g_ubComposeFS._backgroundColor.rgb, bg * g_ubComposeFS._backgroundColor.a);
 	// </BackgroundColor>
 
@@ -146,9 +146,9 @@ FSO2 mainFS(VSO si)
 	const float3 posWV = mul(float4(posW, 1), g_ubComposeFS._matV);
 	const float3 toPosDirWV = normalize(posWV);
 	const float dp = -toPosDirWV.z;
-	const float smoothSpec = pow(saturate(dp), 4096.f * lightGlossScale);
-	const float spec = saturate((smoothSpec - 0.5f) * 3.f + 0.5f);
-	so.target0 = max(so.target0, spec * 30000.f);
+	const float smoothSpec = pow(saturate(dp), 4096.0 * lightGlossScale);
+	const float spec = saturate((smoothSpec - 0.5) * 3.0 + 0.5);
+	so.target0 = max(so.target0, spec * 30000.0);
 #endif
 
 	return so;
@@ -160,32 +160,32 @@ FSO mainFS(VSO si)
 	FSO so;
 
 	// <Sample>
-	const float4 rawGBuffer0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.f);
-	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.f);
-	const float4 rawComposed = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f);
+	const float4 rawGBuffer0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.0);
+	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
+	const float4 rawComposed = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0);
 #ifdef DEF_BLOOM
-	const float4 rawAccDiff = g_texAccDiff.SampleLevel(g_samAccDiff, si.tc0, 0.f);
+	const float4 rawAccDiff = g_texAccDiff.SampleLevel(g_samAccDiff, si.tc0, 0.0);
 #endif
 	// </Sample>
 
 	const float gray = Grayscale(rawComposed.rgb);
-	const float3 exposedComposed = Desaturate(rawComposed.rgb, saturate(1.f - gray * 0.03f)) * g_ubComposeFS._ambientColor_exposure.a;
-	so.color.rgb = VerusToneMapping(exposedComposed, 0.5f);
-	so.color.a = 1.f;
+	const float3 exposedComposed = Desaturate(rawComposed.rgb, saturate(1.0 - gray * 0.03)) * g_ubComposeFS._ambientColor_exposure.a;
+	so.color.rgb = VerusToneMapping(exposedComposed, 0.5);
+	so.color.a = 1.0;
 
 	// SolidColor (using special value 1 for emission):
 	so.color.rgb = lerp(so.color.rgb, rawGBuffer0.rgb, floor(rawGBuffer1.b));
 
 #ifdef DEF_BLOOM
 	const float3 bloom = rawAccDiff.rgb;
-	so.color.rgb += bloom * (1.f - so.color.rgb);
+	so.color.rgb += bloom * (1.0 - so.color.rgb);
 #endif
 
 	if (false)
 	{
-		const float gray = dot(rawComposed.rgb, 1.f / 3.f);
-		so.color.r = saturate((gray - 5000.f) * 0.001f);
-		so.color.gb *= 0.5f;
+		const float gray = dot(rawComposed.rgb, 1.0 / 3.0);
+		so.color.r = saturate((gray - 5000.0) * 0.001);
+		so.color.gb *= 0.5;
 	}
 
 	return so;

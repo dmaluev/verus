@@ -1,6 +1,6 @@
 R"(
 
-// Copyright (C) 2021, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
+// Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 // Copied from Lib.hlsl:
 #define VERUS_UBUFFER struct

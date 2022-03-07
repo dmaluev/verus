@@ -39,7 +39,7 @@ struct VSO
 	float4 color0     : COLOR0;
 	float2 tc0        : TEXCOORD0;
 	float4 posW_depth : TEXCOORD1;
-#if !defined(DEF_TEXTURE)
+#if !defined(DEF_TEXTURE) && !defined(DEF_BAKE_AO)
 	float3 nrmW       : TEXCOORD2;
 	float3 dirToEye   : TEXCOORD3;
 #endif
@@ -81,12 +81,12 @@ VSO mainVS(VSI si)
 	float3 posW;
 	float3 nrmW;
 	{
-#ifdef DEF_SKINNED
-		const float4 weights = si.bw * (1.f / 255.f);
+#if defined(DEF_SKINNED)
+		const float4 weights = si.bw * (1.0 / 255.0);
 		const float4 indices = si.bi;
 
-		float3 posSkinned = 0.f;
-		float3 nrmSkinned = 0.f;
+		float3 posSkinned = 0.0;
+		float3 nrmSkinned = 0.0;
 
 		for (int i = 0; i < 4; ++i)
 		{
@@ -97,7 +97,7 @@ VSO mainVS(VSI si)
 
 		posW = mul(float4(posSkinned, 1), matW).xyz;
 		nrmW = mul(nrmSkinned, (float3x3)matW);
-#elif DEF_ROBOTIC
+#elif defined(DEF_ROBOTIC)
 		const int index = si.pos.w;
 
 		const mataff matBone = g_ubSimpleSkeletonVS._vMatBones[index];
@@ -117,7 +117,7 @@ VSO mainVS(VSI si)
 	so.posW_depth = float4(posW, so.pos.z);
 	so.color0 = userColor;
 	so.tc0 = inTc0;
-#if !defined(DEF_TEXTURE)
+#if !defined(DEF_TEXTURE) && !defined(DEF_BAKE_AO)
 	so.nrmW = nrmW;
 	so.dirToEye = eyePos - posW;
 #endif
@@ -132,11 +132,36 @@ FSO mainFS(VSO si)
 {
 	FSO so;
 
-#ifdef DEF_TEXTURE
+#if defined(DEF_TEXTURE)
 	const float4 rawAlbedo = g_texAlbedo.Sample(g_samAlbedo, si.tc0);
 	so.color.rgb = rawAlbedo.rgb * si.color0.rgb;
 	so.color.rgb = ToSafeHDR(so.color.rgb);
-	so.color.a = 1.f;
+	so.color.a = 1.0;
+#elif defined(DEF_BAKE_AO)
+	// <Material>
+	const float2 mm_alphaSwitch = g_ubSimplePerMaterialFS._alphaSwitch_anisoSpecDir.xy;
+	const float4 mm_tc0ScaleBias = g_ubSimplePerMaterialFS._tc0ScaleBias;
+	// </Material>
+
+	const float2 tc0 = si.tc0 * mm_tc0ScaleBias.xy + mm_tc0ScaleBias.zw;
+
+	// <Albedo>
+	const float4 rawAlbedo = g_texAlbedo.Sample(g_samAlbedo, tc0);
+	// </Albedo>
+
+	// <Pick>
+	const float2 alpha_spec = AlphaSwitch(rawAlbedo, tc0, mm_alphaSwitch);
+	// </Pick>
+
+	so.color.rgb = rawAlbedo.rgb * si.color0.rgb;
+
+	const float fogFactor = saturate(si.posW_depth.w * g_ubSimplePerFrame._fogColor.a);
+	so.color.rgb = lerp(so.color.rgb, g_ubSimplePerFrame._fogColor.rgb, fogFactor);
+
+	so.color.rgb = ToSafeHDR(so.color.rgb);
+	so.color.a = 1.0;
+
+	clip(alpha_spec.x - 0.5);
 #else
 	// <Material>
 	const float2 mm_alphaSwitch = g_ubSimplePerMaterialFS._alphaSwitch_anisoSpecDir.xy;
@@ -171,12 +196,12 @@ FSO mainFS(VSO si)
 
 	// <Pick>
 	const float2 alpha_spec = AlphaSwitch(rawAlbedo, tc0, mm_alphaSwitch);
-	const float emitAlpha = PickAlpha(rawAlbedo.rgb, mm_emissionPick, 16.f);
+	const float emitAlpha = PickAlpha(rawAlbedo.rgb, mm_emissionPick, 16.0);
 	const float eyeAlpha = PickAlphaRound(mm_eyePick, tc0);
-	const float glossAlpha = PickAlpha(rawAlbedo.rgb, mm_glossPick, 32.f);
-	const float hairAlpha = round(PickAlpha(rawAlbedo.rgb, mm_hairPick, 16.f));
-	const float skinAlpha = PickAlpha(rawAlbedo.rgb, mm_skinPick, 16.f);
-	const float userAlpha = PickAlpha(rawAlbedo.rgb, mm_userPick, 16.f);
+	const float glossAlpha = PickAlpha(rawAlbedo.rgb, mm_glossPick, 32.0);
+	const float hairAlpha = round(PickAlpha(rawAlbedo.rgb, mm_hairPick, 16.0));
+	const float skinAlpha = PickAlpha(rawAlbedo.rgb, mm_skinPick, 16.0);
+	const float userAlpha = PickAlpha(rawAlbedo.rgb, mm_userPick, 16.0);
 	// </Pick>
 
 	rawAlbedo.rgb = lerp(rawAlbedo.rgb, Overlay(gray, si.color0.rgb), userAlpha * si.color0.a);
@@ -185,15 +210,15 @@ FSO mainFS(VSO si)
 	const float specMask = saturate(alpha_spec.y * mm_specScaleBias.x + mm_specScaleBias.y);
 
 	// <Gloss>
-	float gloss = lerp(4.f, 16.f, alpha_spec.y) * mm_glossScaleBias.x + mm_glossScaleBias.y;
+	float gloss = lerp(4.0, 16.0, alpha_spec.y) * mm_glossScaleBias.x + mm_glossScaleBias.y;
 	gloss = lerp(gloss, mm_gloss, glossAlpha);
-	gloss = lerp(gloss, 4.f + alpha_spec.y, skinAlpha);
-	gloss = lerp(gloss, 0.f, eyeAlpha);
+	gloss = lerp(gloss, 4.0 + alpha_spec.y, skinAlpha);
+	gloss = lerp(gloss, 0.0, eyeAlpha);
 	const float gloss4K = gloss * gloss;
 	// </Gloss>
 
 	// <LambertianScaleBias>
-	const float2 lamScaleBias = lerp(mm_lamScaleBias, float2(1, 0.45f), skinAlpha);
+	const float2 lamScaleBias = lerp(mm_lamScaleBias, float2(1, 0.45), skinAlpha);
 	// </LambertianScaleBias>
 
 	const float3 normal = normalize(si.nrmW);
@@ -205,7 +230,7 @@ FSO mainFS(VSO si)
 	{
 		float4 shadowConfig = g_ubSimplePerFrame._shadowConfig;
 		const float lamBiasMask = saturate(lamScaleBias.y * shadowConfig.y);
-		shadowConfig.y = 1.f - lamBiasMask; // Keep penumbra blurry.
+		shadowConfig.y = 1.0 - lamBiasMask; // Keep penumbra blurry.
 		const float3 posForShadow = AdjustPosForShadow(si.posW_depth.xyz, normal, g_ubSimplePerFrame._dirToSun.xyz, depth);
 		shadowMask = SimpleShadowMapCSM(
 			g_texShadowCmp,
@@ -232,14 +257,14 @@ FSO mainFS(VSO si)
 	const float emission = emitAlpha * mm_emission;
 
 	so.color.rgb = realAlbedo * (diffColor + emission) + specColor;
-	so.color.a = 1.f;
+	so.color.a = 1.0;
 
-	const float fog = ComputeFog(depth, g_ubSimplePerFrame._fogColor.a, si.posW_depth.y);
-	so.color.rgb = lerp(so.color.rgb, g_ubSimplePerFrame._fogColor.rgb, fog);
+	const float fogFactor = ComputeFog(depth, g_ubSimplePerFrame._fogColor.a, si.posW_depth.y);
+	so.color.rgb = lerp(so.color.rgb, g_ubSimplePerFrame._fogColor.rgb, fogFactor);
 
 	so.color.rgb = ToSafeHDR(so.color.rgb);
 
-	clip(alpha_spec.x - 0.5f);
+	clip(alpha_spec.x - 0.5);
 #endif
 
 	return so;
@@ -255,3 +280,8 @@ FSO mainFS(VSO si)
 //@main:#TextureInstanced TEXTURE INSTANCED
 //@main:#TextureRobotic   TEXTURE ROBOTIC
 //@main:#TextureSkinned   TEXTURE SKINNED
+
+//@main:#BakeAO          BAKE_AO
+//@main:#BakeAOInstanced BAKE_AO INSTANCED
+//@main:#BakeAORobotic   BAKE_AO ROBOTIC
+//@main:#BakeAOSkinned   BAKE_AO SKINNED

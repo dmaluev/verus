@@ -29,6 +29,11 @@ namespace verus
 			};
 			VERUS_TYPEDEFS(Compiled);
 
+			enum SET_MOD
+			{
+				SET_MOD_TO_VIEW_HEAP = 0x10000
+			};
+
 		private:
 			typedef Map<String, Compiled> TMapCompiled;
 
@@ -56,6 +61,7 @@ namespace verus
 				Vector<TexturePtr> _vTextures;
 				DescriptorHeap     _dhViews;
 				DescriptorHeap     _dhSamplers;
+				HandlePair         _hpBase;
 			};
 			VERUS_TYPEDEFS(ComplexSet);
 

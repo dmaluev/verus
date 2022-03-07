@@ -140,6 +140,14 @@ Vector3 Vector3::Reflect(RcVector3 normal, float bounce) const
 	return (*this) - normal * ((1 + bounce) * VMath::dot(*this, normal));
 }
 
+Vector3 Vector3::Perpendicular() const
+{
+	Vector3 axis = VMath::cross(Vector3(1, 0, 0), (*this));
+	if (VMath::lengthSqr(axis) < VERUS_FLOAT_THRESHOLD * VERUS_FLOAT_THRESHOLD)
+		axis = VMath::cross(Vector3(0, 1, 0), (*this));
+	return axis;
+}
+
 // Vector4:
 
 Vector4 Vector4::MakeFromPointer(const float* p)

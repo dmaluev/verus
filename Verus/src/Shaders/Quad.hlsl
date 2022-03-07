@@ -43,10 +43,16 @@ FSO mainFS(VSO si)
 {
 	FSO so;
 
-	so.color = g_tex.SampleLevel(g_sam, si.tc0, 0.f);
+#ifdef DEF_HEMICUBE_MASK
+	const float weight = ComputeHemicubeMask(si.tc0);
+	so.color = weight;
+#else
+	so.color = g_tex.SampleLevel(g_sam, si.tc0, 0.0);
+#endif
 
 	return so;
 }
 #endif
 
 //@main:#
+//@main:#HemicubeMask HEMICUBE_MASK

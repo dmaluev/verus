@@ -281,7 +281,7 @@ float BaseCharacter::ComputeThirdPersonCamera(Scene::RCamera camera, Anim::RcOrb
 
 	// Consider orientation:
 	Matrix3 matFromRaySpace;
-	matFromRaySpace.AimZ(toEye);
+	matFromRaySpace.TrackToZ(toEye);
 	Matrix3 matToRaySpace = VMath::transpose(matFromRaySpace);
 	toEye = (matFromRaySpace * orbit.GetMatrix() * matToRaySpace) * toEye;
 

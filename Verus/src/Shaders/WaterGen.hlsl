@@ -66,16 +66,16 @@ FSO mainGenHeightmapFS(VSO si)
 		float2(-1, +0),
 		float2(+0, -1)
 	};
-	const float4 offsets = float4(0, 0.3f, 0.5f, 0.7f);
-	float accHeight = 0.f;
+	const float4 offsets = float4(0, 0.3, 0.5, 0.7);
+	float accHeight = 0.0;
 	[unroll] for (uint i = 0; i < 4; ++i)
 	{
-		float height = g_texSourceHeightmap.SampleLevel(g_samSourceHeightmap, (si.tc0 + offsets[i]) * (i / 2 + 1) + g_ubGenHeightmapFS._phase.x * dirs[i], 0.f).r - 0.5f;
+		float height = g_texSourceHeightmap.SampleLevel(g_samSourceHeightmap, (si.tc0 + offsets[i]) * (i / 2 + 1) + g_ubGenHeightmapFS._phase.x * dirs[i], 0.0).r - 0.5;
 		height *= amplitudes[i]; // Must be local float4 to work in D3D12!
 		accHeight += height;
 	}
-	const float splash = max(0.f, accHeight);
-	so.color = accHeight * 2.f + splash * splash * splash * 16.f;
+	const float splash = max(0.0, accHeight);
+	so.color = accHeight * 2.0 + splash * splash * splash * 16.0;
 
 	return so;
 }
@@ -86,9 +86,9 @@ FSO mainGenNormalsFS(VSO si)
 {
 	FSO so;
 
-	const float damp = (1.f / 512.f / 2.f) * g_ubGenNormalsFS._waterScale.x * g_ubGenNormalsFS._textureSize.x;
+	const float damp = (1.0 / 512.0 / 2.0) * g_ubGenNormalsFS._waterScale.x * g_ubGenNormalsFS._textureSize.x;
 	so.color.rgb = ComputeNormals(g_texGenHeightmap, g_samGenHeightmap, si.tc0, damp, 2);
-	so.color.a = 1.f;
+	so.color.a = 1.0;
 
 	return so;
 }

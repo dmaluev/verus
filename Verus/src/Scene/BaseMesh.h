@@ -56,7 +56,7 @@ namespace verus
 			float                       _tc0Deq[4];
 			float                       _tc1Deq[4];
 			bool                        _loadOnly = false;
-			bool                        _rigidSkeleton = false;
+			bool                        _robotic = false;
 			bool                        _initShape = false;
 
 		public:
@@ -112,6 +112,7 @@ namespace verus
 			// GPU:
 			virtual void CreateDeviceBuffers() {}
 			virtual void UpdateVertexBuffer(const void* p, int binding) {}
+			int GetPipelineIndex(bool instanced = false) const;
 
 			// Physics:
 			btBvhTriangleMeshShape* GetShape() const { return _pShape; }

@@ -73,10 +73,10 @@ VSO mainVS(VSI si)
 	const float3 posUnit = mul(float3(0, 0, 1), matW33); // Need to know the scale.
 	so.radius_radiusSq_invRadiusSq.y = dot(posUnit, posUnit);
 	so.radius_radiusSq_invRadiusSq.x = sqrt(so.radius_radiusSq_invRadiusSq.y);
-	so.radius_radiusSq_invRadiusSq.z = 1.f / so.radius_radiusSq_invRadiusSq.y;
+	so.radius_radiusSq_invRadiusSq.z = 1.0 / so.radius_radiusSq_invRadiusSq.y;
 	const float4 posOrigin = float4(0, 0, 0, 1);
 	so.lightPosWV = mul(posOrigin, matWV).xyz;
-	so.color_coneOut = float4(color, 1.f);
+	so.color_coneOut = float4(color, 1.0);
 	// </MoreAOParams>
 
 	return so;
@@ -88,7 +88,7 @@ FSO mainFS(VSO si)
 {
 	FSO so;
 
-	so.color = 1.f;
+	so.color = 1.0;
 
 	const float3 ndcPos = si.clipSpacePos.xyz / si.clipSpacePos.w;
 
@@ -105,17 +105,17 @@ FSO mainFS(VSO si)
 
 	if (posWV.z <= lightPosWV.z + radius)
 	{
-		const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, tc0, 0.f);
+		const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, tc0, 0.0);
 		const float3 normalWV = DS_GetNormal(rawGBuffer1);
 
 		const float3 toLightWV = lightPosWV - posWV;
 		const float3 dirToLightWV = normalize(toLightWV);
 		const float distToLightSq = dot(toLightWV, toLightWV);
-		const float lightFalloff = min(0.25f, ComputePointLightIntensity(distToLightSq, radiusSq, invRadiusSq));
+		const float lightFalloff = min(0.25, ComputePointLightIntensity(distToLightSq, radiusSq, invRadiusSq));
 
-		const float nDotL = saturate(0.1f + dot(normalWV, dirToLightWV));
+		const float nDotL = saturate(0.1 + dot(normalWV, dirToLightWV));
 
-		so.color = 1.f - nDotL * lightFalloff;
+		so.color = 1.0 - nDotL * lightFalloff;
 	}
 	else
 	{

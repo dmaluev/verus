@@ -84,7 +84,7 @@ VSO mainVS(VSI si)
 	const float3 inTan = si.tan.xyz;
 	const float3 inBin = si.bin.xyz;
 
-	float addLamBias = 0.f;
+	float addLamBias = 0.0;
 #if defined(DEF_SKINNED) || defined(DEF_ROBOTIC)
 	const float4 warpMask = float4(
 		1,
@@ -95,14 +95,14 @@ VSO mainVS(VSI si)
 #elif defined(DEF_PLANT)
 	{
 		const float3 normPos = NormalizePosition(si.pos.xyz);
-		const float weightY = saturate(normPos.y * normPos.y - 0.01f);
-		const float3 offsetXYZ = normPos - float3(0.5f, 0.8f, 0.5f);
-		const float weightXZ = saturate((dot(offsetXYZ.xz, offsetXYZ.xz) - 0.01f) * 0.4f);
+		const float weightY = saturate(normPos.y * normPos.y - 0.01);
+		const float3 offsetXYZ = normPos - float3(0.5, 0.8, 0.5);
+		const float weightXZ = saturate((dot(offsetXYZ.xz, offsetXYZ.xz) - 0.01) * 0.4);
 
 		const float phaseShiftY = frac(userColor.x + userColor.z);
 		const float phaseShiftXZ = frac(phaseShiftY + inPos.x + inPos.z);
-		const float2 bending = (float2(0.7f, 0.5f) + float2(0.3f, 0.5f) *
-			sin((g_ubPerObject._userColor.rg + float2(phaseShiftY, phaseShiftXZ)) * (_PI * 2.f))) * float2(weightY, weightXZ);
+		const float2 bending = (float2(0.7, 0.5) + float2(0.3, 0.5) *
+			sin((g_ubPerObject._userColor.rg + float2(phaseShiftY, phaseShiftXZ)) * (_PI * 2.0))) * float2(weightY, weightXZ);
 
 		const float3x3 matW33 = (float3x3)matW;
 		const float3x3 matBending = (float3x3)g_ubPerObject._matW;
@@ -121,7 +121,7 @@ VSO mainVS(VSI si)
 			lerp(matW33[2], matNewW33[2], userColor.a),
 			matW[3]);
 
-		const float weight = 1.f - saturate(dot(offsetXYZ, offsetXYZ));
+		const float weight = 1.0 - saturate(dot(offsetXYZ, offsetXYZ));
 		addLamBias = (-(weight * weight * weight)) * saturate(userColor.a);
 	}
 	const float3 pos = inPos;
@@ -137,13 +137,13 @@ VSO mainVS(VSI si)
 	float3 binWV;
 	{
 #ifdef DEF_SKINNED
-		const float4 weights = si.bw * (1.f / 255.f);
+		const float4 weights = si.bw * (1.0 / 255.0);
 		const float4 indices = si.bi;
 
-		float3 posSkinned = 0.f;
-		float3 nrmSkinned = 0.f;
-		float3 tanSkinned = 0.f;
-		float3 binSkinned = 0.f;
+		float3 posSkinned = 0.0;
+		float3 nrmSkinned = 0.0;
+		float3 tanSkinned = 0.0;
+		float3 binSkinned = 0.0;
 
 		for (int i = 0; i < 4; ++i)
 		{
@@ -158,7 +158,7 @@ VSO mainVS(VSI si)
 		nrmWV = mul(nrmSkinned, (float3x3)matWV);
 		tanWV = mul(tanSkinned, (float3x3)matWV);
 		binWV = mul(binSkinned, (float3x3)matWV);
-#elif DEF_ROBOTIC
+#elif defined(DEF_ROBOTIC)
 		const int index = si.pos.w;
 
 		const mataff matBone = g_ubSkeletonVS._vMatBones[index];
@@ -190,7 +190,7 @@ VSO mainVS(VSI si)
 #if !defined(DEF_DEPTH)
 	so.color0 = userColor;
 #ifdef DEF_PLANT
-	so.color0.rgb = RandomColor(userColor.xz, 0.3f, 0.2f);
+	so.color0.rgb = RandomColor(userColor.xz, 0.3, 0.2);
 	so.color0.a = addLamBias;
 #endif
 #if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
@@ -214,7 +214,7 @@ PCFO PatchConstFunc(const OutputPatch<HSO, 3> outputPatch)
 }
 
 [domain("tri")]
-[maxtessfactor(7.f)]
+[maxtessfactor(7.0)]
 [outputcontrolpoints(3)]
 [outputtopology("triangle_cw")]
 [partitioning(_PARTITION_METHOD)]
@@ -251,7 +251,7 @@ VSO mainDS(_IN_DS)
 
 	const float3 toEyeWV = g_ubPerFrame._eyePosWV_invTessDistSq.xyz - flatPosWV;
 	const float distToEyeSq = dot(toEyeWV, toEyeWV);
-	const float tessStrength = 1.f - saturate(distToEyeSq * g_ubPerFrame._eyePosWV_invTessDistSq.w * 1.1f - 0.1f);
+	const float tessStrength = 1.0 - saturate(distToEyeSq * g_ubPerFrame._eyePosWV_invTessDistSq.w * 1.1 - 0.1);
 	const float3 posWV = lerp(flatPosWV, smoothPosWV, tessStrength);
 	so.pos = ApplyProjection(posWV, g_ubPerFrame._matP);
 	_DS_COPY(tc0);
@@ -273,7 +273,7 @@ VSO mainDS(_IN_DS)
 void mainFS(VSO si)
 {
 	const float rawAlbedo = g_texAlbedo.Sample(g_samAlbedo, si.tc0).a;
-	clip(rawAlbedo - 1.f / 16.f);
+	clip(rawAlbedo - 1.0 / 16.0);
 }
 #else
 DS_FSO mainFS(VSO si)
@@ -330,13 +330,13 @@ DS_FSO mainFS(VSO si)
 
 	// <Pick>
 	const float2 alpha_spec = AlphaSwitch(rawAlbedo, tc0, mm_alphaSwitch);
-	const float emitAlpha = PickAlpha(rawAlbedo.rgb, mm_emissionPick, 16.f);
+	const float emitAlpha = PickAlpha(rawAlbedo.rgb, mm_emissionPick, 16.0);
 	const float eyeAlpha = PickAlphaRound(mm_eyePick, tc0);
-	const float glossAlpha = PickAlpha(rawAlbedo.rgb, mm_glossPick, 32.f);
-	const float hairAlpha = round(PickAlpha(rawAlbedo.rgb, mm_hairPick, 16.f));
-	const float metalAlpha = PickAlpha(rawAlbedo.rgb, mm_metalPick, 16.f);
-	const float skinAlpha = PickAlpha(rawAlbedo.rgb, mm_skinPick, 16.f);
-	const float userAlpha = PickAlpha(rawAlbedo.rgb, mm_userPick, 16.f);
+	const float glossAlpha = PickAlpha(rawAlbedo.rgb, mm_glossPick, 32.0);
+	const float hairAlpha = round(PickAlpha(rawAlbedo.rgb, mm_hairPick, 16.0));
+	const float metalAlpha = PickAlpha(rawAlbedo.rgb, mm_metalPick, 16.0);
+	const float skinAlpha = PickAlpha(rawAlbedo.rgb, mm_skinPick, 16.0);
+	const float userAlpha = PickAlpha(rawAlbedo.rgb, mm_userPick, 16.0);
 	// </Pick>
 
 #ifdef DEF_PLANT
@@ -348,10 +348,10 @@ DS_FSO mainFS(VSO si)
 	const float specMask = saturate(alpha_spec.y * mm_specScaleBias.x + mm_specScaleBias.y);
 
 	// <Gloss>
-	float gloss = lerp(4.f, 16.f, alpha_spec.y) * mm_glossScaleBias.x + mm_glossScaleBias.y;
+	float gloss = lerp(4.0, 16.0, alpha_spec.y) * mm_glossScaleBias.x + mm_glossScaleBias.y;
 	gloss = lerp(gloss, mm_gloss, glossAlpha);
-	gloss = lerp(gloss, 4.f + alpha_spec.y, skinAlpha);
-	gloss = lerp(gloss, 0.f, eyeAlpha);
+	gloss = lerp(gloss, 4.0 + alpha_spec.y, skinAlpha);
+	gloss = lerp(gloss, 0.0, eyeAlpha);
 	// </Gloss>
 
 	// <Normal>
@@ -375,7 +375,7 @@ DS_FSO mainFS(VSO si)
 	// <Detail>
 	{
 		const float3 rawDetail = g_texDetail.Sample(g_samDetail, tc0 * mm_detailScale).rgb;
-		rawAlbedo.rgb = rawAlbedo.rgb * lerp(0.5f, rawDetail, mm_detail) * 2.f;
+		rawAlbedo.rgb = rawAlbedo.rgb * lerp(0.5, rawDetail, mm_detail) * 2.0;
 	}
 	// </Detail>
 
@@ -383,14 +383,14 @@ DS_FSO mainFS(VSO si)
 	float strass;
 	{
 		const float rawStrass = g_texStrass.Sample(g_samStrass, tc0 * mm_strassScale).r;
-		strass = saturate(rawStrass * (0.6f + 1.4f * alpha_spec.y));
+		strass = saturate(rawStrass * (0.6 + 1.4 * alpha_spec.y));
 	}
 	// </Strass>
 
 	// <LambertianScaleBias>
-	float2 lamScaleBias = mm_lamScaleBias + float2(0, lightPassStrength * 8.f * mm_lightPass);
-	lamScaleBias += float2(-0.1f, -0.3f) * alpha_spec.y + float2(0.1f, 0.2f); // We bring the noise!
-	lamScaleBias = lerp(lamScaleBias, float2(1, 0.45f), skinAlpha);
+	float2 lamScaleBias = mm_lamScaleBias + float2(0, lightPassStrength * 8.0 * mm_lightPass);
+	lamScaleBias += float2(-0.1, -0.3) * alpha_spec.y + float2(0.1, 0.2); // We bring the noise!
+	lamScaleBias = lerp(lamScaleBias, float2(1, 0.45), skinAlpha);
 #ifdef DEF_PLANT
 	lamScaleBias.y += si.color0.a;
 #endif
@@ -398,17 +398,17 @@ DS_FSO mainFS(VSO si)
 
 	// <RimAlbedo>
 	{
-		const float3 newColor = saturate((rawAlbedo.rgb + gray) * 0.6f);
-		const float mask = 1.f - abs(normalWV.z);
-		rawAlbedo.rgb = lerp(rawAlbedo.rgb, newColor, mask * mask * (1.f - alpha_spec.y));
+		const float3 newColor = saturate((rawAlbedo.rgb + gray) * 0.6);
+		const float mask = 1.0 - abs(normalWV.z);
+		rawAlbedo.rgb = lerp(rawAlbedo.rgb, newColor, mask * mask * (1.0 - alpha_spec.y));
 	}
 	// </RimAlbedo>
 
 	// <SpecFresnel>
 	float specMaskWithFresnel;
 	{
-		const float fresnelMask = pow(saturate(1.f - normalWV.z), 5.f);
-		const float maxSpecAdd = (1.f - specMask) * lerp(0.04f + 0.2f * specMask, 0.6f, metalAlpha);
+		const float fresnelMask = pow(saturate(1.0 - normalWV.z), 5.0);
+		const float maxSpecAdd = (1.0 - specMask) * lerp(0.04 + 0.2 * specMask, 0.6, metalAlpha);
 		specMaskWithFresnel = FresnelSchlick(specMask, maxSpecAdd, fresnelMask);
 	}
 	// </SpecFresnel>
@@ -417,7 +417,7 @@ DS_FSO mainFS(VSO si)
 		DS_Reset(so);
 
 		DS_SetAlbedo(so, lerp(rawAlbedo.rgb, hairAlbedo, hairAlpha));
-		DS_SetSpecMask(so, lerp(max(strass, specMaskWithFresnel), 0.15f, eyeAlpha));
+		DS_SetSpecMask(so, lerp(max(strass, specMaskWithFresnel), 0.15, eyeAlpha));
 
 		DS_SetNormal(so, normalWV + NormalDither(rand));
 		DS_SetEmission(so, emitAlpha * mm_emission, skinAlpha);
@@ -425,10 +425,10 @@ DS_FSO mainFS(VSO si)
 
 		DS_SetLamScaleBias(so, lamScaleBias, float4(anisoWV, hairAlpha));
 		DS_SetMetallicity(so, metalAlpha, hairAlpha);
-		DS_SetGloss(so, gloss * lerp(toksvigFactor, 1.f, eyeAlpha));
+		DS_SetGloss(so, gloss * lerp(toksvigFactor, 1.0, eyeAlpha));
 	}
 
-	clip(alpha_spec.x - 0.5f);
+	clip(alpha_spec.x - 0.5);
 #endif
 
 	return so;
@@ -438,27 +438,27 @@ DS_FSO mainFS(VSO si)
 
 //@main:#
 //@main:#Instanced INSTANCED
-//@main:#Plant     PLANT INSTANCED
 //@main:#Robotic   ROBOTIC
 //@main:#Skinned   SKINNED
+//@main:#Plant     PLANT INSTANCED
 
 //@main:#Tess          TESS (VHDF)
 //@main:#TessInstanced TESS INSTANCED (VHDF)
-//@main:#TessPlant     TESS PLANT INSTANCED (VHDF)
 //@main:#TessRobotic   TESS ROBOTIC (VHDF)
 //@main:#TessSkinned   TESS SKINNED (VHDF)
+//@main:#TessPlant     TESS PLANT INSTANCED (VHDF)
 
 //@main:#Depth          DEPTH
 //@main:#DepthInstanced DEPTH INSTANCED
-//@main:#DepthPlant     DEPTH PLANT INSTANCED
 //@main:#DepthRobotic   DEPTH ROBOTIC
 //@main:#DepthSkinned   DEPTH SKINNED
+//@main:#DepthPlant     DEPTH PLANT INSTANCED
 
 //@main:#DepthTess          DEPTH TESS (VHDF)
 //@main:#DepthTessInstanced DEPTH TESS INSTANCED (VHDF)
-//@main:#DepthTessPlant     DEPTH TESS PLANT INSTANCED (VHDF)
 //@main:#DepthTessRobotic   DEPTH TESS ROBOTIC (VHDF)
 //@main:#DepthTessSkinned   DEPTH TESS SKINNED (VHDF)
+//@main:#DepthTessPlant     DEPTH TESS PLANT INSTANCED (VHDF)
 
 //@main:#SolidColor          SOLID_COLOR
 //@main:#SolidColorInstanced SOLID_COLOR INSTANCED

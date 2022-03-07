@@ -42,6 +42,8 @@ namespace verus
 			// D3D12
 			//
 
+			void ClearCshGenerateMips();
+
 			void CreateSampler();
 
 			ID3D12Resource* GetD3DResource() const { return _resource._pResource.Get(); }

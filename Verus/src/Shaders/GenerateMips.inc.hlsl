@@ -6,5 +6,5 @@ VERUS_UBUFFER UB_GenerateMips
 	int    _mipLevelCount;
 	int    _srcDimensionCase;
 	int    _srgb;
-	float2 _texelSize;
+	float2 _dstTexelSize;
 };

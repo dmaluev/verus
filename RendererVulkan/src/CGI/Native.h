@@ -5,25 +5,25 @@ namespace verus
 {
 	namespace CGI
 	{
-		VkFormat ToNativeFormat(Format format);
+		VkCompareOp ToNativeCompareOp(CompareOp compareOp);
 
-		VkCullModeFlagBits ToNativeCullMode(CullMode cullMode);
-
-		VkImageLayout ToNativeImageLayout(ImageLayout layout);
+		uint32_t ToNativeCubeMapFace(CubeMapFace face);
 
 		VkPolygonMode ToNativePolygonMode(PolygonMode polygonMode);
 
+		VkCullModeFlagBits ToNativeCullMode(CullMode cullMode);
+
 		VkPrimitiveTopology ToNativePrimitiveTopology(PrimitiveTopology primitiveTopology);
 
-		VkSampleCountFlagBits ToNativeSampleCount(int sampleCount);
-
-		VkCompareOp ToNativeCompareOp(CompareOp compareOp);
+		VkImageLayout ToNativeImageLayout(ImageLayout layout);
 
 		VkShaderStageFlags ToNativeStageFlags(ShaderStageFlags stageFlags);
 
+		VkSampleCountFlagBits ToNativeSampleCount(int sampleCount);
+
+		VkFormat ToNativeFormat(Format format);
+
 		int ToNativeLocation(ViaUsage usage, int usageIndex);
 		VkFormat ToNativeFormat(ViaUsage usage, ViaType type, int components);
-
-		uint32_t ToNativeCubeMapFace(CubeMapFace face);
 	}
 }

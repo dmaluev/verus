@@ -5,11 +5,63 @@ namespace verus
 {
 	namespace CGI
 	{
+		enum class CompareOp : int
+		{
+			never,
+			less,           // <
+			equal,          // ==
+			lessOrEqual,    // <=
+			greater,        // >
+			notEqual,       // !=
+			greaterOrEqual, // >=
+			always
+		};
+
+		enum class CubeMapFace : int
+		{
+			posX,
+			negX,
+			posY,
+			negY,
+			posZ,
+			negZ,
+			count,
+			all,
+			none = -1
+		};
+
+		enum class PolygonMode : int
+		{
+			fill,
+			line
+		};
+
 		enum class CullMode : int
 		{
 			none,
 			front,
 			back
+		};
+
+		struct PipelineRasterizationState
+		{
+			PolygonMode _polygonMode = PolygonMode::fill;
+			CullMode    _cullMode = CullMode::back;
+			float       _depthBiasConstantFactor = 0;
+			float       _depthBiasClamp = 0;
+			float       _depthBiasSlopeFactor = 0;
+			bool        _depthBiasEnable = false;
+		};
+
+		enum class PrimitiveTopology : int
+		{
+			pointList,
+			lineList,
+			lineStrip,
+			triangleList,
+			triangleStrip,
+			patchList3,
+			patchList4
 		};
 
 		enum class ImageLayout : int
@@ -26,44 +78,25 @@ namespace verus
 			presentSrc // Must only be used for presenting a presentable image for display.
 		};
 
-		enum class PolygonMode : int
+		enum class Sampler : int
 		{
-			fill,
-			line
-		};
-
-		enum class PrimitiveTopology : int
-		{
-			pointList,
-			lineList,
-			lineStrip,
-			triangleList,
-			triangleStrip,
-			patchList3,
-			patchList4
-		};
-
-		struct PipelineRasterizationState
-		{
-			PolygonMode _polygonMode = PolygonMode::fill;
-			CullMode    _cullMode = CullMode::back;
-			float       _depthBiasConstantFactor = 0;
-			float       _depthBiasClamp = 0;
-			float       _depthBiasSlopeFactor = 0;
-			bool        _depthClampEnable = false;
-			bool        _depthBiasEnable = false;
-		};
-
-		enum class CompareOp : int
-		{
-			never,
-			less,
-			equal,
-			lessOrEqual,
-			greater,
-			notEqual,
-			greaterOrEqual,
-			always,
+			custom, // Not immutable, not static sampler.
+			input,
+			storage, // Also known as UAV.
+			lodBias,
+			shadow,
+			aniso, // Most common sampler for 3D.
+			anisoClamp,
+			anisoSharp, // For UI.
+			linearMipL,
+			nearestMipL,
+			linearMipN,
+			nearestMipN,
+			linearClampMipL,
+			nearestClampMipL,
+			linearClampMipN,
+			nearestClampMipN,
+			count
 		};
 
 		enum class ShaderStageFlags : UINT32
@@ -130,40 +163,6 @@ namespace verus
 			static constexpr VertexInputAttrDesc End() { return { -1, -1, ViaType::floats, 0, ViaUsage::position, 0 }; }
 		};
 		VERUS_TYPEDEFS(VertexInputAttrDesc);
-
-		enum class Sampler : int
-		{
-			custom, // Not immutable, not static sampler.
-			input,
-			storage, // Also known as UAV.
-			lodBias,
-			shadow,
-			aniso, // Most common sampler for 3D.
-			anisoClamp,
-			anisoSharp, // For UI.
-			linearMipL,
-			nearestMipL,
-			linearMipN,
-			nearestMipN,
-			linearClampMipL,
-			nearestClampMipL,
-			linearClampMipN,
-			nearestClampMipN,
-			count
-		};
-
-		enum class CubeMapFace : int
-		{
-			posX,
-			negX,
-			posY,
-			negY,
-			posZ,
-			negZ,
-			count,
-			all,
-			none = -1
-		};
 
 		template<typename T>
 		class BaseHandle

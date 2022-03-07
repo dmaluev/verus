@@ -164,7 +164,7 @@ void Light::ConeFromPoint(RcPoint3 point, bool coneIn)
 
 Transform3 Light::GetTransformNoScale() const
 {
-	const Matrix3 matR = Matrix3::MakeAimZ(_data._dir);
+	const Matrix3 matR = Matrix3::MakeTrackToZ(_data._dir);
 	return Transform3(matR, Vector3(GetPosition()));
 }
 
@@ -199,7 +199,7 @@ Vector3 Light::ComputeScale()
 
 void Light::ComputeTransform()
 {
-	const Matrix3 matR = Matrix3::MakeAimZ(_data._dir);
+	const Matrix3 matR = Matrix3::MakeTrackToZ(_data._dir);
 	const Transform3 tr = VMath::appendScale(Transform3(matR, Vector3(GetPosition())), ComputeScale());
 	SceneNode::SetTransform(tr);
 }

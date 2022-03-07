@@ -29,7 +29,7 @@
 #	else
 #		define VK_POINT_SIZE
 #	endif
-#	define VK_SET_POINT_SIZE so.psize = 1.f
+#	define VK_SET_POINT_SIZE so.psize = 1.0
 #else
 #	define VK_LOCATION(x)
 #	define VK_LOCATION_POSITION
@@ -46,7 +46,7 @@
 #	define VK_SUBPASS_INPUT(index, tex, sam, t, s, space)\
 	Texture2D    tex : register(t, space);\
 	SamplerState sam : register(s, space)
-#	define VK_SUBPASS_LOAD(tex, sam, tc) tex.SampleLevel(sam, tc, 0.f)
+#	define VK_SUBPASS_LOAD(tex, sam, tc) tex.SampleLevel(sam, tc, 0.0)
 
 #	define VK_POINT_SIZE
 #	define VK_SET_POINT_SIZE
@@ -66,9 +66,9 @@
 	const float3x3 matFromTBN = float3x3(tan, bin, nrm);\
 	const float3x3 matToTBN   = transpose(matFromTBN);
 
-#define _PI 3.141592654f
+#define _PI 3.141592654
 
-#define _SINGULARITY_FIX 0.001f
+#define _SINGULARITY_FIX 0.001
 
 #define _MAX_TERRAIN_LAYERS 32
 
@@ -88,45 +88,45 @@ float2 ToNdcPos(float2 tc)
 
 float2 ToTexCoords(float2 ndcPos)
 {
-	return ndcPos * float2(0.5f, -0.5f) + 0.5f;
+	return ndcPos * float2(0.5, -0.5) + 0.5;
 }
 
 // Asymmetric abs():
-float2 AsymAbs(float2 x, float negScale = -1.f, float posScale = 1.f)
+float2 AsymAbs(float2 x, float negScale = -1.0, float posScale = 1.0)
 {
-	return x * lerp(posScale, negScale, step(x, 0.f));
+	return x * lerp(posScale, negScale, step(x, 0.0));
 }
 
 float3 Rand(float2 uv)
 {
-	return frac(sin(dot(uv, float2(12.9898f, 78.233f)) * float3(1, 2, 3)) * 43758.5453f);
+	return frac(sin(dot(uv, float2(12.9898, 78.233)) * float3(1, 2, 3)) * 43758.5453);
 }
 
 float4 Rand2(float2 pos)
 {
-	const float4 primeA = float4(9.907f, 9.923f, 9.929f, 9.931f);
-	const float4 primeB = float4(9.941f, 9.949f, 9.967f, 9.973f);
+	const float4 primeA = float4(9.907, 9.923, 9.929, 9.931);
+	const float4 primeB = float4(9.941, 9.949, 9.967, 9.973);
 	return frac(primeA * pos.x + primeB * pos.y);
 }
 
 float3 RandomColor(float2 pos, float randLum, float randRGB)
 {
 	const float4 r = Rand2(pos);
-	return (1.f - randLum - randRGB) + r.a * randLum + r.rgb * randRGB;
+	return (1.0 - randLum - randRGB) + r.a * randLum + r.rgb * randRGB;
 }
 
 float3 NormalDither(float3 rand)
 {
-	const float2 rr = rand.xy * (1.f / 333.f) - (0.5f / 333.f);
+	const float2 rr = rand.xy * (1.0 / 333.0) - (0.5 / 333.0);
 	return float3(rr, 0);
 }
 
 static const float2 _POINT_SPRITE_POS_OFFSETS[4] =
 {
-	float2(-0.5f,  0.5f),
-	float2(-0.5f, -0.5f),
-	float2(0.5f,  0.5f),
-	float2(0.5f, -0.5f)
+	float2(-0.5,  0.5),
+	float2(-0.5, -0.5),
+	float2(0.5,  0.5),
+	float2(0.5, -0.5)
 };
 
 static const float2 _POINT_SPRITE_TEX_COORDS[4] =
@@ -141,12 +141,12 @@ static const float2 _POINT_SPRITE_TEX_COORDS[4] =
 
 float3 ToRealAlbedo(float3 albedo)
 {
-	return max(albedo.rgb * 0.5f, 0.0001f);
+	return max(albedo.rgb * 0.5, 0.0001);
 }
 
 float3 ToMetalColor(float3 albedo)
 {
-	const float gray = dot(albedo, 1.f / 3.f);
+	const float gray = dot(albedo, 1.0 / 3.0);
 	return saturate(albedo / (gray + _SINGULARITY_FIX));
 }
 
@@ -155,7 +155,7 @@ float3 ToSafeHDR(float3 hdr)
 {
 	// Typical ambient is 4000.
 	// Typical sunlight is 16000.
-	return clamp(hdr, 0.f, 32000.f);
+	return clamp(hdr, 0.0, 32000.0);
 }
 
 // See: https://en.wikipedia.org/wiki/Schlick%27s_approximation
@@ -168,22 +168,80 @@ float FresnelSchlick(float minRef, float maxAdd, float power)
 
 float UnpackTerrainHeight(float height)
 {
-	return height * 0.01f;
+	return height * 0.01;
 }
 
 float ToLandMask(float height)
 {
-	return saturate(height * 0.2f + 1.f); // [-5 to 0] -> [0 to 1]
+	return saturate(height * 0.2 + 1.0); // [-5 to 0] -> [0 to 1]
 }
 
 float ToWaterDiffuseMask(float height)
 {
-	const float mask = saturate(height * 0.02f + 1.f); // [-50 to 0] -> [0 to 1]
+	const float mask = saturate(height * 0.02 + 1.0); // [-50 to 0] -> [0 to 1]
 	return mask * mask * mask;
 }
 
 float3 ReflectionDimming(float3 hdr, float scale)
 {
-	const float gray = dot(hdr, 1.f / 3.f);
-	return lerp(hdr * scale, hdr, saturate(gray * (1.f / 65536.f)));
+	const float gray = dot(hdr, 1.0 / 3.0);
+	return lerp(hdr * scale, hdr, saturate(gray * (1.0 / 65536.0)));
+}
+
+// Also known as The Multiplier Map, for hemicube's shape compensation.
+float ComputeHemicubeMask(float2 tc)
+{
+	// Hint. Compare two pixels when looking at them from the focal point of hemicube:
+	// one is in the middle of hemicube's face and the other one is at the corner.
+	// What will be the ratio of their areas (solid angles)?
+	const float2 atc = abs(tc * 2.0 - 1.0);
+	if (atc.y < 0.5)
+	{
+		if (atc.x < 0.5)
+		{
+			const float3 faceNrm = float3(0, 0, 1);
+			const float3 v = float3(atc.x * 2.0, atc.y * 2.0, 1);
+			const float len = length(v);
+			const float3 vn = v / len;
+
+			const float cosLaw = vn.z;
+			const float distFactor = 1.0 / (len * len);
+			const float faceFactor = dot(vn, faceNrm);
+
+			return cosLaw * distFactor * faceFactor;
+		}
+		else
+		{
+			const float3 faceNrm = float3(1, 0, 0);
+			const float3 v = float3(1, atc.y * 2.0, 2.0 - 2.0 * atc.x);
+			const float len = length(v);
+			const float3 vn = v / len;
+
+			const float cosLaw = vn.z;
+			const float distFactor = 1.0 / (len * len);
+			const float faceFactor = dot(vn, faceNrm);
+
+			return cosLaw * distFactor * faceFactor;
+		}
+	}
+	else
+	{
+		if (atc.x < 0.5)
+		{
+			const float3 faceNrm = float3(0, 1, 0);
+			const float3 v = float3(atc.x * 2.0, 1, 2.0 - 2.0 * atc.y);
+			const float len = length(v);
+			const float3 vn = v / len;
+
+			const float cosLaw = vn.z;
+			const float distFactor = 1.0 / (len * len);
+			const float faceFactor = dot(vn, faceNrm);
+
+			return cosLaw * distFactor * faceFactor;
+		}
+		else
+		{
+			return 0.0;
+		}
+	}
 }

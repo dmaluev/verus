@@ -34,31 +34,31 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
-	const float pointSpriteSize = si.tc0.x * (1.f / 500.f);
-	const float angle = si.tc0.y * (1.f / 32767.f);
+	const float pointSpriteSize = si.tc0.x * (1.0 / 500.0);
+	const float angle = si.tc0.y * (1.0 / 32767.0);
 
 	const float3 toEye = g_ubForestVS._eyePos.xyz - si.pos.xyz;
 	const float distToScreen = length(g_ubForestVS._eyePosScreen.xyz - si.pos.xyz);
 
-	const float nearAlpha = saturate((distToScreen - 60.f) * (1.f / 30.f)); // From 60m to 90m.
-	const float farAlpha = 1.f - saturate((distToScreen - 900.f) * (1.f / 100.f)); // From 900m to 1000m.
+	const float nearAlpha = saturate((distToScreen - 60.0) * (1.0 / 30.0)); // From 60m to 90m.
+	const float farAlpha = 1.0 - saturate((distToScreen - 900.0) * (1.0 / 100.0)); // From 900m to 1000m.
 
 	so.pos = mul(si.pos, g_ubForestVS._matWVP);
-	so.tc0 = 0.f;
-	so.color.rgb = RandomColor(si.pos.xz, 0.3f, 0.2f);
+	so.tc0 = 0.0;
+	so.color.rgb = RandomColor(si.pos.xz, 0.3, 0.2);
 	so.color.a = nearAlpha * farAlpha;
 	so.psize.xy = pointSpriteSize * (g_ubForestVS._viewportSize.yx * g_ubForestVS._viewportSize.z) * g_ubForestVS._matP._m11;
 	so.psize.xy *= ceil(so.color.a); // Hide if too close.
-	so.psize.z = saturate(pointSpriteSize * 0.25f - 0.5f);
+	so.psize.z = saturate(pointSpriteSize * 0.25 - 0.5);
 
 	float2 param0 = toEye.xy;
 	float2 param1 = toEye.zz;
-	param0.y = max(0.f, param0.y); // Only upper hemisphere.
+	param0.y = max(0.0, param0.y); // Only upper hemisphere.
 	param1.y = length(toEye.xz); // Distance in XZ-plane.
-	so.angles.xy = (atan2(param0, param1) + _PI) * (0.5f / _PI); // atan2(x, z) and atan2(max(0.f, y), length(toEye.xz)). From 0 to 1.
-	so.angles.y = (so.angles.y - 0.5f) * 4.f; // Choose this quadrant.
+	so.angles.xy = (atan2(param0, param1) + _PI) * (0.5 / _PI); // atan2(x, z) and atan2(max(0.0, y), length(toEye.xz)). From 0 to 1.
+	so.angles.y = (so.angles.y - 0.5) * 4.0; // Choose this quadrant.
 	so.angles.xy = saturate(so.angles.xy);
-	so.angles.x = frac(so.angles.x - angle + 0.5f); // Turn.
+	so.angles.x = frac(so.angles.x - angle + 0.5); // Turn.
 
 	return so;
 }
@@ -83,21 +83,21 @@ void mainGS(point VSO si[1], inout TriangleStream<VSO> stream)
 
 float2 ComputeTexCoords(float2 tc, float2 angles)
 {
-	const float marginBias = 16.f / 512.f;
-	const float marginScale = 1.f - marginBias * 2.f;
+	const float marginBias = 16.0 / 512.0;
+	const float marginScale = 1.0 - marginBias * 2.0;
 	const float2 tcMargin = tc * marginScale + marginBias;
 
 	const float2 frameCount = float2(16, 16);
-	const float2 frameScale = 1.f / frameCount;
-	const float2 frameBias = floor(min(angles * frameCount + 0.5f, float2(256, frameCount.y - 0.5f)));
+	const float2 frameScale = 1.0 / frameCount;
+	const float2 frameBias = floor(min(angles * frameCount + 0.5, float2(256, frameCount.y - 0.5)));
 	return (tcMargin + frameBias) * frameScale;
 }
 
 float ComputeMask(float2 tc, float alpha)
 {
-	const float2 tcCenter = tc - 0.5f;
-	const float rad = saturate(dot(tcCenter, tcCenter) * 4.f);
-	return saturate(rad + (alpha * 2.f - 1.f));
+	const float2 tcCenter = tc - 0.5;
+	const float rad = saturate(dot(tcCenter, tcCenter) * 4.0);
+	return saturate(rad + (alpha * 2.0 - 1.0));
 }
 
 #ifdef _FS
@@ -109,7 +109,7 @@ void mainFS(VSO si)
 
 	const float alpha = g_texGBuffer1.Sample(g_samGBuffer1, tc).a;
 
-	clip(alpha * mask - 0.53f);
+	clip(alpha * mask - 0.53);
 }
 #else
 DS_FSO mainFS(VSO si)
@@ -128,10 +128,10 @@ DS_FSO mainFS(VSO si)
 	so.target2 = rawGBuffer2;
 
 	so.target0.rgb *= si.color.rgb;
-	const float lamBiasRatio = 1.f - ComputeMask(si.tc0, 0.5f);
-	so.target2.g = lerp(so.target2.g, 0.25f, lamBiasRatio * lamBiasRatio * si.psize.z);
+	const float lamBiasRatio = 1.0 - ComputeMask(si.tc0, 0.5);
+	so.target2.g = lerp(so.target2.g, 0.25, lamBiasRatio * lamBiasRatio * si.psize.z);
 
-	clip(rawGBuffer1.a * mask - 0.53f);
+	clip(rawGBuffer1.a * mask - 0.53);
 
 	return so;
 }

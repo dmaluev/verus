@@ -43,18 +43,18 @@ DS_FSO mainFS(VSO si)
 {
 	DS_FSO so;
 
-	const float4 rawGBuffer0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.f);
-	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.f);
-	const float4 rawGBuffer2 = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.f);
+	const float4 rawGBuffer0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.0);
+	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
+	const float4 rawGBuffer2 = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.0);
 
 	so.target0 = rawGBuffer0;
 	so.target1 = rawGBuffer1;
 	so.target2 = rawGBuffer2;
 
-	if (rawGBuffer1.a < 0.5f)
+	if (rawGBuffer1.a < 0.5)
 	{
 		// Defringe:
-		float minDist = 1000.f;
+		float minDist = 1000.0;
 		[unroll] for (int i = -7; i <= 7; ++i)
 		{
 			[unroll] for (int j = -7; j <= 7; ++j)
@@ -62,15 +62,15 @@ DS_FSO mainFS(VSO si)
 				const float2 offset = float2(j, i);
 				const float dist = dot(offset, offset);
 
-				const float4 rawKernel1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.f, int2(j, i));
+				const float4 rawKernel1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(j, i));
 				const float kernelAlpha = rawKernel1.a;
 
-				if (kernelAlpha >= 0.5f && dist < minDist)
+				if (kernelAlpha >= 0.5 && dist < minDist)
 				{
 					minDist = dist;
 
-					const float4 rawKernel0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.f, int2(j, i));
-					const float4 rawKernel2 = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.f, int2(j, i));
+					const float4 rawKernel0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.0, int2(j, i));
+					const float4 rawKernel2 = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.0, int2(j, i));
 
 					so.target0 = rawKernel0;
 					so.target1.rgb = rawKernel1.rgb;

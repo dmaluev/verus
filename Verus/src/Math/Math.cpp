@@ -490,8 +490,8 @@ void Math::Test()
 	{
 		const Vector3 a(0, 0, 1), b(0, 0, -1), c(0, 1, 0);
 		Matrix3 ab, ac;
-		ab.RotateTo(a, b);
-		ac.RotateTo(a, c);
+		ab.TrackTo(a, b);
+		ac.TrackTo(a, c);
 		const Vector3 k = ab * a;
 		const Vector3 l = ac * a;
 		VERUS_RT_ASSERT(

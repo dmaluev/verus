@@ -109,10 +109,14 @@ void Ssr::OnSwapChainResized()
 
 void Ssr::Generate()
 {
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
 	VERUS_QREF_SSAO;
 	VERUS_QREF_ATMO;
+
+	if (!settings._postProcessSSR)
+		return;
 
 	if (!_csh.IsSet())
 	{

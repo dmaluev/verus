@@ -58,6 +58,8 @@ namespace verus
 
 		void LimitDot(const Vector3& v, float d);
 		Vector3 Reflect(const Vector3& normal, float bounce = 1) const;
+
+		Vector3 Perpendicular() const;
 	};
 	VERUS_TYPEDEFS(Vector3);
 

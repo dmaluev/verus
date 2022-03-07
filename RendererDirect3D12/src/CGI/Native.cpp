@@ -2,7 +2,105 @@
 #include "pch.h"
 
 using namespace verus;
-using namespace verus::CGI;
+
+D3D12_COMPARISON_FUNC CGI::ToNativeCompareOp(CompareOp compareOp)
+{
+	switch (compareOp)
+	{
+	case CompareOp::never:          return D3D12_COMPARISON_FUNC_NEVER;
+	case CompareOp::less:           return D3D12_COMPARISON_FUNC_LESS;
+	case CompareOp::equal:          return D3D12_COMPARISON_FUNC_EQUAL;
+	case CompareOp::lessOrEqual:    return D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	case CompareOp::greater:        return D3D12_COMPARISON_FUNC_GREATER;
+	case CompareOp::notEqual:       return D3D12_COMPARISON_FUNC_NOT_EQUAL;
+	case CompareOp::greaterOrEqual: return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+	case CompareOp::always:         return D3D12_COMPARISON_FUNC_ALWAYS;
+	default: throw VERUS_RECOVERABLE << "ToNativeCompareOp()";
+	}
+}
+
+UINT CGI::ToNativeCubeMapFace(CubeMapFace face)
+{
+	switch (face)
+	{
+	case CubeMapFace::posX: return 0;
+	case CubeMapFace::negX: return 1;
+	case CubeMapFace::posY: return 2;
+	case CubeMapFace::negY: return 3;
+	case CubeMapFace::posZ: return 4;
+	case CubeMapFace::negZ: return 5;
+	default: throw VERUS_RECOVERABLE << "ToNativeCubeMapFace()";
+	}
+}
+
+D3D12_FILL_MODE CGI::ToNativePolygonMode(PolygonMode polygonMode)
+{
+	switch (polygonMode)
+	{
+	case PolygonMode::fill: return D3D12_FILL_MODE_SOLID;
+	case PolygonMode::line: return D3D12_FILL_MODE_WIREFRAME;
+	default: throw VERUS_RECOVERABLE << "ToNativePolygonMode()";
+	}
+}
+
+D3D12_CULL_MODE CGI::ToNativeCullMode(CullMode cullMode)
+{
+	switch (cullMode)
+	{
+	case CullMode::none:  return D3D12_CULL_MODE_NONE;
+	case CullMode::front: return D3D12_CULL_MODE_FRONT;
+	case CullMode::back:  return D3D12_CULL_MODE_BACK;
+	default: throw VERUS_RECOVERABLE << "ToNativeCullMode()";
+	}
+}
+
+D3D_PRIMITIVE_TOPOLOGY CGI::ToNativePrimitiveTopology(PrimitiveTopology primitiveTopology)
+{
+	switch (primitiveTopology)
+	{
+	case PrimitiveTopology::pointList:     return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+	case PrimitiveTopology::lineList:      return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+	case PrimitiveTopology::lineStrip:     return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
+	case PrimitiveTopology::triangleList:  return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	case PrimitiveTopology::triangleStrip: return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+	case PrimitiveTopology::patchList3:    return D3D_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST;
+	case PrimitiveTopology::patchList4:    return D3D_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST;
+	default: throw VERUS_RECOVERABLE << "ToNativePrimitiveTopology()";
+	}
+}
+
+D3D12_PRIMITIVE_TOPOLOGY_TYPE CGI::ToNativePrimitiveTopologyType(PrimitiveTopology primitiveTopology)
+{
+	switch (primitiveTopology)
+	{
+	case PrimitiveTopology::pointList:     return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+	case PrimitiveTopology::lineList:      return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+	case PrimitiveTopology::lineStrip:     return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+	case PrimitiveTopology::triangleList:  return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	case PrimitiveTopology::triangleStrip: return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	case PrimitiveTopology::patchList3:    return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
+	case PrimitiveTopology::patchList4:    return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
+	default: throw VERUS_RECOVERABLE << "ToNativePrimitiveTopologyType()";
+	}
+}
+
+D3D12_RESOURCE_STATES CGI::ToNativeImageLayout(ImageLayout layout)
+{
+	switch (layout)
+	{
+	case ImageLayout::undefined:              return D3D12_RESOURCE_STATE_COMMON;
+	case ImageLayout::general:                return D3D12_RESOURCE_STATE_COMMON;
+	case ImageLayout::colorAttachment:        return D3D12_RESOURCE_STATE_RENDER_TARGET;
+	case ImageLayout::depthStencilAttachment: return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+	case ImageLayout::depthStencilReadOnly:   return D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	case ImageLayout::xsReadOnly:             return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	case ImageLayout::fsReadOnly:             return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	case ImageLayout::transferSrc:            return D3D12_RESOURCE_STATE_COPY_SOURCE;
+	case ImageLayout::transferDst:            return D3D12_RESOURCE_STATE_COPY_DEST;
+	case ImageLayout::presentSrc:             return D3D12_RESOURCE_STATE_PRESENT;
+	default: throw VERUS_RECOVERABLE << "ToNativeImageLayout()";
+	}
+}
 
 DXGI_FORMAT CGI::ToNativeFormat(Format format, bool typeless)
 {
@@ -54,91 +152,6 @@ DXGI_FORMAT CGI::ToNativeSampledDepthFormat(Format format)
 
 	default: throw VERUS_RECOVERABLE << "ToNativeSampledDepthFormat()";
 	};
-}
-
-D3D12_CULL_MODE CGI::ToNativeCullMode(CullMode cullMode)
-{
-	switch (cullMode)
-	{
-	case CullMode::none:  return D3D12_CULL_MODE_NONE;
-	case CullMode::front: return D3D12_CULL_MODE_FRONT;
-	case CullMode::back:  return D3D12_CULL_MODE_BACK;
-	default: throw VERUS_RECOVERABLE << "ToNativeCullMode()";
-	}
-}
-
-D3D12_RESOURCE_STATES CGI::ToNativeImageLayout(ImageLayout layout)
-{
-	switch (layout)
-	{
-	case ImageLayout::undefined:              return D3D12_RESOURCE_STATE_COMMON;
-	case ImageLayout::general:                return D3D12_RESOURCE_STATE_COMMON;
-	case ImageLayout::colorAttachment:        return D3D12_RESOURCE_STATE_RENDER_TARGET;
-	case ImageLayout::depthStencilAttachment: return D3D12_RESOURCE_STATE_DEPTH_WRITE;
-	case ImageLayout::depthStencilReadOnly:   return D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	case ImageLayout::xsReadOnly:             return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	case ImageLayout::fsReadOnly:             return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	case ImageLayout::transferSrc:            return D3D12_RESOURCE_STATE_COPY_SOURCE;
-	case ImageLayout::transferDst:            return D3D12_RESOURCE_STATE_COPY_DEST;
-	case ImageLayout::presentSrc:             return D3D12_RESOURCE_STATE_PRESENT;
-	default: throw VERUS_RECOVERABLE << "ToNativeImageLayout()";
-	}
-}
-
-D3D12_FILL_MODE CGI::ToNativePolygonMode(PolygonMode polygonMode)
-{
-	switch (polygonMode)
-	{
-	case PolygonMode::fill: return D3D12_FILL_MODE_SOLID;
-	case PolygonMode::line: return D3D12_FILL_MODE_WIREFRAME;
-	default: throw VERUS_RECOVERABLE << "ToNativePolygonMode()";
-	}
-}
-
-D3D_PRIMITIVE_TOPOLOGY CGI::ToNativePrimitiveTopology(PrimitiveTopology primitiveTopology)
-{
-	switch (primitiveTopology)
-	{
-	case PrimitiveTopology::pointList:     return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
-	case PrimitiveTopology::lineList:      return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
-	case PrimitiveTopology::lineStrip:     return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
-	case PrimitiveTopology::triangleList:  return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	case PrimitiveTopology::triangleStrip: return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
-	case PrimitiveTopology::patchList3:    return D3D_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST;
-	case PrimitiveTopology::patchList4:    return D3D_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST;
-	default: throw VERUS_RECOVERABLE << "ToNativePrimitiveTopology()";
-	}
-}
-
-D3D12_PRIMITIVE_TOPOLOGY_TYPE CGI::ToNativePrimitiveTopologyType(PrimitiveTopology primitiveTopology)
-{
-	switch (primitiveTopology)
-	{
-	case PrimitiveTopology::pointList:     return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
-	case PrimitiveTopology::lineList:      return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
-	case PrimitiveTopology::lineStrip:     return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
-	case PrimitiveTopology::triangleList:  return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	case PrimitiveTopology::triangleStrip: return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	case PrimitiveTopology::patchList3:    return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
-	case PrimitiveTopology::patchList4:    return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
-	default: throw VERUS_RECOVERABLE << "ToNativePrimitiveTopologyType()";
-	}
-}
-
-D3D12_COMPARISON_FUNC CGI::ToNativeCompareOp(CompareOp compareOp)
-{
-	switch (compareOp)
-	{
-	case CompareOp::never:          return D3D12_COMPARISON_FUNC_NEVER;
-	case CompareOp::less:           return D3D12_COMPARISON_FUNC_LESS;
-	case CompareOp::equal:          return D3D12_COMPARISON_FUNC_EQUAL;
-	case CompareOp::lessOrEqual:    return D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	case CompareOp::greater:        return D3D12_COMPARISON_FUNC_GREATER;
-	case CompareOp::notEqual:       return D3D12_COMPARISON_FUNC_NOT_EQUAL;
-	case CompareOp::greaterOrEqual: return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
-	case CompareOp::always:         return D3D12_COMPARISON_FUNC_ALWAYS;
-	default: throw VERUS_RECOVERABLE << "ToNativeCompareOp()";
-	}
 }
 
 CSZ CGI::ToNativeSemanticName(ViaUsage usage)
@@ -228,19 +241,5 @@ DXGI_FORMAT CGI::ToNativeFormat(ViaUsage usage, ViaType type, int components)
 	}
 	break;
 	default: throw VERUS_RECOVERABLE << "ToNativeFormat(); ViaType=?";
-	}
-}
-
-UINT CGI::ToNativeCubeMapFace(CubeMapFace face)
-{
-	switch (face)
-	{
-	case CubeMapFace::posX: return 0;
-	case CubeMapFace::negX: return 1;
-	case CubeMapFace::posY: return 2;
-	case CubeMapFace::negY: return 3;
-	case CubeMapFace::posZ: return 4;
-	case CubeMapFace::negZ: return 5;
-	default: throw VERUS_RECOVERABLE << "ToNativeCubeMapFace()";
 	}
 }

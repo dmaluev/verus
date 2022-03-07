@@ -37,8 +37,8 @@ struct FSO
 
 float GlossBoost(float gloss)
 {
-	const float x = 1.f - gloss;
-	return 1.f - x * x;
+	const float x = 1.0 - gloss;
+	return 1.0 - x * x;
 }
 
 #ifdef _VS
@@ -60,19 +60,19 @@ FSO mainFS(VSO si)
 	FSO so;
 
 #ifdef DEF_SSR
-	const float alpha = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.f).r;
-	const float gloss = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f).a;
+	const float alpha = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0).r;
+	const float gloss = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).a;
 
-	const float gloss64 = gloss * 64.f;
-	const float eyeMask = saturate(1.f - gloss64);
-	const float scaleByAlpha = 1.f - alpha;
-	const float scaleByGloss = 1.f - GlossBoost(lerp(gloss, 0.75f, eyeMask));
-	const float scale = max(0.001f, min(scaleByAlpha, scaleByGloss));
+	const float gloss64 = gloss * 64.0;
+	const float eyeMask = saturate(1.0 - gloss64);
+	const float scaleByAlpha = 1.0 - alpha;
+	const float scaleByGloss = 1.0 - GlossBoost(lerp(gloss, 0.75, eyeMask));
+	const float scale = max(0.001, min(scaleByAlpha, scaleByGloss));
 
 	const int sampleCount = max(4, g_ubBlurFS._sampleCount * scale);
 	const float radius = g_ubBlurFS._radius_invRadius_stride.x * scale;
-	const float invRadius = 1.f / radius;
-	const float stride = radius * 2.f / (sampleCount - 1);
+	const float invRadius = 1.0 / radius;
+	const float stride = radius * 2.0 / (sampleCount - 1);
 #else
 	const int sampleCount = g_ubBlurFS._sampleCount;
 	const float radius = g_ubBlurFS._radius_invRadius_stride.x;
@@ -80,22 +80,22 @@ FSO mainFS(VSO si)
 	const float stride = g_ubBlurFS._radius_invRadius_stride.z;
 #endif
 
-	float4 acc = 0.f;
+	float4 acc = 0.0;
 	float2 offset_weightSum = float2(-radius, 0);
 	for (int i = 0; i < sampleCount; ++i)
 	{
 		// Poor man's gaussian kernel:
-		const float curve = smoothstep(1.f, 0.f, abs(offset_weightSum.x) * invRadius);
+		const float curve = smoothstep(1.0, 0.0, abs(offset_weightSum.x) * invRadius);
 		const float weight = curve * curve;
 #ifdef DEF_U
 		const float2 tc = si.tc0 + float2(offset_weightSum.x, 0);
 #else
 		const float2 tc = si.tc0 + float2(0, offset_weightSum.x);
 #endif
-		acc += g_tex.SampleLevel(g_sam, tc, 0.f) * weight;
+		acc += g_tex.SampleLevel(g_sam, tc, 0.0) * weight;
 		offset_weightSum += float2(stride, weight);
 	}
-	acc *= 1.f / offset_weightSum.y;
+	acc *= 1.0 / offset_weightSum.y;
 
 	so.color = acc;
 
@@ -109,7 +109,7 @@ FSO mainFS(VSO si)
 
 float DepthToCircleOfConfusion(float depth, float focusDist)
 {
-	return abs((depth - focusDist * 2.f) / depth + 1.f);
+	return abs((depth - focusDist * 2.0) / depth + 1.0);
 }
 
 #ifdef _VS
@@ -133,47 +133,47 @@ FSO mainDofFS(VSO si)
 	const float focusDist = g_ubExtraBlurFS._focusDist_blurStrength.x;
 	const float blurStrength = g_ubExtraBlurFS._focusDist_blurStrength.y;
 
-	const float rawOriginDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f).r;
+	const float rawOriginDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
 	const float originDepth = ToLinearDepth(rawOriginDepth, g_ubExtraBlurFS._zNearFarEx);
 	const float scale = DepthToCircleOfConfusion(originDepth, focusDist) * blurStrength;
 
 	const int sampleCount = clamp(g_ubBlurFS._sampleCount * scale, 3, 31);
 	const float radius = g_ubBlurFS._radius_invRadius_stride.x * scale;
-	const float invRadius = 1.f / radius;
+	const float invRadius = 1.0 / radius;
 	const float2 blurDir = g_ubExtraBlurFS._blurDir.xy;
 	const float2 blurDir2 = g_ubExtraBlurFS._blurDir.zw * radius;
 
-	const float stride = radius * 2.f / (sampleCount - 1);
+	const float stride = radius * 2.0 / (sampleCount - 1);
 	const float2 stride2D = stride * blurDir;
 
-	float4 acc = 0.f;
+	float4 acc = 0.0;
 	float2 offset_weightSum = float2(-radius, 0);
 	float2 tc = si.tc0 - blurDir * radius;
 	for (int i = 0; i < sampleCount; ++i)
 	{
-		//const float origin = 1.f - abs(offset_weightSum.x) * invRadius; // Will generate buggy code in Vulkan!
+		//const float origin = 1.0 - abs(offset_weightSum.x) * invRadius; // Will generate buggy code in Vulkan!
 		const float origin = abs(offset_weightSum.x) * invRadius;
 
-		const float rawKernelDepth = g_texDepth.SampleLevel(g_samDepth, tc, 0.f).r;
+		const float rawKernelDepth = g_texDepth.SampleLevel(g_samDepth, tc, 0.0).r;
 		const float kernelDepth = ToLinearDepth(rawKernelDepth, g_ubExtraBlurFS._zNearFarEx);
 		const float kernelDeeper = kernelDepth - originDepth;
 		const float kernelScale = DepthToCircleOfConfusion(kernelDepth, focusDist) * blurStrength;
 		// Blurry area should not sample sharp area unless it is closer to the camera.
-		float weight = min(scale, min(2.f, max(kernelScale, kernelDeeper)));
+		float weight = min(scale, min(2.0, max(kernelScale, kernelDeeper)));
 
 #ifdef DEF_U // 1st pass - make a rhombus:
-		weight *= 1.f - 0.5f * origin;
-		const float4 colorA = g_tex.SampleLevel(g_sam, tc - blurDir2 + blurDir2 * origin, 0.f);
-		const float4 colorB = g_tex.SampleLevel(g_sam, tc + blurDir2 - blurDir2 * origin, 0.f);
-		acc += lerp(colorA, colorB, 0.5f) * weight;
+		weight *= 1.0 - 0.5 * origin;
+		const float4 colorA = g_tex.SampleLevel(g_sam, tc - blurDir2 + blurDir2 * origin, 0.0);
+		const float4 colorB = g_tex.SampleLevel(g_sam, tc + blurDir2 - blurDir2 * origin, 0.0);
+		acc += lerp(colorA, colorB, 0.5) * weight;
 #else // 2nd pass - blur the rhombus:
-		acc += g_tex.SampleLevel(g_sam, tc, 0.f) * weight;
+		acc += g_tex.SampleLevel(g_sam, tc, 0.0) * weight;
 #endif
 
 		offset_weightSum += float2(stride, weight);
 		tc += stride2D;
 	}
-	acc *= 1.f / offset_weightSum.y;
+	acc *= 1.0 / offset_weightSum.y;
 
 	so.color = acc;
 
@@ -204,16 +204,16 @@ FSO mainSsaoFS(VSO si)
 	FSO so;
 
 	// 4x4 box blur, using texture filtering.
-	float4 acc = 0.f;
+	float4 acc = 0.0;
 	[unroll] for (int i = -1; i <= 1; i += 2)
 	{
 #ifdef DEF_U
-		acc += g_tex.SampleLevel(g_sam, si.tc0, 0.f, int2(i, 0));
+		acc += g_tex.SampleLevel(g_sam, si.tc0, 0.0, int2(i, 0));
 #else // Sampling from sRGB, use alpha channel:
-		acc += g_tex.SampleLevel(g_sam, si.tc0, 0.f, int2(0, i)).aaaa;
+		acc += g_tex.SampleLevel(g_sam, si.tc0, 0.0, int2(0, i)).aaaa;
 #endif
 	}
-	acc *= 0.5f;
+	acc *= 0.5;
 
 	so.color = acc;
 #ifndef DEF_V // Make sure to write R channel to alpha, destination is sRGB.
@@ -244,26 +244,26 @@ FSO mainAntiAliasingFS(VSO si)
 {
 	FSO so;
 
-	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.f);
+	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
 	const float3 normalWV = DS_GetNormal(rawGBuffer1);
 
 	// <DepthBased>
 	float originDeeper;
 	float depthBasedEdge;
 	{
-		const float rawOriginDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f).r;
+		const float rawOriginDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
 		const float originDepth = ToLinearDepth(rawOriginDepth, g_ubExtraBlurFS._zNearFarEx);
 		const float4 rawKernelDepths = float4(
-			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f, int2(-1, +0)).r, // L
-			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f, int2(+0, -1)).r, // T
-			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f, int2(+1, +0)).r, // R
-			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f, int2(+0, +1)).r); // B
+			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(-1, +0)).r, // L
+			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(+0, -1)).r, // T
+			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(+1, +0)).r, // R
+			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(+0, +1)).r); // B
 		const float4 kernelDepths = ToLinearDepth(rawKernelDepths, g_ubExtraBlurFS._zNearFarEx);
 		const float minDepth = min(min(kernelDepths[0], kernelDepths[1]), min(kernelDepths[2], kernelDepths[3]));
-		const float equalize = 1.f / originDepth;
+		const float equalize = 1.0 / originDepth;
 		originDeeper = saturate((originDepth - minDepth) * equalize);
 		const float4 depthOffsets = abs((originDepth - kernelDepths) * equalize);
-		depthBasedEdge = saturate(dot(depthOffsets, 1.f));
+		depthBasedEdge = saturate(dot(depthOffsets, 1.0));
 	}
 	// </DepthBased>
 
@@ -271,11 +271,11 @@ FSO mainAntiAliasingFS(VSO si)
 	float normalBasedEdge;
 	{
 		const float4 rawNrmLT = float4(
-			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.f, int2(-1, +0)).rg,
-			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.f, int2(+0, -1)).rg);
+			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(-1, +0)).rg,
+			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(+0, -1)).rg);
 		const float4 rawNrmRB = float4(
-			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.f, int2(+1, +0)).rg,
-			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.f, int2(+0, +1)).rg);
+			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(+1, +0)).rg,
+			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(+0, +1)).rg);
 		const float4 diffA = rawNrmLT - rawNrmRB;
 		const float4 diffB = rawNrmLT - rawNrmRB.zwxy;
 		const float4 dots = float4(
@@ -284,7 +284,7 @@ FSO mainAntiAliasingFS(VSO si)
 			dot(diffB.xy, diffB.xy),
 			dot(diffB.zw, diffB.zw));
 		const float maxDot = max(max(dots.x, dots.y), max(dots.z, dots.w));
-		normalBasedEdge = saturate(maxDot * maxDot * 10.f);
+		normalBasedEdge = saturate(maxDot * maxDot * 10.0);
 	}
 	// </NormalBased>
 
@@ -294,21 +294,21 @@ FSO mainAntiAliasingFS(VSO si)
 	const float omni = max(perp.z * perp.z * perp.z, originDeeper);
 	const float2 dirs[4] =
 	{
-		lerp(perp.xy * +4.f, float2(-0.6f, -0.3f), omni),
-		lerp(perp.xy * -2.f, float2(+0.3f, -0.6f), omni),
-		lerp(perp.xy * -4.f, float2(-0.3f, +0.6f), omni),
-		lerp(perp.xy * +2.f, float2(+0.6f, +0.3f), omni)
+		lerp(perp.xy * +4.0, float2(-0.6, -0.3), omni),
+		lerp(perp.xy * -2.0, float2(+0.3, -0.6), omni),
+		lerp(perp.xy * -4.0, float2(-0.3, +0.6), omni),
+		lerp(perp.xy * +2.0, float2(+0.6, +0.3), omni)
 	};
 	const float2 offsetScale = g_ubExtraBlurFS._textureSize.zw * max(normalBasedEdge, depthBasedEdge);
 	const float3 kernelColors[4] =
 	{
-		g_tex.SampleLevel(g_sam, si.tc0 + dirs[0] * offsetScale, 0.f).rgb,
-		g_tex.SampleLevel(g_sam, si.tc0 + dirs[1] * offsetScale, 0.f).rgb,
-		g_tex.SampleLevel(g_sam, si.tc0 + dirs[2] * offsetScale, 0.f).rgb,
-		g_tex.SampleLevel(g_sam, si.tc0 + dirs[3] * offsetScale, 0.f).rgb
+		g_tex.SampleLevel(g_sam, si.tc0 + dirs[0] * offsetScale, 0.0).rgb,
+		g_tex.SampleLevel(g_sam, si.tc0 + dirs[1] * offsetScale, 0.0).rgb,
+		g_tex.SampleLevel(g_sam, si.tc0 + dirs[2] * offsetScale, 0.0).rgb,
+		g_tex.SampleLevel(g_sam, si.tc0 + dirs[3] * offsetScale, 0.0).rgb
 	};
-	so.color.rgb = (kernelColors[0] + kernelColors[1] + kernelColors[2] + kernelColors[3]) * 0.25f;
-	so.color.a = 1.f;
+	so.color.rgb = (kernelColors[0] + kernelColors[1] + kernelColors[2] + kernelColors[3]) * 0.25;
+	so.color.a = 1.0;
 
 	return so;
 }
@@ -333,7 +333,7 @@ FSO mainMotionFS(VSO si)
 	FSO so;
 
 	const float3 rand = Rand(si.pos.xy);
-	const float offsetScale = 0.45f + 0.05f * rand.x; // Blur 45% - 50% of frame time.
+	const float offsetScale = 0.45 + 0.05 * rand.x; // Blur 45% - 50% of frame time.
 
 #if _SHADER_QUALITY <= _Q_LOW
 	const int sampleCount = 12;
@@ -345,11 +345,11 @@ FSO mainMotionFS(VSO si)
 	const int sampleCount = 32;
 #endif
 
-	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.f);
+	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
 
-	const float rawOriginDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f).r;
+	const float rawOriginDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
 	const float originDepth = ToLinearDepth(rawOriginDepth, g_ubExtraBlurFS._zNearFarEx);
-	const float equalize = 1.f / originDepth;
+	const float equalize = 1.0 / originDepth;
 
 	float2 tcFrom;
 	{
@@ -361,9 +361,9 @@ FSO mainMotionFS(VSO si)
 	}
 
 	const float2 stride = (si.tc0 - tcFrom) * offsetScale / (sampleCount - 1);
-	const float2 tcOrigin = lerp(tcFrom, si.tc0, 0.75f); // Start from this location up to offsetScale.
+	const float2 tcOrigin = lerp(tcFrom, si.tc0, 0.75); // Start from this location up to offsetScale.
 
-	float4 acc = float4(g_tex.SampleLevel(g_sam, si.tc0, 0.f).rgb, 1); // Must have at least one sample.
+	float4 acc = float4(g_tex.SampleLevel(g_sam, si.tc0, 0.0).rgb, 1); // Must have at least one sample.
 	[unroll] for (int i = 0; i < sampleCount; ++i)
 	{
 		if (i == sampleCount / 2)
@@ -371,14 +371,14 @@ FSO mainMotionFS(VSO si)
 
 		const float2 kernelCoords = tcOrigin + stride * i;
 
-		const float rawKernelDepth = g_texDepth.SampleLevel(g_samDepth, kernelCoords, 0.f).r;
+		const float rawKernelDepth = g_texDepth.SampleLevel(g_samDepth, kernelCoords, 0.0).r;
 		const float kernelDepth = ToLinearDepth(rawKernelDepth, g_ubExtraBlurFS._zNearFarEx);
 		const float kernelDeeper = kernelDepth - originDepth;
-		const float allowed = saturate(1.f + kernelDeeper * equalize) * rawGBuffer1.a; // Closer points require extra care.
-		const float weight = 1.f + saturate(kernelDeeper); // To fix the seam between foreground and background.
+		const float allowed = saturate(1.0 + kernelDeeper * equalize) * rawGBuffer1.a; // Closer points require extra care.
+		const float weight = 1.0 + saturate(kernelDeeper); // To fix the seam between foreground and background.
 
-		const float3 kernelColor = g_tex.SampleLevel(g_sam, kernelCoords, 0.f).rgb;
-		acc += lerp(0.f, float4(kernelColor * weight, weight), allowed);
+		const float3 kernelColor = g_tex.SampleLevel(g_sam, kernelCoords, 0.0).rgb;
+		acc += lerp(0.0, float4(kernelColor * weight, weight), allowed);
 	}
 	acc /= acc.a;
 

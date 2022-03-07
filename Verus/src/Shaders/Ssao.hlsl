@@ -16,7 +16,7 @@ Texture2D    g_texDepth       : register(t3, space1);
 SamplerState g_samDepth       : register(s3, space1);
 
 // Normalized diagonal 1/sqrt(1+1+1):
-static const float g_s = 0.57735f;
+static const float g_s = 0.57735;
 static const float3 g_rays[8] =
 {
 	float3(+g_s, +g_s, +g_s),
@@ -70,35 +70,35 @@ FSO mainFS(VSO si)
 	const float weightScale = g_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.z;
 	const float weightBias = g_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.w;
 
-	const float3 randNormalWV = g_texRandNormals.SampleLevel(g_samRandNormals, si.tcNorm, 0.f).xyz * 2.f - 1.f;
+	const float3 randNormalWV = g_texRandNormals.SampleLevel(g_samRandNormals, si.tcNorm, 0.0).xyz * 2.0 - 1.0;
 
-	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.f);
+	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
 	const float3 normalWV = DS_GetNormal(rawGBuffer1);
 
-	const float rawDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.f).r;
+	const float rawDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
 	const float originDepth = ToLinearDepth(rawDepth, g_ubSsaoFS._zNearFarEx);
 
-	const float perspectScale = 1.f / originDepth;
+	const float perspectScale = 1.0 / originDepth;
 	const float4 scale = float4(smallRad, smallRad, largeRad, largeRad) * perspectScale * g_ubSsaoFS._camScale.xyxy;
 
 	float2 acc = _SINGULARITY_FIX;
 	[unroll] for (uint i = 0; i < 8; i++)
 	{
 		const float3 randRayWV = reflect(g_rays[i], randNormalWV);
-		const float3 hemiRayWV = randRayWV + normalWV * saturate(-dot(normalWV, randRayWV)) * 2.f;
+		const float3 hemiRayWV = randRayWV + normalWV * saturate(-dot(normalWV, randRayWV)) * 2.0;
 		const float nDotR = saturate(dot(normalWV, hemiRayWV));
 
 		const float3 smallRay = hemiRayWV * float3(scale.xy, smallRad);
 		const float3 largeRay = hemiRayWV * float3(scale.zw, largeRad);
 
 		const float2 rawKernelDepths = float2(
-			g_texDepth.SampleLevel(g_samDepth, si.tc0 + smallRay.xy, 0.f).r,
-			g_texDepth.SampleLevel(g_samDepth, si.tc0 + largeRay.xy, 0.f).r);
+			g_texDepth.SampleLevel(g_samDepth, si.tc0 + smallRay.xy, 0.0).r,
+			g_texDepth.SampleLevel(g_samDepth, si.tc0 + largeRay.xy, 0.0).r);
 		const float2 kernelDepths = ToLinearDepth(rawKernelDepths, g_ubSsaoFS._zNearFarEx);
 
 		const float2 kernelDeeper = kernelDepths - originDepth;
 		const float2 rayCloser = kernelDeeper + float2(smallRay.z, largeRay.z);
-		const float2 visible = step(0.f, rayCloser);
+		const float2 visible = step(0.0, rayCloser);
 		const float weight = saturate(weightBias + weightScale * rayCloser.y) * nDotR;
 
 		acc += float2(min(visible.x, visible.y) * weight, weight);

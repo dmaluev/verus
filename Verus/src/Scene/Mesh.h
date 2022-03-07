@@ -22,27 +22,27 @@ namespace verus
 			{
 				PIPE_MAIN,
 				PIPE_INSTANCED,
-				PIPE_PLANT,
 				PIPE_ROBOTIC,
 				PIPE_SKINNED,
+				PIPE_PLANT,
 
 				PIPE_TESS,
 				PIPE_TESS_INSTANCED,
-				PIPE_TESS_PLANT,
 				PIPE_TESS_ROBOTIC,
 				PIPE_TESS_SKINNED,
+				PIPE_TESS_PLANT,
 
 				PIPE_DEPTH,
 				PIPE_DEPTH_INSTANCED,
-				PIPE_DEPTH_PLANT,
 				PIPE_DEPTH_ROBOTIC,
 				PIPE_DEPTH_SKINNED,
+				PIPE_DEPTH_PLANT,
 
 				PIPE_DEPTH_TESS,
 				PIPE_DEPTH_TESS_INSTANCED,
-				PIPE_DEPTH_TESS_PLANT,
 				PIPE_DEPTH_TESS_ROBOTIC,
 				PIPE_DEPTH_TESS_SKINNED,
+				PIPE_DEPTH_TESS_PLANT,
 
 				PIPE_WIREFRAME,
 				PIPE_WIREFRAME_INSTANCED,
@@ -113,9 +113,11 @@ namespace verus
 				Transform3    _matW = Transform3::identity();
 				Vector4       _userColor = Vector4(0);
 				CGI::CSHandle _cshMaterial;
+				PcVector4     _pOverrideFogColor = nullptr;
 				PIPE          _pipe = PIPE_COUNT;
 				bool          _allowTess = true;
 				bool          _bindMaterial = true;
+				bool          _bindPipeline = true;
 				bool          _bindSkeleton = true;
 			};
 			VERUS_TYPEDEFS(DrawDesc);
@@ -129,8 +131,8 @@ namespace verus
 			void Init(RcDesc desc = Desc());
 			void Done();
 
-			void Draw(RcDrawDesc dd, CGI::CommandBufferPtr cb);
-			void DrawSimple(RcDrawDesc dd, CGI::CommandBufferPtr cb);
+			void Draw(RcDrawDesc drawDesc, CGI::CommandBufferPtr cb);
+			void DrawSimple(RcDrawDesc drawDesc, CGI::CommandBufferPtr cb);
 
 			void BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb);
 			void BindPipeline(CGI::CommandBufferPtr cb, bool allowTess = true);
@@ -164,6 +166,8 @@ namespace verus
 			int GetInstanceCount(bool fromFirstInstance = false) const { return fromFirstInstance ? _instanceCount - _firstInstance : _instanceCount; }
 			int GetInstanceCapacity() const { return _instanceCapacity; }
 			int GetFirstInstance() const { return _firstInstance; }
+
+			UINT32 GetBindingsMask() const { return _bindingsMask; }
 		};
 		VERUS_TYPEDEFS(Mesh);
 	}
