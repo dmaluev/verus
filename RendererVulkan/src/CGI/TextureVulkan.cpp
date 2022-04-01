@@ -21,24 +21,28 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
-	_initAtFrame = renderer.GetFrameCount();
+	// Variables:
 	_size = Vector4(
 		float(desc._width),
 		float(desc._height),
 		1.f / desc._width,
 		1.f / desc._height);
 	_desc = desc;
-	_desc._mipLevels = desc._mipLevels ? desc._mipLevels : Math::ComputeMipLevels(desc._width, desc._height, desc._depth);
+	_initAtFrame = renderer.GetFrameCount();
+	if (desc._flags & TextureDesc::Flags::anyShaderResource)
+		_mainLayout = ImageLayout::xsReadOnly;
 	_bytesPerPixel = FormatToBytesPerPixel(desc._format);
+
+	_desc._mipLevels = _desc._mipLevels ? _desc._mipLevels : Math::ComputeMipLevels(_desc._width, _desc._height, _desc._depth);
 	const bool renderTarget = (_desc._flags & TextureDesc::Flags::colorAttachment);
-	const bool depthFormat = IsDepthFormat(desc._format);
+	const bool depthFormat = IsDepthFormat(_desc._format);
 	const bool depthSampled = _desc._flags & (TextureDesc::Flags::depthSampledR | TextureDesc::Flags::depthSampledW);
 	const bool cubeMap = (_desc._flags & TextureDesc::Flags::cubeMap);
 	if (cubeMap)
 		_desc._arrayLayers *= +CubeMapFace::count;
-	if (_desc._flags & TextureDesc::Flags::anyShaderResource)
-		_mainLayout = ImageLayout::xsReadOnly;
+	const bool arrayTexture = (_desc._arrayLayers > 1) || (_desc._flags & TextureDesc::Flags::forceArrayTexture);
 
+	// Create:
 	VkImageCreateInfo vkici = {};
 	vkici.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	vkici.imageType = (_desc._depth > 1) ? VK_IMAGE_TYPE_3D : VK_IMAGE_TYPE_2D;
@@ -69,10 +73,12 @@ void TextureVulkan::Init(RcTextureDesc desc)
 		vkici.usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
 	if (cubeMap)
 		vkici.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-	pRendererVulkan->CreateImage(&vkici, VMA_MEMORY_USAGE_GPU_ONLY, _image, _vmaAllocation);
+	pRendererVulkan->CreateImage(&vkici, HostAccess::forbidden, _image, _vmaAllocation);
 
+	// Optional mipmap:
 	if (_desc._flags & TextureDesc::Flags::generateMips)
 	{
+		VERUS_RT_ASSERT(_desc._mipLevels > 1);
 		// Create storage image for compute shader's output. No need to have the first mip level.
 		VkImageCreateInfo vkiciStorage = vkici;
 		vkiciStorage.extent.width = Math::Max(1, _desc._width >> 1);
@@ -85,27 +91,37 @@ void TextureVulkan::Init(RcTextureDesc desc)
 		case VK_FORMAT_R8G8B8A8_SRGB: vkiciStorage.format = VK_FORMAT_R8G8B8A8_UNORM; break;
 		case VK_FORMAT_B8G8R8A8_SRGB: vkiciStorage.format = VK_FORMAT_B8G8R8A8_UNORM; break;
 		}
-		pRendererVulkan->CreateImage(&vkiciStorage, VMA_MEMORY_USAGE_GPU_ONLY, _storageImage, _storageVmaAllocation);
+		pRendererVulkan->CreateImage(&vkiciStorage, HostAccess::forbidden, _storageImage, _storageVmaAllocation);
 
 		_vCshGenerateMips.reserve(Math::DivideByMultiple<int>(_desc._mipLevels, 4));
-		_vStorageImageViews.resize(vkiciStorage.mipLevels);
-		VERUS_U_FOR(mip, vkiciStorage.mipLevels)
+		_vStorageImageViews.resize(vkiciStorage.mipLevels * _desc._arrayLayers);
+		VkImageViewCreateInfo vkivci = {};
+		vkivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		vkivci.image = _storageImage;
+		vkivci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		vkivci.format = vkiciStorage.format;
+		VERUS_FOR(layer, _desc._arrayLayers)
 		{
-			VkImageViewCreateInfo vkivci = {};
-			vkivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-			vkivci.image = _storageImage;
-			vkivci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-			vkivci.format = vkiciStorage.format;
-			vkivci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			vkivci.subresourceRange.baseMipLevel = mip;
-			vkivci.subresourceRange.levelCount = 1;
-			vkivci.subresourceRange.baseArrayLayer = 0;
-			vkivci.subresourceRange.layerCount = 1;
-			if (VK_SUCCESS != (res = vkCreateImageView(pRendererVulkan->GetVkDevice(), &vkivci, pRendererVulkan->GetAllocator(), &_vStorageImageViews[mip])))
-				throw VERUS_RUNTIME_ERROR << "vkCreateImageView(); res=" << res;
+			VERUS_U_FOR(mip, vkiciStorage.mipLevels)
+			{
+				vkivci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				vkivci.subresourceRange.baseMipLevel = mip;
+				vkivci.subresourceRange.levelCount = 1;
+				vkivci.subresourceRange.baseArrayLayer = layer;
+				vkivci.subresourceRange.layerCount = 1;
+				if (cubeMap)
+				{
+					const int cubeIndex = layer / +CubeMapFace::count;
+					const int faceIndex = layer % +CubeMapFace::count;
+					vkivci.subresourceRange.baseArrayLayer = (cubeIndex * +CubeMapFace::count) + ToNativeCubeMapFace(static_cast<CubeMapFace>(faceIndex));
+				}
+				if (VK_SUCCESS != (res = vkCreateImageView(pRendererVulkan->GetVkDevice(), &vkivci, pRendererVulkan->GetAllocator(), &_vStorageImageViews[mip + layer * vkiciStorage.mipLevels])))
+					throw VERUS_RUNTIME_ERROR << "vkCreateImageView(); res=" << res;
+			}
 		}
 	}
 
+	// Optional readback buffer:
 	if (_desc._readbackMip != SHRT_MAX)
 	{
 		if (_desc._readbackMip < 0)
@@ -116,18 +132,19 @@ void TextureVulkan::Init(RcTextureDesc desc)
 		_vReadbackBuffers.resize(BaseRenderer::s_ringBufferSize);
 		for (auto& x : _vReadbackBuffers)
 		{
-			pRendererVulkan->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_TO_CPU,
+			pRendererVulkan->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, HostAccess::random,
 				x._buffer, x._vmaAllocation);
 		}
 	}
 
+	// Create views:
 	VkImageViewCreateInfo vkivci = {};
 	vkivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	vkivci.image = _image;
 	vkivci.viewType = (_desc._depth > 1) ? VK_IMAGE_VIEW_TYPE_3D : VK_IMAGE_VIEW_TYPE_2D;
 	if (cubeMap)
 		vkivci.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
-	else if (_desc._arrayLayers > 1 || (_desc._flags & TextureDesc::Flags::forceArrayTexture))
+	else if (arrayTexture)
 		vkivci.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
 	vkivci.format = vkici.format;
 	vkivci.subresourceRange.aspectMask = depthFormat ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
@@ -158,22 +175,19 @@ void TextureVulkan::Init(RcTextureDesc desc)
 		}
 	}
 
+	// Custom sampler:
 	if (_desc._pSamplerDesc)
 		CreateSampler();
 
+	// Define:
 	if (renderTarget)
 	{
 		CommandBufferVulkan commandBuffer;
 		commandBuffer.InitOneTimeSubmit();
 		if (cubeMap)
-		{
-			VERUS_FOR(i, +CubeMapFace::count)
-				commandBuffer.PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, ImageLayout::fsReadOnly, 0, i);
-		}
+			commandBuffer.PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, ImageLayout::fsReadOnly, 0, Range(0, +CubeMapFace::count));
 		else
-		{
 			commandBuffer.PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::undefined, ImageLayout::fsReadOnly, 0, 0);
-		}
 		commandBuffer.DoneOneTimeSubmit();
 	}
 	if (depthFormat)
@@ -233,7 +247,7 @@ void TextureVulkan::UpdateSubresource(const void* p, int mipLevel, int arrayLaye
 	auto& sb = _vStagingBuffers[sbIndex];
 	if (VK_NULL_HANDLE == sb._buffer)
 	{
-		pRendererVulkan->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY,
+		pRendererVulkan->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, HostAccess::sequentialWrite,
 			sb._buffer, sb._vmaAllocation);
 	}
 
@@ -297,6 +311,9 @@ bool TextureVulkan::ReadbackSubresource(void* p, bool recordCopyCommand, PBaseCo
 void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 {
 	VERUS_RT_ASSERT(_desc._flags & TextureDesc::Flags::generateMips);
+	if (_desc._flags & TextureDesc::Flags::cubeMap)
+		return GenerateCubeMapMips(pCB);
+
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_VULKAN;
 
@@ -351,10 +368,10 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 
 		if (createComplexSets)
 		{
-			int mips[5] = {}; // For input texture (always mip 0) and 4 storage mips.
-			VERUS_FOR(mip, dispatchMipCount)
-				mips[mip + 1] = srcMip + mip;
-			const CSHandle complexSetHandle = shader->BindDescriptorSetTextures(0, { tex, tex, tex, tex, tex }, mips);
+			int mipLevels[5] = {}; // For input texture (always mip 0) and 4 storage mips.
+			VERUS_FOR(i, dispatchMipCount)
+				mipLevels[i + 1] = srcMip + i;
+			const CSHandle complexSetHandle = shader->BindDescriptorSetTextures(0, { tex, tex, tex, tex, tex }, mipLevels);
 			_vCshGenerateMips.push_back(complexSetHandle);
 			pCB->BindDescriptors(shader, 0, complexSetHandle);
 		}
@@ -370,12 +387,11 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 			std::swap(_image, _storageImage);
 			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::general, ImageLayout::transferSrc, Range(0, dispatchMipCount).OffsetBy(srcMip));
 			std::swap(_image, _storageImage);
-
 			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, ImageLayout::transferDst, Range(0, dispatchMipCount).OffsetBy(srcMip + 1));
 		}
-		VERUS_FOR(mip, dispatchMipCount)
+		VERUS_FOR(i, dispatchMipCount)
 		{
-			const int dstMip = srcMip + 1 + mip;
+			const int dstMip = srcMip + 1 + i;
 			const int w = Math::Max(1, _desc._width >> dstMip);
 			const int h = Math::Max(1, _desc._height >> dstMip);
 			pRendererVulkan->CopyImage(
@@ -389,7 +405,6 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 			std::swap(_image, _storageImage);
 			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferSrc, ImageLayout::general, Range(0, dispatchMipCount).OffsetBy(srcMip));
 			std::swap(_image, _storageImage);
-
 			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::xsReadOnly, Range(0, dispatchMipCount).OffsetBy(srcMip + 1));
 		}
 
@@ -402,6 +417,116 @@ void TextureVulkan::GenerateMips(PBaseCommandBuffer pCB)
 	const ImageLayout finalMipLayout = GetSubresourceMainLayout(0, 0);
 	if (finalMipLayout != ImageLayout::xsReadOnly)
 		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, finalMipLayout, Range(0, _desc._mipLevels));
+
+	Schedule(0);
+}
+
+void TextureVulkan::GenerateCubeMapMips(PBaseCommandBuffer pCB)
+{
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_RENDERER_VULKAN;
+
+	if (!pCB)
+		pCB = renderer.GetCommandBuffer().Get();
+	auto shader = renderer.GetShaderGenerateCubeMapMips();
+	auto& ub = renderer.GetUbGenerateCubeMapMips();
+	auto tex = TexturePtr::From(this);
+
+	const int maxMipLevel = _desc._mipLevels - 1;
+
+	if (!_definedStorage)
+	{
+		_definedStorage = true;
+		std::swap(_image, _storageImage);
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::undefined, ImageLayout::general, Range(0, maxMipLevel), Range(0, +CubeMapFace::count));
+		std::swap(_image, _storageImage);
+	}
+
+	// Change layout for sampling in compute shader (assume all layers have the same layout):
+	const ImageLayout firstMipLayout = GetSubresourceMainLayout(0, 0);
+	const ImageLayout otherMipsLayout = GetSubresourceMainLayout(1, 0);
+	if (firstMipLayout != ImageLayout::xsReadOnly)
+		pCB->PipelineImageMemoryBarrier(tex, firstMipLayout, ImageLayout::xsReadOnly, 0, Range(0, +CubeMapFace::count));
+	if (otherMipsLayout != ImageLayout::xsReadOnly)
+		pCB->PipelineImageMemoryBarrier(tex, otherMipsLayout, ImageLayout::xsReadOnly, Range(1, _desc._mipLevels), Range(0, +CubeMapFace::count));
+	VERUS_FOR(layer, +CubeMapFace::count)
+	{
+		VERUS_FOR(mip, _desc._mipLevels)
+			MarkSubresourceDefined(mip, layer);
+	}
+
+	pCB->BindPipeline(renderer.GetPipelineGenerateCubeMapMips());
+
+	shader->BeginBindDescriptors();
+	const bool createComplexSets = _vCshGenerateMips.empty();
+	int dispatchIndex = 0;
+	for (int srcMip = 0; srcMip < maxMipLevel;)
+	{
+		const int srcWidth = Math::Max(1, _desc._width >> srcMip);
+		const int srcHeight = Math::Max(1, _desc._height >> srcMip);
+		const int dstWidth = Math::Max(1, srcWidth >> 1);
+		const int dstHeight = Math::Max(1, srcHeight >> 1);
+
+		ub._srcMipLevel = srcMip;
+		ub._srgb = IsSRGBFormat(_desc._format);
+		ub._dstTexelSize.x = 1.f / dstWidth;
+		ub._dstTexelSize.y = 1.f / dstHeight;
+
+		if (createComplexSets)
+		{
+			int mipLevels[7] = {};
+			VERUS_FOR(i, +CubeMapFace::count)
+				mipLevels[i + 1] = srcMip;
+			int arrayLayers[7] = {};
+			VERUS_FOR(i, +CubeMapFace::count)
+				arrayLayers[i + 1] = ToNativeCubeMapFace(static_cast<CubeMapFace>(i));
+			const CSHandle complexSetHandle = shader->BindDescriptorSetTextures(0, { tex, tex, tex, tex, tex, tex, tex }, mipLevels, arrayLayers);
+			_vCshGenerateMips.push_back(complexSetHandle);
+			pCB->BindDescriptors(shader, 0, complexSetHandle);
+		}
+		else
+		{
+			pCB->BindDescriptors(shader, 0, _vCshGenerateMips[dispatchIndex]);
+		}
+
+		pCB->Dispatch(Math::DivideByMultiple(dstWidth, 8), Math::DivideByMultiple(dstHeight, 8));
+
+		// Change layout for upcoming CopyImage():
+		{
+			std::swap(_image, _storageImage);
+			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::general, ImageLayout::transferSrc, srcMip, Range(0, +CubeMapFace::count));
+			std::swap(_image, _storageImage);
+			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, ImageLayout::transferDst, srcMip + 1, Range(0, +CubeMapFace::count));
+		}
+		VERUS_FOR(layer, +CubeMapFace::count)
+		{
+			const int storageMip = srcMip;
+			const int dstMip = srcMip + 1;
+			const int w = Math::Max(1, _desc._width >> dstMip);
+			const int h = Math::Max(1, _desc._height >> dstMip);
+			pRendererVulkan->CopyImage(
+				_storageImage, storageMip, layer,
+				_image, dstMip, layer,
+				w, h,
+				pCB);
+		}
+		// Change layout for next Dispatch():
+		{
+			std::swap(_image, _storageImage);
+			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferSrc, ImageLayout::general, srcMip, Range(0, +CubeMapFace::count));
+			std::swap(_image, _storageImage);
+			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::xsReadOnly, srcMip + 1, Range(0, +CubeMapFace::count));
+		}
+
+		srcMip++;
+		dispatchIndex++;
+	}
+	shader->EndBindDescriptors();
+
+	// Revert to main layout:
+	const ImageLayout finalMipLayout = GetSubresourceMainLayout(0, 0);
+	if (finalMipLayout != ImageLayout::xsReadOnly)
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, finalMipLayout, Range(0, _desc._mipLevels), Range(0, +CubeMapFace::count));
 
 	Schedule(0);
 }

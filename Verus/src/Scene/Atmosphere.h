@@ -61,7 +61,7 @@ namespace verus
 				Vector3  _color = Vector3(0);
 				LightPwn _light;
 				float    _alpha = 1;
-				float    _latitude = 0.7f;
+				float    _latitude = VERUS_PI * 0.25f;
 			};
 
 			struct Wind
@@ -89,12 +89,15 @@ namespace verus
 			Sun                           _sun;
 			Wind                          _wind;
 			Vector3                       _ambientColor = Vector3(0);
+			Vector3                       _ambientColorY0 = Vector3(0);
+			Vector3                       _ambientColorY1 = Vector3(0);
 			CubeMapBaker                  _cubeMapBaker;
 			CascadedShadowMapBaker        _shadowMapBaker;
 			Mesh                          _skyDome;
 			CGI::TextureRAM               _texSky;
 			float                         _time = 0.5f;
 			float                         _timeSpeed = 1 / 300.f;
+			float                         _ambientMagnitude = 1;
 			CGI::CSHandle                 _cshSkyFS;
 			CGI::CSHandle                 _cshSunFS;
 			CGI::CSHandle                 _cshMoonFS;
@@ -121,7 +124,7 @@ namespace verus
 			void Update();
 			void DrawSky(bool reflection = false);
 
-			void SampleSkyColor(int level, float* pOut, float scale);
+			void SampleSkyColor(float time, int level, float* pOut);
 			static float GetMagnitude(float time, float noon, float dusk, float midnight);
 
 			// Time:
@@ -130,7 +133,10 @@ namespace verus
 			float GetTimeSpeed() const { return _timeSpeed; }
 			void SetTimeSpeed(float x) { _timeSpeed = x; }
 
+			float GetAmbientMagnitude() const { return _ambientMagnitude; }
 			RcVector3 GetAmbientColor() const { return _ambientColor; }
+			RcVector3 GetAmbientColorY0() const { return _ambientColorY0; }
+			RcVector3 GetAmbientColorY1() const { return _ambientColorY1; }
 
 			// Clouds:
 			Anim::Elastic<float>& GetCloudiness() { return _clouds._cloudiness; }
@@ -147,6 +153,7 @@ namespace verus
 			RcVector3 GetSunColor() const;
 			float GetSunAlpha() const;
 			void OnSceneResetInitSunLight();
+			void SetLatitude(float lat);
 
 			// Wind:
 			RcMatrix3 GetPlantBendingMatrix() const;

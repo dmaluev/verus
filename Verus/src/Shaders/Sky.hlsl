@@ -24,13 +24,13 @@ struct VSI
 {
 	VK_LOCATION_POSITION int4 pos   : POSITION;
 	VK_LOCATION_NORMAL   float3 nrm : NORMAL;
-	VK_LOCATION(8)       int4 tc0   : TEXCOORD0;
+	VK_LOCATION(8)       int2 tc0   : TEXCOORD0;
 };
 
 struct VSI_SKY_BODY
 {
 	VK_LOCATION_POSITION float4 pos : POSITION;
-	VK_LOCATION(8)       int4 tc0   : TEXCOORD0;
+	VK_LOCATION(8)       int2 tc0   : TEXCOORD0;
 };
 
 struct VSO
@@ -81,7 +81,7 @@ VSO_SKY_BODY mainSkyBodyVS(VSI_SKY_BODY si)
 	VSO_SKY_BODY so;
 
 	so.pos = mul(si.pos, g_ubPerObject._matWVP).xyww;
-	so.tc0 = si.tc0.xy;
+	so.tc0 = si.tc0;
 	so.height = mul(si.pos.xyz, (float3x3)g_ubPerObject._matW).y;
 
 	return so;
@@ -97,14 +97,12 @@ FSO mainFS(VSO si)
 
 	const float time = g_ubPerFrame._time_cloudiness.x;
 	const float cloudiness = g_ubPerFrame._time_cloudiness.y;
-
-	const float dayRatio = (1.0 - abs(0.5 - time) * 1.9);
 	const float sunAlpha = g_ubPerFrame._sunColor.a;
-	const float sunBoost = si.color0.r * sunAlpha;
 
 #ifdef DEF_CLOUDS
-	const float3 rawSky = g_texSky.Sample(g_samSky, float2(time, 0.3)).rgb;
-	const float3 rawRim = g_texSky.Sample(g_samSky, float2(time, 0.4)).rgb;
+	const float3 sunSam = g_texSky.Sample(g_samSky, float2(time, 248.0 / 256.0)).rgb;
+	const float3 skySam = g_texSky.Sample(g_samSky, float2(time, 0.3)).rgb;
+	const float3 rimSam = g_texSky.Sample(g_samSky, float2(time, 0.4)).rgb;
 	const float colorA = g_texClouds.Sample(g_samClouds, si.tcPhaseA).r;
 	const float colorB = g_texClouds.Sample(g_samClouds, si.tcPhaseB).r;
 	const float4 normalA = g_texCloudsNM.Sample(g_samCloudsNM, si.tcPhaseA);
@@ -114,49 +112,59 @@ FSO mainFS(VSO si)
 	const float noonHalf = noon * 0.5;
 	const float avgColor = (colorA + colorB) * 0.5;
 	const float negative = 1.0 - avgColor;
-	const float3 cloudColor = saturate(Desaturate(rawSky, 0.4 + noonHalf) + 0.4 * noon); // White, bright clouds at noon.
-	const float3 rimColor = saturate(rawRim * 2.0);
+	const float3 cloudColor = saturate(Desaturate(skySam, 0.4 + noonHalf) + 0.4 * noon); // White, bright clouds at noon.
+	const float3 rimColor = saturate(rimSam * 2.0);
 
+	// <Normal>
 	float3 normal = 1.0 - (normalA.agb + normalB.agb);
 	normal.b = ComputeNormalZ(normal.rg);
 	normal.xyz = normal.xzy; // From normal-map space to world.
+	// </Normal>
 
+	// <Alpha>
 	const float clearSky = 1.0 - cloudiness;
 	const float clearSkySoft = 0.6 + 0.4 * clearSky;
 	const float alpha = saturate((avgColor - clearSky) * 3.0);
+	// </Alpha>
 
-	const float directLight = saturate(dot(normal, g_ubPerFrame._dirToSun.xyz)) * sunAlpha;
+	const float dayRatio = (1.0 - abs(0.5 - time) * 1.99);
+	const float3 sunBoost = si.color0.r * sunAlpha * sunSam;
+
+	const float nDosL = saturate(dot(normal, g_ubPerFrame._dirToSun.xyz)) * sunAlpha;
 	const float edgeMask = saturate((0.9 - alpha) * 2.0);
-	const float glowAmbient = edgeMask * 0.1 + noonHalf * 0.25 + sunBoost * dayRatio;
-	const float glow = saturate(lerp(directLight * directLight, edgeMask, noonHalf) + glowAmbient);
-	const float diff = saturate((0.6 + 0.4 * (max(directLight, negative) + sunBoost)) * dayRatio * clearSkySoft);
+	const float3 glowAmbient = edgeMask * 0.1 + noonHalf * 0.2 + sunBoost * dayRatio;
+	const float3 glow = saturate(lerp(nDosL * nDosL, edgeMask, noonHalf) + glowAmbient);
+	const float3 diff = saturate((0.7 + 0.3 * (max(nDosL, negative) + sunBoost)) * dayRatio * clearSkySoft);
 
 	const float3 finalColor = saturate(diff * cloudColor + glow * rimColor * clearSkySoft * 0.25);
 
-	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * (10.0 - 6.0 * cloudiness);
+	const float3 hdrScale = g_ubPerFrame._ambientColor.w * (1.5 + 1.5 * sunBoost);
 	so.color.rgb = finalColor * hdrScale;
 	so.color.a = alpha;
 
 	// <Fog>
 	{
-		const float cloudScale = cloudiness * cloudiness;
-		const float fogBias = 0.01 + 0.49 * cloudScale;
-		const float fogContrast = 1.0 + 2.0 * cloudScale;
+		const float strengthA = saturate(cloudiness + 40.0 * g_ubPerFrame._fogColor.a);
+		const float strengthB = strengthA * strengthA * strengthA;
+		const float fogBias = 0.05 + 0.45 * strengthB;
+		const float fogContrast = 1.0 + 2.0 * strengthB;
 		const float fog = saturate((si.tc0.y - 0.5 + fogBias) * (fogContrast / fogBias));
 		so.color.rgb = lerp(so.color.rgb, g_ubPerFrame._fogColor.rgb, fog);
 		so.color.a = max(so.color.a, fog);
 	}
 	// </Fog>
 #else
-	const float4 rawSky = g_texSky.Sample(g_samSky, si.tc0);
-	const float3 skyColor = rawSky.rgb + rand * lerp(0.001, 0.01, rawSky.rgb); // Dithering.
-	const float4 rawStars = g_texStars.Sample(g_samStars, si.tcStars);
+	const float4 skySam = g_texSky.Sample(g_samSky, si.tc0);
+	const float3 skyColor = skySam.rgb + rand * lerp(0.001, 0.01, skySam.rgb); // Dithering.
+	const float4 starsSam = g_texStars.Sample(g_samStars, si.tcStars);
 
-	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * (4.0 + 3.0 * sunBoost);
-	so.color = float4(skyColor.rgb * hdrScale + rawStars.rgb * 50.0, 1);
+	const float sunBoost = si.color0.r * sunAlpha;
+
+	const float hdrScale = g_ubPerFrame._ambientColor.w * (1.0 + sunBoost);
+	so.color = float4(skyColor.rgb * hdrScale + starsSam.rgb * 25.0, 1);
 #endif
 
-	so.color.rgb = ToSafeHDR(so.color.rgb);
+	so.color.rgb = SaturateHDR(so.color.rgb);
 
 	return so;
 }
@@ -170,10 +178,10 @@ FSO mainSkyBodyFS(VSO_SKY_BODY si)
 #ifdef DEF_SUN
 	so.color.rgb *= lerp(float3(1.0, 0.2, 0.001), 1.0, mask);
 	so.color.rgb *= (60.0 * 1000.0) + (100.0 * 1000.0) * mask;
-	so.color.rgb = ToSafeHDR(so.color.rgb);
+	so.color.rgb = SaturateHDR(so.color.rgb);
 #endif
 #ifdef DEF_MOON
-	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * 12.0;
+	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * 50.0;
 	so.color.rgb *= lerp(float3(1.0, 0.9, 0.8), 1.0, mask);
 	so.color.rgb *= max(100.0, hdrScale);
 	so.color.a *= mask;

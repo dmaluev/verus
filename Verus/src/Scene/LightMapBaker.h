@@ -91,6 +91,7 @@ namespace verus
 				int    _texHeight = 256;
 				int    _texLumelSide = 128;
 				float  _distance = 2;
+				float  _bias = 0.001f;
 			};
 			VERUS_TYPEDEFS(Desc);
 
@@ -147,10 +148,10 @@ namespace verus
 			RcStats GetStats() const { return _stats; }
 			float GetProgress() const { return _stats._progress; }
 
-			void ComputeEdgePadding(int radius = 32);
+			void ComputeEdgePadding();
 			void Save();
 
-			void BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb);
+			void BindPipeline(RcMesh mesh, CGI::CommandBufferPtr cb);
 			void SetViewportFor(CGI::CubeMapFace cubeMapFace, CGI::CommandBufferPtr cb);
 		};
 		VERUS_TYPEDEFS(LightMapBaker);

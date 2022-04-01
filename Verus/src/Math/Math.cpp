@@ -416,6 +416,13 @@ int Math::ComputeMipLevels(int w, int h, int d)
 	return 1 + static_cast<int>(floor(log2(Max(Max(w, h), d))));
 }
 
+BYTE Math::CombineOcclusion(BYTE a, BYTE b)
+{
+	const BYTE ab = a * b / 0xFF;
+	const BYTE mn = Math::Min(a, b);
+	return (ab + mn + mn) / 3;
+}
+
 Transform3 Math::QuadMatrix(float x, float y, float w, float h)
 {
 	const Transform3 matT = Transform3::translation(Vector3(x * 2 - 1, y * -2 + 1));
@@ -685,5 +692,24 @@ void Math::Test()
 		point = camera.GetMatrixVP() * Point3(-97, 0, -97);
 		point /= point.getW();
 		VERUS_RT_ASSERT(glm::epsilonEqual<float>(point.getZ(), 1.f, e));
+	}
+
+	// Z VS W:
+	{
+		const float zn = 3;
+		const float zf = 20;
+		const Point3 p1(0, 0, 7);
+		const Matrix4 matV = Matrix4::lookAt(Point3(0, 0, 2), p1, Vector3(0, 1, 0)); // 5 meters away from p1.
+		const Matrix4 matP = Matrix4::MakePerspective(VERUS_PI * 0.25f, 4 / 3.f, zn, zf);
+		const Matrix4 matVP = matP * matV;
+		const Vector4 p2 = matV * p1;
+		const Vector4 p3 = matVP * p1;
+		VERUS_RT_ASSERT(glm::epsilonEqual<float>(p2.getZ(), -5.f, e)); // In V space Z is negative.
+		VERUS_RT_ASSERT(glm::epsilonEqual<float>(p3.getW(), 5.f, e)); // In VP space Z turns to positive W.
+		const float unormDepth = p3.getZ() / p3.getW();
+		const float a = zf * zn / (zn - zf);
+		const float b = zf / (zf - zn);
+		const float linearDepth = a / (unormDepth - b);
+		VERUS_RT_ASSERT(glm::epsilonEqual(linearDepth, 5.f, e)); // Linear depth starts from the eye.
 	}
 }

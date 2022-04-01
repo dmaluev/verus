@@ -42,8 +42,8 @@ void TraverseDirectory(CWSZ parentDir, CWSZ foundDir, IO::RFile pakFile);
 
 void Run()
 {
-	std::wcout << _T("PACK Builder 1.2.1") << std::endl;
-	std::wcout << _T("Copyright (c) 2006-2020 Dmitry Maluev") << std::endl;
+	std::wcout << _T("PACK Builder 1.3") << std::endl;
+	std::wcout << _T("Copyright (c) 2006-2022 Dmitry Maluev") << std::endl;
 	std::wcout << _T("Arguments: [PAK/folder name] [input directory] [PAK output directory]") << std::endl;
 
 	int argCount;

@@ -37,14 +37,18 @@ namespace verus
 			floatD32,
 
 			// Compressed Texture Formats:
-			unormBC1,
-			unormBC2,
-			unormBC3,
-			unormBC7,
-			srgbBC1,
-			srgbBC2,
-			srgbBC3,
-			srgbBC7
+			unormBC1, // Deprecated RGBA.
+			unormBC2, // Deprecated RGBA.
+			unormBC3, // Deprecated RGBA.
+			unormBC4, // R.
+			unormBC5, // RG.
+			unormBC7, // RGBA.
+			snormBC4, // R.
+			snormBC5, // RG.
+			srgbBC1, // Deprecated RGBA.
+			srgbBC2, // Deprecated RGBA.
+			srgbBC3, // Deprecated RGBA.
+			srgbBC7 // RGBA.
 		};
 	}
 }

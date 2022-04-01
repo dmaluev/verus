@@ -61,7 +61,8 @@ namespace verus
 			virtual void CreateDescriptorSet(int setNumber, const void* pSrc, int size,
 				int capacity = 1, std::initializer_list<Sampler> il = {}, ShaderStageFlags stageFlags = ShaderStageFlags::vs_fs) = 0;
 			virtual void CreatePipelineLayout() = 0;
-			virtual CSHandle BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips = nullptr) = 0;
+			virtual CSHandle BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il,
+				const int* pMipLevels = nullptr, const int* pArrayLayers = nullptr) = 0;
 			virtual void FreeDescriptorSet(CSHandle& complexSetHandle) = 0;
 
 			virtual void BeginBindDescriptors() = 0;

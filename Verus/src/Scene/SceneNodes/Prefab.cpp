@@ -68,7 +68,7 @@ void Prefab::LoadPrefab(SZ xml)
 		{
 			matFrag = _url;
 			Str::ReplaceFilename(matFrag, mat);
-			matFrag += ".xmt";
+			matFrag += ".vml";
 		}
 
 		Block::Desc desc;

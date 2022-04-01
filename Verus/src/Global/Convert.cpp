@@ -62,6 +62,16 @@ UINT32 Convert::Uint4x4ToUint8x4(UINT16 in, bool scaleTo255)
 	return (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | (x[3] << 0);
 }
 
+half Convert::FloatToHalf(float f)
+{
+	return glm::packHalf1x16(f);
+}
+
+float Convert::HalfToFloat(half h)
+{
+	return glm::unpackHalf1x16(h);
+}
+
 float Convert::SRGBToLinear(float color)
 {
 	return color < 0.04045f ? color * (1 / 12.92f) : pow((color + 0.055f) * (1 / 1.055f), 2.4f);
@@ -128,6 +138,8 @@ UINT32 Convert::ColorFloatToInt32(const float* in, bool sRGB)
 
 void Convert::ColorTextToFloat4(CSZ sz, float* out, bool sRGB)
 {
+	if (sz && '0' == sz[0] && 'x' == sz[1])
+		sz += 2;
 	int color[4] = {};
 	if (!sz)
 	{
@@ -170,8 +182,13 @@ void Convert::ColorTextToFloat4(CSZ sz, float* out, bool sRGB)
 
 UINT32 Convert::ColorTextToInt32(CSZ sz)
 {
+	if (sz && '0' == sz[0] && 'x' == sz[1])
+		sz += 2;
 	int color[4] = {};
-	if (6 == strlen(sz) && !strchr(sz, ' '))
+	if (!sz)
+	{
+	}
+	else if (6 == strlen(sz) && !strchr(sz, ' '))
 	{
 		color[0] = Str::ByteFromHex(sz + 0);
 		color[1] = Str::ByteFromHex(sz + 2);

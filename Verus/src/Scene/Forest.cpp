@@ -37,6 +37,7 @@ void Forest::InitStatic()
 		{
 			CGI::Sampler::linearMipL,
 			CGI::Sampler::linearMipL,
+			CGI::Sampler::linearMipL,
 			CGI::Sampler::linearMipL
 		}, CGI::ShaderStageFlags::fs);
 	s_shader[SHADER_MAIN]->CreatePipelineLayout();
@@ -77,12 +78,12 @@ void Forest::Init(PTerrain pTerrain, CSZ url)
 		Scatter::TypeDesc(SCATTER_TYPE_5, 5),
 		Scatter::TypeDesc(SCATTER_TYPE_3, 3)
 	};
-	_scatter.Init(32, SCATTER_TYPE_COUNT, id, 19201);
+	_scatter.Init(s_scatterSide, SCATTER_TYPE_COUNT, id, 19201);
 	_scatter.SetDelegate(this);
 	_scatter.SetMaxDist(_maxDist * 1.25f);
 
 	_vPlants.reserve(16);
-	_vLayerPlants.reserve(16);
+	_vLayerData.reserve(16);
 	_vDrawPlants.resize(_capacity);
 
 	_vCollisionPool.Resize(1000);
@@ -196,12 +197,12 @@ void Forest::Update()
 			// Time to get the size of this mesh.
 			plant._maxSize = plant.GetSize() * plant._maxScale;
 			BakeChunks(plant);
+			UpdateOcclusion(plant);
 			if (plant._maxSize > _maxSizeAll)
 			{
 				_maxSizeAll = plant._maxSize;
 				_pTerrain->FattenQuadtreeNodesBy(_maxSizeAll);
 			}
-			plant._aoSize = plant._mesh.GetBounds().GetAverageSize() * 1.5f;
 		}
 
 		if (!plant._tex[0] && plant._mesh.IsLoaded() && plant._material->IsLoaded())
@@ -211,13 +212,15 @@ void Forest::Update()
 		{
 			if (plant._tex[Plant::TEX_GBUFFER_0] && plant._tex[Plant::TEX_GBUFFER_0]->IsLoaded() &&
 				plant._tex[Plant::TEX_GBUFFER_1] && plant._tex[Plant::TEX_GBUFFER_1]->IsLoaded() &&
-				plant._tex[Plant::TEX_GBUFFER_2] && plant._tex[Plant::TEX_GBUFFER_2]->IsLoaded())
+				plant._tex[Plant::TEX_GBUFFER_2] && plant._tex[Plant::TEX_GBUFFER_2]->IsLoaded() &&
+				plant._tex[Plant::TEX_GBUFFER_3] && plant._tex[Plant::TEX_GBUFFER_3]->IsLoaded())
 			{
 				plant._csh = s_shader[SHADER_MAIN]->BindDescriptorSetTextures(1,
 					{
 						plant._tex[Plant::TEX_GBUFFER_0],
 						plant._tex[Plant::TEX_GBUFFER_1],
-						plant._tex[Plant::TEX_GBUFFER_2]
+						plant._tex[Plant::TEX_GBUFFER_2],
+						plant._tex[Plant::TEX_GBUFFER_3]
 					});
 				VERUS_QREF_ATMO;
 				plant._cshSimple = s_shader[SHADER_SIMPLE]->BindDescriptorSetTextures(1,
@@ -244,6 +247,8 @@ void Forest::Update()
 		}
 		if (allLoaded)
 		{
+			_pTerrain->UpdateOcclusion(this);
+
 			int vertCount = 0;
 			for (auto& plant : _vPlants)
 			{
@@ -277,7 +282,7 @@ void Forest::Update()
 			const CGI::VertexInputAttrDesc viaDesc[] =
 			{
 				{0, offsetof(Vertex, _pos), CGI::ViaType::floats, 3, CGI::ViaUsage::position, 0},
-				{0, offsetof(Vertex, _tc),  CGI::ViaType::shorts, 2, CGI::ViaUsage::texCoord, 0},
+				{0, offsetof(Vertex, _tc),  CGI::ViaType::halfs, 2, CGI::ViaUsage::texCoord, 0},
 				CGI::VertexInputAttrDesc::End()
 			};
 			geoDesc._pVertexInputAttrDesc = viaDesc;
@@ -296,6 +301,7 @@ void Forest::Update()
 				pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
 				pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
 				pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
+				pipeDesc._colorAttachBlendEqs[3] = VERUS_COLOR_BLEND_OFF;
 				pipeDesc._topology = CGI::PrimitiveTopology::pointList;
 				_pipe[PIPE_MAIN].Init(pipeDesc);
 			}
@@ -492,7 +498,7 @@ void Forest::DrawSprites()
 	s_ubForestVS._matWVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubForestVS._viewportSize = cb->GetViewportSize().GLM();
 	s_ubForestVS._eyePos = float4(sm.GetCamera()->GetEyePosition().GLM(), 0);
-	s_ubForestVS._eyePosScreen = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
+	s_ubForestVS._mainCameraEyePos = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
 
 	cb->BindPipeline(_pipe[drawingDepth ? PIPE_DEPTH : PIPE_MAIN]);
 	cb->BindVertexBuffers(_geo);
@@ -512,72 +518,7 @@ void Forest::DrawSprites()
 	s_shader[SHADER_MAIN]->EndBindDescriptors();
 }
 
-void Forest::DrawAO()
-{
-	if (!_visibleCount)
-		return;
-
-	VERUS_QREF_HELPERS;
-	VERUS_QREF_RENDERER;
-
-	CGI::LightType type = CGI::LightType::none;
-	PMesh pMesh = nullptr;
-
-	auto& ds = renderer.GetDS();
-	auto cb = renderer.GetCommandBuffer();
-
-	auto DrawMesh = [cb](PMesh pMesh)
-	{
-		if (pMesh && !pMesh->IsInstanceBufferEmpty(true))
-		{
-			pMesh->UpdateInstanceBuffer();
-			cb->DrawIndexed(pMesh->GetIndexCount(), pMesh->GetInstanceCount(true), 0, 0, pMesh->GetFirstInstance());
-		}
-	};
-
-	for (int i = 0; i <= _visibleCount; ++i)
-	{
-		if (i == _visibleCount) // The end?
-		{
-			DrawMesh(pMesh);
-			break;
-		}
-
-		RcDrawPlant drawPlant = _vDrawPlants[i];
-		RPlant plant = _vPlants[drawPlant._plantIndex];
-
-		const CGI::LightType nextType = CGI::LightType::omni;
-
-		if (nextType != type)
-		{
-			DrawMesh(pMesh);
-
-			type = nextType;
-			ds.OnNewAOType(cb, type);
-
-			pMesh = (type != CGI::LightType::none) ? &helpers.GetDeferredLights().Get(type) : nullptr;
-
-			if (pMesh)
-			{
-				pMesh->MarkFirstInstance();
-				pMesh->BindGeo(cb, (1 << 0) | (1 << 4));
-				pMesh->CopyPosDeqScale(&ds.GetUbAOPerMeshVS()._posDeqScale.x);
-				pMesh->CopyPosDeqBias(&ds.GetUbAOPerMeshVS()._posDeqBias.x);
-				ds.BindDescriptorsAOPerMeshVS(cb);
-			}
-		}
-
-		if (pMesh)
-		{
-			const float size = drawPlant._scale * plant._aoSize;
-			const Transform3 matW = VMath::appendScale(Transform3(Matrix3::identity(),
-				Vector3(drawPlant._pos + drawPlant._pushBack + Vector3(0, size * 0.25f, 0))), Vector3::Replicate(size));
-			pMesh->PushInstance(matW, Vector4::Replicate(1));
-		}
-	}
-}
-
-void Forest::DrawSimple(DrawSimpleMode mode)
+void Forest::DrawSimple(DrawSimpleMode mode, CGI::CubeMapFace cubeMapFace)
 {
 	if (!_geo)
 		return;
@@ -587,18 +528,53 @@ void Forest::DrawSimple(DrawSimpleMode mode)
 	VERUS_QREF_SM;
 	VERUS_QREF_WATER;
 
-	const float clipDistanceOffset = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? static_cast<float>(USHRT_MAX) : 0.f;
-	const float pointSpriteScaleY = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? 1.f : -1.f;
+	const float clipDistanceOffset = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? static_cast<float>(USHRT_MAX) : -4.f;
+	const float pointSpriteFlipY = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? 1.f : -1.f;
+
+	Vector3 normalFlip(1, 1, 1);
+	Vector3 tcFlip(1, 1, 0);
+	if (DrawSimpleMode::envMap == mode)
+	{
+		switch (cubeMapFace)
+		{
+		case CGI::CubeMapFace::posX:
+		case CGI::CubeMapFace::negX:
+		{
+			normalFlip = Vector3(-1, 1, -1);
+			tcFlip = Vector3(-1, 1, 0);
+		}
+		break;
+		case CGI::CubeMapFace::posY:
+		case CGI::CubeMapFace::negY:
+		{
+			normalFlip = Vector3(1, 1, -1);
+			tcFlip = Vector3(1, -1, 0);
+		}
+		break;
+		case CGI::CubeMapFace::posZ:
+		case CGI::CubeMapFace::negZ:
+		{
+			normalFlip = Vector3(-1, 1, -1);
+			tcFlip = Vector3(-1, 1, 0);
+		}
+		break;
+		}
+	}
+	else
+	{
+		normalFlip = Vector3(1, -1, 1);
+	}
 
 	auto cb = renderer.GetCommandBuffer();
 
 	s_ubSimpleForestVS._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
 	s_ubSimpleForestVS._matWVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubSimpleForestVS._viewportSize = renderer.GetCommandBuffer()->GetViewportSize().GLM();
+	s_ubSimpleForestVS._viewportSize = cb->GetViewportSize().GLM();
 	s_ubSimpleForestVS._eyePos_clipDistanceOffset = float4(sm.GetCamera()->GetEyePosition().GLM(), clipDistanceOffset);
-	s_ubSimpleForestVS._eyePosScreen = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
-	s_ubSimpleForestVS._pointSpriteScale = float4(1, pointSpriteScaleY, 0, 0);
+	s_ubSimpleForestVS._mainCameraEyePos_pointSpriteFlipY = float4(sm.GetMainCamera()->GetEyePosition().GLM(), pointSpriteFlipY);
 	s_ubSimpleForestFS._matInvV = sm.GetCamera()->GetMatrixInvV().UniformBufferFormat();
+	s_ubSimpleForestFS._normalFlip = float4(normalFlip.GLM(), 0);
+	s_ubSimpleForestFS._tcFlip = float4(tcFlip.GLM(), 0);
 	s_ubSimpleForestFS._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0);
 	s_ubSimpleForestFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubSimpleForestFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
@@ -669,9 +645,9 @@ void Forest::UpdateCollision(const Vector<Vector4>& vZones)
 					VERUS_QREF_SM;
 
 					const int layer = _pTerrain->GetMainLayerAt(ij);
-					if (layer >= _vLayerPlants.size())
+					if (layer >= _vLayerData.size())
 						continue;
-					const int plantIndex = _vLayerPlants[layer]._plants[type];
+					const int plantIndex = _vLayerData[layer]._plants[type];
 					if (plantIndex < 0)
 						continue;
 					RPlant plant = _vPlants[plantIndex];
@@ -700,7 +676,7 @@ void Forest::UpdateCollision(const Vector<Vector4>& vZones)
 			Scatter::RcInstance instance = _scatter.GetInstanceAt(ij);
 			const int type = instance._type;
 			const int layer = _pTerrain->GetMainLayerAt(ij);
-			const int plantIndex = _vLayerPlants[layer]._plants[type];
+			const int plantIndex = _vLayerData[layer]._plants[type];
 			RPlant plant = _vPlants[plantIndex];
 
 			const float h = _pTerrain->GetHeightAt(ij);
@@ -775,8 +751,8 @@ float Forest::GetMinHeight(const int ij[2], float h) const
 
 void Forest::SetLayer(int layer, RcLayerDesc desc)
 {
-	if (_vLayerPlants.size() < layer + 1)
-		_vLayerPlants.resize(layer + 1);
+	if (_vLayerData.size() < layer + 1)
+		_vLayerData.resize(layer + 1);
 
 	Random random(2247 + layer);
 
@@ -788,11 +764,11 @@ void Forest::SetLayer(int layer, RcLayerDesc desc)
 			const int plantIndex = FindPlant(plantDesc._url);
 			if (plantIndex >= 0)
 			{
-				_vLayerPlants[layer]._plants[type] = plantIndex;
+				_vLayerData[layer]._plants[type] = plantIndex;
 			}
 			else // Add new plant?
 			{
-				_vLayerPlants[layer]._plants[type] = Utils::Cast32(_vPlants.size());
+				_vLayerData[layer]._plants[type] = Utils::Cast32(_vPlants.size());
 				_vPlants.resize(_vPlants.size() + 1);
 				RPlant plant = _vPlants[_vPlants.size() - 1];
 				plant._url = plantDesc._url;
@@ -843,7 +819,7 @@ void Forest::BakeChunks(RPlant plant)
 				const int ij[] = { iOffset + i, jOffset + j };
 
 				const int layer = _pTerrain->GetMainLayerAt(ij);
-				if (layer >= _vLayerPlants.size())
+				if (layer >= _vLayerData.size())
 					continue;
 
 				if (_pTerrain->GetNormalAt(ij)[1] < plant._allowedNormal)
@@ -851,8 +827,8 @@ void Forest::BakeChunks(RPlant plant)
 
 				VERUS_FOR(type, SCATTER_TYPE_COUNT)
 				{
-					const int index = _vLayerPlants[layer]._plants[type];
-					if (index >= 0 && &plant == &_vPlants[index])
+					const int plantIndex = _vLayerData[layer]._plants[type];
+					if (plantIndex >= 0 && &plant == &_vPlants[plantIndex])
 					{
 						Scatter::RcInstance instance = _scatter.GetInstanceAt(ij);
 						if (type == instance._type)
@@ -872,8 +848,8 @@ void Forest::BakeChunks(RPlant plant)
 
 							Vertex v;
 							v._pos = pos.GLM();
-							v._tc[0] = Math::Clamp<int>(static_cast<int>(psize * 500), 0, SHRT_MAX);
-							v._tc[1] = Math::Clamp<int>(static_cast<int>(instance._angle * SHRT_MAX / VERUS_2PI), 0, SHRT_MAX);
+							v._tc[0] = Convert::FloatToHalf(psize);
+							v._tc[1] = Convert::FloatToHalf(instance._angle / VERUS_2PI);
 							v._pos.y += psize * 0.5f / _margin - psize * 0.05f;
 							if (!bc._vSprites.capacity())
 								bc._vSprites.reserve(256);
@@ -897,11 +873,67 @@ void Forest::BakeChunks(RPlant plant)
 	}
 }
 
+void Forest::UpdateOcclusion(RPlant plant)
+{
+	VERUS_FOR(layer, _vLayerData.size())
+	{
+		VERUS_FOR(type, SCATTER_TYPE_COUNT)
+		{
+			const int plantIndex = _vLayerData[layer]._plants[type];
+			if (plantIndex >= 0 && &plant == &_vPlants[plantIndex])
+			{
+				VERUS_FOR(i, s_scatterSide)
+				{
+					VERUS_FOR(j, s_scatterSide)
+					{
+						const int ij[] = { i, j };
+						Scatter::RcInstance instance = _scatter.GetInstanceAt(ij);
+						if (type == instance._type)
+						{
+							const float scale = plant._vScales[instance._rand % plant._vScales.size()];
+							const float size = plant.GetSize() * scale;
+							AddOcclusionAt(ij, layer, 3 + static_cast<int>(size + 0.5f));
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void Forest::AddOcclusionAt(const int ij[2], int layer, int radius)
+{
+	radius = Math::Clamp(radius, 1, 15);
+	const int mask = s_scatterSide - 1;
+	const int radiusSq = radius * radius;
+	for (int di = -radius; di <= radius; ++di)
+	{
+		const int ki = ij[0] + di;
+		const int mi = (ki + s_scatterSide) & mask;
+		for (int dj = -radius; dj <= radius; ++dj)
+		{
+			const int kj = ij[1] + dj;
+			const int mj = (kj + s_scatterSide) & mask;
+
+			const int lenSq = di * di + dj * dj;
+			if (lenSq > radiusSq)
+				continue;
+
+			const float a = static_cast<float>(lenSq) / radiusSq;
+			const float b = 0xFF * pow(a, 0.3f);
+			const float c = Math::Clamp(b, 128.f - radius * radius, 255.f);
+			const BYTE value = static_cast<BYTE>(c);
+			BYTE& dst = _vLayerData[layer]._occlusion[mi * s_scatterSide + mj];
+			dst = Math::CombineOcclusion(dst, value);
+		}
+	}
+}
+
 bool Forest::LoadSprite(RPlant plant)
 {
 	int count = 0;
-	const CSZ ext[] = { "", ".FX", ".FX" };
-	VERUS_FOR(i, 3)
+	const CSZ ext[] = { "", ".X", ".X", ".X" };
+	VERUS_FOR(i, 4)
 	{
 		String pathname = _C(plant._mesh.GetUrl());
 		char filename[20];
@@ -916,7 +948,7 @@ bool Forest::LoadSprite(RPlant plant)
 			plant._tex[i].Init(_C(pathname));
 		}
 	}
-	return 3 == count;
+	return 4 == count;
 }
 
 void Forest::BakeSprite(RPlant plant, CSZ url)
@@ -932,7 +964,7 @@ void Forest::BakeSprite(RPlant plant, CSZ url)
 	cb.InitOneTimeSubmit();
 
 	const int frameSide = 512;
-	const int framePad = 16;
+	const int framePad = 4;
 	const int frameCountH = 16;
 	const int frameCountV = 16;
 	const int texWidth = frameCountH * frameSide;
@@ -945,6 +977,7 @@ void Forest::BakeSprite(RPlant plant, CSZ url)
 			CGI::RP::Attachment("GBuffer0", CGI::Format::srgbR8G8B8A8).LoadOpClear().Layout(CGI::ImageLayout::fsReadOnly),
 			CGI::RP::Attachment("GBuffer1", CGI::Format::unormR10G10B10A2).LoadOpClear().Layout(CGI::ImageLayout::fsReadOnly),
 			CGI::RP::Attachment("GBuffer2", CGI::Format::unormR8G8B8A8).LoadOpClear().Layout(CGI::ImageLayout::fsReadOnly),
+			CGI::RP::Attachment("GBuffer3", CGI::Format::unormR8G8B8A8).LoadOpClear().Layout(CGI::ImageLayout::fsReadOnly),
 			CGI::RP::Attachment("Depth", CGI::Format::unormD24uintS8).LoadOpClear().Layout(CGI::ImageLayout::depthStencilAttachment),
 		},
 		{
@@ -952,26 +985,41 @@ void Forest::BakeSprite(RPlant plant, CSZ url)
 				{
 					CGI::RP::Ref("GBuffer0", CGI::ImageLayout::colorAttachment),
 					CGI::RP::Ref("GBuffer1", CGI::ImageLayout::colorAttachment),
-					CGI::RP::Ref("GBuffer2", CGI::ImageLayout::colorAttachment)
+					CGI::RP::Ref("GBuffer2", CGI::ImageLayout::colorAttachment),
+					CGI::RP::Ref("GBuffer3", CGI::ImageLayout::colorAttachment)
 				}).DepthStencil(CGI::RP::Ref("Depth", CGI::ImageLayout::depthStencilAttachment))
 		},
 		{});
 
-	CGI::TexturePwn texGB[3], texDepth;
+	if (!_pipe[PIPE_MESH_BAKE])
+	{
+		CGI::PipelineDesc pipeDesc(plant._mesh.GetGeometry(), Scene::Mesh::GetShader(), "#", rph);
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._colorAttachBlendEqs[3] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._vertexInputBindingsFilter = plant._mesh.GetBindingsMask();
+		_pipe[PIPE_MESH_BAKE].Init(pipeDesc);
+	}
+
+	CGI::TexturePwn texGB[4], texDepth;
 	CGI::TextureDesc texDesc;
 	texDesc._width = texWidth;
 	texDesc._height = texHeight;
 	texDesc._flags = CGI::TextureDesc::Flags::colorAttachment;
 
-	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer0();
+	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer0(0.5f);
 	texDesc._format = CGI::Format::srgbR8G8B8A8;
 	texGB[0].Init(texDesc);
-	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer1();
+	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer1(0.5f, 0);
 	texDesc._format = CGI::Format::unormR10G10B10A2;
 	texGB[1].Init(texDesc);
-	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer2();
+	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer2(0.5f);
 	texDesc._format = CGI::Format::unormR8G8B8A8;
 	texGB[2].Init(texDesc);
+	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer3(0.5f);
+	texDesc._format = CGI::Format::unormR8G8B8A8;
+	texGB[3].Init(texDesc);
 	texDesc.Reset();
 	texDesc._clearValue = Vector4(1);
 	texDesc._format = CGI::Format::unormD24uintS8;
@@ -984,6 +1032,7 @@ void Forest::BakeSprite(RPlant plant, CSZ url)
 			texGB[0],
 			texGB[1],
 			texGB[2],
+			texGB[3],
 			texDepth
 		},
 		texWidth,
@@ -994,13 +1043,14 @@ void Forest::BakeSprite(RPlant plant, CSZ url)
 			texGB[0]->GetClearValue(),
 			texGB[1]->GetClearValue(),
 			texGB[2]->GetClearValue(),
+			texGB[3]->GetClearValue(),
 			texDepth->GetClearValue()
 		});
 
-	plant._mesh.BindPipeline(cb, false);
+	cb->BindPipeline(_pipe[PIPE_MESH_BAKE]);
 	plant._mesh.BindGeo(cb);
 	Mesh::GetShader()->BeginBindDescriptors();
-	plant._material->UpdateMeshUniformBuffer();
+	plant._material->UpdateMeshUniformBuffer(1, false);
 	cb->BindDescriptors(Scene::Mesh::GetShader(), 1, plant._material->GetComplexSetHandle());
 	plant._mesh.UpdateUniformBufferPerMeshVS();
 	cb->BindDescriptors(Scene::Mesh::GetShader(), 2);
@@ -1048,7 +1098,7 @@ void Forest::BakeSprite(RPlant plant, CSZ url)
 
 	cb->EndRenderPass();
 
-	CGI::TexturePwn texFinalGB[3];
+	CGI::TexturePwn texFinalGB[4];
 	texDesc.Reset();
 	texDesc._width = texWidth;
 	texDesc._height = texHeight;
@@ -1056,19 +1106,22 @@ void Forest::BakeSprite(RPlant plant, CSZ url)
 	texDesc._flags = CGI::TextureDesc::Flags::colorAttachment | CGI::TextureDesc::Flags::generateMips;
 	texDesc._readbackMip = 2;
 
-	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer0();
+	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer0(0.5f);
 	texDesc._format = CGI::Format::srgbR8G8B8A8;
 	texFinalGB[0].Init(texDesc);
-	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer1();
+	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer1(0.5f, 0);
 	texDesc._format = CGI::Format::unormR8G8B8A8;
 	texFinalGB[1].Init(texDesc);
-	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer2();
+	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer2(0.5f);
 	texDesc._format = CGI::Format::unormR8G8B8A8;
 	texFinalGB[2].Init(texDesc);
+	texDesc._clearValue = CGI::DeferredShading::GetClearValueForGBuffer3(0.5f);
+	texDesc._format = CGI::Format::unormR8G8B8A8;
+	texFinalGB[3].Init(texDesc);
 
 	renderer.GetDS().BakeSprites(texGB, texFinalGB, cb.Get());
 
-	VERUS_FOR(i, 3)
+	VERUS_FOR(i, 4)
 	{
 		texFinalGB[i]->GenerateMips(cb.Get());
 		texFinalGB[i]->ReadbackSubresource(nullptr, true, cb.Get());
@@ -1080,8 +1133,8 @@ void Forest::BakeSprite(RPlant plant, CSZ url)
 	const int mipHeight = texHeight / 4;
 	Vector<UINT32> vData;
 	vData.resize(mipWidth * mipHeight);
-	const CSZ ext[] = { "", ".FX", ".FX" };
-	VERUS_FOR(i, 3)
+	const CSZ ext[] = { "", ".X", ".X", ".X" };
+	VERUS_FOR(i, 4)
 	{
 		texFinalGB[i]->ReadbackSubresource(vData.data(), false);
 
@@ -1098,6 +1151,7 @@ void Forest::BakeSprite(RPlant plant, CSZ url)
 	renderer->DeleteFramebuffer(fbh);
 	renderer->DeleteRenderPass(rph);
 	renderer->DeleteCommandBuffer(cb.Detach());
+	_pipe[PIPE_MESH_BAKE].Done();
 }
 
 bool Forest::BakeSprites(CSZ url)
@@ -1120,9 +1174,9 @@ void Forest::Scatter_AddInstance(const int ij[2], int type, float x, float z, fl
 	VERUS_QREF_SM;
 
 	const int layer = _pTerrain->GetMainLayerAt(ij);
-	if (layer >= _vLayerPlants.size())
+	if (layer >= _vLayerData.size())
 		return;
-	const int plantIndex = _vLayerPlants[layer]._plants[type];
+	const int plantIndex = _vLayerData[layer]._plants[type];
 	if (plantIndex < 0)
 		return;
 
@@ -1178,4 +1232,14 @@ Continue Forest::Octree_ProcessNode(void* pToken, void* pUser)
 	PBakedChunk pBakedChunk = static_cast<PBakedChunk>(pToken);
 	pBakedChunk->_visible = sm.GetMainCamera()->GetFrustum().ContainsAabb(pBakedChunk->_bounds) != Relation::outside;
 	return Continue::yes;
+}
+
+BYTE Forest::GetOcclusionAt(const int ij[2], int layer) const
+{
+	if (layer >= _vLayerData.size())
+		return 0xFF;
+	const int mask = s_scatterSide - 1;
+	const int i = ij[0] & mask;
+	const int j = ij[1] & mask;
+	return _vLayerData[layer]._occlusion[i * s_scatterSide + j];
 }

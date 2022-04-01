@@ -35,12 +35,6 @@ struct FSO
 
 // <DefaultBlur>
 
-float GlossBoost(float gloss)
-{
-	const float x = 1.0 - gloss;
-	return 1.0 - x * x;
-}
-
 #ifdef _VS
 VSO mainVS(VSI si)
 {
@@ -59,34 +53,19 @@ FSO mainFS(VSO si)
 {
 	FSO so;
 
-#ifdef DEF_SSR
-	const float alpha = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0).r;
-	const float gloss = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).a;
-
-	const float gloss64 = gloss * 64.0;
-	const float eyeMask = saturate(1.0 - gloss64);
-	const float scaleByAlpha = 1.0 - alpha;
-	const float scaleByGloss = 1.0 - GlossBoost(lerp(gloss, 0.75, eyeMask));
-	const float scale = max(0.001, min(scaleByAlpha, scaleByGloss));
-
-	const int sampleCount = max(4, g_ubBlurFS._sampleCount * scale);
-	const float radius = g_ubBlurFS._radius_invRadius_stride.x * scale;
-	const float invRadius = 1.0 / radius;
-	const float stride = radius * 2.0 / (sampleCount - 1);
-#else
 	const int sampleCount = g_ubBlurFS._sampleCount;
 	const float radius = g_ubBlurFS._radius_invRadius_stride.x;
 	const float invRadius = g_ubBlurFS._radius_invRadius_stride.y;
 	const float stride = g_ubBlurFS._radius_invRadius_stride.z;
-#endif
 
 	float4 acc = 0.0;
 	float2 offset_weightSum = float2(-radius, 0);
 	for (int i = 0; i < sampleCount; ++i)
 	{
 		// Poor man's gaussian kernel:
-		const float curve = smoothstep(1.0, 0.0, abs(offset_weightSum.x) * invRadius);
-		const float weight = curve * curve;
+		const float ratio = 1.0 - saturate(abs(offset_weightSum.x) * invRadius);
+		const float curve = smoothstep(0.0, 1.0, ratio);
+		const float weight = lerp(ratio, curve * curve * curve, 0.8);
 #ifdef DEF_U
 		const float2 tc = si.tc0 + float2(offset_weightSum.x, 0);
 #else
@@ -104,6 +83,171 @@ FSO mainFS(VSO si)
 #endif
 
 // </DefaultBlur>
+
+// <SsaoBlur>
+
+#ifdef _VS
+VSO mainSsaoVS(VSI si)
+{
+	VSO so;
+
+	// Standard quad:
+	so.pos = float4(mul(si.pos, g_ubBlurVS._matW), 1);
+	so.tc0 = mul(si.pos, g_ubBlurVS._matV).xy;
+
+	return so;
+}
+#endif
+
+#ifdef _FS
+FSO mainSsaoFS(VSO si)
+{
+	FSO so;
+
+	// 4x4 box blur, using texture filtering.
+	float acc = 0.0;
+	[unroll] for (int y = -1; y <= 1; y += 2)
+	{
+		[unroll] for (int x = -1; x <= 1; x += 2)
+		{
+			acc += g_tex.SampleLevel(g_sam, si.tc0, 0.0, int2(x, y)).r;
+		}
+	}
+	acc *= (1.0 / 4.0);
+
+	so.color = acc;
+
+	return so;
+}
+#endif
+
+// </SsaoBlur>
+
+// <ResolveDithering>
+
+#ifdef _VS
+VSO mainResolveDitheringVS(VSI si)
+{
+	VSO so;
+
+	// Standard quad:
+	so.pos = float4(mul(si.pos, g_ubBlurVS._matW), 1);
+	so.tc0 = mul(si.pos, g_ubBlurVS._matV).xy;
+
+	return so;
+}
+#endif
+
+#ifdef _FS
+FSO mainResolveDitheringFS(VSO si)
+{
+	FSO so;
+
+	float accMask = 0.0;
+	[unroll] for (int y = -1; y <= 1; y++)
+	{
+		[unroll] for (int x = -1; x <= 1; x++)
+		{
+			accMask += floor(g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(x, y)).a);
+		}
+	}
+
+	if (accMask >= 1.0)
+	{
+		const float invExposure = max(1024.0, 8192.0 - 2048.0 * accMask);
+		const float exposure = 1.0 / invExposure;
+
+		// 3x3 blur:
+		float3 acc = 0.0;
+		[unroll] for (int y = -1; y <= 1; y++)
+		{
+			[unroll] for (int x = -1; x <= 1; x++)
+			{
+				const float2 weights = 1.0 - 0.5 * abs(float2(x, y));
+				const float weight = weights.x * weights.y;
+				const float3 color = g_tex.SampleLevel(g_sam, si.tc0, 0.0, int2(x, y)).rgb;
+				acc += ToneMappingReinhard(color * exposure) * weight;
+			}
+		}
+		acc *= (1.0 / 4.0);
+
+		so.color.rgb = ToneMappingInvReinhard(acc) * invExposure;
+		so.color.a = 1.0;
+	}
+	else
+	{
+		so.color.rgb = g_tex.SampleLevel(g_sam, si.tc0, 0.0).rgb;
+		so.color.a = 1.0;
+	}
+
+	return so;
+}
+#endif
+
+// </ResolveDithering>
+
+// <Sharpen>
+
+#ifdef _VS
+VSO mainSharpenVS(VSI si)
+{
+	VSO so;
+
+	// Standard quad:
+	so.pos = float4(mul(si.pos, g_ubBlurVS._matW), 1);
+	so.tc0 = mul(si.pos, g_ubBlurVS._matV).xy;
+
+	return so;
+}
+#endif
+
+#ifdef _FS
+FSO mainSharpenFS(VSO si)
+{
+	FSO so;
+
+	float accMask = 0.0;
+	[unroll] for (int y = -1; y <= 1; y++)
+	{
+		[unroll] for (int x = -1; x <= 1; x++)
+		{
+			accMask += floor(g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(x, y)).a);
+		}
+	}
+
+	if (accMask >= 1.0)
+	{
+		const float invExposure = max(1024.0, 8192.0 - 2048.0 * accMask);
+		const float exposure = 1.0 / invExposure;
+
+		// 3x3 sharpen:
+		float3 acc = 0.0;
+		[unroll] for (int y = -1; y <= 1; y++)
+		{
+			[unroll] for (int x = -1; x <= 1; x++)
+			{
+				float weight = -1.0 / 8.0;
+				if (abs(x) + abs(y) == 0)
+					weight = 2.0;
+				const float3 color = g_tex.SampleLevel(g_sam, si.tc0, 0.0, int2(x, y)).rgb;
+				acc += ToneMappingReinhard(color * exposure) * weight;
+			}
+		}
+
+		so.color.rgb = ToneMappingInvReinhard(acc) * invExposure;
+		so.color.a = 1.0;
+	}
+	else
+	{
+		so.color.rgb = g_tex.SampleLevel(g_sam, si.tc0, 0.0).rgb;
+		so.color.a = 1.0;
+	}
+
+	return so;
+}
+#endif
+
+// </Sharpen>
 
 // <DepthOfFieldBlur>
 
@@ -133,8 +277,8 @@ FSO mainDofFS(VSO si)
 	const float focusDist = g_ubExtraBlurFS._focusDist_blurStrength.x;
 	const float blurStrength = g_ubExtraBlurFS._focusDist_blurStrength.y;
 
-	const float rawOriginDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
-	const float originDepth = ToLinearDepth(rawOriginDepth, g_ubExtraBlurFS._zNearFarEx);
+	const float originDepthSam = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
+	const float originDepth = ToLinearDepth(originDepthSam, g_ubExtraBlurFS._zNearFarEx);
 	const float scale = DepthToCircleOfConfusion(originDepth, focusDist) * blurStrength;
 
 	const int sampleCount = clamp(g_ubBlurFS._sampleCount * scale, 3, 31);
@@ -151,11 +295,10 @@ FSO mainDofFS(VSO si)
 	float2 tc = si.tc0 - blurDir * radius;
 	for (int i = 0; i < sampleCount; ++i)
 	{
-		//const float origin = 1.0 - abs(offset_weightSum.x) * invRadius; // Will generate buggy code in Vulkan!
 		const float origin = abs(offset_weightSum.x) * invRadius;
 
-		const float rawKernelDepth = g_texDepth.SampleLevel(g_samDepth, tc, 0.0).r;
-		const float kernelDepth = ToLinearDepth(rawKernelDepth, g_ubExtraBlurFS._zNearFarEx);
+		const float kernelDepthSam = g_texDepth.SampleLevel(g_samDepth, tc, 0.0).r;
+		const float kernelDepth = ToLinearDepth(kernelDepthSam, g_ubExtraBlurFS._zNearFarEx);
 		const float kernelDeeper = kernelDepth - originDepth;
 		const float kernelScale = DepthToCircleOfConfusion(kernelDepth, focusDist) * blurStrength;
 		// Blurry area should not sample sharp area unless it is closer to the camera.
@@ -183,49 +326,6 @@ FSO mainDofFS(VSO si)
 
 // </DepthOfFieldBlur>
 
-// <SsaoBlur>
-
-#ifdef _VS
-VSO mainSsaoVS(VSI si)
-{
-	VSO so;
-
-	// Standard quad:
-	so.pos = float4(mul(si.pos, g_ubBlurVS._matW), 1);
-	so.tc0 = mul(si.pos, g_ubBlurVS._matV).xy;
-
-	return so;
-}
-#endif
-
-#ifdef _FS
-FSO mainSsaoFS(VSO si)
-{
-	FSO so;
-
-	// 4x4 box blur, using texture filtering.
-	float4 acc = 0.0;
-	[unroll] for (int i = -1; i <= 1; i += 2)
-	{
-#ifdef DEF_U
-		acc += g_tex.SampleLevel(g_sam, si.tc0, 0.0, int2(i, 0));
-#else // Sampling from sRGB, use alpha channel:
-		acc += g_tex.SampleLevel(g_sam, si.tc0, 0.0, int2(0, i)).aaaa;
-#endif
-	}
-	acc *= 0.5;
-
-	so.color = acc;
-#ifndef DEF_V // Make sure to write R channel to alpha, destination is sRGB.
-	so.color = acc.rrrr;
-#endif
-
-	return so;
-}
-#endif
-
-// </SsaoBlur>
-
 #ifdef _VS
 VSO mainAntiAliasingVS(VSI si)
 {
@@ -244,21 +344,21 @@ FSO mainAntiAliasingFS(VSO si)
 {
 	FSO so;
 
-	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
-	const float3 normalWV = DS_GetNormal(rawGBuffer1);
+	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
+	const float3 normalWV = DS_GetNormal(gBuffer1Sam);
 
 	// <DepthBased>
 	float originDeeper;
 	float depthBasedEdge;
 	{
-		const float rawOriginDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
-		const float originDepth = ToLinearDepth(rawOriginDepth, g_ubExtraBlurFS._zNearFarEx);
-		const float4 rawKernelDepths = float4(
+		const float originDepthSam = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
+		const float originDepth = ToLinearDepth(originDepthSam, g_ubExtraBlurFS._zNearFarEx);
+		const float4 kernelDepthsSam = float4(
 			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(-1, +0)).r, // L
 			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(+0, -1)).r, // T
 			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(+1, +0)).r, // R
 			g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0, int2(+0, +1)).r); // B
-		const float4 kernelDepths = ToLinearDepth(rawKernelDepths, g_ubExtraBlurFS._zNearFarEx);
+		const float4 kernelDepths = ToLinearDepth(kernelDepthsSam, g_ubExtraBlurFS._zNearFarEx);
 		const float minDepth = min(min(kernelDepths[0], kernelDepths[1]), min(kernelDepths[2], kernelDepths[3]));
 		const float equalize = 1.0 / originDepth;
 		originDeeper = saturate((originDepth - minDepth) * equalize);
@@ -270,14 +370,14 @@ FSO mainAntiAliasingFS(VSO si)
 	// <NormalBased>
 	float normalBasedEdge;
 	{
-		const float4 rawNrmLT = float4(
+		const float4 nrmSamLT = float4(
 			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(-1, +0)).rg,
 			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(+0, -1)).rg);
-		const float4 rawNrmRB = float4(
+		const float4 nrmSamRB = float4(
 			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(+1, +0)).rg,
 			g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0, int2(+0, +1)).rg);
-		const float4 diffA = rawNrmLT - rawNrmRB;
-		const float4 diffB = rawNrmLT - rawNrmRB.zwxy;
+		const float4 diffA = nrmSamLT - nrmSamRB;
+		const float4 diffB = nrmSamLT - nrmSamRB.zwxy;
 		const float4 dots = float4(
 			dot(diffA.xy, diffA.xy),
 			dot(diffA.zw, diffA.zw),
@@ -288,18 +388,20 @@ FSO mainAntiAliasingFS(VSO si)
 	}
 	// </NormalBased>
 
+	const float edge = max(normalBasedEdge, depthBasedEdge);
+
 	// Directional blur:
 	// {y, -x} is perpendicular vector. Also flip Y axis: normal XY to texture UV.
 	const float3 perp = normalWV.yxz;
 	const float omni = max(perp.z * perp.z * perp.z, originDeeper);
 	const float2 dirs[4] =
 	{
-		lerp(perp.xy * +4.0, float2(-0.6, -0.3), omni),
-		lerp(perp.xy * -2.0, float2(+0.3, -0.6), omni),
-		lerp(perp.xy * -4.0, float2(-0.3, +0.6), omni),
-		lerp(perp.xy * +2.0, float2(+0.6, +0.3), omni)
+		lerp(perp.xy * +3.0, float2(-0.6, -0.2), omni),
+		lerp(perp.xy * -1.0, float2(+0.2, -0.6), omni),
+		lerp(perp.xy * -3.0, float2(-0.2, +0.6), omni),
+		lerp(perp.xy * +1.0, float2(+0.6, +0.2), omni)
 	};
-	const float2 offsetScale = g_ubExtraBlurFS._textureSize.zw * max(normalBasedEdge, depthBasedEdge);
+	const float2 offsetScale = g_ubExtraBlurFS._textureSize.zw * edge;
 	const float3 kernelColors[4] =
 	{
 		g_tex.SampleLevel(g_sam, si.tc0 + dirs[0] * offsetScale, 0.0).rgb,
@@ -333,35 +435,35 @@ FSO mainMotionFS(VSO si)
 	FSO so;
 
 	const float3 rand = Rand(si.pos.xy);
-	const float offsetScale = 0.45 + 0.05 * rand.x; // Blur 45% - 50% of frame time.
+	const float2 ndcPos = ToNdcPos(si.tc0);
+	const float offsetScale = 0.6 + 0.1 * rand.x; // Blur 60% - 70% of frame time.
 
 #if _SHADER_QUALITY <= _Q_LOW
-	const int sampleCount = 12;
+	const int sampleCount = 6;
 #elif _SHADER_QUALITY <= _Q_MEDIUM
-	const int sampleCount = 16;
+	const int sampleCount = 8;
 #elif _SHADER_QUALITY <= _Q_HIGH
-	const int sampleCount = 24;
+	const int sampleCount = 12;
 #elif _SHADER_QUALITY <= _Q_ULTRA
-	const int sampleCount = 32;
+	const int sampleCount = 16;
 #endif
 
-	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
+	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
 
-	const float rawOriginDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
-	const float originDepth = ToLinearDepth(rawOriginDepth, g_ubExtraBlurFS._zNearFarEx);
+	const float originDepthSam = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
+	const float originDepth = ToLinearDepth(originDepthSam, g_ubExtraBlurFS._zNearFarEx);
 	const float equalize = 1.0 / originDepth;
 
 	float2 tcFrom;
 	{
-		const float2 ndcPos = ToNdcPos(si.tc0);
-		const float3 posW = DS_GetPosition(rawOriginDepth, g_ubExtraBlurFS._matInvVP, ndcPos);
+		const float3 posW = DS_GetPosition(originDepthSam, g_ubExtraBlurFS._matInvVP, ndcPos);
 		const float4 prevClipSpacePos = mul(float4(posW, 1), g_ubExtraBlurFS._matPrevVP);
 		const float2 prevNdcPos = prevClipSpacePos.xy / prevClipSpacePos.w;
 		tcFrom = ToTexCoords(prevNdcPos);
 	}
 
 	const float2 stride = (si.tc0 - tcFrom) * offsetScale / (sampleCount - 1);
-	const float2 tcOrigin = lerp(tcFrom, si.tc0, 0.75); // Start from this location up to offsetScale.
+	const float2 tcOrigin = lerp(tcFrom, si.tc0, 0.675); // Start from this location up to offsetScale.
 
 	float4 acc = float4(g_tex.SampleLevel(g_sam, si.tc0, 0.0).rgb, 1); // Must have at least one sample.
 	[unroll] for (int i = 0; i < sampleCount; ++i)
@@ -371,14 +473,14 @@ FSO mainMotionFS(VSO si)
 
 		const float2 kernelCoords = tcOrigin + stride * i;
 
-		const float rawKernelDepth = g_texDepth.SampleLevel(g_samDepth, kernelCoords, 0.0).r;
-		const float kernelDepth = ToLinearDepth(rawKernelDepth, g_ubExtraBlurFS._zNearFarEx);
+		const float kernelDepthSam = g_texDepth.SampleLevel(g_samDepth, kernelCoords, 0.0).r;
+		const float kernelDepth = ToLinearDepth(kernelDepthSam, g_ubExtraBlurFS._zNearFarEx);
 		const float kernelDeeper = kernelDepth - originDepth;
-		const float allowed = saturate(1.0 + kernelDeeper * equalize) * rawGBuffer1.a; // Closer points require extra care.
+		const float allowed = saturate(1.0 + kernelDeeper * equalize) * gBuffer1Sam.a; // Closer points require extra care.
 		const float weight = 1.0 + saturate(kernelDeeper); // To fix the seam between foreground and background.
 
-		const float3 kernelColor = g_tex.SampleLevel(g_sam, kernelCoords, 0.0).rgb;
-		acc += lerp(0.0, float4(kernelColor * weight, weight), allowed);
+		const float3 kernelColorSam = g_tex.SampleLevel(g_sam, kernelCoords, 0.0).rgb;
+		acc += lerp(0.0, float4(kernelColorSam * weight, weight), allowed);
 	}
 	acc /= acc.a;
 
@@ -390,11 +492,10 @@ FSO mainMotionFS(VSO si)
 
 //@main:#U U
 //@main:#V V
-//@mainDof:#UDoF DOF U
-//@mainDof:#VDoF DOF V
-//@mainSsao:#USsao SSAO U
-//@mainSsao:#VSsao SSAO V
-//@main:#USsr SSR U
-//@main:#VSsr SSR V
-//@mainAntiAliasing:#AntiAliasing AA
-//@mainMotion:#Motion MOTION
+//@mainSsao:#Ssao
+//@mainResolveDithering:#ResolveDithering
+//@mainSharpen:#Sharpen
+//@mainDof:#UDoF U
+//@mainDof:#VDoF V
+//@mainAntiAliasing:#AntiAliasing
+//@mainMotion:#Motion

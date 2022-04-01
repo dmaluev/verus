@@ -21,11 +21,13 @@ namespace verus
 			Texture();
 			~Texture();
 
-			void Init(CSZ url, bool streamParts = false, bool sync = false, CGI::PcSamplerDesc pSamplerDes = nullptr);
+			void Init(CSZ url, bool streamParts = false, bool sync = false, CGI::PcSamplerDesc pSamplerDesc = nullptr);
 			bool Done();
+
 			void AddRef() { _refCount++; }
 
 			void Update();
+			void UpdateStreaming();
 
 			CGI::TexturePtr GetTex() const;
 			CGI::TexturePtr GetTinyTex() const;
@@ -40,7 +42,7 @@ namespace verus
 		class TexturePtr : public Ptr<Texture>
 		{
 		public:
-			void Init(CSZ url, bool streamParts = false, bool sync = false, CGI::PcSamplerDesc pSamplerDes = nullptr);
+			void Init(CSZ url, bool streamParts = false, bool sync = false, CGI::PcSamplerDesc pSamplerDesc = nullptr);
 		};
 		VERUS_TYPEDEFS(TexturePtr);
 
@@ -84,53 +86,37 @@ namespace verus
 				String ToString();
 			};
 
-			class PickRound : public glm::vec4
-			{
-			public:
-				PickRound();
-				PickRound(const glm::vec4& v);
-				void SetUV(float u, float v);
-				void SetRadius(float r);
-				void SetAlpha(float x);
-				glm::vec4 ToPixels() const;
-				void FromPixels(const glm::vec4& pix);
-			};
-
 			INT64          _cshFreeFrame = -1;
 			String         _name;
 			IO::Dictionary _dict;
-			glm::vec2      _alphaSwitch = glm::vec2(1, 1);
 			glm::vec2      _anisoSpecDir = glm::vec2(0, 1);
 			float          _detail = 0;
 			float          _emission = 0;
-			Pick           _emissionPick;
-			PickRound      _eyePick;
-			float          _gloss = 10;
-			Pick           _glossPick;
-			glm::vec2      _glossScaleBias = glm::vec2(1, 0);
-			float          _hairDesat = 0;
-			Pick           _hairPick;
-			glm::vec2      _lamScaleBias = glm::vec2(1, 0);
-			float          _lightPass = 1;
-			Pick           _metalPick;
-			Pick           _skinPick;
-			glm::vec2      _specScaleBias = glm::vec2(1, 0);
+			float          _nmContrast = -2;
+			float          _roughDiffuse = 0;
+			glm::vec4      _solidA = glm::vec4(1, 1, 1, 0);
+			glm::vec4      _solidN = glm::vec4(0.5f, 0.5f, 1, 0);
+			glm::vec4      _solidX = glm::vec4(1, 0.5f, 0.5f, 0);
+			float          _sssHue = 0.5f;
+			Pick           _sssPick;
 			glm::vec4      _tc0ScaleBias = glm::vec4(1, 1, 0, 0);
-			TexturePwn     _texAlbedo;
-			glm::vec4      _texEnableAlbedo = glm::vec4(0.5f, 0.5f, 0.5f, 1);
-			TexturePwn     _texNormal;
-			glm::vec4      _texEnableNormal = glm::vec4(0.5f, 0.5f, 1.0f, 1);
-			TexturePwn     _texPacked;
-			glm::vec4      _texEnablePacked = glm::vec4(0.5f, 0.5f, 1.0f, 1);
-			glm::vec4      _userColor = glm::vec4(0, 0, 0, 0);
+			TexturePwn     _texA;
+			TexturePwn     _texN;
+			TexturePwn     _texX;
+			glm::vec4      _userColor = glm::vec4(1, 1, 1, 1);
 			Pick           _userPick;
+			glm::vec2      _xAnisoSpecScaleBias = glm::vec2(1, 0);
+			glm::vec2      _xMetallicScaleBias = glm::vec2(1, 0);
+			glm::vec2      _xRoughnessScaleBias = glm::vec2(1, 0);
+			glm::vec2      _xWrapDiffuseScaleBias = glm::vec2(1, 0);
 			Blending       _blending = Blending::opaque;
 			CGI::CSHandle  _csh;
 			CGI::CSHandle  _cshTiny;
 			CGI::CSHandle  _cshTemp;
 			CGI::CSHandle  _cshSimple;
-			int            _albedoPart = -1;
-			int            _normalPart = -1;
+			int            _aPart = -1;
+			int            _nPart = -1;
+			int            _xPart = -1;
 			int            _refCount = 0;
 
 			Material();
@@ -157,7 +143,7 @@ namespace verus
 			CGI::CSHandle GetComplexSetHandle() const;
 			CGI::CSHandle GetComplexSetHandleSimple() const;
 			void BindDescriptorSetTextures();
-			bool UpdateMeshUniformBuffer(float motionBlur = 1);
+			bool UpdateMeshUniformBuffer(float motionBlur = 1, bool resolveDitheringMaskEnabled = true);
 			bool UpdateMeshUniformBufferSimple();
 
 			void IncludePart(float part);
@@ -183,12 +169,15 @@ namespace verus
 		typedef StoreUnique<String, Material> TStoreMaterials;
 		class MaterialManager : public Singleton<MaterialManager>, public Object, private TStoreTextures, private TStoreMaterials
 		{
-			TexturePwn    _texDefaultAlbedo;
-			TexturePwn    _texDefaultNormal;
-			TexturePwn    _texDefaultPacked;
-			TexturePwn    _texDetail;
-			TexturePwn    _texStrass;
-			CGI::CSHandle _cshDefault; // For missing, non-mandatory materials.
+			TexturePwn      _texDefaultA;
+			TexturePwn      _texDefaultN;
+			TexturePwn      _texDefaultX;
+			TexturePwn      _texDetail;
+			TexturePwn      _texDetailN;
+			TexturePwn      _texStrass;
+			CGI::TexturePwn _texDummyShadow;
+			CGI::CSHandle   _cshDefault; // For missing, non-mandatory materials.
+			CGI::CSHandle   _cshDefaultSimple;
 
 		public:
 			MaterialManager();
@@ -201,11 +190,12 @@ namespace verus
 
 			void Update();
 
-			CGI::TexturePtr GetDefaultTexture() { return _texDefaultAlbedo->GetTex(); }
+			CGI::TexturePtr GetDefaultTexture() { return _texDefaultA->GetTex(); }
 			CGI::TexturePtr GetDetailTexture() { return _texDetail->GetTex(); }
+			CGI::TexturePtr GetDetailNTexture() { return _texDetailN->GetTex(); }
 			CGI::TexturePtr GetStrassTexture() { return _texStrass->GetTex(); }
 
-			CGI::CSHandle GetDefaultComplexSetHandle() const { return _cshDefault; }
+			CGI::CSHandle GetDefaultComplexSetHandle(bool simple = false) const { return simple ? _cshDefaultSimple : _cshDefault; }
 
 			// Textures:
 			PTexture InsertTexture(CSZ url);

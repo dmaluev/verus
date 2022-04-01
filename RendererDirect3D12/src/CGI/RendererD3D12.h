@@ -75,14 +75,15 @@ namespace verus
 			// Which graphics API?
 			virtual Gapi GetGapi() override { return Gapi::direct3D12; }
 
-			// Frame cycle:
+			// <FrameCycle>
 			virtual void BeginFrame(bool present) override;
 			virtual void EndFrame(bool present) override;
 			virtual void Present() override;
 			virtual void Sync(bool present) override;
 			virtual void WaitIdle() override;
+			// </FrameCycle>
 
-			// Resources:
+			// <Resources>
 			virtual PBaseCommandBuffer InsertCommandBuffer() override;
 			virtual PBaseGeometry      InsertGeometry() override;
 			virtual PBasePipeline      InsertPipeline() override;
@@ -104,6 +105,7 @@ namespace verus
 			int GetNextFramebufferIndex() const;
 			RP::RcD3DRenderPass GetRenderPass(RPHandle handle) const;
 			RP::RcD3DFramebuffer GetFramebuffer(FBHandle handle) const;
+			// </Resources>
 
 			RDynamicDescriptorHeap GetViewHeap() { return _dhViews; }
 			RDynamicDescriptorHeap GetSamplerHeap() { return _dhSamplers; }

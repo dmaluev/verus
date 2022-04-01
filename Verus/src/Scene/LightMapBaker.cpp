@@ -38,6 +38,12 @@ void LightMapBaker::Init(RcDesc desc)
 	case Mode::faces:
 	{
 		_repsPerUpdate = Math::Max<int>(1, Utils::Cast32(_vMap.size()) / 100);
+		std::fill(_vMap.begin(), _vMap.end(), VERUS_COLOR_RGBA(0, 0, 0, 255));
+	}
+	break;
+	case Mode::ambientOcclusion:
+	{
+		std::fill(_vMap.begin(), _vMap.end(), VERUS_COLOR_RGBA(255, 255, 255, 0));
 	}
 	break;
 	}
@@ -79,6 +85,9 @@ void LightMapBaker::Init(RcDesc desc)
 		element._pToken = reinterpret_cast<void*>(static_cast<INT64>(i));
 		_quadtree.BindElement(element);
 	}
+
+	if (Mode::faces == GetMode())
+		return;
 
 	_rph = renderer->CreateRenderPass(
 		{
@@ -232,14 +241,25 @@ void LightMapBaker::Update()
 			const BYTE value8 = Convert::UnormToUint8(Math::Clamp<float>(value * _normalizationFactor, 0, 1));
 
 			BYTE* pDst = reinterpret_cast<BYTE*>(_vQueued[ringBufferIndex][i]._pDst);
-			VERUS_FOR(j, 3)
-				pDst[j] = Math::Max(pDst[j], value8);
-			pDst[3] = 0xFF;
+			if (pDst[3]) // Already has some data?
+			{
+				VERUS_FOR(j, 3)
+					pDst[j] = Math::Max(pDst[j], value8);
+			}
+			else // Empty?
+			{
+				VERUS_FOR(j, 3)
+					pDst[j] = value8;
+				pDst[3] = 0xFF;
+			}
 		}
 	}
 	// Clear queued:
-	memset(_vQueued[ringBufferIndex].data(), 0, sizeof(Queued) * s_batchSize);
-	queuedCount = 0;
+	if (!_vQueued[ringBufferIndex].empty())
+	{
+		memset(_vQueued[ringBufferIndex].data(), 0, sizeof(Queued) * s_batchSize);
+		queuedCount = 0;
+	}
 
 	if (_currentI >= _desc._texHeight)
 	{
@@ -254,7 +274,8 @@ void LightMapBaker::Update()
 		}
 		if (finish)
 		{
-			ComputeEdgePadding();
+			if (Mode::faces != GetMode())
+				ComputeEdgePadding();
 			Save();
 			_desc._mode = Mode::idle;
 		}
@@ -304,7 +325,7 @@ void LightMapBaker::Update()
 
 void LightMapBaker::Draw()
 {
-	if (!IsInitialized() || !IsBaking())
+	if (!IsInitialized() || !IsBaking() || Mode::faces == GetMode())
 		return;
 
 	VERUS_QREF_RENDERER;
@@ -312,6 +333,10 @@ void LightMapBaker::Draw()
 	const int ringBufferIndex = renderer->GetRingBufferIndex();
 	auto cb = renderer.GetCommandBuffer();
 	auto shader = renderer.GetShaderQuad();
+
+	renderer.GetUbQuadVS()._matW = Math::QuadMatrix().UniformBufferFormat();
+	renderer.GetUbQuadVS()._matV = Math::ToUVMatrix().UniformBufferFormat();
+	renderer.ResetQuadMultiplexer();
 
 	cb->BindPipeline(_pipe[PIPE_QUAD]);
 	shader->BeginBindDescriptors();
@@ -351,6 +376,11 @@ void LightMapBaker::DrawHemicubeMask()
 	auto shader = renderer.GetShaderQuad();
 
 	const float side = static_cast<float>(_desc._texLumelSide);
+
+	renderer.GetUbQuadVS()._matW = Math::QuadMatrix().UniformBufferFormat();
+	renderer.GetUbQuadVS()._matV = Math::ToUVMatrix().UniformBufferFormat();
+	renderer.ResetQuadMultiplexer();
+
 	cb->BindPipeline(_pipe[PIPE_HEMICUBE_MASK]);
 	cb->SetViewport({ Vector4(0, 0, side, side) });
 	shader->BeginBindDescriptors();
@@ -464,6 +494,7 @@ Continue LightMapBaker::Quadtree_ProcessNode(void* pToken, void* pUser)
 			RQueued queued = _vQueued[ringBufferIndex][queuedCount];
 			queued._pos = pos;
 			queued._nrm = glm::normalize(nrm);
+			queued._pos += Vector3(nrm) * _desc._bias;
 			queued._pDst = &_vMap[index];
 
 			_currentLayer++;
@@ -477,50 +508,12 @@ Continue LightMapBaker::Quadtree_ProcessNode(void* pToken, void* pUser)
 	return Continue::yes;
 }
 
-void LightMapBaker::ComputeEdgePadding(int radius)
+void LightMapBaker::ComputeEdgePadding()
 {
-	const int radiusSq = radius * radius;
-	VERUS_P_FOR(i, _desc._texHeight)
-	{
-		const int offset = i * _desc._texWidth;
-		VERUS_FOR(j, _desc._texWidth)
-		{
-			BYTE* pOriginChannels = reinterpret_cast<BYTE*>(&_vMap[offset + j]);
-			if (pOriginChannels[3])
-				continue;
-
-			int minRadiusSq = INT_MAX;
-			BYTE color[4] = {};
-			for (int di = -radius; di <= radius; ++di)
-			{
-				const int ki = i + di;
-				if (ki < 0 || ki >= _desc._texHeight)
-					continue;
-				for (int dj = -radius; dj <= radius; ++dj)
-				{
-					const int kj = j + dj;
-					if (kj < 0 || kj >= _desc._texWidth)
-						continue;
-					if (!di && !dj)
-						continue;
-					const int lenSq = di * di + dj * dj;
-					if (lenSq > radiusSq)
-						continue;
-					BYTE* pKernelChannels = reinterpret_cast<BYTE*>(&_vMap[ki * _desc._texWidth + kj]);
-					if (!pKernelChannels[3])
-						continue;
-					if (lenSq < minRadiusSq)
-					{
-						minRadiusSq = lenSq;
-						memcpy(color, pKernelChannels, 3);
-					}
-				}
-			}
-
-			if (minRadiusSq != INT_MAX)
-				memcpy(pOriginChannels, color, 3);
-		}
-	});
+	Utils::ComputeEdgePadding(
+		reinterpret_cast<BYTE*>(_vMap.data()) + 0, sizeof(UINT32),
+		reinterpret_cast<BYTE*>(_vMap.data()) + 3, sizeof(UINT32),
+		_desc._texWidth, _desc._texHeight);
 }
 
 void LightMapBaker::Save()
@@ -528,10 +521,16 @@ void LightMapBaker::Save()
 	IO::FileSystem::SaveImage(_C(_pathname), _vMap.data(), _desc._texWidth, _desc._texHeight, IO::ImageFormat::extension);
 }
 
-void LightMapBaker::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
+void LightMapBaker::BindPipeline(RcMesh mesh, CGI::CommandBufferPtr cb)
 {
-	VERUS_RT_ASSERT(pipe >= PIPE_MESH_SIMPLE_BAKE_AO && pipe <= PIPE_MESH_SIMPLE_BAKE_AO_SKINNED);
-
+	static const PIPE pipes[] =
+	{
+		PIPE_MESH_SIMPLE_BAKE_AO,
+		PIPE_MESH_SIMPLE_BAKE_AO_INSTANCED,
+		PIPE_MESH_SIMPLE_BAKE_AO_ROBOTIC,
+		PIPE_MESH_SIMPLE_BAKE_AO_SKINNED
+	};
+	const PIPE pipe = pipes[mesh.GetPipelineIndex()];
 	if (!_pipe[pipe])
 	{
 		static CSZ branches[] =
@@ -541,11 +540,10 @@ void LightMapBaker::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 			"#BakeAORobotic",
 			"#BakeAOSkinned"
 		};
-		CGI::PipelineDesc pipeDesc(_desc._pMesh->GetGeometry(), Mesh::GetSimpleShader(), branches[pipe], _rph);
-		pipeDesc._vertexInputBindingsFilter = _desc._pMesh->GetBindingsMask();
+		CGI::PipelineDesc pipeDesc(mesh.GetGeometry(), Mesh::GetSimpleShader(), branches[pipe], _rph);
+		pipeDesc._vertexInputBindingsFilter = mesh.GetBindingsMask();
 		_pipe[pipe].Init(pipeDesc);
 	}
-
 	cb->BindPipeline(_pipe[pipe]);
 }
 

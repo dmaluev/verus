@@ -26,7 +26,7 @@ namespace verus
 			posZ,
 			negZ,
 			count,
-			all,
+			all, // Match texture index to cube map face when creating framebuffer.
 			none = -1
 		};
 
@@ -130,8 +130,9 @@ namespace verus
 		enum class ViaType : int
 		{
 			floats,
-			ubytes,
-			shorts
+			halfs,
+			shorts,
+			ubytes
 		};
 
 		// See: https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3ddeclusage

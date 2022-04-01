@@ -51,8 +51,8 @@ namespace verus
 			static UB_GenHeightmapFS s_ubGenHeightmapFS;
 			static UB_GenNormalsFS   s_ubGenNormalsFS;
 
-			Vector3                       _diffuseColorShallow = Vector3(0.02f, 0.4f, 0.5f);
-			Vector3                       _diffuseColorDeep = Vector3(0.01f, 0.01f, 0.05f);
+			Vector3                       _diffuseColorShallow = Vector3(0.01f, 0.2f, 0.25f);
+			Vector3                       _diffuseColorDeep = Vector3(0.005f, 0.015f, 0.025f);
 			PTerrain                      _pTerrain = nullptr;
 			CGI::GeometryPwn              _geo;
 			CGI::ShaderPwns<SHADER_COUNT> _shader;

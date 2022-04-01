@@ -40,10 +40,10 @@ namespace verus
 			public:
 				int   _type = 0;
 				int   _permille = 0;
-				float _minOffset = 0.2f;
-				float _maxOffset = 0.8f;
-				float _minScale = 0.5f;
-				float _maxScale = 1.5f;
+				float _minOffset = 0.25f;
+				float _maxOffset = 0.75f;
+				float _minScale = 0.8f;
+				float _maxScale = 1.25f;
 				float _minAngle = 0;
 				float _maxAngle = VERUS_2PI;
 				TypeDesc(int type, int permille) : _type(type), _permille(permille) {}

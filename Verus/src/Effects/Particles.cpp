@@ -187,7 +187,7 @@ void Particles::Init(CSZ url)
 
 		if (!s_pipe[PIPE_MAIN])
 		{
-			CGI::PipelineDesc pipeDesc(_geo, s_shader, "#", renderer.GetDS().GetRenderPassHandle_ExtraCompose());
+			CGI::PipelineDesc pipeDesc(_geo, s_shader, "#", renderer.GetDS().GetRenderPassHandle_ForwardRendering());
 			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_PA;
 			pipeDesc._topology = CGI::PrimitiveTopology::pointList;
 			pipeDesc._depthWriteEnable = false;
@@ -221,7 +221,7 @@ void Particles::Init(CSZ url)
 
 		if (!s_pipe[PIPE_BILLBOARDS])
 		{
-			CGI::PipelineDesc pipeDesc(_geo, s_shader, "#Billboards", renderer.GetDS().GetRenderPassHandle_ExtraCompose());
+			CGI::PipelineDesc pipeDesc(_geo, s_shader, "#Billboards", renderer.GetDS().GetRenderPassHandle_ForwardRendering());
 			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_PA;
 			pipeDesc._depthWriteEnable = false;
 			s_pipe[PIPE_BILLBOARDS].Init(pipeDesc);

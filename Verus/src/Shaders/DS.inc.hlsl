@@ -2,12 +2,11 @@
 
 VERUS_UBUFFER UB_PerFrame
 {
-	mataff _matQuad;
 	mataff _matToUV;
 	mataff _matV;
+	mataff _matInvV;
 	matrix _matVP;
 	matrix _matInvP;
-	float4 _toUV;
 };
 
 VERUS_UBUFFER UB_TexturesFS

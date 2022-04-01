@@ -104,6 +104,7 @@ namespace verus
 			int GetPart() const { return _part; }
 			RcVector4 GetSize() const { return _size; }
 			bool IsSRGB() const;
+			Format ToTextureBcFormat(IO::RcDDSHeader header, IO::RcDDSHeaderDXT10 header10) const;
 
 			void SetLoadingFlags(TextureDesc::Flags flags) { _desc._flags = flags; }
 			void SetLoadingSamplerDesc(PcSamplerDesc pSamplerDesc) { _desc._pSamplerDesc = pSamplerDesc; }

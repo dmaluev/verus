@@ -25,6 +25,28 @@ bool BaseTexture::IsSRGB() const
 		!Str::EndsWith(_C(_name), ".X.dds");
 }
 
+Format BaseTexture::ToTextureBcFormat(IO::RcDDSHeader header, IO::RcDDSHeaderDXT10 header10) const
+{
+	auto SelectFormat = [this](Format unorm, Format srgb)
+	{
+		return IsSRGB() ? srgb : unorm;
+	};
+	if (header.IsBC1())
+		return SelectFormat(Format::unormBC1, Format::srgbBC1);
+	else if (header.IsBC2())
+		return SelectFormat(Format::unormBC2, Format::srgbBC2);
+	else if (header.IsBC3())
+		return SelectFormat(Format::unormBC3, Format::srgbBC3);
+	else if (header.IsBC4U() || header.IsBC4S())
+		return Format::unormBC4;
+	else if (header.IsBC5U() || header.IsBC5S())
+		return Format::unormBC5;
+	else if (header10.IsBC7())
+		return SelectFormat(Format::unormBC7, Format::srgbBC7);
+	VERUS_RT_FAIL("DDS format is not BC.");
+	return Format::unormR8G8B8A8;
+}
+
 void BaseTexture::LoadDDS(CSZ url, int texturePart)
 {
 	_name = url;
@@ -58,20 +80,8 @@ void BaseTexture::LoadDDS(CSZ url, RcBlob blob)
 
 	if (header.IsBC())
 	{
-		auto SelectFormat = [this](Format unorm, Format srgb)
-		{
-			return IsSRGB() ? srgb : unorm;
-		};
-
 		TextureDesc desc;
-		if (header.IsBC1())
-			desc._format = SelectFormat(Format::unormBC1, Format::srgbBC1);
-		else if (header.IsBC2())
-			desc._format = SelectFormat(Format::unormBC2, Format::srgbBC2);
-		else if (header.IsBC3())
-			desc._format = SelectFormat(Format::unormBC3, Format::srgbBC3);
-		else if (header10.IsBC7())
-			desc._format = SelectFormat(Format::unormBC7, Format::srgbBC7);
+		desc._format = ToTextureBcFormat(header, header10);
 		desc._width = header._width >> lod;
 		desc._height = header._height >> lod;
 		desc._mipLevels = header._mipMapCount - lod;
@@ -236,14 +246,8 @@ void BaseTexture::LoadDDSArray(CSZ* urls)
 
 		if (header.IsBC())
 		{
-			auto SelectFormat = [this](Format unorm, Format srgb)
-			{
-				return IsSRGB() ? srgb : unorm;
-			};
-
 			const int w = header._width >> lod;
 			const int h = header._height >> lod;
-
 			if (desc._width)
 			{
 				VERUS_RT_ASSERT(desc._width == w);
@@ -253,14 +257,7 @@ void BaseTexture::LoadDDSArray(CSZ* urls)
 				VERUS_RT_ASSERT(desc._height == h);
 			}
 
-			if (header.IsBC1())
-				desc._format = SelectFormat(Format::unormBC1, Format::srgbBC1);
-			else if (header.IsBC2())
-				desc._format = SelectFormat(Format::unormBC2, Format::srgbBC2);
-			else if (header.IsBC3())
-				desc._format = SelectFormat(Format::unormBC3, Format::srgbBC3);
-			else if (header10.IsBC7())
-				desc._format = SelectFormat(Format::unormBC7, Format::srgbBC7);
+			desc._format = ToTextureBcFormat(header, header10);
 			desc._width = w;
 			desc._height = h;
 			desc._mipLevels = header._mipMapCount - lod;
@@ -350,7 +347,7 @@ bool BaseTexture::IsBC(Format format)
 
 bool BaseTexture::Is4BitsBC(Format format)
 {
-	return format == Format::unormBC1 || format == Format::srgbBC1;
+	return format == Format::unormBC1 || format == Format::srgbBC1 || format == Format::unormBC4;
 }
 
 bool BaseTexture::IsDepthFormat(Format format)

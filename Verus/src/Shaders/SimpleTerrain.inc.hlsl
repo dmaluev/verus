@@ -5,13 +5,11 @@ VERUS_UBUFFER UB_SimpleTerrainVS
 	mataff _matW;
 	matrix _matVP;
 	float4 _eyePos;
-	float4 _mapSideInv_clipDistanceOffset;
+	float4 _invMapSide_clipDistanceOffset;
 };
 
 VERUS_UBUFFER UB_SimpleTerrainFS
 {
-	float4 _vSpecStrength[8];
-	float4 _lamScaleBias;
 	float4 _ambientColor;
 	float4 _fogColor;
 	float4 _dirToSun;

@@ -102,7 +102,11 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc windowDes
 	Utils::TestAll();
 #endif
 
+	// Window and renderer:
 	_window.Init(updatedWindowDesc);
+	SDL_GetWindowSize(_window.GetSDL(),
+		&settings._displaySizeWidth,
+		&settings._displaySizeHeight); // Display size, window size and swap chain size must match.
 	CGI::Renderer::I().SetMainWindow(&_window);
 	_engineInit.Init(new MyRendererDelegate(this));
 

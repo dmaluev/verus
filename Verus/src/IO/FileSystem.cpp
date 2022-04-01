@@ -120,8 +120,8 @@ void FileSystem::PreloadDefaultCache()
 		".primary",
 		".rig",
 		".txt",
+		".vml",
 		".xml",
-		".xmt",
 		".xwa",
 		".xwx",
 		nullptr
@@ -158,32 +158,32 @@ void FileSystem::LoadResource(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc)
 
 void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc desc)
 {
-	String strUrl(url), projectPathname(url);
+	String primaryUrl(url), secondaryUrl(url);
 	const bool shader = Str::StartsWith(url, s_shaderPAK);
 	const size_t pakPos = FindPosForPAK(url);
 	if (pakPos != String::npos)
 	{
 		if (shader)
 		{
-			strUrl.replace(0, strlen(s_shaderPAK), "/");
-			projectPathname = String(_C(Utils::I().GetProjectPath())) + strUrl;
+			primaryUrl.replace(0, strlen(s_shaderPAK), "/");
+			secondaryUrl = String(_C(Utils::I().GetProjectPath())) + primaryUrl;
 			StringStream ss;
-			ss << _C(Utils::I().GetShaderPath()) << strUrl;
-			strUrl = ss.str();
+			ss << _C(Utils::I().GetShaderPath()) << primaryUrl;
+			primaryUrl = ss.str();
 		}
 		else
 		{
-			String folder = strUrl.substr(1, pakPos - 1);
-			const String name = strUrl.substr(pakPos + 2);
-			projectPathname = String(_C(Utils::I().GetProjectPath())) + s_dataFolder + folder + "/" + name;
+			const String folder = primaryUrl.substr(1, pakPos - 1);
+			const String name = primaryUrl.substr(pakPos + 2);
+			primaryUrl = String(_C(Utils::I().GetProjectPath())) + s_dataFolder + folder + "/" + name;
 			StringStream ss;
 			ss << _C(Utils::I().GetModulePath()) << s_dataFolder << folder << "/" << name;
-			strUrl = ss.str();
+			secondaryUrl = ss.str();
 		}
 	}
 
 	File file;
-	if (file.Open(_C(strUrl)) || file.Open(_C(projectPathname)))
+	if (file.Open(_C(primaryUrl)) || file.Open(_C(secondaryUrl)))
 	{
 		const INT64 size = file.GetSize();
 		if (size >= 0)
@@ -201,7 +201,7 @@ void FileSystem::LoadResourceFromFile(CSZ url, Vector<BYTE>& vData, RcLoadDesc d
 		}
 	}
 	else if (desc._mandatory)
-		throw VERUS_RUNTIME_ERROR << "LoadResourceFromFile(); File not found: " << url << " (" << strUrl << ")";
+		throw VERUS_RUNTIME_ERROR << "LoadResourceFromFile(); File not found: " << url << " (" << primaryUrl << ")";
 }
 
 void FileSystem::LoadResourceFromCache(CSZ url, Vector<BYTE>& vData, bool mandatory)
@@ -473,9 +473,9 @@ String FileSystem::ReplaceFilename(CSZ pathname, CSZ filename)
 	return filename;
 }
 
-void FileSystem::SaveImage(CSZ pathname, const UINT32* p, int w, int h, ImageFormat format, int param)
+void FileSystem::SaveImage(CSZ pathname, const void* p, int w, int h, ImageFormat format, int pixelStride, int param)
 {
-	Vector<BYTE> v(w * h * 8);
+	Vector<BYTE> v(pixelStride * (w * h) * 2); // Assume this size will be enough for compressed image.
 	MutableBlob context(v.data());
 
 	if (ImageFormat::extension == format)
@@ -500,19 +500,19 @@ void FileSystem::SaveImage(CSZ pathname, const UINT32* p, int w, int h, ImageFor
 	{
 	case ImageFormat::png:
 	{
-		if (!stbi_write_png_to_func(WriteFunc, &context, w, h, 4, p, param ? param : w * 4))
+		if (!stbi_write_png_to_func(WriteFunc, &context, w, h, pixelStride, p, param ? param : w * pixelStride))
 			throw VERUS_RUNTIME_ERROR << "stbi_write_png_to_func()";
 	}
 	break;
 	case ImageFormat::tga:
 	{
-		if (!stbi_write_tga_to_func(WriteFunc, &context, w, h, 4, p))
+		if (!stbi_write_tga_to_func(WriteFunc, &context, w, h, pixelStride, p))
 			throw VERUS_RUNTIME_ERROR << "stbi_write_tga_to_func()";
 	}
 	break;
 	case ImageFormat::jpg:
 	{
-		if (!stbi_write_jpg_to_func(WriteFunc, &context, w, h, 4, p, param ? param : 90))
+		if (!stbi_write_jpg_to_func(WriteFunc, &context, w, h, pixelStride, p, param ? param : 90))
 			throw VERUS_RUNTIME_ERROR << "stbi_write_jpg_to_func()";
 	}
 	break;
@@ -528,17 +528,19 @@ void FileSystem::SaveImage(CSZ pathname, const UINT32* p, int w, int h, ImageFor
 		throw VERUS_RUNTIME_ERROR << "SaveImage(); Open()";
 }
 
-void FileSystem::SaveDDS(CSZ pathname, const UINT32* p, int w, int h, int d)
+void FileSystem::SaveDDS(CSZ pathname, const void* p, int w, int h, int d)
 {
 	IO::File file;
 	if (!file.Open(pathname, "wb"))
 		throw VERUS_RUNTIME_ERROR << "SaveDDS(); Open()";
 
+	const int pixelStride = 4;
+
 	DDSHeader header;
 	header._flags |= DDSHeader::Flags::linearSize;
 	header._height = h;
 	header._width = w;
-	header._pitchOrLinearSize = w * h * 4 * Math::Max(1, abs(d));
+	header._pitchOrLinearSize = pixelStride * (w * h * Math::Max(1, abs(d)));
 	header._depth = abs(d);
 	header._pixelFormat._flags |= DDSHeader::PixelFormatFlags::alphaPixels | DDSHeader::PixelFormatFlags::rgb;
 	header._pixelFormat._rgbBitCount = 32;
@@ -591,7 +593,7 @@ void Image::Init(CSZ url)
 {
 	VERUS_INIT();
 	FileSystem::LoadResourceFromFile(url, _vData);
-	_p = stbi_load_from_memory(_vData.data(), Utils::Cast32(_vData.size()), &_width, &_height, &_bytesPerPixel, 0);
+	_p = stbi_load_from_memory(_vData.data(), Utils::Cast32(_vData.size()), &_width, &_height, &_pixelStride, 0);
 }
 
 void Image::Done()

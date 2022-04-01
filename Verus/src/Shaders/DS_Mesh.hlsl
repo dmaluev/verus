@@ -15,21 +15,25 @@ ConstantBuffer<UB_SkeletonVS>    g_ubSkeletonVS    : register(b0, space3);
 VK_PUSH_CONSTANT
 ConstantBuffer<UB_PerObject>     g_ubPerObject     : register(b0, space4);
 
-Texture2D    g_texAlbedo : register(t1, space1);
-SamplerState g_samAlbedo : register(s1, space1);
-Texture2D    g_texNormal : register(t2, space1);
-SamplerState g_samNormal : register(s2, space1);
-Texture2D    g_texDetail : register(t3, space1);
-SamplerState g_samDetail : register(s3, space1);
-Texture2D    g_texStrass : register(t4, space1);
-SamplerState g_samStrass : register(s4, space1);
+Texture2D    g_texA       : register(t1, space1);
+SamplerState g_samA       : register(s1, space1);
+Texture2D    g_texN       : register(t2, space1);
+SamplerState g_samN       : register(s2, space1);
+Texture2D    g_texX       : register(t3, space1);
+SamplerState g_samX       : register(s3, space1);
+Texture2D    g_texDetail  : register(t4, space1);
+SamplerState g_samDetail  : register(s4, space1);
+Texture2D    g_texDetailN : register(t5, space1);
+SamplerState g_samDetailN : register(s5, space1);
+Texture2D    g_texStrass  : register(t6, space1);
+SamplerState g_samStrass  : register(s6, space1);
 
 struct VSI
 {
 	// Binding 0:
 	VK_LOCATION_POSITION int4 pos   : POSITION;
 	VK_LOCATION_NORMAL   float3 nrm : NORMAL;
-	VK_LOCATION(8)       int4 tc0   : TEXCOORD0;
+	VK_LOCATION(8)       int2 tc0   : TEXCOORD0;
 	// Binding 1:
 #ifdef DEF_SKINNED
 	VK_LOCATION_BLENDWEIGHTS int4 bw : BLENDWEIGHTS;
@@ -40,7 +44,7 @@ struct VSI
 	VK_LOCATION_BINORMAL float4 bin : BINORMAL;
 	// Binding 3:
 #if 0
-	VK_LOCATION(9)     int4 tc1     : TEXCOORD1;
+	VK_LOCATION(9)     int2 tc1     : TEXCOORD1;
 	VK_LOCATION_COLOR0 float4 color : COLOR0;
 #endif
 	_PER_INSTANCE_DATA
@@ -65,7 +69,14 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
-	// World matrix, instance data:
+	// Dequantize:
+	const float3 inPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMeshVS._posDeqScale.xyz, g_ubPerMeshVS._posDeqBias.xyz);
+	const float2 inTc0 = DequantizeUsingDeq2D(si.tc0, g_ubPerMeshVS._tc0DeqScaleBias.xy, g_ubPerMeshVS._tc0DeqScaleBias.zw);
+	const float3 inNrm = si.nrm.xyz;
+	const float3 inTan = si.tan.xyz;
+	const float3 inBin = si.bin.xyz;
+
+	// <TheMatrix>
 #ifdef DEF_INSTANCED
 	mataff matW = GetInstMatrix(
 		si.matPart0,
@@ -76,13 +87,6 @@ VSO mainVS(VSI si)
 	mataff matW = g_ubPerObject._matW;
 	const float4 userColor = g_ubPerObject._userColor;
 #endif
-
-	// Dequantize:
-	const float3 inPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMeshVS._posDeqScale.xyz, g_ubPerMeshVS._posDeqBias.xyz);
-	const float2 inTc0 = DequantizeUsingDeq2D(si.tc0.xy, g_ubPerMeshVS._tc0DeqScaleBias.xy, g_ubPerMeshVS._tc0DeqScaleBias.zw);
-	const float3 inNrm = si.nrm.xyz;
-	const float3 inTan = si.tan.xyz;
-	const float3 inBin = si.bin.xyz;
 
 	float addLamBias = 0.0;
 #if defined(DEF_SKINNED) || defined(DEF_ROBOTIC)
@@ -130,6 +134,7 @@ VSO mainVS(VSI si)
 #endif
 
 	const matrix matWV = mul(ToFloat4x4(matW), ToFloat4x4(g_ubPerFrame._matV));
+	// </TheMatrix>
 
 	float3 posW;
 	float3 nrmWV;
@@ -138,7 +143,7 @@ VSO mainVS(VSI si)
 	{
 #ifdef DEF_SKINNED
 		const float4 weights = si.bw * (1.0 / 255.0);
-		const float4 indices = si.bi;
+		const int4 indices = si.bi;
 
 		float3 posSkinned = 0.0;
 		float3 nrmSkinned = 0.0;
@@ -190,8 +195,8 @@ VSO mainVS(VSI si)
 #if !defined(DEF_DEPTH)
 	so.color0 = userColor;
 #ifdef DEF_PLANT
-	so.color0.rgb = RandomColor(userColor.xz, 0.3, 0.2);
-	so.color0.a = addLamBias;
+	so.color0.rgb = RandomColor(userColor.xz, 0.25, 0.15);
+	so.color0.a = 1.0 - ComputeFade(max(-so.pos.z, so.pos.w), 70.0, 100.0);
 #endif
 #if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
 	so.matTBN0 = float4(tanWV, posW.x);
@@ -272,163 +277,165 @@ VSO mainDS(_IN_DS)
 #ifdef DEF_DEPTH
 void mainFS(VSO si)
 {
-	const float rawAlbedo = g_texAlbedo.Sample(g_samAlbedo, si.tc0).a;
-	clip(rawAlbedo - 1.0 / 16.0);
+	const float albedoSam = g_texA.Sample(g_samA, si.tc0).a;
+	clip(albedoSam - 0.5);
 }
 #else
 DS_FSO mainFS(VSO si)
 {
 	DS_FSO so;
+	DS_Reset(so);
 
 #ifdef DEF_SOLID_COLOR
-	DS_SolidColor(so, si.color0.rgb);
+	//DS_SolidColor(so, si.color0.rgb);
 #else
+	const float dither = Dither2x2(si.pos.xy);
+	const float3 rand = Rand(si.pos.xy);
 	_TBN_SPACE(
 		si.matTBN0.xyz,
 		si.matTBN1.xyz,
 		si.matTBN2.xyz);
-	const float3 rand = Rand(si.pos.xy);
 
 	// <Material>
-	const float2 mm_alphaSwitch = g_ubPerMaterialFS._alphaSwitch_anisoSpecDir.xy;
-	const float2 mm_anisoSpecDir = g_ubPerMaterialFS._alphaSwitch_anisoSpecDir.zw;
-	const float mm_detail = g_ubPerMaterialFS._detail_emission_gloss_hairDesat.x;
+	const float2 mm_anisoSpecDir = g_ubPerMaterialFS._anisoSpecDir_detail_emission.xy;
+	const float mm_detail = g_ubPerMaterialFS._anisoSpecDir_detail_emission.z;
+	const float mm_emission = g_ubPerMaterialFS._anisoSpecDir_detail_emission.w;
+	const float mm_motionBlur = g_ubPerMaterialFS._motionBlur_nmContrast_roughDiffuse_sssHue.x;
+	const float mm_nmContrast = g_ubPerMaterialFS._motionBlur_nmContrast_roughDiffuse_sssHue.y;
+	const float mm_roughDiffuse = frac(g_ubPerMaterialFS._motionBlur_nmContrast_roughDiffuse_sssHue.z);
+	const float mm_sssHue = g_ubPerMaterialFS._motionBlur_nmContrast_roughDiffuse_sssHue.w;
 	const float2 mm_detailScale = g_ubPerMaterialFS._detailScale_strassScale.xy;
-	const float mm_emission = g_ubPerMaterialFS._detail_emission_gloss_hairDesat.y;
-	const float4 mm_emissionPick = g_ubPerMaterialFS._emissionPick;
-	const float4 mm_eyePick = g_ubPerMaterialFS._eyePick;
-	const float mm_gloss = g_ubPerMaterialFS._detail_emission_gloss_hairDesat.z;
-	const float4 mm_glossPick = g_ubPerMaterialFS._glossPick;
-	const float2 mm_glossScaleBias = g_ubPerMaterialFS._glossScaleBias_specScaleBias.xy;
-	const float mm_hairDesat = g_ubPerMaterialFS._detail_emission_gloss_hairDesat.w;
-	const float4 mm_hairPick = g_ubPerMaterialFS._hairPick;
-	const float2 mm_lamScaleBias = g_ubPerMaterialFS._lamScaleBias_lightPass_motionBlur.xy;
-	const float mm_lightPass = g_ubPerMaterialFS._lamScaleBias_lightPass_motionBlur.z;
-	const float4 mm_metalPick = g_ubPerMaterialFS._metalPick;
-	const float4 mm_skinPick = g_ubPerMaterialFS._skinPick;
-	const float2 mm_specScaleBias = g_ubPerMaterialFS._glossScaleBias_specScaleBias.zw;
 	const float2 mm_strassScale = g_ubPerMaterialFS._detailScale_strassScale.zw;
+	const float4 mm_solidA = g_ubPerMaterialFS._solidA;
+	const float4 mm_solidN = g_ubPerMaterialFS._solidN;
+	const float4 mm_solidX = g_ubPerMaterialFS._solidX;
+	const float4 mm_sssPick = g_ubPerMaterialFS._sssPick;
 	const float4 mm_tc0ScaleBias = g_ubPerMaterialFS._tc0ScaleBias;
-	const float4 mm_texEnableAlbedo = g_ubPerMaterialFS._texEnableAlbedo;
-	const float4 mm_texEnableNormal = g_ubPerMaterialFS._texEnableNormal;
-	const float4 mm_userColor = g_ubPerMaterialFS._userColor;
 	const float4 mm_userPick = g_ubPerMaterialFS._userPick;
-	const float motionBlurMask = g_ubPerMaterialFS._lamScaleBias_lightPass_motionBlur.w;
+	const float2 mm_xAnisoSpecScaleBias = g_ubPerMaterialFS._xAnisoSpecScaleBias_xMetallicScaleBias.xy;
+	const float2 mm_xMetallicScaleBias = g_ubPerMaterialFS._xAnisoSpecScaleBias_xMetallicScaleBias.zw;
+	const float2 mm_xRoughnessScaleBias = g_ubPerMaterialFS._xRoughnessScaleBias_xWrapDiffuseScaleBias.xy;
+	const float2 mm_xWrapDiffuseScaleBias = g_ubPerMaterialFS._xRoughnessScaleBias_xWrapDiffuseScaleBias.zw;
 	// </Material>
 
 	const float2 tc0 = si.tc0 * mm_tc0ScaleBias.xy + mm_tc0ScaleBias.zw;
+	const float resolveDitheringMaskEnabled = step(g_ubPerMaterialFS._motionBlur_nmContrast_roughDiffuse_sssHue.z, 1.0);
 
 	// <Albedo>
-	float4 rawAlbedo;
+	float4 albedo;
 	{
-		const float texEnableAlbedoAlpha = ceil(mm_texEnableAlbedo.a);
-		rawAlbedo = g_texAlbedo.Sample(g_samAlbedo, tc0 * texEnableAlbedoAlpha);
-		rawAlbedo.rgb = lerp(mm_texEnableAlbedo.rgb, rawAlbedo.rgb, mm_texEnableAlbedo.a);
+		const float texEnabled = 1.0 - floor(mm_solidA.a);
+		float4 albedoSam = g_texA.Sample(g_samA, tc0 * texEnabled);
+		albedoSam.rgb = lerp(albedoSam.rgb, mm_solidA.rgb, mm_solidA.a);
+
+		albedo = albedoSam;
 	}
-	const float gray = Grayscale(rawAlbedo.rgb);
+	const float gray = Grayscale(albedo.rgb);
 	// </Albedo>
 
 	// <Pick>
-	const float2 alpha_spec = AlphaSwitch(rawAlbedo, tc0, mm_alphaSwitch);
-	const float emitAlpha = PickAlpha(rawAlbedo.rgb, mm_emissionPick, 16.0);
-	const float eyeAlpha = PickAlphaRound(mm_eyePick, tc0);
-	const float glossAlpha = PickAlpha(rawAlbedo.rgb, mm_glossPick, 32.0);
-	const float hairAlpha = round(PickAlpha(rawAlbedo.rgb, mm_hairPick, 16.0));
-	const float metalAlpha = PickAlpha(rawAlbedo.rgb, mm_metalPick, 16.0);
-	const float skinAlpha = PickAlpha(rawAlbedo.rgb, mm_skinPick, 16.0);
-	const float userAlpha = PickAlpha(rawAlbedo.rgb, mm_userPick, 16.0);
+	const float sssMask = PickAlpha(albedo.rgb, mm_sssPick, 16.0);
+	const float userMask = PickAlpha(albedo.rgb, mm_userPick, 16.0);
 	// </Pick>
 
 #ifdef DEF_PLANT
-	rawAlbedo.rgb *= si.color0.rgb;
+	albedo.rgb = saturate(albedo.rgb * si.color0.rgb * 2.0);
+	albedo.a *= si.color0.a;
 #else
-	rawAlbedo.rgb = lerp(rawAlbedo.rgb, Overlay(gray, si.color0.rgb), userAlpha * si.color0.a);
+	albedo.rgb = lerp(albedo.rgb, Overlay(gray, si.color0.rgb), userMask * si.color0.a);
 #endif
-	const float3 hairAlbedo = Overlay(alpha_spec.y, Desaturate(rawAlbedo.rgb, hairAlpha * mm_hairDesat));
-	const float specMask = saturate(alpha_spec.y * mm_specScaleBias.x + mm_specScaleBias.y);
 
-	// <Gloss>
-	float gloss = lerp(4.0, 16.0, alpha_spec.y) * mm_glossScaleBias.x + mm_glossScaleBias.y;
-	gloss = lerp(gloss, mm_gloss, glossAlpha);
-	gloss = lerp(gloss, 4.0 + alpha_spec.y, skinAlpha);
-	gloss = lerp(gloss, 0.0, eyeAlpha);
-	// </Gloss>
+	// <Detail>
+	float3 detailSam;
+	float3 detailNSam;
+	{
+		detailSam = g_texDetail.Sample(g_samDetail, tc0 * mm_detailScale).rgb;
+		detailNSam = g_texDetailN.Sample(g_samDetailN, tc0 * mm_detailScale).rgb;
+	}
+	albedo.rgb = saturate(albedo.rgb * lerp(0.5, detailSam, mm_detail) * 2.0);
+	// </Detail>
 
 	// <Normal>
 	float3 normalWV;
-	float toksvigFactor;
-	float lightPassStrength;
-	float3 anisoWV;
+	float3 tangentWV;
 	{
-		const float texEnableNormalAlpha = ceil(mm_texEnableNormal.a);
-		float4 rawNormal = g_texNormal.Sample(g_samNormal, tc0 * texEnableNormalAlpha);
-		rawNormal = lerp(mm_texEnableNormal.rgbr, rawNormal, mm_texEnableNormal.a);
-		const float4 normalAA = NormalMapAA(rawNormal);
-		const float3 normalTBN = normalAA.xyz;
+		const float texEnabled = 1.0 - floor(mm_solidN.a);
+		float4 normalSam = g_texN.Sample(g_samN, tc0 * texEnabled);
+		normalSam.rgb = lerp(normalSam.rgb, mm_solidN.rgb, mm_solidN.a);
+
+		normalSam.rg = saturate(normalSam.rg * lerp(0.5, detailNSam.rg, mm_detail) * 2.0);
+
+		const float3 normalTBN = NormalMapFromBC5(normalSam, mm_nmContrast);
 		normalWV = normalize(mul(normalTBN, matFromTBN));
-		toksvigFactor = ComputeToksvigFactor(normalAA.a, gloss);
-		lightPassStrength = rawNormal.r;
-		anisoWV = normalize(mul(cross(normalTBN, cross(float3(mm_anisoSpecDir, 0), normalTBN)), matFromTBN));
+		tangentWV = normalize(mul(cross(normalTBN, cross(float3(mm_anisoSpecDir, 0), normalTBN)), matFromTBN));
 	}
 	// </Normal>
 
-	// <Detail>
+	// <X>
+	float occlusion;
+	float roughness;
+	float metallic;
+	float emission;
+	float wrapDiffuse;
+	float anisoSpec;
 	{
-		const float3 rawDetail = g_texDetail.Sample(g_samDetail, tc0 * mm_detailScale).rgb;
-		rawAlbedo.rgb = rawAlbedo.rgb * lerp(0.5, rawDetail, mm_detail) * 2.0;
+		const float texEnabled = 1.0 - floor(mm_solidX.a);
+		float4 xSam = g_texX.Sample(g_samX, tc0 * texEnabled);
+		xSam.rgb = lerp(xSam.rgb, mm_solidX.rgb, mm_solidX.a);
+
+		occlusion = xSam.r;
+		roughness = xSam.g;
+		const float2 metallic_wrapDiffuse = CleanMutexChannels(SeparateMutexChannels(xSam.b));
+		const float2 emission_anisoSpec = CleanMutexChannels(SeparateMutexChannels(xSam.a));
+		metallic = metallic_wrapDiffuse.r;
+		emission = emission_anisoSpec.r;
+		wrapDiffuse = metallic_wrapDiffuse.g;
+		anisoSpec = emission_anisoSpec.g;
+
+		// Scale & bias:
+		roughness = roughness * mm_xRoughnessScaleBias.x + mm_xRoughnessScaleBias.y;
+		metallic = metallic * mm_xMetallicScaleBias.x + mm_xMetallicScaleBias.y;
+		emission *= mm_emission;
+		wrapDiffuse = wrapDiffuse * mm_xWrapDiffuseScaleBias.x + mm_xWrapDiffuseScaleBias.y;
+		anisoSpec = anisoSpec * mm_xAnisoSpecScaleBias.x + mm_xAnisoSpecScaleBias.y;
 	}
-	// </Detail>
+	// </X>
+
+	// <Rim>
+	{
+		const float rim = saturate(1.0 - normalWV.z);
+		const float rimSq = rim * rim;
+		albedo.rgb = lerp(albedo.rgb, gray, rim * rimSq * wrapDiffuse);
+		roughness = saturate(roughness + rimSq * 3.0 * wrapDiffuse);
+	}
+	// </Rim>
 
 	// <Strass>
-	float strass;
 	{
-		const float rawStrass = g_texStrass.Sample(g_samStrass, tc0 * mm_strassScale).r;
-		strass = saturate(rawStrass * (0.6 + 1.4 * alpha_spec.y));
+		const float strass = g_texStrass.Sample(g_samStrass, tc0 * mm_strassScale).r;
+		roughness *= 1.0 - clamp(strass * mm_roughDiffuse * 4.0, 0.0, 0.99);
 	}
 	// </Strass>
 
-	// <LambertianScaleBias>
-	float2 lamScaleBias = mm_lamScaleBias + float2(0, lightPassStrength * 8.0 * mm_lightPass);
-	lamScaleBias += float2(-0.1, -0.3) * alpha_spec.y + float2(0.1, 0.2); // We bring the noise!
-	lamScaleBias = lerp(lamScaleBias, float2(1, 0.45), skinAlpha);
-#ifdef DEF_PLANT
-	lamScaleBias.y += si.color0.a;
-#endif
-	// </LambertianScaleBias>
-
-	// <RimAlbedo>
 	{
-		const float3 newColor = saturate((rawAlbedo.rgb + gray) * 0.6);
-		const float mask = 1.0 - abs(normalWV.z);
-		rawAlbedo.rgb = lerp(rawAlbedo.rgb, newColor, mask * mask * (1.0 - alpha_spec.y));
-	}
-	// </RimAlbedo>
-
-	// <SpecFresnel>
-	float specMaskWithFresnel;
-	{
-		const float fresnelMask = pow(saturate(1.0 - normalWV.z), 5.0);
-		const float maxSpecAdd = (1.0 - specMask) * lerp(0.04 + 0.2 * specMask, 0.6, metalAlpha);
-		specMaskWithFresnel = FresnelSchlick(specMask, maxSpecAdd, fresnelMask);
-	}
-	// </SpecFresnel>
-
-	{
-		DS_Reset(so);
-
-		DS_SetAlbedo(so, lerp(rawAlbedo.rgb, hairAlbedo, hairAlpha));
-		DS_SetSpecMask(so, lerp(max(strass, specMaskWithFresnel), 0.15, eyeAlpha));
+		DS_SetAlbedo(so, albedo.rgb);
+		DS_SetSSSHue(so, lerp(0.5, mm_sssHue, sssMask));
 
 		DS_SetNormal(so, normalWV + NormalDither(rand));
-		DS_SetEmission(so, emitAlpha * mm_emission, skinAlpha);
-		DS_SetMotionBlurMask(so, motionBlurMask);
+		DS_SetEmission(so, emission);
+		DS_SetMotionBlur(so, mm_motionBlur);
 
-		DS_SetLamScaleBias(so, lamScaleBias, float4(anisoWV, hairAlpha));
-		DS_SetMetallicity(so, metalAlpha, hairAlpha);
-		DS_SetGloss(so, gloss * lerp(toksvigFactor, 1.0, eyeAlpha));
+		DS_SetOcclusion(so, occlusion);
+		DS_SetRoughness(so, roughness);
+		DS_SetMetallic(so, metallic);
+		DS_SetWrapDiffuse(so, wrapDiffuse);
+
+		DS_SetTangent(so, tangentWV);
+		DS_SetAnisoSpec(so, anisoSpec);
+		DS_SetRoughDiffuse(so, max(mm_roughDiffuse, AlphaToResolveDitheringMask(albedo.a) * resolveDitheringMaskEnabled));
 	}
 
-	clip(alpha_spec.x - 0.5);
+	clip(albedo.a - (dither + (1.0 / 8.0)));
 #endif
 
 	return so;

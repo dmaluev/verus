@@ -100,6 +100,10 @@ namespace verus
 			bool IsBC1() const;
 			bool IsBC2() const;
 			bool IsBC3() const;
+			bool IsBC4U() const;
+			bool IsBC4S() const;
+			bool IsBC5U() const;
+			bool IsBC5S() const;
 			bool IsBC() const;
 			bool IsBGRA8() const;
 			bool IsBGR8() const;
@@ -108,6 +112,7 @@ namespace verus
 			int GetPartCount() const;
 			int SkipParts(int skipCount);
 		};
+		VERUS_TYPEDEFS(DDSHeader);
 
 		struct DDSHeaderDXT10
 		{
@@ -135,5 +140,6 @@ namespace verus
 
 			bool IsBC7() const;
 		};
+		VERUS_TYPEDEFS(DDSHeaderDXT10);
 	}
 }

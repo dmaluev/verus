@@ -119,14 +119,28 @@ void Renderer::Init(PRendererDelegate pDelegate, bool allowInitShaders)
 		_shader[SHADER_GENERATE_MIPS].Init("[Shaders]:GenerateMips.hlsl");
 		_shader[SHADER_GENERATE_MIPS]->CreateDescriptorSet(0, &_ubGenerateMips, sizeof(_ubGenerateMips), settings.GetLimits()._generateMips_ubCapacity,
 			{
-				Sampler::linearClampMipN,
-				Sampler::storage,
-				Sampler::storage,
-				Sampler::storage,
-				Sampler::storage
+				Sampler::linearClampMipN, // Texture
+				Sampler::storage, // Mip N
+				Sampler::storage, // Mip N+1
+				Sampler::storage, // Mip N+2
+				Sampler::storage  // Mip N+3
 			},
 			ShaderStageFlags::cs);
 		_shader[SHADER_GENERATE_MIPS]->CreatePipelineLayout();
+
+		_shader[SHADER_GENERATE_CUBE_MAP_MIPS].Init("[Shaders]:GenerateCubeMapMips.hlsl");
+		_shader[SHADER_GENERATE_CUBE_MAP_MIPS]->CreateDescriptorSet(0, &_ubGenerateCubeMapMips, sizeof(_ubGenerateCubeMapMips), settings.GetLimits()._generateCubeMapMips_ubCapacity,
+			{
+				Sampler::linearMipN, // CubeMap
+				Sampler::storage, // Face +X
+				Sampler::storage, // Face -X
+				Sampler::storage, // Face +Y
+				Sampler::storage, // Face -Y
+				Sampler::storage, // Face +Z
+				Sampler::storage  // Face -Z
+			},
+			ShaderStageFlags::cs);
+		_shader[SHADER_GENERATE_CUBE_MAP_MIPS]->CreatePipelineLayout();
 
 		_shader[SHADER_QUAD].Init("[Shaders]:Quad.hlsl");
 		_shader[SHADER_QUAD]->CreateDescriptorSet(0, &_ubQuadVS, sizeof(_ubQuadVS), settings.GetLimits()._quad_ubVSCapacity, {}, ShaderStageFlags::vs);
@@ -144,6 +158,11 @@ void Renderer::Init(PRendererDelegate pDelegate, bool allowInitShaders)
 		PipelineDesc pipeDesc(_shader[SHADER_GENERATE_MIPS], "#Exposure");
 		_pipe[PIPE_GENERATE_MIPS_EXPOSURE].Init(pipeDesc);
 	}
+	if (_allowInitShaders)
+	{
+		PipelineDesc pipeDesc(_shader[SHADER_GENERATE_CUBE_MAP_MIPS], "#");
+		_pipe[PIPE_GENERATE_CUBE_MAP_MIPS].Init(pipeDesc);
+	}
 	if (settings._displayOffscreenDraw)
 	{
 		PipelineDesc pipeDesc(_geoQuad, _shader[SHADER_QUAD], "#", _rphSwapChainWithDepth);
@@ -158,7 +177,9 @@ void Renderer::Init(PRendererDelegate pDelegate, bool allowInitShaders)
 	ImGuiUpdateStyle();
 
 	if (_allowInitShaders)
+	{
 		_ds.Init();
+	}
 
 	SetExposureValue(15);
 }
@@ -225,18 +246,18 @@ void Renderer::Update()
 
 		const float alpha = Math::Max(0.001f, floatColor[3]);
 		const float actual = gray.r;
-		const float expScale = Math::Clamp(_exposure[1] * (1 / 15.f), 0.f, 1.f);
-		const float target = -0.3f + 0.6f * expScale * expScale; // Dark scene exposure compensation.
+		const float expScale = Math::Clamp(_exposure[1] * (1 / 16.f), 0.f, 1.f);
+		const float target = -0.2f + 0.6f * expScale * expScale; // Dark scene exposure compensation.
 		const float important = (actual - 0.5f * (1 - alpha)) / alpha;
-		const float delta = abs(target - important);
-		const float speed = delta * sqrt(delta) * 15;
+		const float delta = target - important;
+		const float speed = (delta * delta) * ((delta > 0) ? 5.f : 15.f);
 
-		if (important < target * 0.95f)
+		if (important < target * 0.99f)
 			_exposure[1] -= speed * dt;
-		else if (important > target * (1 / 0.95f))
+		else if (important > target * (1 / 0.99f))
 			_exposure[1] += speed * dt;
 
-		_exposure[1] = Math::Clamp(_exposure[1], 0.f, 15.f);
+		_exposure[1] = Math::Clamp(_exposure[1], 0.f, 16.f);
 		SetExposureValue(_exposure[1]);
 	}
 }
@@ -386,6 +407,7 @@ void Renderer::DrawOffscreenColor(PBaseCommandBuffer pCB, bool endRenderPass)
 
 	_ubQuadVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	_ubQuadVS._matV = Math::ToUVMatrix().UniformBufferFormat();
+	ResetQuadMultiplexer();
 
 	pCB->BeginRenderPass(_rphSwapChainWithDepth, _fbhSwapChainWithDepth[_pBaseRenderer->GetSwapChainBufferIndex()], { Vector4(0), Vector4(1) });
 
@@ -602,14 +624,29 @@ ShaderPtr Renderer::GetShaderGenerateMips() const
 	return _shader[SHADER_GENERATE_MIPS];
 }
 
+ShaderPtr Renderer::GetShaderGenerateCubeMapMips() const
+{
+	return _shader[SHADER_GENERATE_CUBE_MAP_MIPS];
+}
+
 PipelinePtr Renderer::GetPipelineGenerateMips(bool exposure) const
 {
 	return _pipe[exposure ? PIPE_GENERATE_MIPS_EXPOSURE : PIPE_GENERATE_MIPS];
 }
 
+PipelinePtr Renderer::GetPipelineGenerateCubeMapMips() const
+{
+	return _pipe[PIPE_GENERATE_CUBE_MAP_MIPS];
+}
+
 Renderer::UB_GenerateMips& Renderer::GetUbGenerateMips()
 {
 	return _ubGenerateMips;
+}
+
+Renderer::UB_GenerateCubeMapMips& Renderer::GetUbGenerateCubeMapMips()
+{
+	return _ubGenerateCubeMapMips;
 }
 
 GeometryPtr Renderer::GetGeoQuad() const
@@ -632,10 +669,18 @@ Renderer::UB_QuadFS& Renderer::GetUbQuadFS()
 	return _ubQuadFS;
 }
 
+void Renderer::ResetQuadMultiplexer()
+{
+	_ubQuadFS._rMultiplexer = float4(1, 0, 0, 0);
+	_ubQuadFS._gMultiplexer = float4(0, 1, 0, 0);
+	_ubQuadFS._bMultiplexer = float4(0, 0, 1, 0);
+	_ubQuadFS._aMultiplexer = float4(0, 0, 0, 1);
+}
+
 void Renderer::SetExposureValue(float ev)
 {
 	_exposure[1] = ev;
-	_exposure[0] = 1.f / exp2(_exposure[1] - 1);
+	_exposure[0] = 1.f / exp2(_exposure[1]);
 }
 
 void Renderer::UpdateUtilization()

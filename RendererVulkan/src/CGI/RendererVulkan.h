@@ -5,6 +5,13 @@ namespace verus
 {
 	namespace CGI
 	{
+		enum class HostAccess : int
+		{
+			forbidden,
+			sequentialWrite,
+			random
+		};
+
 		struct BaseShaderInclude
 		{
 			virtual void Open(CSZ filename, void** ppData, UINT32* pBytes) = 0;
@@ -52,6 +59,8 @@ namespace verus
 				Vector<VkPresentModeKHR>   _vSurfacePresentModes;
 			};
 
+			static const uint32_t s_apiVersion = VK_API_VERSION_1_1;
+
 			static CSZ s_requiredValidationLayers[];
 			static CSZ s_requiredDeviceExtensions[];
 
@@ -79,6 +88,7 @@ namespace verus
 			Vector<VkSampler>        _vSamplers;
 			Vector<VkRenderPass>     _vRenderPasses;
 			Vector<Framebuffer>      _vFramebuffers;
+			bool                     _advancedLineRasterization = false;
 
 		public:
 			RendererVulkan();
@@ -137,14 +147,15 @@ namespace verus
 			// Which graphics API?
 			virtual Gapi GetGapi() override { return Gapi::vulkan; }
 
-			// Frame cycle:
+			// <FrameCycle>
 			virtual void BeginFrame(bool present) override;
 			virtual void EndFrame(bool present) override;
 			virtual void Present() override;
 			virtual void Sync(bool present) override;
 			virtual void WaitIdle() override;
+			// </FrameCycle>
 
-			// Resources:
+			// <Resources>
 			virtual PBaseCommandBuffer InsertCommandBuffer() override;
 			virtual PBaseGeometry      InsertGeometry() override;
 			virtual PBasePipeline      InsertPipeline() override;
@@ -166,10 +177,12 @@ namespace verus
 			int GetNextFramebufferIndex() const;
 			VkRenderPass GetRenderPass(RPHandle handle) const;
 			RcFramebuffer GetFramebuffer(FBHandle handle) const;
+			// </Resources>
 
-			void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage vmaUsage, VkBuffer& buffer, VmaAllocation& vmaAllocation);
+			// <BufferAndImage>
+			void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, HostAccess hostAccess, VkBuffer& buffer, VmaAllocation& vmaAllocation);
 			void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, PBaseCommandBuffer pCB = nullptr);
-			void CreateImage(const VkImageCreateInfo* pImageCreateInfo, VmaMemoryUsage vmaUsage, VkImage& image, VmaAllocation& vmaAllocation);
+			void CreateImage(const VkImageCreateInfo* pImageCreateInfo, HostAccess hostAccess, VkImage& image, VmaAllocation& vmaAllocation);
 			void CopyImage(
 				VkImage srcImage, uint32_t srcMipLevel, uint32_t srcArrayLayer,
 				VkImage dstImage, uint32_t dstMipLevel, uint32_t dstArrayLayer,
@@ -185,8 +198,11 @@ namespace verus
 				uint32_t width, uint32_t height,
 				VkBuffer buffer,
 				PBaseCommandBuffer pCB = nullptr);
+			// </BufferAndImage>
 
 			virtual void UpdateUtilization() override;
+
+			bool IsAdvancedLineRasterizationSupported() const { return _advancedLineRasterization; }
 		};
 		VERUS_TYPEDEFS(RendererVulkan);
 	}

@@ -109,6 +109,7 @@ void Grass::Init(RTerrain terrain, CSZ atlasUrl)
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._colorAttachBlendEqs[3] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._rasterizationState._cullMode = CGI::CullMode::none;
 		_pipe[PIPE_MAIN].Init(pipeDesc);
 	}
@@ -117,6 +118,7 @@ void Grass::Init(RTerrain terrain, CSZ atlasUrl)
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
+		pipeDesc._colorAttachBlendEqs[3] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._topology = CGI::PrimitiveTopology::pointList;
 		_pipe[PIPE_BILLBOARDS].Init(pipeDesc);
 	}
@@ -158,8 +160,11 @@ void Grass::Init(RTerrain terrain, CSZ atlasUrl)
 
 void Grass::Done()
 {
-	s_shader->FreeDescriptorSet(_cshVS);
-	s_shader->FreeDescriptorSet(_cshFS);
+	if (s_shader)
+	{
+		s_shader->FreeDescriptorSet(_cshVS);
+		s_shader->FreeDescriptorSet(_cshFS);
+	}
 	VERUS_DONE(Grass);
 }
 
@@ -181,10 +186,10 @@ void Grass::Update()
 	_phase = glm::fract(_phase + dt * 2.3f);
 
 	const float windSpeed = atmo.GetWindSpeed();
-	const float warpStrength = Math::Clamp<float>(windSpeed * (1 / 13.f), 0, 1.f);
-	const float turbulence = Math::Clamp<float>(windSpeed * (1 / 17.f), 0, 0.4f);
+	const float warpStrength = Math::Clamp<float>(windSpeed * 0.04f, 0, 1.f);
+	const float turbulence = Math::Clamp<float>(windSpeed * 0.04f, 0, 0.4f);
 
-	_warpSpring.Update(atmo.GetWindDirection() * (warpStrength * 30.f));
+	_warpSpring.Update(atmo.GetWindDirection() * (warpStrength * 20.f));
 	_turbulence = turbulence * turbulence;
 
 	// Async texture loading:
@@ -239,9 +244,9 @@ void Grass::Draw()
 	s_ubGrassVS._matWV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
 	s_ubGrassVS._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubGrassVS._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
-	s_ubGrassVS._phase_mapSideInv_bushMask.x = _phase;
-	s_ubGrassVS._phase_mapSideInv_bushMask.y = 1.f / _mapSide;
-	s_ubGrassVS._phase_mapSideInv_bushMask.z = *(float*)&bushMask;
+	s_ubGrassVS._phase_invMapSide_bushMask.x = _phase;
+	s_ubGrassVS._phase_invMapSide_bushMask.y = 1.f / _mapSide;
+	s_ubGrassVS._phase_invMapSide_bushMask.z = *(float*)&bushMask;
 	s_ubGrassVS._posEye = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
 	s_ubGrassVS._viewportSize = cb->GetViewportSize().GLM();
 	s_ubGrassVS._warp_turb = Vector4(_warpSpring.GetOffset(), _turbulence).GLM();
@@ -456,7 +461,7 @@ void Grass::LoadLayersFromFile(CSZ url)
 	for (auto node : root.children("grass"))
 	{
 		const int id = node.attribute("id").as_int();
-		SetTexture(id, node.attribute("url").value(), node.attribute("urlEx").value());
+		SetTexture(id, node.attribute("url").value(), node.attribute("url2").value());
 	}
 }
 
@@ -473,7 +478,7 @@ void Grass::SetTexture(int layer, CSZ url, CSZ url2)
 	VERUS_RT_ASSERT(url);
 	_texLoaded[layer].LoadDDS(url);
 	if (layer < 8)
-		SetTexture(layer + 8, url2 ? url2 : url);
+		SetTexture(layer + 8, (url2 && *url2) ? url2 : url);
 }
 
 void Grass::SaveTexture(CSZ url)

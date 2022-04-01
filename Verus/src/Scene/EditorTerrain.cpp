@@ -592,7 +592,7 @@ void EditorTerrain::SplatFromFile(CSZ url, int layer)
 	{
 		VERUS_FOR(j, _mapSide)
 		{
-			const BYTE value = image._p[((i << _mapShift) + j) * image._bytesPerPixel];
+			const BYTE value = image._p[image._pixelStride * ((i << _mapShift) + j)];
 			const int ij[] = { i, j };
 			SplatTileAtEx(ij, layer, value / 255.f);
 		}

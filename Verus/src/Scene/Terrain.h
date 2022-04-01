@@ -6,6 +6,7 @@ namespace verus
 	namespace Scene
 	{
 		class Terrain;
+		class Forest;
 
 		enum class TerrainTBN : int
 		{
@@ -117,7 +118,8 @@ namespace verus
 				TEX_NORMALS,
 				TEX_BLEND,
 				TEX_LAYERS,
-				TEX_LAYERS_NM,
+				TEX_LAYERS_N,
+				TEX_LAYERS_X,
 				TEX_MAIN_LAYER,
 				TEX_COUNT
 			};
@@ -132,8 +134,8 @@ namespace verus
 
 			struct LayerData
 			{
-				float _specStrength = 0.5f;
-				float _detailStrength = 0.5f;
+				float _detailStrength = 0.1f;
+				float _roughStrength = 0.1f;
 			};
 
 		protected:
@@ -153,7 +155,7 @@ namespace verus
 			Vector<PerInstanceData>       _vInstanceBuffer;
 			Vector<String>                _vLayerUrls;
 			Vector<short>                 _vHeightBuffer;
-			Vector<glm::uint16>           _vHeightmapSubresData;
+			Vector<half>                  _vHeightmapSubresData;
 			Vector<UINT32>                _vNormalsSubresData;
 			Vector<UINT32>                _vBlendBuffer;
 			Vector<BYTE>                  _vMainLayerSubresData;
@@ -256,10 +258,10 @@ namespace verus
 			int GetMainLayerAt(const int ij[2]) const;
 			void UpdateMainLayerAt(const int ij[2]);
 
-			float GetSpecStrength(int layer) const { return _layerData[layer]._specStrength; }
 			float GetDetailStrength(int layer) const { return _layerData[layer]._detailStrength; }
-			void SetSpecStrength(int layer, float x) { _layerData[layer]._specStrength = x; }
+			float GetRoughStrength(int layer) const { return _layerData[layer]._roughStrength; }
 			void SetDetailStrength(int layer, float x) { _layerData[layer]._detailStrength = x; }
+			void SetRoughStrength(int layer, float x) { _layerData[layer]._roughStrength = x; }
 
 			// Textures:
 			void UpdateHeightmapTexture();
@@ -270,6 +272,8 @@ namespace verus
 			CGI::TexturePtr GetBlendTexture() const;
 			void UpdateMainLayerTexture();
 			CGI::TexturePtr GetMainLayerTexture() const;
+			void ComputeOcclusion();
+			void UpdateOcclusion(Forest* pForest);
 			void OnHeightModified();
 
 			// Physics:

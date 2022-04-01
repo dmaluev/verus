@@ -15,7 +15,7 @@
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{B154D670-E4B1-4D8A-885C-69546A5BD833}</ProjectGuid>
     <RootNamespace>Verus</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.20348.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -674,25 +674,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\Shaders\DS.hlsl">
-      <FileType>Document</FileType>
-    </None>
-    <None Include="src\Shaders\DS.inc.hlsl">
-      <FileType>Document</FileType>
-    </None>
-    <None Include="src\Shaders\DS_Compose.hlsl">
-      <FileType>Document</FileType>
-    </None>
-    <None Include="src\Shaders\DS_Compose.inc.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="src\Shaders\LibDeferredShading.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="src\Shaders\LibLighting.hlsl">
       <FileType>Document</FileType>
     </None>
@@ -818,22 +799,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\Shaders\DS_AO.hlsl">
-      <FileType>Document</FileType>
-    </None>
-    <None Include="src\Shaders\DS_AO.inc.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="src\Shaders\DS_BakeSprites.hlsl">
-      <FileType>Document</FileType>
-    </None>
-    <None Include="src\Shaders\DS_BakeSprites.inc.hlsl">
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="src\Shaders\DS_Forest.hlsl">
       <FileType>Document</FileType>
     </None>
@@ -886,6 +851,49 @@
       <FileType>Document</FileType>
     </None>
     <None Include="src\Shaders\DS_Reflection.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\GenerateCubeMapMips.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\GenerateCubeMapMips.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\DS.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DS.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DS_Compose.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DS_Compose.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\LibDeferredShading.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\DS_BakeSprites.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DS_BakeSprites.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\DS_Ambient.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DS_Ambient.inc.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

@@ -36,8 +36,8 @@ namespace verus
 			CGI::FBHandle                 _fbh;
 			CGI::CSHandle                 _csh;
 			CGI::CSHandle                 _cshLightShafts;
-			float                         _colorScale = 0.8f;
-			float                         _colorBias = 1.1f;
+			float                         _colorScale = 0.7f;
+			float                         _colorBias = 1.4f;
 			float                         _maxDist = 20;
 			float                         _sunGloss = 128;
 			float                         _wideStrength = 0.2f;

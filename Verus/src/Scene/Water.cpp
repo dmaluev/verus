@@ -52,12 +52,13 @@ void Water::Init(RTerrain terrain)
 		}, CGI::ShaderStageFlags::vs);
 	_shader[SHADER_MAIN]->CreateDescriptorSet(1, &s_ubWaterFS, sizeof(s_ubWaterFS), settings.GetLimits()._water_ubFSCapacity,
 		{
-			CGI::Sampler::linearClampMipL, // TerrainHeightmap
+			CGI::Sampler::linearClampMipN, // TerrainHeightmap
 			CGI::Sampler::linearMipL, // GenHeightmap
 			CGI::Sampler::custom, // GenNormals
 			CGI::Sampler::linearMipL, // Foam
-			CGI::Sampler::linearClampMipL, // Reflection
+			CGI::Sampler::anisoClamp, // Reflection
 			CGI::Sampler::linearClampMipN, // Refraction
+			CGI::Sampler::linearClampMipN, // GBuffer3
 			CGI::Sampler::shadow,
 			CGI::Sampler::nearestMipN
 		}, CGI::ShaderStageFlags::fs);
@@ -91,7 +92,7 @@ void Water::Init(RTerrain terrain)
 	CreateWaterPlane();
 
 	{
-		CGI::PipelineDesc pipeDesc(_geo, _shader[SHADER_MAIN], "#0", renderer.GetDS().GetRenderPassHandle_ExtraCompose());
+		CGI::PipelineDesc pipeDesc(_geo, _shader[SHADER_MAIN], "#0", renderer.GetDS().GetRenderPassHandle_ForwardRendering());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		//pipeDesc._rasterizationState._polygonMode = CGI::PolygonMode::line;
 		pipeDesc._rasterizationState._cullMode = CGI::CullMode::none;
@@ -192,7 +193,7 @@ void Water::Update()
 	VERUS_UPDATE_ONCE_CHECK;
 
 	VERUS_QREF_TIMER;
-	_phase = fmod(_phase + dt * (1 / 23.f), 1.f);
+	_phase = fmod(_phase + dt * (1 / 19.f), 1.f);
 	_wavePhase = fmod(_wavePhase + dt * (1 / 29.f), 1.f);
 }
 
@@ -227,16 +228,15 @@ void Water::Draw()
 	const Matrix3 matR = Matrix3::rotationY(angle);
 	matW = Transform3(matR, Vector3(eyePosAtGroundLevel - flatDir * 5 * abs(cam.GetFrontDirection().getY())));
 
-	const Transform3 matShift = Transform3::translation(Vector3(0, -0.01f, 0)); // Sky-waterline bleeding fix.
 	const Matrix4 matWVP = cam.GetMatrixVP() * matW;
-	const Matrix4 matScreen = Matrix4(Math::ToUVMatrix()) * matShift * cam.GetMatrixVP();
+	const Matrix4 matScreen = Matrix4(Math::ToUVMatrix()) * cam.GetMatrixVP();
 
 	auto cb = renderer.GetCommandBuffer();
 
 	s_ubWaterVS._matW = matW.UniformBufferFormat();
 	s_ubWaterVS._matVP = cam.GetMatrixVP().UniformBufferFormat();
 	s_ubWaterVS._matScreen = matScreen.UniformBufferFormat();
-	s_ubWaterVS._eyePos_mapSideInv = float4(cam.GetEyePosition().GLM(), 1.f / _pTerrain->GetMapSide());
+	s_ubWaterVS._eyePos_invMapSide = float4(cam.GetEyePosition().GLM(), 1.f / _pTerrain->GetMapSide());
 	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.x = 1 / _patchSide;
 	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.y =
 		Math::ComputeDistToMipScale(static_cast<float>(_genSide << 6), static_cast<float>(renderer.GetSwapChainHeight()), _patchSide, cam.GetYFov());
@@ -297,6 +297,7 @@ void Water::OnSwapChainResized()
 			_tex[TEX_FOAM],
 			_tex[TEX_REFLECTION],
 			renderer.GetDS().GetComposedTextureB(),
+			renderer.GetDS().GetGBuffer(3),
 			atmo.GetShadowMapBaker().GetTexture(),
 			atmo.GetShadowMapBaker().GetTexture(),
 		});

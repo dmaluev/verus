@@ -37,10 +37,12 @@ void Mesh::InitStatic()
 	s_shader[SHADER_MAIN]->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame), settings.GetLimits()._mesh_ubPerFrameCapacity, {}, CGI::ShaderStageFlags::vs_hs_ds_fs);
 	s_shader[SHADER_MAIN]->CreateDescriptorSet(1, &s_ubPerMaterialFS, sizeof(s_ubPerMaterialFS), settings.GetLimits()._mesh_ubPerMaterialFSCapacity,
 		{
-			CGI::Sampler::aniso,
-			CGI::Sampler::aniso,
-			CGI::Sampler::aniso,
-			CGI::Sampler::lodBias
+			CGI::Sampler::aniso, // A
+			CGI::Sampler::aniso, // N
+			CGI::Sampler::aniso, // X
+			CGI::Sampler::aniso, // Detail
+			CGI::Sampler::aniso, // DetailN
+			CGI::Sampler::lodBias // Strass
 		}, CGI::ShaderStageFlags::fs);
 	s_shader[SHADER_MAIN]->CreateDescriptorSet(2, &s_ubPerMeshVS, sizeof(s_ubPerMeshVS), settings.GetLimits()._mesh_ubPerMeshVSCapacity, {}, CGI::ShaderStageFlags::vs);
 	s_shader[SHADER_MAIN]->CreateDescriptorSet(3, &s_ubSkeletonVS, sizeof(s_ubSkeletonVS), settings.GetLimits()._mesh_ubSkinningVSCapacity, {}, CGI::ShaderStageFlags::vs);
@@ -51,6 +53,7 @@ void Mesh::InitStatic()
 	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(0, &s_ubSimplePerFrame, sizeof(s_ubSimplePerFrame), settings.GetLimits()._mesh_ubPerFrameCapacity);
 	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(1, &s_ubSimplePerMaterialFS, sizeof(s_ubSimplePerMaterialFS), settings.GetLimits()._mesh_ubPerMaterialFSCapacity,
 		{
+			CGI::Sampler::linearMipN,
 			CGI::Sampler::linearMipN,
 			CGI::Sampler::shadow
 		}, CGI::ShaderStageFlags::fs);
@@ -118,7 +121,7 @@ void Mesh::Draw(RcDrawDesc drawDesc, CGI::CommandBufferPtr cb)
 	cb->BindDescriptors(shader, 2);
 
 	// Set 3:
-	if (drawDesc._bindSkeleton)
+	if (drawDesc._bindSkeleton && _skeleton.IsInitialized())
 	{
 		UpdateUniformBufferSkeletonVS();
 		cb->BindDescriptors(shader, 3);
@@ -161,7 +164,7 @@ void Mesh::DrawSimple(RcDrawDesc drawDesc, CGI::CommandBufferPtr cb)
 	cb->BindDescriptors(shader, 2);
 
 	// Set 3:
-	if (drawDesc._bindSkeleton)
+	if (drawDesc._bindSkeleton && _skeleton.IsInitialized())
 	{
 		UpdateUniformBufferSimpleSkeletonVS();
 		cb->BindDescriptors(shader, 3);
@@ -253,7 +256,7 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 
 		if (pipe >= PIPE_SIMPLE_TEX_ADD)
 		{
-			CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], branches[pipe], renderer.GetDS().GetRenderPassHandle_ExtraCompose());
+			CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], branches[pipe], renderer.GetDS().GetRenderPassHandle_ForwardRendering());
 			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
 			pipeDesc._rasterizationState._cullMode = CGI::CullMode::none;
 			pipeDesc._vertexInputBindingsFilter = _bindingsMask;
@@ -285,6 +288,7 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 				pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
 				pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
 				pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
+				pipeDesc._colorAttachBlendEqs[3] = VERUS_COLOR_BLEND_OFF;
 			};
 
 			switch (pipe)

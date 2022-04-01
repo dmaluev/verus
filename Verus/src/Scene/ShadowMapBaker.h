@@ -11,7 +11,7 @@ namespace verus
 			struct Config
 			{
 				float _penumbraScale = 0;
-				float _penumbraLamBiasScale = 2.5f;
+				float _penumbraLamBiasScale = 4;
 				float _normalDepthBias = 0.012f;
 				float _csmContrastScale = 2.8f;
 			};

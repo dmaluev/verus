@@ -13,16 +13,21 @@ namespace verus
 			{
 				PIPE_U,
 				PIPE_V,
-				PIPE_BLOOM_U,
-				PIPE_BLOOM_V,
+
+				PIPE_SSAO,
+
+				PIPE_RESOLVE_DITHERING,
+				PIPE_SHARPEN,
+
 				PIPE_DOF_U,
 				PIPE_DOF_V,
-				PIPE_SSAO_U,
-				PIPE_SSAO_V,
-				PIPE_SSR_U,
-				PIPE_SSR_V,
+
+				PIPE_BLOOM_U,
+				PIPE_BLOOM_V,
+
 				PIPE_AA,
 				PIPE_MOTION_BLUR,
+
 				PIPE_COUNT
 			};
 
@@ -46,26 +51,33 @@ namespace verus
 
 			CGI::ShaderPwn                _shader;
 			CGI::PipelinePwns<PIPE_COUNT> _pipe;
-			CGI::TexturePwn               _tex;
-			Handles                       _bloomHandles;
+
+			CGI::RPHandle                 _rphSsao;
+			CGI::FBHandle                 _fbhSsao;
+			CGI::CSHandle                 _cshSsao;
+
+			Handles                       _rdsHandles;
+			CGI::CSHandle                 _cshRdsExtra;
+
 			Handles                       _dofHandles;
-			Handles                       _ssaoHandles;
-			Handles                       _ssrHandles;
 			CGI::CSHandle                 _cshDofExtra;
-			CGI::CSHandle                 _cshSsrExtra;
+
+			Handles                       _bloomHandles;
+
 			CGI::RPHandle                 _rphAntiAliasing;
 			CGI::FBHandle                 _fbhAntiAliasing;
 			CGI::CSHandle                 _cshAntiAliasing;
 			CGI::CSHandle                 _cshAntiAliasingExtra;
+
 			CGI::RPHandle                 _rphMotionBlur;
 			CGI::FBHandle                 _fbhMotionBlur;
 			CGI::CSHandle                 _cshMotionBlur;
 			CGI::CSHandle                 _cshMotionBlurExtra;
-			float                         _bloomRadius = 0.015f;
-			float                         _bloomLightShaftsRadius = 0.004f;
+
 			float                         _dofFocusDist = 10;
 			float                         _dofBlurStrength = 0.2f;
-			float                         _ssrRadius = 0.025f;
+			float                         _bloomRadius = 0.02f;
+			float                         _bloomLightShaftsRadius = 0.004f;
 			bool                          _enableDepthOfField = false;
 
 		public:
@@ -77,11 +89,10 @@ namespace verus
 
 			void OnSwapChainResized();
 
-			void Generate();
-			void GenerateForBloom(bool forLightShafts);
-			void GenerateForDepthOfField();
 			void GenerateForSsao();
-			void GenerateForSsr();
+			void GenerateForResolveDitheringAndSharpen();
+			void GenerateForDepthOfField();
+			void GenerateForBloom(bool forLightShafts);
 			void GenerateForAntiAliasing();
 			void GenerateForMotionBlur();
 

@@ -59,14 +59,15 @@ namespace verus
 			// Which graphics API?
 			virtual Gapi GetGapi() = 0;
 
-			// Frame cycle:
+			// <FrameCycle>
 			virtual void BeginFrame(bool present = true) = 0;
 			virtual void EndFrame(bool present = true) = 0;
 			virtual void Present() = 0;
 			virtual void Sync(bool present = true) = 0;
 			virtual void WaitIdle() = 0;
+			// </FrameCycle>
 
-			// Resources:
+			// <Resources>
 			virtual PBaseCommandBuffer InsertCommandBuffer() = 0;
 			virtual PBaseGeometry      InsertGeometry() = 0;
 			virtual PBasePipeline      InsertPipeline() = 0;
@@ -86,6 +87,7 @@ namespace verus
 				int swapChainBufferIndex = -1, CubeMapFace cubeMapFace = CubeMapFace::none) = 0;
 			virtual void DeleteRenderPass(RPHandle handle) = 0;
 			virtual void DeleteFramebuffer(FBHandle handle) = 0;
+			// </Resources>
 
 			static void SetAlphaBlendHelper(
 				CSZ sz,

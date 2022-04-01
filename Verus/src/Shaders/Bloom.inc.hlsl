@@ -8,8 +8,7 @@ VERUS_UBUFFER UB_BloomVS
 
 VERUS_UBUFFER UB_BloomFS
 {
-	float4 _exposure;
-	float4 _colorScale_colorBias;
+	float4 _colorScale_colorBias_exposure;
 };
 
 VERUS_UBUFFER UB_BloomLightShaftsFS

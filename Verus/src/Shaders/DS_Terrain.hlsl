@@ -7,26 +7,30 @@
 #include "LibTessellation.hlsl"
 #include "DS_Terrain.inc.hlsl"
 
-#define DETAIL_TC_SCALE 8.0
-
 ConstantBuffer<UB_TerrainVS> g_ubTerrainVS : register(b0, space0);
 ConstantBuffer<UB_TerrainFS> g_ubTerrainFS : register(b0, space1);
 
-Texture2D      g_texHeightVS  : register(t1, space0);
-SamplerState   g_samHeightVS  : register(s1, space0);
-Texture2D      g_texNormalVS  : register(t2, space0);
-SamplerState   g_samNormalVS  : register(s2, space0);
+Texture2D      g_texHeightVS : register(t1, space0);
+SamplerState   g_samHeightVS : register(s1, space0);
+Texture2D      g_texNormalVS : register(t2, space0);
+SamplerState   g_samNormalVS : register(s2, space0);
 
-Texture2D      g_texNormal    : register(t1, space1);
-SamplerState   g_samNormal    : register(s1, space1);
-Texture2D      g_texBlend     : register(t2, space1);
-SamplerState   g_samBlend     : register(s2, space1);
-Texture2DArray g_texLayers    : register(t3, space1);
-SamplerState   g_samLayers    : register(s3, space1);
-Texture2DArray g_texLayersNM  : register(t4, space1);
-SamplerState   g_samLayersNM  : register(s4, space1);
-Texture2D      g_texDetail    : register(t5, space1);
-SamplerState   g_samDetail    : register(s5, space1);
+Texture2D      g_texNormal   : register(t1, space1);
+SamplerState   g_samNormal   : register(s1, space1);
+Texture2D      g_texBlend    : register(t2, space1);
+SamplerState   g_samBlend    : register(s2, space1);
+Texture2DArray g_texLayers   : register(t3, space1);
+SamplerState   g_samLayers   : register(s3, space1);
+Texture2DArray g_texLayersN  : register(t4, space1);
+SamplerState   g_samLayersN  : register(s4, space1);
+Texture2DArray g_texLayersX  : register(t5, space1);
+SamplerState   g_samLayersX  : register(s5, space1);
+Texture2D      g_texDetail   : register(t6, space1);
+SamplerState   g_samDetail   : register(s6, space1);
+Texture2D      g_texDetailN  : register(t7, space1);
+SamplerState   g_samDetailN  : register(s7, space1);
+Texture2D      g_texStrass   : register(t8, space1);
+SamplerState   g_samStrass   : register(s8, space1);
 
 struct VSI
 {
@@ -48,6 +52,8 @@ struct VSO
 #endif
 };
 
+static const float g_detailScale = 8.0;
+static const float g_strassScale = 16.0;
 static const float g_layerScale = 1.0 / 8.0;
 
 #ifdef _VS
@@ -55,33 +61,31 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
-	const float3 eyePos = g_ubTerrainVS._eyePos_mapSideInv.xyz;
-	const float mapSideInv = g_ubTerrainVS._eyePos_mapSideInv.w;
+	const float3 eyePos = g_ubTerrainVS._eyePos_invMapSide.xyz;
+	const float invMapSide = g_ubTerrainVS._eyePos_invMapSide.w;
 
 	const float2 edgeCorrection = si.pos.yw;
 	si.pos.yw = 0.0;
 	float3 pos = si.pos.xyz + si.posPatch.xyz;
-	const float2 tcMap = pos.xz * mapSideInv + 0.5; // Range [0, 1).
+	const float2 tcMap = pos.xz * invMapSide + 0.5; // Range [0, 1).
 	const float2 posBlend = pos.xz + edgeCorrection * 0.5;
 
 	// <HeightAndNormal>
 	float3 inNrm;
 	{
-		const float approxHeight = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + (0.5 * mapSideInv) * 16.0, 4.0).r);
-		pos.y = approxHeight;
-
+		pos.y = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + (8.0 * invMapSide), 4.0).r);
 		const float distToEye = distance(pos, eyePos);
 		const float geomipsLod = log2(clamp(distToEye * (2.0 / 100.0), 1.0, 18.0));
 		const float geomipsLodFrac = frac(geomipsLod);
 		const float geomipsLodBase = floor(geomipsLod);
 		const float geomipsLodNext = geomipsLodBase + 1.0;
-		const float2 texelCenterAB = (0.5 * mapSideInv) * exp2(float2(geomipsLodBase, geomipsLodNext));
+		const float2 texelCenterAB = (0.5 * invMapSide) * exp2(float2(geomipsLodBase, geomipsLodNext));
 		const float yA = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + texelCenterAB.xx, geomipsLodBase).r);
 		const float yB = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + texelCenterAB.yy, geomipsLodNext).r);
 		pos.y = lerp(yA, yB, geomipsLodFrac);
 
-		const float4 rawNormal = g_texNormalVS.SampleLevel(g_samNormalVS, tcMap + texelCenterAB.xx, geomipsLodBase);
-		inNrm = float3(rawNormal.x, 0, rawNormal.y) * 2.0 - 1.0;
+		const float4 normalSam = g_texNormalVS.SampleLevel(g_samNormalVS, tcMap + texelCenterAB.xx, geomipsLodBase);
+		inNrm = float3(normalSam.x, 0, normalSam.y) * 2.0 - 1.0;
 		inNrm.y = ComputeNormalZ(inNrm.xz);
 	}
 	// </HeightAndNormal>
@@ -91,10 +95,10 @@ VSO mainVS(VSI si)
 #if !defined(DEF_DEPTH)
 	so.layerForChannel = si.layerForChannel;
 #if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
-	so.tcBlend.xy = posBlend * mapSideInv + 0.5;
+	so.tcBlend.xy = posBlend * invMapSide + 0.5;
 	so.tcBlend.z = pos.y;
 	so.tcLayer_tcMap.xy = pos.xz * g_layerScale;
-	so.tcLayer_tcMap.zw = (pos.xz + 0.5) * mapSideInv + 0.5; // Texel's center.
+	so.tcLayer_tcMap.zw = (pos.xz + 0.5) * invMapSide + 0.5; // Texel's center.
 #endif
 #endif
 
@@ -172,24 +176,30 @@ VSO mainDS(_IN_DS)
 DS_FSO mainFS(VSO si)
 {
 	DS_FSO so;
+	DS_Reset(so);
 
 #ifdef DEF_SOLID_COLOR
-	DS_SolidColor(so, si.layerForChannel.rgb);
+	//DS_SolidColor(so, si.layerForChannel.rgb);
 #else
-	const float3 rand = Rand(si.pos.xy);
-
-	const float4 layerForChannel = round(si.layerForChannel);
+	// Fix interpolation errors by rounding:
+	si.layerForChannel = round(si.layerForChannel);
 	const float2 tcLayer = si.tcLayer_tcMap.xy;
 	const float2 tcMap = si.tcLayer_tcMap.zw;
 
-	const float4 rawBlend = g_texBlend.Sample(g_samBlend, si.tcBlend.xy);
-	float4 weights = float4(rawBlend.rgb, 1.0 - dot(rawBlend.rgb, float3(1, 1, 1)));
+	const float4 blendSam = g_texBlend.Sample(g_samBlend, si.tcBlend.xy);
+	const float4 weights = float4(blendSam.rgb, 1.0 - dot(blendSam.rgb, 1.0));
+
+	const float4 texEnabled = ceil(weights);
+	const float3 tcLayerR = float3(tcLayer * texEnabled.r, si.layerForChannel.r);
+	const float3 tcLayerG = float3(tcLayer * texEnabled.g, si.layerForChannel.g);
+	const float3 tcLayerB = float3(tcLayer * texEnabled.b, si.layerForChannel.b);
+	const float3 tcLayerA = float3(tcLayer * texEnabled.a, si.layerForChannel.a);
 
 	// <Basis>
 	float3 basisTan, basisBin, basisNrm;
 	{
-		const float4 rawBasis = g_texNormal.Sample(g_samNormal, tcMap);
-		const float4 basis = rawBasis * 2.0 - 1.0;
+		const float4 basisSam = g_texNormal.Sample(g_samNormal, tcMap);
+		const float4 basis = basisSam * 2.0 - 1.0;
 		basisNrm = float3(basis.x, 0, basis.y);
 		basisTan = float3(0, basis.z, basis.w);
 		basisNrm.y = ComputeNormalZ(basisNrm.xz);
@@ -203,109 +213,134 @@ DS_FSO mainFS(VSO si)
 	// </Basis>
 
 	// <Albedo>
-	float4 albedo;
-	float specMask;
+	float3 albedo;
 	float detailStrength;
+	float roughStrength;
 	{
-		const float4 rawAlbedos[4] =
-		{
-			g_texLayers.Sample(g_samLayers, float3(tcLayer, layerForChannel.r)),
-			g_texLayers.Sample(g_samLayers, float3(tcLayer, layerForChannel.g)),
-			g_texLayers.Sample(g_samLayers, float3(tcLayer, layerForChannel.b)),
-			g_texLayers.Sample(g_samLayers, float3(tcLayer, layerForChannel.a))
-		};
-		const float4 mask = saturate((float4(
-			Grayscale(rawAlbedos[0].rgb),
-			Grayscale(rawAlbedos[1].rgb),
-			Grayscale(rawAlbedos[2].rgb),
-			Grayscale(rawAlbedos[3].rgb)) - 0.25) * 8.0 + 0.25);
-		weights = saturate(weights + weights * mask);
-		const float weightsSum = dot(weights, 1.0);
-		weights /= weightsSum;
-		float4 accAlbedo = 0.0;
-		accAlbedo += rawAlbedos[0] * weights.r;
-		accAlbedo += rawAlbedos[1] * weights.g;
-		accAlbedo += rawAlbedos[2] * weights.b;
-		accAlbedo += rawAlbedos[3] * weights.a;
+		float3 accAlbedo = 0.0;
+		accAlbedo += g_texLayers.Sample(g_samLayers, tcLayerR).rgb * weights.r;
+		accAlbedo += g_texLayers.Sample(g_samLayers, tcLayerG).rgb * weights.g;
+		accAlbedo += g_texLayers.Sample(g_samLayers, tcLayerB).rgb * weights.b;
+		accAlbedo += g_texLayers.Sample(g_samLayers, tcLayerA).rgb * weights.a;
 		albedo = accAlbedo;
 
-		static float vSpecStrength[_MAX_TERRAIN_LAYERS] = (float[_MAX_TERRAIN_LAYERS])g_ubTerrainFS._vSpecStrength;
 		static float vDetailStrength[_MAX_TERRAIN_LAYERS] = (float[_MAX_TERRAIN_LAYERS])g_ubTerrainFS._vDetailStrength;
-		const float4 specStrengthForChannel = float4(
-			vSpecStrength[layerForChannel.r],
-			vSpecStrength[layerForChannel.g],
-			vSpecStrength[layerForChannel.b],
-			vSpecStrength[layerForChannel.a]);
+		static float vRoughStrength[_MAX_TERRAIN_LAYERS] = (float[_MAX_TERRAIN_LAYERS])g_ubTerrainFS._vRoughStrength;
 		const float4 detailStrengthForChannel = float4(
-			vDetailStrength[layerForChannel.r],
-			vDetailStrength[layerForChannel.g],
-			vDetailStrength[layerForChannel.b],
-			vDetailStrength[layerForChannel.a]);
-		specMask = albedo.a * dot(specStrengthForChannel, weights);
+			vDetailStrength[si.layerForChannel.r],
+			vDetailStrength[si.layerForChannel.g],
+			vDetailStrength[si.layerForChannel.b],
+			vDetailStrength[si.layerForChannel.a]);
+		const float4 roughStrengthForChannel = float4(
+			vRoughStrength[si.layerForChannel.r],
+			vRoughStrength[si.layerForChannel.g],
+			vRoughStrength[si.layerForChannel.b],
+			vRoughStrength[si.layerForChannel.a]);
 		detailStrength = dot(detailStrengthForChannel, weights);
+		roughStrength = dot(roughStrengthForChannel, weights);
 	}
 	// </Albedo>
 
+	// <Detail>
+	float3 detailSam;
+	float3 detailNSam;
+	{
+		detailSam = g_texDetail.Sample(g_samDetail, tcLayer * g_detailScale).rgb;
+		detailNSam = g_texDetailN.Sample(g_samDetailN, tcLayer * g_detailScale).rgb;
+	}
+	albedo = saturate(albedo * lerp(0.5, detailSam, detailStrength) * 2.0);
+	// </Detail>
+
 	// <Water>
-	float waterGlossBoost;
+	float waterRoughnessScale;
+	float waterRoughnessMin;
 	{
 		const float dryMask = saturate(si.tcBlend.z);
 		const float dryMask3 = dryMask * dryMask * dryMask;
 		const float wetMask = 1.0 - dryMask;
 		const float wetMask3 = wetMask * wetMask * wetMask;
-		albedo.rgb *= dryMask3 * 0.5 + 0.5;
-		specMask = dryMask * saturate(specMask + wetMask3 * wetMask3 * 0.1);
-		waterGlossBoost = min(32.0, dryMask * wetMask3 * 100.0);
+		albedo *= 0.4 + 0.6 * dryMask3;
+		waterRoughnessScale = 1.0 - 0.8 * saturate(dryMask * wetMask3 * 16.0);
+		waterRoughnessMin = wetMask3;
 	}
 	// </Water>
 
-	const float gloss = lerp(3.3, 15.0, specMask) + waterGlossBoost;
-
 	// <Normal>
 	float3 normalWV;
-	float toksvigFactor;
+	float3 tangentWV;
 	{
 		float4 accNormal = 0.0;
-		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.r)) * weights.r;
-		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.g)) * weights.g;
-		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.b)) * weights.b;
-		accNormal += g_texLayersNM.Sample(g_samLayersNM, float3(tcLayer, layerForChannel.a)) * weights.a;
-		accNormal = lerp(accNormal, float4(0, 0.5, 0.5, 0.5), 0.5);
-		const float4 normalAA = NormalMapAA(accNormal);
-		normalWV = normalize(mul(normalAA.xyz, matFromTBN));
-		toksvigFactor = ComputeToksvigFactor(normalAA.a, gloss);
+		accNormal += g_texLayersN.Sample(g_samLayersN, tcLayerR) * weights.r;
+		accNormal += g_texLayersN.Sample(g_samLayersN, tcLayerG) * weights.g;
+		accNormal += g_texLayersN.Sample(g_samLayersN, tcLayerB) * weights.b;
+		accNormal += g_texLayersN.Sample(g_samLayersN, tcLayerA) * weights.a;
+
+		accNormal.rg = saturate(accNormal.rg * lerp(0.5, detailNSam.rg, detailStrength) * 2.0);
+
+		const float3 normalTBN = NormalMapFromBC5(accNormal, -3.0);
+		normalWV = normalize(mul(normalTBN, matFromTBN));
+		tangentWV = normalize(mul(cross(normalTBN, cross(float3(0, 1, 0), normalTBN)), matFromTBN));
 	}
 	// </Normal>
 
-	// <Detail>
+	// <X>
+	float occlusion;
+	float roughness;
+	float metallic;
+	float emission;
+	float wrapDiffuse;
+	float anisoSpec;
 	{
-		const float3 rawDetail = g_texDetail.Sample(g_samDetail, tcLayer * DETAIL_TC_SCALE).rgb;
-		albedo.rgb = albedo.rgb * lerp(0.5, rawDetail, detailStrength) * 2.0;
+		float4 accX = 0.0;
+		accX += g_texLayersX.Sample(g_samLayersX, tcLayerR) * weights.r;
+		accX += g_texLayersX.Sample(g_samLayersX, tcLayerG) * weights.g;
+		accX += g_texLayersX.Sample(g_samLayersX, tcLayerB) * weights.b;
+		accX += g_texLayersX.Sample(g_samLayersX, tcLayerA) * weights.a;
+
+		occlusion = accX.r;
+		roughness = accX.g;
+		const float2 metallic_wrapDiffuse = CleanMutexChannels(SeparateMutexChannels(accX.b));
+		const float2 emission_anisoSpec = CleanMutexChannels(SeparateMutexChannels(accX.a));
+		metallic = metallic_wrapDiffuse.r;
+		emission = emission_anisoSpec.r * 10000.0;
+		wrapDiffuse = metallic_wrapDiffuse.g;
+		anisoSpec = emission_anisoSpec.g;
 	}
-	// </Detail>
+	// </X>
 
-	// <SpecFresnel>
-	float specMaskWithFresnel;
+	// <Rim>
 	{
-		const float fresnelMask = pow(saturate(1.0 - normalWV.z), 5.0);
-		const float maxSpecAdd = (1.0 - specMask) * (0.04 + 0.2 * specMask);
-		specMaskWithFresnel = FresnelSchlick(specMask, maxSpecAdd, fresnelMask);
+		const float rim = saturate(1.0 - normalWV.z);
+		const float rimSq = rim * rim;
+		roughness = saturate(roughness + rimSq * 3.0 * wrapDiffuse);
 	}
-	// </SpecFresnel>
+	// </Rim>
+
+	// <Strass>
+	{
+		const float strass = g_texStrass.Sample(g_samStrass, tcLayer * g_strassScale).r;
+		roughness *= 1.0 - clamp(strass * roughStrength * 4.0, 0.0, 0.99);
+	}
+	// </Strass>
+
+	roughness = max(roughness * waterRoughnessScale, waterRoughnessMin);
 
 	{
-		DS_Reset(so);
+		DS_SetAlbedo(so, albedo);
+		DS_SetSSSHue(so, 0.5);
 
-		DS_SetAlbedo(so, albedo.rgb);
-		DS_SetSpecMask(so, specMaskWithFresnel);
+		DS_SetNormal(so, normalWV);
+		DS_SetEmission(so, emission);
+		DS_SetMotionBlur(so, 1.0);
 
-		DS_SetNormal(so, normalWV + NormalDither(rand));
-		DS_SetEmission(so, 0.0, 0.0);
-		DS_SetMotionBlurMask(so, 1.0);
+		DS_SetOcclusion(so, occlusion);
+		DS_SetRoughness(so, roughness);
+		DS_SetMetallic(so, metallic);
+		DS_SetWrapDiffuse(so, wrapDiffuse);
 
-		DS_SetLamScaleBias(so, g_ubTerrainFS._lamScaleBias.xy, float4(0, 0, 1, 0));
-		DS_SetMetallicity(so, 0.05, 0.0);
-		DS_SetGloss(so, gloss * toksvigFactor);
+		DS_SetTangent(so, tangentWV);
+		DS_SetAnisoSpec(so, anisoSpec);
+		DS_SetRoughDiffuse(so, roughStrength);
 	}
 #endif
 

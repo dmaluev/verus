@@ -21,26 +21,29 @@ void TextureD3D12::Init(RcTextureDesc desc)
 	VERUS_QREF_RENDERER_D3D12;
 	HRESULT hr = 0;
 
-	_initAtFrame = renderer.GetFrameCount();
-	if (desc._name)
-		_name = desc._name;
+	// Variables:
 	_size = Vector4(
 		float(desc._width),
 		float(desc._height),
 		1.f / desc._width,
 		1.f / desc._height);
+	if (desc._name)
+		_name = desc._name;
 	_desc = desc;
-	_desc._mipLevels = desc._mipLevels ? desc._mipLevels : Math::ComputeMipLevels(desc._width, desc._height, desc._depth);
+	_initAtFrame = renderer.GetFrameCount();
+	if (desc._flags & TextureDesc::Flags::anyShaderResource)
+		_mainLayout = ImageLayout::xsReadOnly;
 	_bytesPerPixel = FormatToBytesPerPixel(desc._format);
+
+	_desc._mipLevels = _desc._mipLevels ? _desc._mipLevels : Math::ComputeMipLevels(_desc._width, _desc._height, _desc._depth);
 	const bool renderTarget = (_desc._flags & TextureDesc::Flags::colorAttachment);
-	const bool depthFormat = IsDepthFormat(desc._format);
+	const bool depthFormat = IsDepthFormat(_desc._format);
 	const bool depthSampled = _desc._flags & (TextureDesc::Flags::depthSampledR | TextureDesc::Flags::depthSampledW);
 	const bool cubeMap = (_desc._flags & TextureDesc::Flags::cubeMap);
 	if (cubeMap)
 		_desc._arrayLayers *= +CubeMapFace::count;
-	if (_desc._flags & TextureDesc::Flags::anyShaderResource)
-		_mainLayout = ImageLayout::xsReadOnly;
 
+	// Create:
 	D3D12_RESOURCE_DESC resDesc = {};
 	resDesc.Dimension = (_desc._depth > 1) ? D3D12_RESOURCE_DIMENSION_TEXTURE3D : D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	resDesc.Width = _desc._width;
@@ -58,7 +61,6 @@ void TextureD3D12::Init(RcTextureDesc desc)
 		if (!depthSampled)
 			resDesc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 	}
-
 	D3D12_RESOURCE_STATES initialResourceState = ToNativeImageLayout(_mainLayout);
 	D3D12_CLEAR_VALUE clearValue = {};
 	clearValue.Format = ToNativeFormat(_desc._format, false);
@@ -83,8 +85,10 @@ void TextureD3D12::Init(RcTextureDesc desc)
 		throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT); hr=" << VERUS_HR(hr);
 	_resource._pResource->SetName(_C(Str::Utf8ToWide(_name)));
 
+	// Optional mipmap:
 	if (_desc._flags & TextureDesc::Flags::generateMips)
 	{
+		VERUS_RT_ASSERT(_desc._mipLevels > 1);
 		// Create storage image for compute shader's output. No need to have the first mip level.
 		const int uavMipLevels = Math::Max(1, _desc._mipLevels - 1);
 		D3D12_RESOURCE_DESC resDescUAV = resDesc;
@@ -111,17 +115,38 @@ void TextureD3D12::Init(RcTextureDesc desc)
 			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_DEFAULT); hr=" << VERUS_HR(hr);
 		_uaResource._pResource->SetName(_C(Str::Utf8ToWide(_name + " (UAV)")));
 
-		_dhUAV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, uavMipLevels);
-		VERUS_FOR(i, uavMipLevels)
+		_vCshGenerateMips.reserve(Math::DivideByMultiple<int>(_desc._mipLevels, 4));
+		_dhUAV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, uavMipLevels * _desc._arrayLayers);
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+		uavDesc.Format = resDescUAV.Format;
+		uavDesc.ViewDimension = (_desc._arrayLayers > 1) ? D3D12_UAV_DIMENSION_TEXTURE2DARRAY : D3D12_UAV_DIMENSION_TEXTURE2D;
+		VERUS_FOR(layer, _desc._arrayLayers)
 		{
-			D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-			uavDesc.Format = resDescUAV.Format;
-			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-			uavDesc.Texture2D.MipSlice = i;
-			pRendererD3D12->GetD3DDevice()->CreateUnorderedAccessView(_uaResource._pResource.Get(), nullptr, &uavDesc, _dhUAV.AtCPU(i));
+			VERUS_FOR(mip, uavMipLevels)
+			{
+				if (D3D12_UAV_DIMENSION_TEXTURE2D == uavDesc.ViewDimension)
+				{
+					uavDesc.Texture2D.MipSlice = mip;
+					pRendererD3D12->GetD3DDevice()->CreateUnorderedAccessView(_uaResource._pResource.Get(), nullptr, &uavDesc, _dhUAV.AtCPU(mip));
+				}
+				else
+				{
+					uavDesc.Texture2DArray.MipSlice = mip;
+					uavDesc.Texture2DArray.FirstArraySlice = layer;
+					uavDesc.Texture2DArray.ArraySize = 1;
+					if (cubeMap)
+					{
+						const int cubeIndex = layer / +CubeMapFace::count;
+						const int faceIndex = layer % +CubeMapFace::count;
+						uavDesc.Texture2DArray.FirstArraySlice = (cubeIndex * +CubeMapFace::count) + ToNativeCubeMapFace(static_cast<CubeMapFace>(faceIndex));
+					}
+					pRendererD3D12->GetD3DDevice()->CreateUnorderedAccessView(_uaResource._pResource.Get(), nullptr, &uavDesc, _dhUAV.AtCPU(mip + layer * uavMipLevels));
+				}
+			}
 		}
 	}
 
+	// Optional readback buffer:
 	if (_desc._readbackMip != SHRT_MAX)
 	{
 		if (_desc._readbackMip < 0)
@@ -147,6 +172,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 		}
 	}
 
+	// Create views:
 	if (renderTarget)
 	{
 		if (cubeMap)
@@ -169,7 +195,6 @@ void TextureD3D12::Init(RcTextureDesc desc)
 			pRendererD3D12->GetD3DDevice()->CreateRenderTargetView(_resource._pResource.Get(), nullptr, _dhRTV.AtCPU(0));
 		}
 	}
-
 	if (depthFormat)
 	{
 		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
@@ -220,6 +245,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 		}
 	}
 
+	// Custom sampler:
 	if (_desc._pSamplerDesc)
 		CreateSampler();
 
@@ -372,6 +398,9 @@ bool TextureD3D12::ReadbackSubresource(void* p, bool recordCopyCommand, PBaseCom
 void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 {
 	VERUS_RT_ASSERT(_desc._flags & TextureDesc::Flags::generateMips);
+	if (_desc._flags & TextureDesc::Flags::cubeMap)
+		return GenerateCubeMapMips(pCB);
+
 	VERUS_QREF_RENDERER;
 
 	if (!pCB)
@@ -409,10 +438,10 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 		ub._dstTexelSize.x = 1.f / dstWidth;
 		ub._dstTexelSize.y = 1.f / dstHeight;
 
-		int mips[5] = {}; // For input texture (always mip 0) and 4 UAV mips.
-		VERUS_FOR(mip, dispatchMipCount)
-			mips[mip + 1] = srcMip + mip;
-		const CSHandle complexSetHandle = shader->BindDescriptorSetTextures(0 | ShaderD3D12::SET_MOD_TO_VIEW_HEAP, { tex, tex, tex, tex, tex }, mips);
+		int mipLevels[5] = {}; // For input texture (always mip 0) and 4 UAV mips.
+		VERUS_FOR(i, dispatchMipCount)
+			mipLevels[i + 1] = srcMip + i;
+		const CSHandle complexSetHandle = shader->BindDescriptorSetTextures(0 | ShaderD3D12::SET_MOD_TO_VIEW_HEAP, { tex, tex, tex, tex, tex }, mipLevels);
 		_vCshGenerateMips.push_back(complexSetHandle);
 		pCB->BindDescriptors(shader, 0, complexSetHandle);
 
@@ -425,19 +454,18 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 		{
 			CD3DX12_RESOURCE_BARRIER barriers[4];
 			int barrierCount = 0;
-			VERUS_FOR(mip, dispatchMipCount)
+			VERUS_FOR(i, dispatchMipCount)
 			{
-				const int subUAV = srcMip + mip;
+				const int subUAV = srcMip + i;
 				barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(_uaResource._pResource.Get(),
 					D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE, subUAV);
 			}
 			pCmdList->ResourceBarrier(barrierCount, barriers);
-
 			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, ImageLayout::transferDst, Range(0, dispatchMipCount).OffsetBy(srcMip + 1));
 		}
-		VERUS_FOR(mip, dispatchMipCount)
+		VERUS_FOR(i, dispatchMipCount)
 		{
-			const int subUAV = srcMip + mip;
+			const int subUAV = srcMip + i;
 			const int subSRV = subUAV + 1;
 			const auto dstCopyLoc = CD3DX12_TEXTURE_COPY_LOCATION(_resource._pResource.Get(), subSRV);
 			const auto srcCopyLoc = CD3DX12_TEXTURE_COPY_LOCATION(_uaResource._pResource.Get(), subUAV);
@@ -451,14 +479,13 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 		{
 			CD3DX12_RESOURCE_BARRIER barriers[4];
 			int barrierCount = 0;
-			VERUS_FOR(mip, dispatchMipCount)
+			VERUS_FOR(i, dispatchMipCount)
 			{
-				const int subUAV = srcMip + mip;
+				const int subUAV = srcMip + i;
 				barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(_uaResource._pResource.Get(),
 					D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, subUAV);
 			}
 			pCmdList->ResourceBarrier(barrierCount, barriers);
-
 			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::xsReadOnly, Range(0, dispatchMipCount).OffsetBy(srcMip + 1));
 		}
 
@@ -470,6 +497,108 @@ void TextureD3D12::GenerateMips(PBaseCommandBuffer pCB)
 	// Revert to main state:
 	if (_mainLayout != ImageLayout::xsReadOnly)
 		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, _mainLayout, Range(0, _desc._mipLevels));
+
+	ClearCshGenerateMips();
+	Schedule(0);
+}
+
+void TextureD3D12::GenerateCubeMapMips(PBaseCommandBuffer pCB)
+{
+	VERUS_QREF_RENDERER;
+
+	if (!pCB)
+		pCB = renderer.GetCommandBuffer().Get();
+	auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
+	auto shader = renderer.GetShaderGenerateCubeMapMips();
+	auto& ub = renderer.GetUbGenerateCubeMapMips();
+	auto tex = TexturePtr::From(this);
+
+	const int maxMipLevel = _desc._mipLevels - 1;
+
+	// Transition state for sampling in compute shader:
+	if (_mainLayout != ImageLayout::xsReadOnly)
+		pCB->PipelineImageMemoryBarrier(tex, _mainLayout, ImageLayout::xsReadOnly, Range(0, _desc._mipLevels), Range(0, +CubeMapFace::count));
+
+	pCB->BindPipeline(renderer.GetPipelineGenerateCubeMapMips());
+
+	shader->BeginBindDescriptors();
+	int dispatchIndex = 0;
+	for (int srcMip = 0; srcMip < maxMipLevel;)
+	{
+		const int srcWidth = Math::Max(1, _desc._width >> srcMip);
+		const int srcHeight = Math::Max(1, _desc._height >> srcMip);
+		const int dstWidth = Math::Max(1, srcWidth >> 1);
+		const int dstHeight = Math::Max(1, srcHeight >> 1);
+
+		ub._srcMipLevel = srcMip;
+		ub._srgb = IsSRGBFormat(_desc._format);
+		ub._dstTexelSize.x = 1.f / dstWidth;
+		ub._dstTexelSize.y = 1.f / dstHeight;
+
+		int mipLevels[7] = {};
+		VERUS_FOR(i, +CubeMapFace::count)
+			mipLevels[i + 1] = srcMip;
+		int arrayLayers[7] = {};
+		VERUS_FOR(i, +CubeMapFace::count)
+			arrayLayers[i + 1] = ToNativeCubeMapFace(static_cast<CubeMapFace>(i));
+		const CSHandle complexSetHandle = shader->BindDescriptorSetTextures(0 | ShaderD3D12::SET_MOD_TO_VIEW_HEAP, { tex, tex, tex, tex, tex, tex, tex }, mipLevels, arrayLayers);
+		_vCshGenerateMips.push_back(complexSetHandle);
+		pCB->BindDescriptors(shader, 0, complexSetHandle);
+
+		pCB->Dispatch(Math::DivideByMultiple(dstWidth, 8), Math::DivideByMultiple(dstHeight, 8));
+
+		auto rb = CD3DX12_RESOURCE_BARRIER::UAV(_uaResource._pResource.Get());
+		pCmdList->ResourceBarrier(1, &rb);
+
+		// Transition state for upcoming CopyTextureRegion():
+		{
+			CD3DX12_RESOURCE_BARRIER barriers[+CubeMapFace::count];
+			int barrierCount = 0;
+			VERUS_FOR(i, +CubeMapFace::count)
+			{
+				const int subUAV = D3D12CalcSubresource(srcMip, i, 0, _desc._mipLevels - 1, _desc._arrayLayers);
+				barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(_uaResource._pResource.Get(),
+					D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE, subUAV);
+			}
+			pCmdList->ResourceBarrier(barrierCount, barriers);
+			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, ImageLayout::transferDst, srcMip + 1, Range(0, +CubeMapFace::count));
+		}
+
+		VERUS_FOR(i, +CubeMapFace::count)
+		{
+			const int subUAV = D3D12CalcSubresource(srcMip, i, 0, _desc._mipLevels - 1, _desc._arrayLayers);
+			const int subSRV = D3D12CalcSubresource(srcMip + 1, i, 0, _desc._mipLevels, _desc._arrayLayers);
+			const auto dstCopyLoc = CD3DX12_TEXTURE_COPY_LOCATION(_resource._pResource.Get(), subSRV);
+			const auto srcCopyLoc = CD3DX12_TEXTURE_COPY_LOCATION(_uaResource._pResource.Get(), subUAV);
+			pCmdList->CopyTextureRegion(
+				&dstCopyLoc,
+				0, 0, 0,
+				&srcCopyLoc,
+				nullptr);
+		}
+
+		// Transition state for next Dispatch():
+		{
+			CD3DX12_RESOURCE_BARRIER barriers[+CubeMapFace::count];
+			int barrierCount = 0;
+			VERUS_FOR(i, +CubeMapFace::count)
+			{
+				const int subUAV = D3D12CalcSubresource(srcMip, i, 0, _desc._mipLevels - 1, _desc._arrayLayers);
+				barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(_uaResource._pResource.Get(),
+					D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, subUAV);
+			}
+			pCmdList->ResourceBarrier(barrierCount, barriers);
+			pCB->PipelineImageMemoryBarrier(tex, ImageLayout::transferDst, ImageLayout::xsReadOnly, srcMip + 1, Range(0, +CubeMapFace::count));
+		}
+
+		srcMip++;
+		dispatchIndex++;
+	}
+	shader->EndBindDescriptors();
+
+	// Revert to main state:
+	if (_mainLayout != ImageLayout::xsReadOnly)
+		pCB->PipelineImageMemoryBarrier(tex, ImageLayout::xsReadOnly, _mainLayout, Range(0, _desc._mipLevels), Range(0, +CubeMapFace::count));
 
 	ClearCshGenerateMips();
 	Schedule(0);

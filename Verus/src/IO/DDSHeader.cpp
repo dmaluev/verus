@@ -52,9 +52,33 @@ bool DDSHeader::IsBC3() const
 	return (_pixelFormat._flags & PixelFormatFlags::fourCC) && (FourCC::dxt5 == _pixelFormat._fourCC);
 }
 
+bool DDSHeader::IsBC4U() const
+{
+	return (_pixelFormat._flags & PixelFormatFlags::fourCC) && (FourCC::bc4u == _pixelFormat._fourCC);
+}
+
+bool DDSHeader::IsBC4S() const
+{
+	return (_pixelFormat._flags & PixelFormatFlags::fourCC) && (FourCC::bc4s == _pixelFormat._fourCC);
+}
+
+bool DDSHeader::IsBC5U() const
+{
+	return (_pixelFormat._flags & PixelFormatFlags::fourCC) && (FourCC::bc5u == _pixelFormat._fourCC);
+}
+
+bool DDSHeader::IsBC5S() const
+{
+	return (_pixelFormat._flags & PixelFormatFlags::fourCC) && (FourCC::bc5s == _pixelFormat._fourCC);
+}
+
 bool DDSHeader::IsBC() const
 {
-	return IsBC1() || IsBC2() || IsBC3() || IsDXT10();
+	return
+		IsBC1() || IsBC2() || IsBC3() ||
+		IsBC4U() || IsBC4S() ||
+		IsBC5U() || IsBC5S() ||
+		IsDXT10();
 }
 
 bool DDSHeader::IsBGRA8() const

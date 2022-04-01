@@ -58,11 +58,11 @@ namespace verus
 		static glm::vec4 FromStringVec4(CSZ s);
 		static String ToString(int i);
 		static String ToString(float f);
-		static String ToString(const glm::vec2& v);
-		static String ToString(const glm::vec3& v);
-		static String ToString(const glm::vec4& v);
+		static String ToString(const glm::vec2& v, bool brackets = false);
+		static String ToString(const glm::vec3& v, bool brackets = false);
+		static String ToString(const glm::vec4& v, bool brackets = false);
 		static glm::vec4 FromColorString(CSZ sz, bool sRGB = true);
-		static String ToColorString(const glm::vec4& v, bool sRGB = true);
+		static String ToColorString(const glm::vec4& v, bool sRGB = true, bool hexPrefix = false);
 
 		// XML:
 		static String XmlEscape(CSZ s);

@@ -19,8 +19,8 @@ namespace verus
 			float            _uOffset = 0;
 			float            _vOffset = 0;
 			float            _brightness = 1;
-			float            _flickerStrength = 0.01f;
-			float            _noiseStrength = 0.15f;
+			float            _flickerStrength = 0.02f;
+			float            _noiseStrength = 0.2f;
 			bool             _editMode = false;
 
 		public:

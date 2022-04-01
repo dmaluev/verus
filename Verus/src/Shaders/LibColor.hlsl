@@ -33,27 +33,10 @@ float3 Overlay(float3 colorA, float3 colorB)
 	return lerp(colorA * colorB * 2.0, 1.0 - (2.0 * (1.0 - colorA) * (1.0 - colorB)), x);
 }
 
-// <AlbedoPick>
 float PickAlpha(float3 albedo, float4 pick, float sharp)
 {
 	const float3 d = albedo - pick.rgb;
 	return saturate(1.0 - dot(d, d) * sharp) * pick.a;
-}
-
-float PickAlphaRound(float4 pick, float2 tc)
-{
-	const float2 d = frac(tc) - pick.xy;
-	return step(dot(d, d), pick.z) * pick.a;
-}
-// </AlbedoPick>
-
-// Returns {alpha, specularity}:
-float2 AlphaSwitch(float4 albedo, float2 tc, float2 alphaSwitch)
-{
-	if (all(frac(tc) >= alphaSwitch))
-		return float2(albedo.a, Grayscale(albedo.rgb)); // 8-bit alpha.
-	else
-		return saturate(float2(albedo.a * 8.0, (albedo.a - 0.15) / 0.85)); // 5-bit alpha.
 }
 
 // See: http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
@@ -92,8 +75,8 @@ float3 ToneMappingACES(float3 x)
 float3 VerusToneMapping(float3 hdr, float filmicLook = 1.0)
 {
 	const float maxValue = max(max(hdr.r, hdr.g), hdr.b);
-	const float desatMask = saturate(maxValue * 0.15);
+	const float desatMask = saturate(maxValue * 0.1);
 	hdr = lerp(hdr, maxValue, desatMask * desatMask); // Color crosstalk.
 	const float3 ldr = lerp(1.0 - exp(-hdr), ToneMappingACES(hdr), filmicLook);
-	return saturate(ldr * 1.2 - 0.002); // Add some clipping.
+	return saturate(ldr);
 }

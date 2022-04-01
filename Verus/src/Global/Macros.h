@@ -89,3 +89,5 @@
 #define VERUS_COLOR_BLEND_MAD          "s*(dc)+d*(sa)"
 #define VERUS_COLOR_BLEND_FILTER       "s*(0)+d*(sc)"
 #define VERUS_COLOR_BLEND_TINTED_GLASS "s*(sc)+d*(1-sc)"
+#define VERUS_COLOR_BLEND_MIN          "min(s, d)"
+#define VERUS_COLOR_BLEND_MAX          "max(s, d)"

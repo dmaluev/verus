@@ -40,6 +40,7 @@ void Scatter::Init(int side, int typeCount, PcTypeDesc pTypes, int seed)
 		{
 			type++;
 			maxPermille += pTypes[type]._permille;
+
 			instance._type = pTypes[type]._type;
 		}
 		else
@@ -62,10 +63,10 @@ void Scatter::Init(int side, int typeCount, PcTypeDesc pTypes, int seed)
 
 	VERUS_FOR(i, _side)
 	{
-		const int offset = i * _side;
+		const int rowOffset = i * _side;
 		VERUS_FOR(j, _side)
 		{
-			const int index = offset + j;
+			const int index = rowOffset + j;
 			RInstance instance = _vInstances[index];
 			const float mn = instance._x;
 			const float mx = instance._z;

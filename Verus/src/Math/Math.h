@@ -70,15 +70,6 @@ namespace verus
 		count
 	};
 
-	typedef glm::ivec2 int2;
-	typedef glm::ivec3 int3;
-	typedef glm::ivec4 int4;
-	typedef glm::vec2 float2;
-	typedef glm::vec3 float3;
-	typedef glm::vec4 float4;
-	typedef glm::mat4 matrix;
-	typedef glm::mat3x4 mataff;
-
 	namespace VMath = Vectormath::SSE;
 }
 
@@ -154,6 +145,8 @@ namespace verus
 		void Quadrant(const int** ppSrcMinMax, int** ppDestMinMax, int half, int id);
 
 		int ComputeMipLevels(int w, int h, int d = 1);
+
+		BYTE CombineOcclusion(BYTE a, BYTE b);
 
 		// Matrices:
 		Transform3 QuadMatrix(float x = 0, float y = 0, float w = 1, float h = 1);

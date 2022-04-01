@@ -101,12 +101,12 @@ void GeometryVulkan::CreateVertexBuffer(int count, int binding)
 
 	if (((_instBindingsMask | _dynBindingsMask) >> binding) & 0x1)
 	{
-		pRendererVulkan->CreateBuffer(vb._bufferSize * BaseRenderer::s_ringBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,
+		pRendererVulkan->CreateBuffer(vb._bufferSize * BaseRenderer::s_ringBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, HostAccess::sequentialWrite,
 			vb._buffer, vb._vmaAllocation);
 	}
 	else
 	{
-		pRendererVulkan->CreateBuffer(vb._bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
+		pRendererVulkan->CreateBuffer(vb._bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, HostAccess::forbidden,
 			vb._buffer, vb._vmaAllocation);
 	}
 }
@@ -138,7 +138,7 @@ void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, PBaseCommand
 		auto& svb = _vStagingVertexBuffers[binding];
 		if (VK_NULL_HANDLE == svb._buffer)
 		{
-			pRendererVulkan->CreateBuffer(vb._bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY,
+			pRendererVulkan->CreateBuffer(vb._bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, HostAccess::sequentialWrite,
 				svb._buffer, svb._vmaAllocation);
 		}
 
@@ -163,12 +163,12 @@ void GeometryVulkan::CreateIndexBuffer(int count)
 
 	if ((_dynBindingsMask >> 31) & 0x1)
 	{
-		pRendererVulkan->CreateBuffer(_indexBuffer._bufferSize * BaseRenderer::s_ringBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,
+		pRendererVulkan->CreateBuffer(_indexBuffer._bufferSize * BaseRenderer::s_ringBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, HostAccess::sequentialWrite,
 			_indexBuffer._buffer, _indexBuffer._vmaAllocation);
 	}
 	else
 	{
-		pRendererVulkan->CreateBuffer(_indexBuffer._bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
+		pRendererVulkan->CreateBuffer(_indexBuffer._bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, HostAccess::forbidden,
 			_indexBuffer._buffer, _indexBuffer._vmaAllocation);
 	}
 }
@@ -194,7 +194,7 @@ void GeometryVulkan::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, IN
 	{
 		if (VK_NULL_HANDLE == _stagingIndexBuffer._buffer)
 		{
-			pRendererVulkan->CreateBuffer(_indexBuffer._bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY,
+			pRendererVulkan->CreateBuffer(_indexBuffer._bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, HostAccess::sequentialWrite,
 				_stagingIndexBuffer._buffer, _stagingIndexBuffer._vmaAllocation);
 		}
 

@@ -17,7 +17,6 @@ namespace verus
 			int                        _sampleCount = 1;
 			RPHandle                   _renderPassHandle;
 			int                        _subpass = 0;
-			int                        _multiViewport = 1; // See SV_ViewportArrayIndex semantic output by a geometry shader.
 			UINT32                     _vertexInputBindingsFilter = UINT32_MAX;
 			CompareOp                  _depthCompareOp = CompareOp::less;
 			bool                       _depthTestEnable = true;

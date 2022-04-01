@@ -25,11 +25,10 @@ void Ssao::Init()
 	if (!settings._postProcessSSAO)
 	{
 		VERUS_LOG_INFO("SSAO disabled");
-		OnSwapChainResized();
 		return;
 	}
 
-	_rph = renderer->CreateSimpleRenderPass(CGI::Format::unormR8);
+	_rph = renderer->CreateSimpleRenderPass(CGI::Format::unormR8G8B8A8); // >> GBuffer3.r
 
 	_shader.Init("[Shaders]:Ssao.hlsl");
 	_shader->CreateDescriptorSet(0, &s_ubSsaoVS, sizeof(s_ubSsaoVS), 2, {}, CGI::ShaderStageFlags::vs);
@@ -37,12 +36,13 @@ void Ssao::Init()
 		{
 			CGI::Sampler::nearestMipN, // RandNormals
 			CGI::Sampler::nearestClampMipN, // GBuffer1
-			CGI::Sampler::linearClampMipN, // Depth
+			CGI::Sampler::nearestClampMipN, // Depth
 		}, CGI::ShaderStageFlags::fs);
 	_shader->CreatePipelineLayout();
 
 	{
 		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#", _rph);
+		pipeDesc._colorAttachWriteMasks[0] = "r"; // >> GBuffer3.r
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc.DisableDepthTest();
 		_pipe.Init(pipeDesc);
@@ -53,7 +53,7 @@ void Ssao::Init()
 	texDesc._format = CGI::Format::unormR8G8B8A8;
 	texDesc._width = 4;
 	texDesc._height = 4;
-	_tex[TEX_RAND_NORMALS].Init(texDesc);
+	_texRandNormals.Init(texDesc);
 
 	OnSwapChainResized();
 }
@@ -84,40 +84,21 @@ void Ssao::OnSwapChainResized()
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 
+	if (!settings._postProcessSSAO)
+		return;
+
 	const int scaledSwapChainWidth = settings.Scale(renderer.GetSwapChainWidth());
 	const int scaledSwapChainHeight = settings.Scale(renderer.GetSwapChainHeight());
-
-	auto InitTex = [this, scaledSwapChainWidth, scaledSwapChainHeight]()
-	{
-		_tex[TEX_GEN_AO].Done();
-		VERUS_QREF_RENDERER;
-		CGI::TextureDesc texDesc;
-		texDesc._clearValue = Vector4::Replicate(1);
-		texDesc._name = "Ssao.GenAO";
-		texDesc._format = CGI::Format::unormR8;
-		texDesc._width = scaledSwapChainWidth;
-		texDesc._height = scaledSwapChainHeight;
-		texDesc._flags = CGI::TextureDesc::Flags::colorAttachment;
-		_tex[TEX_GEN_AO].Init(texDesc);
-		renderer.GetDS().InitBySsao(_tex[TEX_GEN_AO]);
-	};
-
-	if (!settings._postProcessSSAO)
-	{
-		InitTex();
-		return;
-	}
 
 	{
 		_shader->FreeDescriptorSet(_csh);
 		renderer->DeleteFramebuffer(_fbh);
 	}
 	{
-		InitTex();
-		_fbh = renderer->CreateFramebuffer(_rph, { _tex[TEX_GEN_AO] }, scaledSwapChainWidth, scaledSwapChainHeight);
+		_fbh = renderer->CreateFramebuffer(_rph, { renderer.GetDS().GetGBuffer(3) }, scaledSwapChainWidth, scaledSwapChainHeight);
 		_csh = _shader->BindDescriptorSetTextures(1,
 			{
-				_tex[TEX_RAND_NORMALS],
+				_texRandNormals,
 				renderer.GetDS().GetGBuffer(1),
 				renderer.GetTexDepthStencil()
 			});
@@ -148,7 +129,7 @@ void Ssao::Generate()
 
 	s_ubSsaoVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubSsaoVS._matV = Math::ToUVMatrix().UniformBufferFormat();
-	s_ubSsaoVS._matP = Math::ToUVMatrix(0, _tex[TEX_GEN_AO]->GetSize(), &_tex[TEX_RAND_NORMALS]->GetSize()).UniformBufferFormat();
+	s_ubSsaoVS._matP = Math::ToUVMatrix(0, renderer.GetDS().GetGBuffer(3)->GetSize(), &_texRandNormals->GetSize()).UniformBufferFormat();
 	s_ubSsaoFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
 	s_ubSsaoFS._camScale.x = cam.GetFovScale() / cam.GetAspectRatio();
 	s_ubSsaoFS._camScale.y = -cam.GetFovScale();
@@ -157,7 +138,7 @@ void Ssao::Generate()
 	s_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.z = _weightScale;
 	s_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.w = _weightBias;
 
-	cb->BeginRenderPass(_rph, _fbh, { _tex[TEX_GEN_AO]->GetClearValue() });
+	cb->BeginRenderPass(_rph, _fbh, { renderer.GetDS().GetGBuffer(3)->GetClearValue() });
 
 	cb->BindPipeline(_pipe);
 	_shader->BeginBindDescriptors();
@@ -186,10 +167,5 @@ void Ssao::UpdateRandNormalsTexture()
 		Vector4 v4 = Vector4(v3 * 0.5f + Vector3::Replicate(0.5f), 1);
 		vData[i] = Convert::ColorFloatToInt32(v4.ToPointer(), false);
 	}
-	_tex[TEX_RAND_NORMALS]->UpdateSubresource(vData.data());
-}
-
-CGI::TexturePtr Ssao::GetTexture() const
-{
-	return _tex[TEX_GEN_AO];
+	_texRandNormals->UpdateSubresource(vData.data());
 }

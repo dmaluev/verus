@@ -66,8 +66,8 @@ namespace verus
 			static String ReplaceFilename(CSZ pathname, CSZ filename);
 
 			// Save data:
-			static void SaveImage /**/(CSZ pathname, const UINT32* p, int w, int h, ImageFormat format = ImageFormat::tga, int param = 0);
-			static void SaveDDS   /**/(CSZ pathname, const UINT32* p, int w, int h, int d = 0);
+			static void SaveImage /**/(CSZ pathname, const void* p, int w, int h, ImageFormat format = ImageFormat::tga, int pixelStride = sizeof(UINT32), int param = 0);
+			static void SaveDDS   /**/(CSZ pathname, const void* p, int w, int h, int d = 0);
 			static void SaveString/**/(CSZ pathname, CSZ s);
 		};
 		VERUS_TYPEDEFS(FileSystem);
@@ -79,7 +79,7 @@ namespace verus
 			BYTE* _p = nullptr;
 			int          _width = 0;
 			int          _height = 0;
-			int          _bytesPerPixel = 0;
+			int          _pixelStride = 0;
 
 			Image();
 			~Image();

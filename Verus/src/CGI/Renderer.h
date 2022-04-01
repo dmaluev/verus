@@ -17,11 +17,13 @@ namespace verus
 		class Renderer : public Singleton<Renderer>, public Object
 		{
 #include "../Shaders/GenerateMips.inc.hlsl"
+#include "../Shaders/GenerateCubeMapMips.inc.hlsl"
 #include "../Shaders/Quad.inc.hlsl"
 
 			enum SHADER
 			{
 				SHADER_GENERATE_MIPS,
+				SHADER_GENERATE_CUBE_MAP_MIPS,
 				SHADER_QUAD,
 				SHADER_COUNT
 			};
@@ -30,6 +32,7 @@ namespace verus
 			{
 				PIPE_GENERATE_MIPS,
 				PIPE_GENERATE_MIPS_EXPOSURE,
+				PIPE_GENERATE_CUBE_MAP_MIPS,
 				PIPE_OFFSCREEN_COLOR,
 				PIPE_COUNT
 			};
@@ -82,6 +85,7 @@ namespace verus
 			FBHandle                 _fbhOffscreenWithDepth;
 			CSHandle                 _cshOffscreenColor;
 			UB_GenerateMips          _ubGenerateMips;
+			UB_GenerateCubeMapMips   _ubGenerateCubeMapMips;
 			UB_QuadVS                _ubQuadVS;
 			UB_QuadFS                _ubQuadFS;
 			bool                     _autoExposure = true;
@@ -152,14 +156,18 @@ namespace verus
 
 			// Generate mips:
 			ShaderPtr GetShaderGenerateMips() const;
+			ShaderPtr GetShaderGenerateCubeMapMips() const;
 			PipelinePtr GetPipelineGenerateMips(bool exposure = false) const;
+			PipelinePtr GetPipelineGenerateCubeMapMips() const;
 			UB_GenerateMips& GetUbGenerateMips();
+			UB_GenerateCubeMapMips& GetUbGenerateCubeMapMips();
 
 			// Quad:
 			GeometryPtr GetGeoQuad() const;
 			ShaderPtr GetShaderQuad() const;
 			UB_QuadVS& GetUbQuadVS();
 			UB_QuadFS& GetUbQuadFS();
+			void ResetQuadMultiplexer();
 
 			// Exposure:
 			bool IsAutoExposureEnabled() const { return _autoExposure; }

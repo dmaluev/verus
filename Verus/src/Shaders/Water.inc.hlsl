@@ -5,7 +5,7 @@ VERUS_UBUFFER UB_WaterVS
 	mataff _matW;
 	matrix _matVP;
 	matrix _matScreen;
-	float4 _eyePos_mapSideInv;
+	float4 _eyePos_invMapSide;
 	float4 _waterScale_distToMipScale_landDistToMipScale_wavePhase;
 };
 

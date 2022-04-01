@@ -22,19 +22,7 @@ void Ssr::Init()
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 
-	_rph = renderer->CreateRenderPass(
-		{
-			CGI::RP::Attachment("Color", CGI::Format::floatR11G11B10).LoadOpClear().Layout(CGI::ImageLayout::fsReadOnly),
-			CGI::RP::Attachment("Alpha", CGI::Format::unormR8).LoadOpClear().Layout(CGI::ImageLayout::fsReadOnly)
-		},
-		{
-			CGI::RP::Subpass("Sp0").Color(
-				{
-					CGI::RP::Ref("Color", CGI::ImageLayout::colorAttachment),
-					CGI::RP::Ref("Alpha", CGI::ImageLayout::colorAttachment)
-				})
-		},
-		{});
+	_rph = renderer->CreateSimpleRenderPass(CGI::Format::floatR11G11B10);
 
 	CGI::ShaderDesc shaderDesc("[Shaders]:Ssr.hlsl");
 	if (settings._postProcessSSR)
@@ -43,20 +31,27 @@ void Ssr::Init()
 	_shader->CreateDescriptorSet(0, &s_ubSsrVS, sizeof(s_ubSsrVS), 2, {}, CGI::ShaderStageFlags::vs);
 	_shader->CreateDescriptorSet(1, &s_ubSsrFS, sizeof(s_ubSsrFS), 2,
 		{
-			CGI::Sampler::linearClampMipN, // Color
-			CGI::Sampler::nearestClampMipN, // Normal
+			CGI::Sampler::nearestClampMipN, // GBuffer0
+			CGI::Sampler::nearestClampMipN, // GBuffer1
+			CGI::Sampler::nearestClampMipN, // GBuffer2
+			CGI::Sampler::nearestClampMipN, // GBuffer3
+			CGI::Sampler::linearClampMipN, // Scene
 			CGI::Sampler::linearClampMipN, // Depth
-			CGI::Sampler::linearClampMipN // EnvMap
+			CGI::Sampler::linearClampMipL // Image
 		}, CGI::ShaderStageFlags::fs);
 	_shader->CreatePipelineLayout();
 
 	{
 		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#", _rph);
-		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_OFF;
-		pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc.DisableDepthTest();
-		_pipe.Init(pipeDesc);
+		_pipe[PIPE_MAIN].Init(pipeDesc);
+	}
+	{
+		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#DebugCubeMap", _rph);
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc.DisableDepthTest();
+		_pipe[PIPE_DEBUG_CUBE_MAP].Init(pipeDesc);
 	}
 
 	OnSwapChainResized();
@@ -77,8 +72,6 @@ void Ssr::OnSwapChainResized()
 
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_SSAO;
-	VERUS_QREF_ATMO;
 
 	{
 		_shader->FreeDescriptorSet(_csh);
@@ -90,47 +83,44 @@ void Ssr::OnSwapChainResized()
 
 		_fbh = renderer->CreateFramebuffer(_rph,
 			{
-				renderer.GetDS().GetLightAccSpecTexture(),
-				ssao.GetTexture()
+				renderer.GetDS().GetLightAccSpecularTexture()
 			},
 			scaledSwapChainWidth, scaledSwapChainHeight);
-		if (atmo.GetCubeMapBaker().GetColorTexture())
-		{
-			_csh = _shader->BindDescriptorSetTextures(1,
-				{
-					renderer.GetDS().GetComposedTextureA(),
-					renderer.GetDS().GetGBuffer(1),
-					renderer.GetTexDepthStencil(),
-					atmo.GetCubeMapBaker().GetColorTexture()
-				});
-		}
+		BindDescriptorSetTextures();
 	}
+}
+
+bool Ssr::BindDescriptorSetTextures()
+{
+	VERUS_QREF_ATMO;
+	VERUS_QREF_RENDERER;
+
+	if (atmo.GetCubeMapBaker().GetColorTexture())
+	{
+		_csh = _shader->BindDescriptorSetTextures(1,
+			{
+				renderer.GetDS().GetGBuffer(0),
+				renderer.GetDS().GetGBuffer(1),
+				renderer.GetDS().GetGBuffer(2),
+				renderer.GetDS().GetGBuffer(3),
+				renderer.GetDS().GetComposedTextureA(),
+				renderer.GetTexDepthStencil(),
+				atmo.GetCubeMapBaker().GetColorTexture()
+			});
+		return true;
+	}
+	return false;
 }
 
 void Ssr::Generate()
 {
-	VERUS_QREF_CONST_SETTINGS;
+	VERUS_QREF_ATMO;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
-	VERUS_QREF_SSAO;
-	VERUS_QREF_ATMO;
-
-	if (!settings._postProcessSSR)
-		return;
 
 	if (!_csh.IsSet())
 	{
-		if (atmo.GetCubeMapBaker().GetColorTexture())
-		{
-			_csh = _shader->BindDescriptorSetTextures(1,
-				{
-					renderer.GetDS().GetComposedTextureA(),
-					renderer.GetDS().GetGBuffer(1),
-					renderer.GetTexDepthStencil(),
-					atmo.GetCubeMapBaker().GetColorTexture()
-				});
-		}
-		else
+		if (!BindDescriptorSetTextures())
 			return;
 	}
 
@@ -140,7 +130,6 @@ void Ssr::Generate()
 		ImGui::DragFloat("SSR depthBias", &_depthBias, 0.001f);
 		ImGui::DragFloat("SSR thickness", &_thickness, 0.001f);
 		ImGui::DragFloat("SSR equalizeDist", &_equalizeDist, 0.01f);
-		ImGui::Checkbox("SSR blur", &_blur);
 	}
 
 	Scene::RCamera cam = *sm.GetCamera();
@@ -154,6 +143,7 @@ void Ssr::Generate()
 	s_ubSsrFS._matInvV = cam.GetMatrixInvV().UniformBufferFormat();
 	s_ubSsrFS._matPTex = matPTex.UniformBufferFormat();
 	s_ubSsrFS._matInvP = cam.GetMatrixInvP().UniformBufferFormat();
+	s_ubSsrFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubSsrFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
 	s_ubSsrFS._radius_depthBias_thickness_equalizeDist.x = _radius;
 	s_ubSsrFS._radius_depthBias_thickness_equalizeDist.y = _depthBias;
@@ -161,13 +151,9 @@ void Ssr::Generate()
 	s_ubSsrFS._radius_depthBias_thickness_equalizeDist.w = _equalizeDist;
 
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
-	cb->BeginRenderPass(_rph, _fbh,
-		{
-			renderer.GetDS().GetLightAccSpecTexture()->GetClearValue(),
-			ssao.GetTexture()->GetClearValue()
-		});
+	cb->BeginRenderPass(_rph, _fbh, { renderer.GetDS().GetLightAccSpecularTexture()->GetClearValue() });
 
-	cb->BindPipeline(_pipe);
+	cb->BindPipeline(_cubeMapDebugMode ? _pipe[PIPE_DEBUG_CUBE_MAP] : _pipe[PIPE_MAIN]);
 	_shader->BeginBindDescriptors();
 	cb->BindDescriptors(_shader, 0);
 	cb->BindDescriptors(_shader, 1, _csh);
@@ -176,7 +162,4 @@ void Ssr::Generate()
 
 	cb->EndRenderPass();
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilReadOnly, CGI::ImageLayout::depthStencilAttachment, 0);
-
-	if (_blur)
-		Blur::I().GenerateForSsr();
 }

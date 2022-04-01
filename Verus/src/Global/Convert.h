@@ -41,6 +41,10 @@ namespace verus
 		static UINT16 Uint8x4ToUint4x4(UINT32 in);
 		static UINT32 Uint4x4ToUint8x4(UINT16 in, bool scaleTo255 = false);
 
+		// Half:
+		static half FloatToHalf(float f);
+		static float HalfToFloat(half h);
+
 		// Colors:
 		static float SRGBToLinear(float color);
 		static float LinearToSRGB(float color);

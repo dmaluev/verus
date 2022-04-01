@@ -38,6 +38,7 @@
 #		define VMA_DEBUG_MARGIN 16
 #		define VMA_DEBUG_DETECT_CORRUPTION 1
 #	endif
+#	define VMA_VULKAN_VERSION 1001000
 #	include "ThirdParty/vk_mem_alloc.h" // See: https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
 #endif
 
@@ -53,6 +54,9 @@ using namespace Microsoft::WRL;
 #	pragma comment(lib, "dxgi.lib")
 #	pragma comment(lib, "dxguid.lib")
 #	include "ThirdParty/d3dx12.h" // See: https://github.com/microsoft/DirectX-Headers/tree/main/include/directx
+#	ifdef _DEBUG
+#		define D3D12MA_DEBUG_MARGIN 16
+#	endif
 #	include "ThirdParty/D3D12MemAlloc.h" // See: https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator
 #endif
 

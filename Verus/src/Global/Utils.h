@@ -65,6 +65,9 @@ namespace verus
 		static void CopyByteToInt4(const BYTE src[4], int dest[4]);
 		static void CopyIntToByte4(const int src[4], BYTE dest[4]);
 
+		static void ComputeEdgePadding(BYTE* pData, int dataPixelStride, const BYTE* pAlpha, int alphaPixelStride,
+			int width, int height, int radius = 0, int channelCount = 3);
+
 		static void TestAll();
 
 		template<typename T>

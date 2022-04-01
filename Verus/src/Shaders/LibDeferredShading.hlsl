@@ -2,15 +2,17 @@
 
 struct DS_FSO
 {
-	float4 target0 : SV_Target0; // {albedo, specMask}
-	float4 target1 : SV_Target1; // {normal, emission|skinMask, motionBlurMask}
-	float4 target2 : SV_Target2; // {lamScaleBias, metalMask|hairMask, gloss}
+	float4 target0 : SV_Target0; // {Albedo.rgb, SSSHue}.
+	float4 target1 : SV_Target1; // {Normal.xy, Emission, MotionBlur}.
+	float4 target2 : SV_Target2; // {Occlusion, Roughness, Metallic, WrapDiffuse}.
+	float4 target3 : SV_Target3; // {Tangent.xy, AnisoSpec, RoughDiffuse}.
 };
 
 struct DS_ACC_FSO
 {
-	float4 target0 : SV_Target0;
-	float4 target1 : SV_Target1;
+	float4 target0 : SV_Target0; // Ambient.
+	float4 target1 : SV_Target1; // Diffuse.
+	float4 target2 : SV_Target2; // Specular.
 };
 
 // See: http://aras-p.info/texts/CompactNormalStorage.html#method04spheremap
@@ -34,96 +36,101 @@ void DS_Reset(out DS_FSO so)
 	so.target0 = 0.0;
 	so.target1 = 0.0;
 	so.target2 = 0.0;
+	so.target3 = 0.0;
 }
 
-void DS_SolidColor(out DS_FSO so, float3 color)
+void DS_Reset(out DS_ACC_FSO so)
 {
-	so.target0 = float4(color, 0.0);
-	so.target1 = float4(EncodeNormal(float3(0, 0, 1)), 0.25, 0);
-	so.target2 = float4(1.0 / 8.0, 0.5, 0.5, 0);
+	so.target0 = 0.0;
+	so.target1 = 0.0;
+	so.target2 = 0.0;
 }
 
-void DS_Test(out DS_FSO so, float3 normal, float specMask, float gloss)
-{
-	so.target0 = float4(0.5, 0.5, 0.5, specMask);
-	so.target1 = float4(EncodeNormal(normal), 0.25, 0.5);
-	so.target2 = float4(1.0 / 8.0, 0.5, 0.5, gloss * (1.0 / 64.0));
-}
-
+// <GBuffer0>
 void DS_SetAlbedo(inout DS_FSO so, float3 albedo)
 {
 	so.target0.rgb = albedo;
 }
 
-void DS_SetSpecMask(inout DS_FSO so, float specMask)
+void DS_SetSSSHue(inout DS_FSO so, float sssHue)
 {
-	so.target0.a = specMask;
+	so.target0.a = sssHue;
 }
+// </GBuffer0>
 
-float3 DS_GetNormal(float4 gbuffer)
+// <GBuffer1>
+float3 DS_GetNormal(float4 gBuffer)
 {
-	return DecodeNormal(gbuffer.rg);
+	return DecodeNormal(gBuffer.rg);
 }
-
 void DS_SetNormal(inout DS_FSO so, float3 normal)
 {
 	so.target1.rg = EncodeNormal(normal);
 }
 
-float2 DS_GetEmission(float4 gbuffer)
+float DS_GetEmission(float4 gBuffer)
 {
-	const float2 em_skin = saturate((gbuffer.b - 0.25) * float2(1.0 / 0.75, -1.0 / 0.25));
-	const float em = exp2(em_skin.x * 15.0) - 1.0;
-	return float2(em, em_skin.y);
+	return exp2(gBuffer.b * 15.0) - 1.0;
+}
+void DS_SetEmission(inout DS_FSO so, float emission)
+{
+	so.target1.b = saturate(log2(1.0 + emission) * (1.0 / 15.0));
 }
 
-void DS_SetEmission(inout DS_FSO so, float emission, float skinMask)
+void DS_SetMotionBlur(inout DS_FSO so, float motionBlur)
 {
-	const float em = saturate(log2(1.0 + emission) * (1.0 / 15.0));
-	so.target1.b = (3.0 * em - skinMask) * 0.25 + 0.25;
+	so.target1.a = motionBlur;
+}
+// </GBuffer1>
+
+// <GBuffer2>
+void DS_SetOcclusion(inout DS_FSO so, float occlusion)
+{
+	so.target2.r = occlusion;
 }
 
-void DS_SetMotionBlurMask(inout DS_FSO so, float motionBlurMask)
+void DS_SetRoughness(inout DS_FSO so, float roughness)
 {
-	so.target1.a = motionBlurMask;
+	so.target2.g = roughness;
 }
 
-float2 DS_GetLamScaleBias(float4 gbuffer)
+void DS_SetMetallic(inout DS_FSO so, float metallic)
 {
-	return gbuffer.rg * float2(8, 4) - float2(0, 2); // {0 to 8, -2 to 2}.
+	so.target2.b = metallic;
 }
 
-void DS_SetLamScaleBias(inout DS_FSO so, float2 lamScaleBias, float4 aniso)
+void DS_SetWrapDiffuse(inout DS_FSO so, float wrapDiffuse)
 {
-	so.target2.rg = lerp(lamScaleBias * float2(1.0 / 8.0, 0.25) + float2(0, 0.5), EncodeNormal(aniso.xyz), aniso.w);
+	so.target2.a = wrapDiffuse;
+}
+// </GBuffer2>
+
+// <GBuffer3>
+float3 DS_GetTangent(float4 gBuffer)
+{
+	return DecodeNormal(gBuffer.rg);
+}
+void DS_SetTangent(inout DS_FSO so, float3 tangent)
+{
+	so.target3.rg = EncodeNormal(tangent);
 }
 
-float2 DS_GetMetallicity(float4 gbuffer)
+void DS_SetAnisoSpec(inout DS_FSO so, float anisoSpec)
 {
-	const float x2 = gbuffer.b * 2.02;
-	return float2(
-		saturate(x2 - 1.02),
-		saturate(1.0 - x2));
+	so.target3.b = anisoSpec;
 }
 
-void DS_SetMetallicity(inout DS_FSO so, float metalMask, float hairMask)
+void DS_SetRoughDiffuse(inout DS_FSO so, float roughDiffuse)
 {
-	so.target2.b = (metalMask - hairMask) * 0.5 + 0.5;
+	so.target3.a = roughDiffuse;
 }
+// </GBuffer3>
 
-void DS_SetGloss(inout DS_FSO so, float gloss)
+// <Depth>
+float3 DS_GetPosition(float4 gBuffer, matrix matInvProj, float2 ndcPos)
 {
-	so.target2.a = gloss * (1.0 / 64.0);
-}
-
-float3 DS_GetPosition(float4 gbuffer, matrix matInvProj, float2 ndcPos)
-{
-	float4 pos = mul(float4(ndcPos, gbuffer.r, 1), matInvProj);
+	float4 pos = mul(float4(ndcPos, gBuffer.r, 1), matInvProj);
 	pos /= pos.w;
 	return pos.xyz;
 }
-
-float3 DS_GetAnisoSpec(float4 gbuffer)
-{
-	return DecodeNormal(gbuffer.rg);
-}
+// </Depth>

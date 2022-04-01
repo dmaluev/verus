@@ -38,6 +38,7 @@ namespace verus
 			virtual bool ReadbackSubresource(void* p, bool recordCopyCommand, PBaseCommandBuffer pCB) override;
 
 			virtual void GenerateMips(PBaseCommandBuffer pCB) override;
+			void GenerateCubeMapMips(PBaseCommandBuffer pCB);
 
 			virtual Continue Scheduled_Update() override;
 
@@ -50,7 +51,7 @@ namespace verus
 			VkImage GetVkImage() const { return _image; }
 			VkImageView GetVkImageView() const { return _imageView; }
 			VkImageView GetVkImageViewForFramebuffer(CubeMapFace face) const;
-			VkImageView GetStorageVkImageView(int mip) const { return _vStorageImageViews[mip]; }
+			VkImageView GetStorageVkImageView(int mipLevel, int arrayLayer) const { return _vStorageImageViews[mipLevel + arrayLayer * (_desc._mipLevels - 1)]; }
 			VkSampler GetVkSampler() const { return _sampler; }
 			ImageLayout GetSubresourceMainLayout(int mipLevel, int arrayLayer) const;
 			void MarkSubresourceDefined(int mipLevel, int arrayLayer);

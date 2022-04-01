@@ -15,7 +15,7 @@ struct VSI
 
 struct VSO
 {
-	float4 pos : SV_Position;
+	float4 pos   : SV_Position;
 	float4 color : COLOR0;
 	VK_POINT_SIZE
 };

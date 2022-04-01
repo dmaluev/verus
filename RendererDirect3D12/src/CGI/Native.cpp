@@ -132,7 +132,11 @@ DXGI_FORMAT CGI::ToNativeFormat(Format format, bool typeless)
 	case Format::unormBC1:          return DXGI_FORMAT_BC1_UNORM;
 	case Format::unormBC2:          return DXGI_FORMAT_BC2_UNORM;
 	case Format::unormBC3:          return DXGI_FORMAT_BC3_UNORM;
+	case Format::unormBC4:          return DXGI_FORMAT_BC4_UNORM;
+	case Format::unormBC5:          return DXGI_FORMAT_BC5_UNORM;
 	case Format::unormBC7:          return DXGI_FORMAT_BC7_UNORM;
+	case Format::snormBC4:          return DXGI_FORMAT_BC4_SNORM;
+	case Format::snormBC5:          return DXGI_FORMAT_BC5_SNORM;
 	case Format::srgbBC1:           return DXGI_FORMAT_BC1_UNORM_SRGB;
 	case Format::srgbBC2:           return DXGI_FORMAT_BC2_UNORM_SRGB;
 	case Format::srgbBC3:           return DXGI_FORMAT_BC3_UNORM_SRGB;
@@ -177,12 +181,31 @@ DXGI_FORMAT CGI::ToNativeFormat(ViaUsage usage, ViaType type, int components)
 {
 	VERUS_RT_ASSERT(components >= 1 && components <= 4);
 	int index = components - 1;
+
 	static const DXGI_FORMAT floats[] =
 	{
 		DXGI_FORMAT_R32_FLOAT,
 		DXGI_FORMAT_R32G32_FLOAT,
 		DXGI_FORMAT_R32G32B32_FLOAT,
 		DXGI_FORMAT_R32G32B32A32_FLOAT
+	};
+	static const DXGI_FORMAT halfs[] =
+	{
+		DXGI_FORMAT_R16_FLOAT,
+		DXGI_FORMAT_R16G16_FLOAT,
+		DXGI_FORMAT_R16G16_FLOAT,
+		DXGI_FORMAT_R16G16B16A16_FLOAT
+	};
+	static const DXGI_FORMAT shorts[] =
+	{
+		DXGI_FORMAT_R16G16_SINT,
+		DXGI_FORMAT_R16G16_SINT,
+		DXGI_FORMAT_R16G16B16A16_SINT,
+		DXGI_FORMAT_R16G16B16A16_SINT,
+		DXGI_FORMAT_R16G16_SNORM,
+		DXGI_FORMAT_R16G16_SNORM,
+		DXGI_FORMAT_R16G16B16A16_SNORM,
+		DXGI_FORMAT_R16G16B16A16_SNORM
 	};
 	static const DXGI_FORMAT bytes[] =
 	{
@@ -199,17 +222,7 @@ DXGI_FORMAT CGI::ToNativeFormat(ViaUsage usage, ViaType type, int components)
 		DXGI_FORMAT_R8G8B8A8_SNORM,
 		DXGI_FORMAT_R8G8B8A8_SNORM
 	};
-	static const DXGI_FORMAT shorts[] =
-	{
-		DXGI_FORMAT_R16G16_SINT,
-		DXGI_FORMAT_R16G16_SINT,
-		DXGI_FORMAT_R16G16B16A16_SINT,
-		DXGI_FORMAT_R16G16B16A16_SINT,
-		DXGI_FORMAT_R16G16_SNORM,
-		DXGI_FORMAT_R16G16_SNORM,
-		DXGI_FORMAT_R16G16B16A16_SNORM,
-		DXGI_FORMAT_R16G16B16A16_SNORM
-	};
+
 	switch (type)
 	{
 	case ViaType::floats:
@@ -217,15 +230,10 @@ DXGI_FORMAT CGI::ToNativeFormat(ViaUsage usage, ViaType type, int components)
 		return floats[index];
 	}
 	break;
-	case ViaType::ubytes:
+	case ViaType::halfs:
 	{
-		VERUS_RT_ASSERT(4 == components);
-		switch (usage)
-		{
-		case ViaUsage::normal: index += 8; break; // SNORM.
-		case ViaUsage::color: index += 4; break; // UNORM.
-		}
-		return bytes[index];
+		VERUS_RT_ASSERT(3 != components);
+		return halfs[index];
 	}
 	break;
 	case ViaType::shorts:
@@ -233,11 +241,27 @@ DXGI_FORMAT CGI::ToNativeFormat(ViaUsage usage, ViaType type, int components)
 		VERUS_RT_ASSERT(2 == components || 4 == components);
 		switch (usage)
 		{
+		case ViaUsage::normal:
 		case ViaUsage::tangent:
 		case ViaUsage::binormal:
 			index += 4; break; // SNORM.
 		}
 		return shorts[index];
+	}
+	break;
+	case ViaType::ubytes:
+	{
+		VERUS_RT_ASSERT(4 == components);
+		switch (usage)
+		{
+		case ViaUsage::normal:
+		case ViaUsage::tangent:
+		case ViaUsage::binormal:
+			index += 8; break; // SNORM.
+		case ViaUsage::color:
+			index += 4; break; // UNORM.
+		}
+		return bytes[index];
 	}
 	break;
 	default: throw VERUS_RECOVERABLE << "ToNativeFormat(); ViaType=?";

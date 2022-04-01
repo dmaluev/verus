@@ -36,9 +36,6 @@ CSZ RendererVulkan::s_requiredValidationLayers[] =
 
 CSZ RendererVulkan::s_requiredDeviceExtensions[] =
 {
-	VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
-	VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
-	VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
@@ -76,11 +73,11 @@ void RendererVulkan::Init()
 	CreateDevice();
 
 	VmaAllocatorCreateInfo vmaaci = {};
-	vmaaci.flags = VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT | VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT;
 	vmaaci.physicalDevice = _physicalDevice;
 	vmaaci.device = _device;
 	vmaaci.pAllocationCallbacks = GetAllocator();
-	vmaaci.frameInUseCount = s_ringBufferSize;
+	vmaaci.instance = _instance;
+	vmaaci.vulkanApiVersion = s_apiVersion;
 	if (VK_SUCCESS != (res = vmaCreateAllocator(&vmaaci, &_vmaAllocator)))
 		throw VERUS_RUNTIME_ERROR << "vmaCreateAllocator(); res=" << res;
 
@@ -265,7 +262,7 @@ void RendererVulkan::CreateInstance()
 	vkai.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 	vkai.pEngineName = "Verus";
 	vkai.engineVersion = VK_MAKE_VERSION(major, minor, patch);
-	vkai.apiVersion = VK_API_VERSION_1_1;
+	vkai.apiVersion = s_apiVersion;
 
 	VkInstanceCreateInfo vkici = {};
 	vkici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -410,8 +407,18 @@ void RendererVulkan::CreateDevice()
 
 	VkPhysicalDeviceLineRasterizationFeaturesEXT lineRasterizationFeatures = {};
 	lineRasterizationFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT;
-	lineRasterizationFeatures.bresenhamLines = VK_TRUE;
-	lineRasterizationFeatures.smoothLines = VK_TRUE;
+	VkPhysicalDeviceFeatures2 vkpdf2 = {};
+	vkpdf2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+	vkpdf2.pNext = &lineRasterizationFeatures;
+	vkGetPhysicalDeviceFeatures2(_physicalDevice, &vkpdf2);
+
+	lineRasterizationFeatures.stippledRectangularLines = VK_FALSE;
+	lineRasterizationFeatures.stippledBresenhamLines = VK_FALSE;
+	lineRasterizationFeatures.stippledSmoothLines = VK_FALSE;
+	_advancedLineRasterization =
+		lineRasterizationFeatures.rectangularLines &&
+		lineRasterizationFeatures.bresenhamLines &&
+		lineRasterizationFeatures.smoothLines;
 
 	_queueFamilyIndices = FindQueueFamilyIndices(_physicalDevice);
 	VERUS_RT_ASSERT(_queueFamilyIndices.IsComplete());
@@ -429,14 +436,15 @@ void RendererVulkan::CreateDevice()
 		vDeviceQueueCreateInfos.push_back(vkdqci);
 	}
 
+	// Check https://vulkan.gpuinfo.org/ for device coverage:
 	VkPhysicalDeviceFeatures physicalDeviceFeatures = {};
-	physicalDeviceFeatures.geometryShader = VK_TRUE;
-	physicalDeviceFeatures.tessellationShader = settings._gpuTessellation ? VK_TRUE : VK_FALSE;
-	physicalDeviceFeatures.fillModeNonSolid = VK_TRUE;
-	physicalDeviceFeatures.multiViewport = VK_TRUE;
-	physicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
-	physicalDeviceFeatures.shaderImageGatherExtended = VK_TRUE;
-	physicalDeviceFeatures.shaderClipDistance = VK_TRUE;
+	physicalDeviceFeatures.fillModeNonSolid = VK_TRUE; // 79%
+	physicalDeviceFeatures.geometryShader = VK_TRUE; // 80%
+	physicalDeviceFeatures.independentBlend = VK_TRUE; // 99%
+	physicalDeviceFeatures.samplerAnisotropy = VK_TRUE; // 90%
+	physicalDeviceFeatures.shaderClipDistance = VK_TRUE; // 85%
+	physicalDeviceFeatures.shaderImageGatherExtended = VK_TRUE; // 94%
+	physicalDeviceFeatures.tessellationShader = settings._gpuTessellation ? VK_TRUE : VK_FALSE; // 81%
 
 	VkDeviceCreateInfo vkdci = {};
 	vkdci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -1286,7 +1294,7 @@ RendererVulkan::RcFramebuffer RendererVulkan::GetFramebuffer(FBHandle handle) co
 	return _vFramebuffers[handle.Get()];
 }
 
-void RendererVulkan::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage vmaUsage, VkBuffer& buffer, VmaAllocation& vmaAllocation)
+void RendererVulkan::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, HostAccess hostAccess, VkBuffer& buffer, VmaAllocation& vmaAllocation)
 {
 	VkResult res = VK_SUCCESS;
 
@@ -1295,7 +1303,12 @@ void RendererVulkan::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, V
 	vkbci.size = size;
 	vkbci.usage = usage;
 	VmaAllocationCreateInfo vmaaci = {};
-	vmaaci.usage = vmaUsage;
+	vmaaci.usage = VMA_MEMORY_USAGE_AUTO;
+	switch (hostAccess)
+	{
+	case HostAccess::sequentialWrite: vmaaci.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT; break;
+	case HostAccess::random: vmaaci.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT; break;
+	}
 	if (VK_SUCCESS != (res = vmaCreateBuffer(_vmaAllocator, &vkbci, &vmaaci, &buffer, &vmaAllocation, nullptr)))
 		throw VERUS_RECOVERABLE << "vmaCreateBuffer(); res=" << res;
 }
@@ -1313,12 +1326,17 @@ void RendererVulkan::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDevice
 	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &region);
 }
 
-void RendererVulkan::CreateImage(const VkImageCreateInfo* pImageCreateInfo, VmaMemoryUsage vmaUsage, VkImage& image, VmaAllocation& vmaAllocation)
+void RendererVulkan::CreateImage(const VkImageCreateInfo* pImageCreateInfo, HostAccess hostAccess, VkImage& image, VmaAllocation& vmaAllocation)
 {
 	VkResult res = VK_SUCCESS;
 
 	VmaAllocationCreateInfo vmaaci = {};
-	vmaaci.usage = vmaUsage;
+	vmaaci.usage = VMA_MEMORY_USAGE_AUTO;
+	switch (hostAccess)
+	{
+	case HostAccess::sequentialWrite: vmaaci.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT; break;
+	case HostAccess::random: vmaaci.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT; break;
+	}
 	if (VK_SUCCESS != (res = vmaCreateImage(_vmaAllocator, pImageCreateInfo, &vmaaci, &image, &vmaAllocation, nullptr)))
 		throw VERUS_RECOVERABLE << "vmaCreateImage(); res=" << res;
 }

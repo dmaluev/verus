@@ -6,13 +6,14 @@ VERUS_UBUFFER UB_SimpleForestVS
 	matrix _matWVP;
 	float4 _viewportSize;
 	float4 _eyePos_clipDistanceOffset;
-	float4 _eyePosScreen;
-	float4 _pointSpriteScale;
+	float4 _mainCameraEyePos_pointSpriteFlipY;
 };
 
 VERUS_UBUFFER UB_SimpleForestFS
 {
 	mataff _matInvV;
+	float4 _normalFlip;
+	float4 _tcFlip;
 	float4 _ambientColor;
 	float4 _fogColor;
 	float4 _dirToSun;

@@ -47,7 +47,11 @@ FSO mainFS(VSO si)
 	const float weight = ComputeHemicubeMask(si.tc0);
 	so.color = weight;
 #else
-	so.color = g_tex.SampleLevel(g_sam, si.tc0, 0.0);
+	const float4 colorSam = g_tex.SampleLevel(g_sam, si.tc0, 0.0);
+	so.color.r = dot(colorSam, g_ubQuadFS._rMultiplexer);
+	so.color.g = dot(colorSam, g_ubQuadFS._gMultiplexer);
+	so.color.b = dot(colorSam, g_ubQuadFS._bMultiplexer);
+	so.color.a = dot(colorSam, g_ubQuadFS._aMultiplexer);
 #endif
 
 	return so;

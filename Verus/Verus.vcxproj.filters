@@ -489,9 +489,6 @@
     <ClInclude Include="src\Scene\EditorTerrain.h">
       <Filter>src\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="src\CGI\DeferredShading.h">
-      <Filter>src\CGI</Filter>
-    </ClInclude>
     <ClInclude Include="src\Scene\Helpers.h">
       <Filter>src\Scene</Filter>
     </ClInclude>
@@ -786,6 +783,9 @@
     <ClInclude Include="src\Scene\LightMapBaker.h">
       <Filter>src\Scene</Filter>
     </ClInclude>
+    <ClInclude Include="src\CGI\DeferredShading.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -1073,9 +1073,6 @@
     <ClCompile Include="src\Scene\EditorTerrain.cpp">
       <Filter>src\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="src\CGI\DeferredShading.cpp">
-      <Filter>src\CGI</Filter>
-    </ClCompile>
     <ClCompile Include="src\Scene\Helpers.cpp">
       <Filter>src\Scene</Filter>
     </ClCompile>
@@ -1349,6 +1346,9 @@
     <ClCompile Include="src\Scene\LightMapBaker.cpp">
       <Filter>src\Scene</Filter>
     </ClCompile>
+    <ClCompile Include="src\CGI\DeferredShading.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\Shaders\Lib.hlsl">
@@ -1376,21 +1376,6 @@
       <Filter>src\Shaders</Filter>
     </None>
     <None Include="src\Shaders\GenerateMips.inc.hlsl">
-      <Filter>src\Shaders</Filter>
-    </None>
-    <None Include="src\Shaders\LibDeferredShading.hlsl">
-      <Filter>src\Shaders</Filter>
-    </None>
-    <None Include="src\Shaders\DS.hlsl">
-      <Filter>src\Shaders</Filter>
-    </None>
-    <None Include="src\Shaders\DS.inc.hlsl">
-      <Filter>src\Shaders</Filter>
-    </None>
-    <None Include="src\Shaders\DS_Compose.hlsl">
-      <Filter>src\Shaders</Filter>
-    </None>
-    <None Include="src\Shaders\DS_Compose.inc.hlsl">
       <Filter>src\Shaders</Filter>
     </None>
     <None Include="src\Shaders\LibLighting.hlsl">
@@ -1477,18 +1462,6 @@
     <None Include="src\Shaders\Bloom.inc.hlsl">
       <Filter>src\Shaders</Filter>
     </None>
-    <None Include="src\Shaders\DS_AO.hlsl">
-      <Filter>src\Shaders</Filter>
-    </None>
-    <None Include="src\Shaders\DS_AO.inc.hlsl">
-      <Filter>src\Shaders</Filter>
-    </None>
-    <None Include="src\Shaders\DS_BakeSprites.hlsl">
-      <Filter>src\Shaders</Filter>
-    </None>
-    <None Include="src\Shaders\DS_BakeSprites.inc.hlsl">
-      <Filter>src\Shaders</Filter>
-    </None>
     <None Include="src\Shaders\DS_Forest.hlsl">
       <Filter>src\Shaders</Filter>
     </None>
@@ -1529,6 +1502,39 @@
       <Filter>src\Shaders</Filter>
     </None>
     <None Include="src\Shaders\DS_Reflection.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\GenerateCubeMapMips.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\GenerateCubeMapMips.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_Compose.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_Compose.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\LibDeferredShading.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_BakeSprites.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_BakeSprites.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_Ambient.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_Ambient.inc.hlsl">
       <Filter>src\Shaders</Filter>
     </None>
   </ItemGroup>

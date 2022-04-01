@@ -73,6 +73,116 @@ void CommandBufferVulkan::End()
 		throw VERUS_RUNTIME_ERROR << "vkEndCommandBuffer(); res=" << res;
 }
 
+void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, Range mipLevels, Range arrayLayers)
+{
+	auto& texVulkan = static_cast<RTextureVulkan>(*tex);
+	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Waiting for this stage to finish (TOP_OF_PIPE means wait for nothing).
+	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; // Which stage is waiting to start (BOTTOM_OF_PIPE means nothing is waiting).
+	const VkPipelineStageFlags dstStageMaskXS = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+	VkImageMemoryBarrier vkimb = {};
+	vkimb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	vkimb.oldLayout = ToNativeImageLayout(oldLayout);
+	vkimb.newLayout = ToNativeImageLayout(newLayout);
+	vkimb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	vkimb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	vkimb.image = texVulkan.GetVkImage();
+	vkimb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	vkimb.subresourceRange.baseMipLevel = mipLevels._begin;
+	vkimb.subresourceRange.levelCount = mipLevels.GetCount();
+	vkimb.subresourceRange.baseArrayLayer = arrayLayers._begin;
+	vkimb.subresourceRange.layerCount = arrayLayers.GetCount();
+
+	// See: https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples
+
+	auto UseDefaultsForOldLayout = [&vkimb, &srcStageMask]()
+	{
+		vkimb.srcAccessMask = 0;
+		switch (vkimb.oldLayout)
+		{
+		case VK_IMAGE_LAYOUT_UNDEFINED:
+		case VK_IMAGE_LAYOUT_GENERAL:
+			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			break;
+		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+			srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+			break;
+		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+		case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+			srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			break;
+		case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+			srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			break;
+		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+			srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			vkimb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			break;
+		default:
+			VERUS_RT_FAIL("Unknown oldLayout");
+		}
+	};
+
+	auto UseDefaultsForNewLayout = [&vkimb, &dstStageMask, dstStageMaskXS, newLayout, tex]()
+	{
+		switch (vkimb.newLayout)
+		{
+		case VK_IMAGE_LAYOUT_UNDEFINED:
+		case VK_IMAGE_LAYOUT_GENERAL:
+			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			vkimb.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			break;
+		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+			dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+			vkimb.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+			break;
+		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+			dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			vkimb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			break;
+		case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+			dstStageMask = (ImageLayout::xsReadOnly == newLayout) ? dstStageMaskXS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			vkimb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			break;
+		case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			vkimb.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+			break;
+		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			vkimb.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			break;
+		default:
+			VERUS_RT_FAIL("Unknown newLayout");
+		}
+
+		if (vkimb.newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ||
+			vkimb.newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
+		{
+			vkimb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+			if (Format::unormD24uintS8 == tex->GetFormat())
+				vkimb.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+		}
+	};
+
+	if (vkimb.oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && vkimb.newLayout == VK_IMAGE_LAYOUT_GENERAL)
+	{
+		UseDefaultsForOldLayout();
+		dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+		vkimb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	}
+	else
+	{
+		UseDefaultsForOldLayout();
+		UseDefaultsForNewLayout();
+	}
+
+	vkCmdPipelineBarrier(GetVkCommandBuffer(), srcStageMask, dstStageMask, 0,
+		0, nullptr,
+		0, nullptr,
+		1, &vkimb);
+}
+
 void CommandBufferVulkan::BeginRenderPass(RPHandle renderPassHandle, FBHandle framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
 {
 	VERUS_QREF_RENDERER_VULKAN;
@@ -112,34 +222,6 @@ void CommandBufferVulkan::NextSubpass()
 void CommandBufferVulkan::EndRenderPass()
 {
 	vkCmdEndRenderPass(GetVkCommandBuffer());
-}
-
-void CommandBufferVulkan::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilter)
-{
-	auto& geoVulkan = static_cast<RGeometryVulkan>(*geo);
-	VkBuffer buffers[VERUS_MAX_VB];
-	VkDeviceSize offsets[VERUS_MAX_VB];
-	const int count = geoVulkan.GetVertexBufferCount();
-	int filteredCount = 0;
-	VERUS_FOR(i, count)
-	{
-		if ((bindingsFilter >> i) & 0x1)
-		{
-			VERUS_RT_ASSERT(filteredCount < VERUS_MAX_VB);
-			buffers[filteredCount] = geoVulkan.GetVkVertexBuffer(i);
-			offsets[filteredCount] = geoVulkan.GetVkVertexBufferOffset(i);
-			filteredCount++;
-		}
-	}
-	vkCmdBindVertexBuffers(GetVkCommandBuffer(), 0, filteredCount, buffers, offsets);
-}
-
-void CommandBufferVulkan::BindIndexBuffer(GeometryPtr geo)
-{
-	auto& geoVulkan = static_cast<RGeometryVulkan>(*geo);
-	VkBuffer buffer = geoVulkan.GetVkIndexBuffer();
-	VkDeviceSize offset = geoVulkan.GetVkIndexBufferOffset();
-	vkCmdBindIndexBuffer(GetVkCommandBuffer(), buffer, offset, geoVulkan.Has32BitIndices() ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16);
 }
 
 void CommandBufferVulkan::BindPipeline(PipelinePtr pipe)
@@ -196,6 +278,34 @@ void CommandBufferVulkan::SetBlendConstants(const float* p)
 	vkCmdSetBlendConstants(GetVkCommandBuffer(), p);
 }
 
+void CommandBufferVulkan::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilter)
+{
+	auto& geoVulkan = static_cast<RGeometryVulkan>(*geo);
+	VkBuffer buffers[VERUS_MAX_VB];
+	VkDeviceSize offsets[VERUS_MAX_VB];
+	const int count = geoVulkan.GetVertexBufferCount();
+	int filteredCount = 0;
+	VERUS_FOR(i, count)
+	{
+		if ((bindingsFilter >> i) & 0x1)
+		{
+			VERUS_RT_ASSERT(filteredCount < VERUS_MAX_VB);
+			buffers[filteredCount] = geoVulkan.GetVkVertexBuffer(i);
+			offsets[filteredCount] = geoVulkan.GetVkVertexBufferOffset(i);
+			filteredCount++;
+		}
+	}
+	vkCmdBindVertexBuffers(GetVkCommandBuffer(), 0, filteredCount, buffers, offsets);
+}
+
+void CommandBufferVulkan::BindIndexBuffer(GeometryPtr geo)
+{
+	auto& geoVulkan = static_cast<RGeometryVulkan>(*geo);
+	VkBuffer buffer = geoVulkan.GetVkIndexBuffer();
+	VkDeviceSize offset = geoVulkan.GetVkIndexBufferOffset();
+	vkCmdBindIndexBuffer(GetVkCommandBuffer(), buffer, offset, geoVulkan.Has32BitIndices() ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16);
+}
+
 bool CommandBufferVulkan::BindDescriptors(ShaderPtr shader, int setNumber, CSHandle complexSetHandle)
 {
 	if (setNumber < 0)
@@ -224,122 +334,6 @@ void CommandBufferVulkan::PushConstants(ShaderPtr shader, int offset, int size, 
 	auto& shaderVulkan = static_cast<RShaderVulkan>(*shader);
 	const VkShaderStageFlags vkssf = ToNativeStageFlags(stageFlags);
 	vkCmdPushConstants(GetVkCommandBuffer(), shaderVulkan.GetVkPipelineLayout(), vkssf, offset << 2, size << 2, p);
-}
-
-void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, Range mipLevels, int arrayLayer)
-{
-	auto& texVulkan = static_cast<RTextureVulkan>(*tex);
-	VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Waiting for this stage to finish (TOP_OF_PIPE means wait for nothing).
-	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; // Which stage is waiting to start (BOTTOM_OF_PIPE means nothing is waiting).
-	const VkPipelineStageFlags dstStageMaskXS = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-	VkImageMemoryBarrier vkimb[16];
-	VERUS_RT_ASSERT(mipLevels.GetCount() <= VERUS_COUNT_OF(vkimb));
-	int index = 0;
-	for (int mip : mipLevels)
-	{
-		vkimb[index].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		vkimb[index].pNext = nullptr;
-		vkimb[index].oldLayout = ToNativeImageLayout(oldLayout);
-		vkimb[index].newLayout = ToNativeImageLayout(newLayout);
-		vkimb[index].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		vkimb[index].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		vkimb[index].image = texVulkan.GetVkImage();
-		vkimb[index].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		vkimb[index].subresourceRange.baseMipLevel = mip;
-		vkimb[index].subresourceRange.levelCount = 1;
-		vkimb[index].subresourceRange.baseArrayLayer = arrayLayer;
-		vkimb[index].subresourceRange.layerCount = 1;
-
-		// See: https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples
-
-		auto UseDefaultsForOldLayout = [&vkimb, index, &srcStageMask]()
-		{
-			vkimb[index].srcAccessMask = 0;
-			switch (vkimb[index].oldLayout)
-			{
-			case VK_IMAGE_LAYOUT_UNDEFINED:
-			case VK_IMAGE_LAYOUT_GENERAL:
-				srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-				break;
-			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-				srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-				break;
-			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-			case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-				srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-				break;
-			case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-				srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-				break;
-			case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-				srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-				vkimb[index].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-				break;
-			default:
-				VERUS_RT_FAIL("Unknown oldLayout");
-			}
-		};
-
-		auto UseDefaultsForNewLayout = [&vkimb, index, &dstStageMask, dstStageMaskXS, newLayout, tex]()
-		{
-			switch (vkimb[index].newLayout)
-			{
-			case VK_IMAGE_LAYOUT_UNDEFINED:
-			case VK_IMAGE_LAYOUT_GENERAL:
-				dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-				vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-				break;
-			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-				dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-				vkimb[index].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-				break;
-			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-				dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-				vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-				break;
-			case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-				dstStageMask = (ImageLayout::xsReadOnly == newLayout) ? dstStageMaskXS : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-				vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-				break;
-			case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-				dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-				vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-				break;
-			case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-				dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-				vkimb[index].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-				break;
-			default:
-				VERUS_RT_FAIL("Unknown newLayout");
-			}
-
-			if (vkimb[index].newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ||
-				vkimb[index].newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
-			{
-				vkimb[index].subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-				if (Format::unormD24uintS8 == tex->GetFormat())
-					vkimb[index].subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-			}
-		};
-
-		if (vkimb[index].oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && vkimb[index].newLayout == VK_IMAGE_LAYOUT_GENERAL)
-		{
-			UseDefaultsForOldLayout();
-			dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-			vkimb[index].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		}
-		else
-		{
-			UseDefaultsForOldLayout();
-			UseDefaultsForNewLayout();
-		}
-
-		index++;
-	}
-	vkCmdPipelineBarrier(GetVkCommandBuffer(), srcStageMask, dstStageMask, 0,
-		0, nullptr,
-		0, nullptr,
-		index, vkimb);
 }
 
 void CommandBufferVulkan::Draw(int vertexCount, int instanceCount, int firstVertex, int firstInstance)

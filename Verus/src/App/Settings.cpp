@@ -50,7 +50,7 @@ void QualitySettings::SetQuality(OverallQuality q)
 		_postProcessBloom = false;
 		_postProcessLightShafts = false;
 		_postProcessSSAO = false;
-		_sceneGrassDensity = 600;
+		_sceneGrassDensity = 500;
 		_sceneShadowQuality = Quality::low;
 		_sceneWaterQuality = WaterQuality::solidColor;
 		break;
@@ -61,7 +61,7 @@ void QualitySettings::SetQuality(OverallQuality q)
 		_gpuShaderQuality = Quality::high;
 		_postProcessCinema = true;
 		_sceneAmbientOcclusion = true;
-		_sceneGrassDensity = 900;
+		_sceneGrassDensity = 700;
 		_sceneShadowQuality = Quality::high;
 		_sceneWaterQuality = WaterQuality::trueWavesReflection;
 		break;
@@ -72,7 +72,7 @@ void QualitySettings::SetQuality(OverallQuality q)
 		_postProcessMotionBlur = true;
 		_postProcessSSR = true;
 		_sceneAmbientOcclusion = true;
-		_sceneGrassDensity = 1000;
+		_sceneGrassDensity = 800;
 		_sceneShadowQuality = Quality::ultra;
 		_sceneWaterQuality = WaterQuality::trueWavesRefraction;
 		break;

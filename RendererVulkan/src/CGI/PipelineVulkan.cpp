@@ -85,8 +85,8 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 
 	VkPipelineViewportStateCreateInfo viewportState = {};
 	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-	viewportState.viewportCount = desc._multiViewport;
-	viewportState.scissorCount = desc._multiViewport;
+	viewportState.viewportCount = 1;
+	viewportState.scissorCount = 1;
 
 	VkPipelineRasterizationLineStateCreateInfoEXT rasterizationLineState = {};
 	rasterizationLineState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_LINE_STATE_CREATE_INFO_EXT;
@@ -95,7 +95,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 		rasterizationLineState.lineRasterizationMode = VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH_EXT;
 	VkPipelineRasterizationStateCreateInfo rasterizationState = {};
 	rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-	rasterizationState.pNext = &rasterizationLineState;
+	rasterizationState.pNext = pRendererVulkan->IsAdvancedLineRasterizationSupported() ? &rasterizationLineState : nullptr;
 	rasterizationState.depthClampEnable = VK_FALSE;
 	rasterizationState.polygonMode = ToNativePolygonMode(desc._rasterizationState._polygonMode);
 	rasterizationState.cullMode = ToNativeCullMode(desc._rasterizationState._cullMode);

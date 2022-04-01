@@ -27,10 +27,12 @@ Texture2D              g_texReflection         : register(t5, space1);
 SamplerState           g_samReflection         : register(s5, space1);
 Texture2D              g_texRefraction         : register(t6, space1);
 SamplerState           g_samRefraction         : register(s6, space1);
-Texture2D              g_texShadowCmp          : register(t7, space1);
-SamplerComparisonState g_samShadowCmp          : register(s7, space1);
-Texture2D              g_texShadow             : register(t8, space1);
-SamplerState           g_samShadow             : register(s8, space1);
+Texture2D              g_texGBuffer3           : register(t7, space1);
+SamplerState           g_samGBuffer3           : register(s7, space1);
+Texture2D              g_texShadowCmp          : register(t8, space1);
+SamplerComparisonState g_samShadowCmp          : register(s8, space1);
+Texture2D              g_texShadow             : register(t9, space1);
+SamplerState           g_samShadow             : register(s9, space1);
 
 struct VSI
 {
@@ -66,16 +68,16 @@ static const float g_wavesMaskScaleBias = 20.0;
 float2 GetWaterHeightAt(
 	Texture2D texTerrainHeightmap, SamplerState samTerrainHeightmap,
 	Texture2D texGenHeightmap, SamplerState samGenHeightmap,
-	float2 pos, float waterScale, float mapSideInv,
+	float2 pos, float waterScale, float invMapSide,
 	float distToEye, float distToMipScale, float landDistToMipScale)
 {
 	const float2 tc = pos * waterScale;
-	const float2 tcLand = pos * mapSideInv + 0.5;
+	const float2 tcLand = pos * invMapSide + 0.5;
 
 	float landHeight;
 	{
 		const float mip = log2(max(1.0, distToEye * landDistToMipScale));
-		const float texelCenter = 0.5 * mapSideInv * exp2(mip);
+		const float texelCenter = 0.5 * invMapSide * exp2(mip);
 		landHeight = UnpackTerrainHeight(texTerrainHeightmap.SampleLevel(samTerrainHeightmap, tcLand + texelCenter, mip).r);
 	}
 	const float landMask = ToLandMask(landHeight);
@@ -101,8 +103,8 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
-	const float3 eyePos = g_ubWaterVS._eyePos_mapSideInv.xyz;
-	const float mapSideInv = g_ubWaterVS._eyePos_mapSideInv.w;
+	const float3 eyePos = g_ubWaterVS._eyePos_invMapSide.xyz;
+	const float invMapSide = g_ubWaterVS._eyePos_invMapSide.w;
 	const float waterScale = g_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.x;
 	const float distToMipScale = g_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.y;
 	const float landDistToMipScale = g_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.z;
@@ -116,7 +118,7 @@ VSO mainVS(VSI si)
 	const float2 height_landHeight = GetWaterHeightAt(
 		g_texTerrainHeightmapVS, g_samTerrainHeightmapVS,
 		g_texGenHeightmapVS, g_samGenHeightmapVS,
-		posW.xz, waterScale, mapSideInv,
+		posW.xz, waterScale, invMapSide,
 		distToEye, distToMipScale, landDistToMipScale);
 
 	const float2 tc0 = posW.xz * waterScale;
@@ -137,11 +139,11 @@ VSO mainVS(VSI si)
 
 	so.pos = mul(float4(posW, 1), g_ubWaterVS._matVP);
 	so.tc0 = tc0;
-	so.tcLand_height.xy = (posW.xz + 0.5) * mapSideInv + 0.5;
+	so.tcLand_height.xy = (posW.xz + 0.5) * invMapSide + 0.5;
 	so.tcLand_height.z = height_landHeight.x;
 	so.tcScreen = mul(float4(posW, 1), g_ubWaterVS._matScreen);
 	so.dirToEye_depth.xyz = dirToEye;
-	so.dirToEye_depth.w = so.pos.z;
+	so.dirToEye_depth.w = so.pos.w;
 	so.posW = posW;
 
 	return so;
@@ -160,28 +162,28 @@ FSO mainFS(VSO si)
 	const float height = si.tcLand_height.z;
 	const float3 dirToEye = normalize(si.dirToEye_depth.xyz);
 	const float depth = si.dirToEye_depth.w;
+	const float depthFactor = sqrt(depth);
 
 	const float4 tcScreenInv = 1.0 / si.tcScreen;
 	const float perspectScale = tcScreenInv.z;
 	const float2 tcScreen = si.tcScreen.xy * tcScreenInv.w;
 
 	// <Land>
-	float beachWaterHeight;
 	float landHeight;
 	float landMask;
-	float landMaskStatic;
+	float landMaskStillWater;
 	{
-		beachWaterHeight = g_texGenHeightmap.SampleLevel(g_samGenHeightmap, si.tc0 + g_beachTexelCenter, g_beachMip).r * g_beachHeightScale + g_adjustHeightBy;
-		landHeight = UnpackTerrainHeight(g_texTerrainHeightmap.Sample(g_samTerrainHeightmap, si.tcLand_height.xy).r);
+		const float beachWaterHeight = g_texGenHeightmap.SampleLevel(g_samGenHeightmap, si.tc0 + g_beachTexelCenter, g_beachMip).r * g_beachHeightScale + g_adjustHeightBy;
+		landHeight = UnpackTerrainHeight(g_texTerrainHeightmap.SampleLevel(g_samTerrainHeightmap, si.tcLand_height.xy, 0.0).r);
 		landMask = ToLandMask(landHeight - beachWaterHeight);
-		landMaskStatic = lerp(saturate((ToLandMask(landHeight) - 0.8) * 5.0), landMask, 0.1);
+		landMaskStillWater = lerp(saturate((ToLandMask(landHeight) - 0.8) * 5.0), landMask, 0.1);
 	}
 	const float alpha = saturate((1.0 - landMask) * 20.0);
 	// </Land>
 
 	// <Waves>
 	float wave;
-	float fresnelDimmer; // A trick to make waves look more 3D.
+	float fresnelWaveFactor; // A trick to make waves look more 3D.
 	{
 		const float phaseShift = saturate(g_texFoam.SampleLevel(g_samFoam, si.tc0 * g_shadeScale, 4.0).r * 2.0);
 		const float wavesZoneMask = saturate(1.0 - g_wavesZoneMaskContrast * abs(landHeight - g_wavesZoneMaskCenter));
@@ -192,15 +194,15 @@ FSO mainFS(VSO si)
 		const float wavesMask = saturate(1.0 - 0.5 * min(absDeltaAsym.x, absDeltaAsym.y));
 		wave = wavesMask * wavesZoneMask;
 		const float biggerWavesMask = saturate(1.0 - 0.5 * min(absDelta.x, absDelta.y));
-		fresnelDimmer = saturate(1.0 - biggerWavesMask * wavesZoneMask * 1.5);
+		fresnelWaveFactor = saturate(1.0 - biggerWavesMask * wavesZoneMask * 1.5);
 	}
 	// </Waves>
 
 	// <Normal>
 	float3 normal;
 	{
-		const float3 rawNormal = g_texGenNormals.Sample(g_samGenNormals, si.tc0).rgb;
-		const float3 normalWithLand = lerp(rawNormal, float3(0.5, 0.5, 1), saturate(landMask * 0.8 + wave));
+		const float3 normalSam = g_texGenNormals.Sample(g_samGenNormals, si.tc0).rgb;
+		const float3 normalWithLand = lerp(normalSam, float3(0.5, 0.5, 1), saturate(landMask * 0.8 + wave));
 		normal = normalize(normalWithLand.xzy * float3(-2, 2, -2) + float3(1, -1, 1));
 	}
 	// </Normal>
@@ -208,31 +210,35 @@ FSO mainFS(VSO si)
 	// <Reflection>
 	float3 reflectColor;
 	{
-		const float fudgeFactor = 32.0;
+		const float fudgeFactor = 100.0;
 		const float3 flatReflect = reflect(-dirToEye, float3(0, 1, 0));
 		const float3 bumpReflect = reflect(-dirToEye, normal);
-		const float3 delta = bumpReflect - flatReflect;
+		const float3 delta = max(bumpReflect - flatReflect, float3(-1, 0, -1)); // Don't look under the terrain.
 		const float2 viewSpaceOffsetPerMeter = mul(float4(delta, 0), g_ubWaterFS._matV).xy;
 		const float2 offset = viewSpaceOffsetPerMeter * saturate(perspectScale) * camScale * fudgeFactor;
-		reflectColor = g_texReflection.Sample(g_samReflection, tcScreen + max(offset, float2(-1, 0))).rgb;
-		reflectColor = ReflectionDimming(reflectColor, 0.8);
+		const float2 blurScale = float2(1.0, max(1.0, depthFactor));
+		const float2 tc = tcScreen + float2(offset.x, 0.005 + max(0.0, offset.y));
+		const float2 tcddx = ddx(tc) * blurScale;
+		const float2 tcddy = ddy(tc) * blurScale;
+		reflectColor = g_texReflection.SampleGrad(g_samReflection, tc, tcddx, tcddy).rgb;
 	}
 	// </Reflection>
 
 	// <Refraction>
 	float3 refractColor;
 	{
-		const float fudgeFactor = (0.1 + 0.9 * abs(dirToEye.y) * abs(dirToEye.y)) * 2.5;
-		const float waterDepth = -landHeight;
-		const float2 tcScreen2 = tcScreen * 2.0 - 1.0;
-		const float mask = saturate(dot(tcScreen2, tcScreen2));
-		const float3 bumpRefract = refract(-dirToEye, normal, 1.0 / 1.33);
+		const float fudgeFactor = (0.1 + 0.9 * abs(dirToEye.y) * abs(dirToEye.y)) * 3.0;
+		const float2 tcScreen2 = 1.0 - abs(tcScreen * 2.0 - 1.0);
+		const float mask = tcScreen2.x * tcScreen2.y;
+		const float3 bumpRefract = CheapRefract(-dirToEye, normal);
 		const float3 delta = bumpRefract + dirToEye;
-		const float2 viewSpaceOffsetPerMeter = mul(float4(delta, 0), g_ubWaterFS._matV).xy * (1.0 - mask);
-		const float2 offset = viewSpaceOffsetPerMeter * waterDepth * saturate(perspectScale) * camScale * fudgeFactor;
-		const float2 tcRefractR = tcScreen + offset * 0.9;
-		const float2 tcRefractG = tcScreen + offset * 1.0;
-		const float2 tcRefractB = tcScreen + offset * 1.1;
+		const float2 viewSpaceOffsetPerMeter = mul(float4(delta, 0), g_ubWaterFS._matV).xy * mask;
+		const float2 offset = viewSpaceOffsetPerMeter * saturate(perspectScale) * camScale * fudgeFactor * abs(landHeight);
+		const float underwaterMask = g_texGBuffer3.SampleLevel(g_samGBuffer3, tcScreen + offset, 0.0).b;
+		const float2 finalOffset = offset * underwaterMask;
+		const float2 tcRefractR = tcScreen + finalOffset * 0.9;
+		const float2 tcRefractG = tcScreen + finalOffset * 1.0;
+		const float2 tcRefractB = tcScreen + finalOffset * 1.1;
 		refractColor = float3(
 			g_texRefraction.SampleLevel(g_samRefraction, tcRefractR, 0.0).r,
 			g_texRefraction.SampleLevel(g_samRefraction, tcRefractG, 0.0).g,
@@ -242,9 +248,19 @@ FSO mainFS(VSO si)
 
 	const float shade = g_texFoam.Sample(g_samFoam, si.tc0 * g_shadeScale).r;
 
+	// <Plankton>
+	float3 planktonColor;
+	float refractMask;
+	{
+		const float planktonMask = ToWaterPlanktonMask(landHeight);
+		planktonColor = lerp(g_ubWaterFS._diffuseColorDeep.rgb, g_ubWaterFS._diffuseColorShallow.rgb, planktonMask);
+		planktonColor *= 0.4 + 0.6 * saturate(shade - wave);
+		refractMask = saturate((planktonMask - 0.75) * 4.0);
+	}
+	// </Plankton>
+
 	// <Foam>
 	float4 foamColor;
-	float foamHeightAlpha;
 	{
 		const float2 tcFoam = si.tc0 * g_foamScale;
 		const float2 tcFoamA = tcFoam + phase + float2(0.5, 0.0);
@@ -252,43 +268,28 @@ FSO mainFS(VSO si)
 		const float3 foamColorA = g_texFoam.Sample(g_samFoam, tcFoamA).rgb;
 		const float3 foamColorB = g_texFoam.Sample(g_samFoam, tcFoamB).rgb;
 		foamColor.rgb = lerp(foamColorA, foamColorB, 0.5);
-		foamColor.a = saturate(foamColor.b * 2.0);
+		foamColor.a = saturate(foamColor.b * 3.0); // Tweak.
 
-		const float a = saturate(height - 0.1);
+		const float solidMask = saturate((landMask - 0.8) * 5.0) * shade;
+		foamColor = lerp(foamColor, 1.0, max(solidMask, saturate(wave * 0.75)));
+
+		const float a = saturate(height - 0.25);
 		const float a2 = a * a;
 		const float a4 = a2 * a2;
-		foamHeightAlpha = saturate(a4 * a4 + wave * 0.75);
+		const float heightBasedAlpha = saturate(a4 * a4 + wave * 0.75);
 
-		const float complement = 1.0 - shade;
-		const float mask = saturate((landMask - 0.9) * 10.0 * (1.0 - shade * 3.0)) * complement * complement;
-		const float superfoam = saturate(mask * (1.0 - mask) * 3.0);
-		foamColor = lerp(foamColor, 1.0, max(superfoam * superfoam, saturate(wave * 0.75)));
+		foamColor.rgb = saturate(foamColor.rgb + 0.5); // Tweak.
+		foamColor.a = 0.002 + 0.998 * foamColor.a * saturate(landMaskStillWater + heightBasedAlpha);
 	}
-	const float foamAlpha = 0.002 + 0.998 * saturate(landMaskStatic + foamHeightAlpha) * foamColor.a;
 	// </Foam>
 
-	// <Plankton>
-	float3 planktonColor;
-	float refractMask;
-	{
-		const float diffuseMask = ToWaterDiffuseMask(landHeight);
-		planktonColor = lerp(g_ubWaterFS._diffuseColorDeep.rgb, g_ubWaterFS._diffuseColorShallow.rgb, diffuseMask);
-		planktonColor *= 0.1 + 0.2 * saturate(shade - wave);
-		refractMask = saturate((diffuseMask - 0.75) * 4.0);
-	}
-	// </Plankton>
-
-	const float spec = lerp(1.0, 0.1, foamAlpha);
-	const float gloss = lerp(1200.0, 4.0, foamAlpha);
-
-	const float2 lamScaleBias = float2(1, 0.2);
+	const float wrapDiffuse = 1.0;
 
 	// <Shadow>
 	float shadowMask;
 	{
 		float4 shadowConfig = g_ubWaterFS._shadowConfig;
-		const float lamBiasMask = saturate(lamScaleBias.y * shadowConfig.y);
-		shadowConfig.y = 1.0 - lamBiasMask; // Keep penumbra blurry.
+		shadowConfig.y = 0.5;
 		const float3 posForShadow = AdjustPosForShadow(si.posW, normal, g_ubWaterFS._dirToSun.xyz, depth);
 		shadowMask = ShadowMapCSM(
 			g_texShadowCmp,
@@ -307,24 +308,29 @@ FSO mainFS(VSO si)
 	}
 	// </Shadow>
 
-	const float4 litRet = VerusLit(g_ubWaterFS._dirToSun.xyz, normal, dirToEye,
-		gloss,
-		lamScaleBias,
-		float4(0, 0, 1, 0),
-		1.0);
+	const float3 albedo = lerp(planktonColor, foamColor.rgb, foamColor.a);
+	const float roughness = clamp(lerp(0.05, 0.75, foamColor.a) * depthFactor * 0.1, 0.05, 1.0);
 
-	const float fresnelTerm = FresnelSchlick(0.03, 0.6 * fresnelDimmer, litRet.w);
+	float3 punctualDiff, punctualSpec, fresnel;
+	VerusWaterLit(normal, g_ubWaterFS._dirToSun.xyz, dirToEye,
+		albedo,
+		roughness, wrapDiffuse,
+		punctualDiff, punctualSpec, fresnel);
 
-	const float3 diff = litRet.y * g_ubWaterFS._sunColor.rgb * shadowMask + g_ubWaterFS._ambientColor.rgb;
-	const float3 diffColorFoam = foamColor.rgb * diff;
-	const float3 diffColorOpaque = planktonColor * diff;
-	const float3 diffColor = lerp(lerp(diffColorOpaque, refractColor, refractMask), diffColorFoam, foamAlpha);
-	const float3 specColor = max(litRet.z * g_ubWaterFS._sunColor.rgb * shadowMask * spec, reflectColor) * fresnelTerm;
+	punctualDiff *= g_ubWaterFS._sunColor.rgb * shadowMask;
+	punctualSpec *= g_ubWaterFS._sunColor.rgb * shadowMask;
+
+	const float3 diff = lerp(albedo * (punctualDiff + g_ubWaterFS._ambientColor.rgb), refractColor, refractMask * (1.0 - foamColor.a));
+	const float3 spec = max(punctualSpec, reflectColor);
+
+	const float3 color = lerp(diff, spec, fresnel * fresnelWaveFactor);
 
 	const float fog = ComputeFog(depth, g_ubWaterFS._fogColor.a);
 
-	so.color.rgb = lerp(diffColor * (1.0 - fresnelTerm) + specColor, g_ubWaterFS._fogColor.rgb, fog);
+	so.color.rgb = lerp(color, g_ubWaterFS._fogColor.rgb, fog);
 	so.color.a = alpha;
+
+	so.color.rgb = SaturateHDR(so.color.rgb);
 
 	clip(so.color.a - 0.01);
 

@@ -39,7 +39,8 @@ void CubeMapBaker::Init(int side)
 	texDesc._format = CGI::Format::floatR11G11B10;
 	texDesc._width = _side;
 	texDesc._height = _side;
-	texDesc._flags = CGI::TextureDesc::Flags::colorAttachment | CGI::TextureDesc::Flags::cubeMap;
+	texDesc._mipLevels = 0;
+	texDesc._flags = CGI::TextureDesc::Flags::colorAttachment | CGI::TextureDesc::Flags::generateMips | CGI::TextureDesc::Flags::cubeMap;
 	_tex[TEX_COLOR].Init(texDesc);
 	texDesc.Reset();
 	texDesc._name = "CubeMapBaker.DepthTex";

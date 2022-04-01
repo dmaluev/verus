@@ -38,6 +38,7 @@ void Async::Load(CSZ url, PAsyncDelegate pDelegate, RcTaskDesc desc)
 {
 	VERUS_RT_ASSERT(IsInitialized());
 	VERUS_RT_ASSERT(!_inUpdate); // Not allowed to call Load() in Update().
+	VERUS_RT_ASSERT(url && *url);
 
 	// If the queue is full we must block until something gets processed:
 	bool full = false;

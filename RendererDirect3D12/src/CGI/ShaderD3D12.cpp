@@ -401,7 +401,7 @@ void ShaderD3D12::CreatePipelineLayout()
 	_pRootSignature->SetName(_C(Str::Utf8ToWide("RootSignature (" + _sourceName + ")")));
 }
 
-CSHandle ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips)
+CSHandle ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMipLevels, const int* pArrayLayers)
 {
 	VERUS_QREF_RENDERER_D3D12;
 
@@ -442,7 +442,9 @@ CSHandle ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_
 	for (auto x : il)
 	{
 		complexSet._vTextures.push_back(x);
-		const int mip = pMips ? pMips[index] : 0;
+		const int mipLevelCount = x->GetMipLevelCount();
+		const int mipLevel = pMipLevels ? pMipLevels[index] : 0;
+		const int arrayLayer = pArrayLayers ? pArrayLayers[index] : 0;
 		auto& texD3D12 = static_cast<RTextureD3D12>(*x);
 		if (Sampler::storage == dsd._vSamplers[index])
 		{
@@ -450,14 +452,14 @@ CSHandle ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_
 			{
 				pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
 					CD3DX12_CPU_DESCRIPTOR_HANDLE(complexSet._hpBase._hCPU, 1 + index, pRendererD3D12->GetViewHeap().GetHandleIncrementSize()),
-					texD3D12.GetDescriptorHeapUAV().AtCPU(mip),
+					texD3D12.GetDescriptorHeapUAV().AtCPU(mipLevel + arrayLayer * (mipLevelCount - 1)),
 					D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 			}
 			else
 			{
 				pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
 					complexSet._dhViews.AtCPU(index),
-					texD3D12.GetDescriptorHeapUAV().AtCPU(mip),
+					texD3D12.GetDescriptorHeapUAV().AtCPU(mipLevel + arrayLayer * (mipLevelCount - 1)),
 					D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 			}
 		}
@@ -467,14 +469,14 @@ CSHandle ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_
 			{
 				pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
 					CD3DX12_CPU_DESCRIPTOR_HANDLE(complexSet._hpBase._hCPU, 1 + index, pRendererD3D12->GetViewHeap().GetHandleIncrementSize()),
-					texD3D12.GetDescriptorHeapSRV().AtCPU(mip),
+					texD3D12.GetDescriptorHeapSRV().AtCPU(mipLevel + arrayLayer * mipLevelCount),
 					D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 			}
 			else
 			{
 				pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
 					complexSet._dhViews.AtCPU(index),
-					texD3D12.GetDescriptorHeapSRV().AtCPU(mip),
+					texD3D12.GetDescriptorHeapSRV().AtCPU(mipLevel + arrayLayer * mipLevelCount),
 					D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 			}
 			if (Sampler::custom == dsd._vSamplers[index])
@@ -578,7 +580,7 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, in
 		if (dsd._offset + dsd._alignedSize > dsd._capacityInBytes)
 		{
 			VERUS_RT_FAIL("UniformBuffer is full.");
-			return CD3DX12_GPU_DESCRIPTOR_HANDLE();
+			return CD3DX12_GPU_DESCRIPTOR_HANDLE(D3D12_DEFAULT);
 		}
 
 		VERUS_RT_ASSERT(dsd._pMappedData);
@@ -629,9 +631,9 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateSamplers(int setNumber, int com
 
 	auto& dsd = _vDescriptorSetDesc[setNumber];
 	if (dsd._staticSamplersOnly)
-		return CD3DX12_GPU_DESCRIPTOR_HANDLE();
+		return CD3DX12_GPU_DESCRIPTOR_HANDLE(D3D12_DEFAULT);
 
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hOffset = CD3DX12_GPU_DESCRIPTOR_HANDLE();
+	CD3DX12_GPU_DESCRIPTOR_HANDLE hOffset(D3D12_DEFAULT);
 	const auto& complexSet = _vComplexSets[complexSetHandle];
 	const int maxCount = Utils::Cast32(complexSet._vTextures.size());
 	VERUS_FOR(i, maxCount)

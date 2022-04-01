@@ -124,7 +124,7 @@ namespace verus
 			Math::Bounds GetBounds() const;
 
 			template<typename T>
-			void ForEachVertex(const T& fn) const
+			void ForEachVertex(const T& fn, bool boneIndices = false) const
 			{
 				VERUS_FOR(i, _vertCount)
 				{
@@ -133,8 +133,28 @@ namespace verus
 					DequantizeUsingDeq3D(_vBinding0[i]._pos, _posDeq, pos);
 					DequantizeNrm(_vBinding0[i]._nrm, nrm);
 					DequantizeUsingDeq2D(_vBinding0[i]._tc0, _tc0Deq, tc);
-					if (Continue::no == fn(i, pos, nrm, tc))
-						break;
+					if (_vBinding1.empty() || !boneIndices)
+					{
+						if (Continue::no == fn(i, pos, nrm, tc))
+							break;
+					}
+					else
+					{
+						bool done = false;
+						VERUS_FOR(j, 4)
+						{
+							if (_vBinding1[i]._bw[j] > 0)
+							{
+								if (Continue::no == fn(_vBinding1[i]._bi[j], pos, nrm, tc))
+								{
+									done = true;
+									break;
+								}
+							}
+						}
+						if (done)
+							break;
+					}
 				}
 			}
 

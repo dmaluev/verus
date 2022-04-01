@@ -9,20 +9,27 @@ namespace verus
 		{
 #include "../Shaders/Ssr.inc.hlsl"
 
+			enum PIPE
+			{
+				PIPE_MAIN,
+				PIPE_DEBUG_CUBE_MAP,
+				PIPE_COUNT
+			};
+
 			static UB_SsrVS s_ubSsrVS;
 			static UB_SsrFS s_ubSsrFS;
 
-			CGI::ShaderPwn   _shader;
-			CGI::PipelinePwn _pipe;
-			CGI::RPHandle    _rph;
-			CGI::FBHandle    _fbh;
-			CGI::CSHandle    _csh;
-			float            _radius = 2.5f;
-			float            _depthBias = 0.03f;
-			float            _thickness = 0.25f;
-			float            _equalizeDist = 12;
-			bool             _blur = true;
-			bool             _editMode = false;
+			CGI::ShaderPwn                _shader;
+			CGI::PipelinePwns<PIPE_COUNT> _pipe;
+			CGI::RPHandle                 _rph;
+			CGI::FBHandle                 _fbh;
+			CGI::CSHandle                 _csh;
+			float                         _radius = 2.2f;
+			float                         _depthBias = 0.03f;
+			float                         _thickness = 0.3f;
+			float                         _equalizeDist = 20;
+			bool                          _cubeMapDebugMode = false;
+			bool                          _editMode = false;
 
 		public:
 			Ssr();
@@ -33,7 +40,12 @@ namespace verus
 
 			void OnSwapChainResized();
 
+			bool BindDescriptorSetTextures();
+
 			void Generate();
+
+			bool IsCubeMapDebugMode() const { return _cubeMapDebugMode; }
+			void ToggleCubeMapDebugMode() { _cubeMapDebugMode = !_cubeMapDebugMode; }
 
 			bool IsEditMode() const { return _editMode; }
 			void ToggleEditMode() { _editMode = !_editMode; }

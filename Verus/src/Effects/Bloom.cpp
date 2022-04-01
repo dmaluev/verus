@@ -139,10 +139,10 @@ void Bloom::Generate()
 	{
 		ImGui::DragFloat("Bloom colorScale", &_colorScale, 0.01f);
 		ImGui::DragFloat("Bloom colorBias", &_colorBias, 0.01f);
-		ImGui::DragFloat("Bloom (god rays) maxDist", &_maxDist, 0.1f);
-		ImGui::DragFloat("Bloom (god rays) sunGloss", &_sunGloss, 0.1f);
-		ImGui::DragFloat("Bloom (god rays) wideStrength", &_wideStrength, 0.01f);
-		ImGui::DragFloat("Bloom (god rays) sunStrength", &_sunStrength, 0.01f);
+		ImGui::DragFloat("Bloom (light shafts) maxDist", &_maxDist, 0.1f);
+		ImGui::DragFloat("Bloom (light shafts) sunGloss", &_sunGloss, 0.1f);
+		ImGui::DragFloat("Bloom (light shafts) wideStrength", &_wideStrength, 0.01f);
+		ImGui::DragFloat("Bloom (light shafts) sunStrength", &_sunStrength, 0.01f);
 		ImGui::Checkbox("Bloom blur", &_blur);
 		ImGui::Checkbox("Bloom (light shafts) blur", &_blurLightShafts);
 	}
@@ -151,9 +151,9 @@ void Bloom::Generate()
 
 	s_ubBloomVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubBloomVS._matV = Math::ToUVMatrix().UniformBufferFormat();
-	s_ubBloomFS._exposure.x = renderer.GetExposure();
-	s_ubBloomFS._colorScale_colorBias.x = _colorScale;
-	s_ubBloomFS._colorScale_colorBias.y = _colorBias;
+	s_ubBloomFS._colorScale_colorBias_exposure.x = _colorScale;
+	s_ubBloomFS._colorScale_colorBias_exposure.y = _colorBias;
+	s_ubBloomFS._colorScale_colorBias_exposure.z = renderer.GetExposure();
 
 	cb->BeginRenderPass(_rph, _fbh, { _tex[TEX_PING]->GetClearValue() });
 

@@ -35,6 +35,7 @@ namespace verus
 			virtual bool ReadbackSubresource(void* p, bool recordCopyCommand, PBaseCommandBuffer pCB) override;
 
 			virtual void GenerateMips(PBaseCommandBuffer pCB) override;
+			void GenerateCubeMapMips(PBaseCommandBuffer pCB);
 
 			virtual Continue Scheduled_Update() override;
 

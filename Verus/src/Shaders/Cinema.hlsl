@@ -48,8 +48,8 @@ FSO mainFS(VSO si)
 	const float brightness = g_ubCinemaFS._brightness_noiseStrength.x;
 	const float noiseStrength = g_ubCinemaFS._brightness_noiseStrength.y;
 
-	const float3 rawFilmGrain = g_texFilmGrain.Sample(g_samFilmGrain, si.tcFilmGrain).rgb;
-	const float3 filmGrain = lerp(1.0, 0.5 + rawFilmGrain.rgb, noiseStrength);
+	const float3 filmGrainSam = g_texFilmGrain.Sample(g_samFilmGrain, si.tcFilmGrain).rgb;
+	const float3 filmGrain = lerp(1.0, 0.5 + filmGrainSam.rgb, noiseStrength);
 
 	// Vignette:
 	const float2 tcOffset = si.tc0 * 1.4 - 0.7;

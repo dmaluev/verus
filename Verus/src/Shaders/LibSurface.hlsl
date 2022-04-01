@@ -5,17 +5,11 @@ float ComputeNormalZ(float2 v)
 	return sqrt(saturate(1.0 - dot(v.xy, v.xy)));
 }
 
-float4 NormalMapAA(float4 rawNormal)
+float3 NormalMapFromBC5(float4 normalSam, float contrast = -2.0)
 {
-	float3 normal = rawNormal.agb * -2.0 + 1.0; // Dmitry's reverse!
+	float3 normal = (normalSam.rgb - 0.5) * contrast;
 	normal.z = ComputeNormalZ(normal.xy);
-	const float len = rawNormal.b + 0.5;
-	return float4(normal, len * len);
-}
-
-float ComputeToksvigFactor(float len, float gloss)
-{
-	return len / lerp(gloss + _SINGULARITY_FIX, 1.0, len);
+	return normal;
 }
 
 float3 ComputeNormals(Texture2D tex, SamplerState sam, float2 tc, float damp, int scale = 1)

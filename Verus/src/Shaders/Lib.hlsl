@@ -62,15 +62,31 @@
 #	define _PER_INSTANCE_DATA
 #endif
 
+// <Constants>
+#define _PI 3.141592654
+#define _SINGULARITY_FIX 0.001
+#define _MAX_TERRAIN_LAYERS 32
+// </Constants>
+
+static const float2 _POINT_SPRITE_POS_OFFSETS[4] =
+{
+	float2(-0.5,  0.5),
+	float2(-0.5, -0.5),
+	float2(0.5,  0.5),
+	float2(0.5, -0.5)
+};
+static const float2 _POINT_SPRITE_TEX_COORDS[4] =
+{
+	float2(0, 0),
+	float2(0, 1),
+	float2(1, 0),
+	float2(1, 1)
+};
+
+// <TheMatrix>
 #define _TBN_SPACE(tan, bin, nrm)\
 	const float3x3 matFromTBN = float3x3(tan, bin, nrm);\
 	const float3x3 matToTBN   = transpose(matFromTBN);
-
-#define _PI 3.141592654
-
-#define _SINGULARITY_FIX 0.001
-
-#define _MAX_TERRAIN_LAYERS 32
 
 matrix ToFloat4x4(mataff m)
 {
@@ -80,7 +96,9 @@ matrix ToFloat4x4(mataff m)
 		float4(m[2], 0),
 		float4(m[3], 1));
 }
+// </TheMatrix>
 
+// <ScreenSpace>
 float2 ToNdcPos(float2 tc)
 {
 	return tc * float2(2, -2) - float2(1, -1);
@@ -90,6 +108,87 @@ float2 ToTexCoords(float2 ndcPos)
 {
 	return ndcPos * float2(0.5, -0.5) + 0.5;
 }
+// </ScreenSpace>
+
+// <Random>
+uint3 PcgHash3(uint3 v)
+{
+	v = v * 1664525u + 1013904223u;
+
+	v.x += v.y * v.z;
+	v.y += v.z * v.x;
+	v.z += v.x * v.y;
+
+	v ^= v >> 16u;
+
+	v.x += v.y * v.z;
+	v.y += v.z * v.x;
+	v.z += v.x * v.y;
+
+	return v;
+}
+
+uint4 PcgHash4(uint4 v)
+{
+	v = v * 1664525u + 1013904223u;
+
+	v.x += v.y * v.w;
+	v.y += v.z * v.x;
+	v.z += v.x * v.y;
+	v.w += v.y * v.z;
+
+	v ^= v >> 16u;
+
+	v.x += v.y * v.w;
+	v.y += v.z * v.x;
+	v.z += v.x * v.y;
+	v.w += v.y * v.z;
+
+	return v;
+}
+
+float3 Rand(float2 v)
+{
+	return PcgHash3(uint3(v, 0)) * (1.0 / float(0xFFFFFFFFu));
+}
+
+float4 Rand4(float2 v)
+{
+	return PcgHash4(uint4(v, v)) * (1.0 / float(0xFFFFFFFFu));
+}
+
+float3 RandomColor(float2 pos, float randLum, float randRGB)
+{
+	const float4 r = Rand4(pos);
+	return ((1.0 - randLum - randRGB) * 0.5) + r.a * randLum + r.rgb * randRGB;
+}
+
+float3 NormalDither(float3 rand)
+{
+	const float2 rr = rand.xy * (1.0 / 400.0) - (0.5 / 400.0);
+	return float3(rr, 0);
+}
+
+float Dither2x2(float2 fragCoord)
+{
+	const float2 pos = floor(fragCoord);
+	const float scale = 0.5;
+	return frac((pos.x + pos.y) * scale) + frac(pos.x * scale) * scale;
+}
+
+float Dither3x3(float2 fragCoord)
+{
+	const float2 pos = floor(fragCoord);
+	const float scale = 1.0 / 3.0;
+	return frac((pos.x + pos.y) * scale) + frac(pos.x * scale) * scale;
+}
+// </Random>
+
+// <Math>
+float ComputeFade(float x, float from, float to)
+{
+	return saturate((x - from) * (1.0 / (to - from)));
+}
 
 // Asymmetric abs():
 float2 AsymAbs(float2 x, float negScale = -1.0, float posScale = 1.0)
@@ -97,74 +196,53 @@ float2 AsymAbs(float2 x, float negScale = -1.0, float posScale = 1.0)
 	return x * lerp(posScale, negScale, step(x, 0.0));
 }
 
-float3 Rand(float2 uv)
+float SinAcos(float x) // sin(acos(x))
 {
-	return frac(sin(dot(uv, float2(12.9898, 78.233)) * float3(1, 2, 3)) * 43758.5453);
+	return sqrt(saturate(1.0 - x * x));
 }
-
-float4 Rand2(float2 pos)
-{
-	const float4 primeA = float4(9.907, 9.923, 9.929, 9.931);
-	const float4 primeB = float4(9.941, 9.949, 9.967, 9.973);
-	return frac(primeA * pos.x + primeB * pos.y);
-}
-
-float3 RandomColor(float2 pos, float randLum, float randRGB)
-{
-	const float4 r = Rand2(pos);
-	return (1.0 - randLum - randRGB) + r.a * randLum + r.rgb * randRGB;
-}
-
-float3 NormalDither(float3 rand)
-{
-	const float2 rr = rand.xy * (1.0 / 333.0) - (0.5 / 333.0);
-	return float3(rr, 0);
-}
-
-static const float2 _POINT_SPRITE_POS_OFFSETS[4] =
-{
-	float2(-0.5,  0.5),
-	float2(-0.5, -0.5),
-	float2(0.5,  0.5),
-	float2(0.5, -0.5)
-};
-
-static const float2 _POINT_SPRITE_TEX_COORDS[4] =
-{
-	float2(0, 0),
-	float2(0, 1),
-	float2(1, 0),
-	float2(1, 1)
-};
+// </Math>
 
 // <PhysicallyBasedRendering>
-
-float3 ToRealAlbedo(float3 albedo)
+// See: https://en.wikipedia.org/wiki/Schlick%27s_approximation
+float3 FresnelSchlick(float3 f0, float3 f1, float pow5)
 {
-	return max(albedo.rgb * 0.5, 0.0001);
+	return f0 + f1 * pow5;
 }
 
-float3 ToMetalColor(float3 albedo)
+float3 CheapRefract(float3 i, float3 n)
 {
-	const float gray = dot(albedo, 1.0 / 3.0);
-	return saturate(albedo / (gray + _SINGULARITY_FIX));
+	return lerp(i, -n, 0.5);
 }
 
 // Prevent values from reaching inf and nan.
-float3 ToSafeHDR(float3 hdr)
+float3 SaturateHDR(float3 hdr)
 {
-	// Typical ambient is 4000.
-	// Typical sunlight is 16000.
+	// Typical ambient lit surface is 4000.
+	// Typical sunlight lit surface is 16000.
 	return clamp(hdr, 0.0, 32000.0);
 }
 
-// See: https://en.wikipedia.org/wiki/Schlick%27s_approximation
-float FresnelSchlick(float minRef, float maxAdd, float power)
+// If two channels are mutually exclusive, they can be stored as one channel:
+float CombineMutexChannels(float2 x)
 {
-	return saturate(minRef + maxAdd * power);
+	return saturate((x.x - x.y) * 0.5 + 0.5);
 }
-
+float2 SeparateMutexChannels(float x)
+{
+	const float x2 = x * 2.0;
+	return saturate(float2(x2 - 1.0, 1.0 - x2));
+}
+float2 CleanMutexChannels(float2 x) // Filter out BC7 compression artifacts:
+{
+	return saturate((x - (15.0 / 255.0)) * (255.0 / 240.0));
+}
 // </PhysicallyBasedRendering>
+
+// <Misc>
+float AlphaToResolveDitheringMask(float alpha)
+{
+	return 1.0 - floor(alpha + (15.0 / 255.0));
+}
 
 float UnpackTerrainHeight(float height)
 {
@@ -176,16 +254,10 @@ float ToLandMask(float height)
 	return saturate(height * 0.2 + 1.0); // [-5 to 0] -> [0 to 1]
 }
 
-float ToWaterDiffuseMask(float height)
+float ToWaterPlanktonMask(float height)
 {
 	const float mask = saturate(height * 0.02 + 1.0); // [-50 to 0] -> [0 to 1]
 	return mask * mask * mask;
-}
-
-float3 ReflectionDimming(float3 hdr, float scale)
-{
-	const float gray = dot(hdr, 1.0 / 3.0);
-	return lerp(hdr * scale, hdr, saturate(gray * (1.0 / 65536.0)));
 }
 
 // Also known as The Multiplier Map, for hemicube's shape compensation.
@@ -245,3 +317,4 @@ float ComputeHemicubeMask(float2 tc)
 		}
 	}
 }
+// </Misc>

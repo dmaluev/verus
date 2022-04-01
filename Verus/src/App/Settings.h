@@ -57,7 +57,7 @@ namespace verus
 			bool         _postProcessSSAO = true;
 			bool         _postProcessSSR = false;
 			bool         _sceneAmbientOcclusion = false;
-			int	         _sceneGrassDensity = 800;
+			int	         _sceneGrassDensity = 600;
 			Quality      _sceneShadowQuality = Quality::medium;
 			WaterQuality _sceneWaterQuality = WaterQuality::solidColor;
 
@@ -83,6 +83,7 @@ namespace verus
 			int _ds_ubAOTexturesFSCapacity = 2;
 			int _ds_ubAOPerMeshVSCapacity = 10;
 			int _generateMips_ubCapacity = 50;
+			int _generateCubeMapMips_ubCapacity = 50;
 			int _grass_ubVSCapacity = 4;
 			int _grass_ubFSCapacity = 4;
 			int _gui_ubGuiCapacity = 100;

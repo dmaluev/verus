@@ -245,7 +245,7 @@ void ShaderVulkan::CreateDescriptorSet(int setNumber, const void* pSrc, int size
 	if (capacity > 0)
 	{
 		const VkDeviceSize bufferSize = dsd._capacityInBytes * BaseRenderer::s_ringBufferSize;
-		pRendererVulkan->CreateBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,
+		pRendererVulkan->CreateBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, HostAccess::sequentialWrite,
 			dsd._buffer, dsd._vmaAllocation);
 	}
 
@@ -405,7 +405,7 @@ void ShaderVulkan::CreatePipelineLayout()
 	}
 }
 
-CSHandle ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMips)
+CSHandle ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il, const int* pMipLevels, const int* pArrayLayers)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
@@ -451,11 +451,12 @@ CSHandle ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer
 	for (const auto& x : il)
 	{
 		auto& texVulkan = static_cast<RTextureVulkan>(*x);
-		const int mip = pMips ? pMips[index] : 0;
+		const int mipLevel = pMipLevels ? pMipLevels[index] : 0;
+		const int arrayLayer = pArrayLayers ? pArrayLayers[index] : 0;
 		VkDescriptorImageInfo vkdii = {};
 		if (Sampler::storage == dsd._vSamplers[index])
 		{
-			vkdii.imageView = texVulkan.GetStorageVkImageView(mip);
+			vkdii.imageView = texVulkan.GetStorageVkImageView(mipLevel, arrayLayer);
 			vkdii.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 		}
 		else if (Sampler::shadow == dsd._vSamplers[index])

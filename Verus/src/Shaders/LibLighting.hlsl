@@ -1,77 +1,152 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-float SinAcos(float x)
+float3 SSSHueToColor(float hue)
 {
-	return sqrt(saturate(1.0 - x * x));
+	const float3 red = float3(1, 0.006, 0.056); // Color 4 blood.
+	const float3 green = float3(0.008, 1, 0.001); // Color for plants.
+	const float x2 = hue * 2.0;
+	const float2 alpha = saturate(float2(x2 - 1.0, 1.0 - x2));
+	return lerp(lerp(1.0, green, alpha.x), red, alpha.y);
 }
 
-float EnergyNorm(float gloss)
+float3 ComputeF0(float3 albedo, float metallic)
 {
-	return (gloss + 8.0) * (1.0 / (8.0 * _PI));
+	return lerp(0.04, albedo, metallic);
+}
+
+float3 ComputeRoughnessDependentFresnel(float3 f0, float roughness)
+{
+	return max(1.0 - roughness, f0) - f0;
+}
+
+float RoughnessToMip(float roughness, float maxMipLevel)
+{
+	// Linearize the exponential function of mips.
+	const float firstMipShare = 1.0 / (exp2(maxMipLevel));
+	return 1.0 - firstMipShare * exp2((1.0 - roughness) * maxMipLevel);
+}
+
+float ComputeCavity(float3 albedo, float roughness)
+{
+	// With great roughness comes great responsibility:
+	return saturate(8.0 * max(dot(albedo, 1.0 / 3.0), 1.0 - roughness));
 }
 
 // Aka D:
-float MicrofacetDistribution(float alphaRoughnessSq, float nDotH)
+float MicrofacetDistribution(float alphaRoughnessSq, float nDosH)
 {
-	const float f = (nDotH * nDotH) * (alphaRoughnessSq - 1.0) + 1.0;
+	const float f = (nDosH * nDosH) * (alphaRoughnessSq - 1.0) + 1.0;
 	return alphaRoughnessSq / (f * f);
 }
 
 // Aka V:
-float MaskingShadowingFunction(float alphaRoughnessSq, float nDotL, float nDotV)
+float MaskingShadowingFunction(float alphaRoughnessSq, float nDosL, float nDosV)
 {
-	const float2 nDotL_nDotV = float2(nDotL, nDotV);
-	const float2 nDotLSq_nDotVSq = nDotL_nDotV * nDotL_nDotV;
-	const float2 ggxl_ggxv = nDotL_nDotV.yx * sqrt(alphaRoughnessSq + (1.0 - alphaRoughnessSq) * nDotLSq_nDotVSq);
+	const float2 nDosL_nDosV = float2(nDosL, nDosV);
+	const float2 nDosLSq_nDosVSq = nDosL_nDosV * nDosL_nDosV;
+	const float2 ggxl_ggxv = nDosL_nDosV.yx * sqrt(alphaRoughnessSq + (1.0 - alphaRoughnessSq) * nDosLSq_nDosVSq);
 	const float ggx = ggxl_ggxv.x + ggxl_ggxv.y;
 	if (ggx > 0.0)
 		return 0.5 / ggx;
 	return 0.0;
 }
 
-void VerusLit2(float3 normal, float3 dirToLight, float3 dirToEye, float metallic, float roughness, float3 albedo, out float3 diff, out float3 spec)
+void VerusLit(float3 normal, float3 dirToLight, float3 dirToEye, float3 tangent,
+	float3 albedo, float3 sssColor,
+	float roughness, float metallic, float roughDiffuse, float wrapDiffuse, float anisoSpec,
+	out float3 punctualDiff, out float3 punctualSpec)
 {
 	const float alphaRoughness = roughness * roughness;
 	const float alphaRoughnessSq = alphaRoughness * alphaRoughness;
+
 	const float3 hv = normalize(dirToLight + dirToEye);
-	const float nDotL = saturate(dot(normal, dirToLight));
-	const float nDotV = saturate(dot(normal, dirToEye));
-	const float nDotH = saturate(dot(normal, hv));
-	const float vDotH = saturate(dot(dirToEye, hv));
+	const float nDotL = dot(normal, dirToLight);
+	const float nDosL = saturate(nDotL);
+	const float nWrapL = saturate((nDotL + wrapDiffuse) / (1.0 + wrapDiffuse));
+	const float nDosV = saturate(dot(normal, dirToEye));
+	const float nDosH = saturate(dot(normal, hv));
+	const float vDosH = saturate(dot(dirToEye, hv));
+	const float aDotH = SinAcos(dot(tangent, hv));
+	// Poor man's Oren–Nayar model:
+	const float roughFactor = roughness * roughDiffuse;
+	const float2 pow5_nRoughL = pow(float2(1.0 - vDosH, nWrapL), float2(5.0, saturate((1.0 + _SINGULARITY_FIX) - roughFactor)));
+	const float nRoughL = pow5_nRoughL.y * (1.0 - 0.5 * roughFactor);
+	// Subsurface scattering:
+	const float3 sss = lerp(1.0, sssColor, saturate(-nDotL + 0.25));
+	// Anisotropic specular highlights:
+	const float ash = 1.0 - anisoSpec * 0.44; // Drop to sqrt(1/pi).
+	// Fake cavity map from albedo:
+	const float cavity = ComputeCavity(albedo, roughness);
 
-	const float3 diffuse = albedo * (1.0 - metallic);
+	const float3 f0 = ComputeF0(albedo, metallic);
+	const float3 f1 = ComputeRoughnessDependentFresnel(f0, alphaRoughness); // alphaRoughness looks better.
+	const float3 fresnel = FresnelSchlick(f0, f1, pow5_nRoughL.x);
 
-	const float3 f0 = lerp(0.04, albedo, metallic);
-	const float3 f = f0 + (1.0 - f0) * pow(saturate(1.0 - vDotH), 5.0);
-
-	diff = nDotL * (1 - f) * diffuse;
-	spec = nDotL * f * MicrofacetDistribution(alphaRoughnessSq, nDotH) * MaskingShadowingFunction(alphaRoughnessSq, nDotL, nDotV);
-
-	diff = diff + spec;
+	punctualDiff = nRoughL * (1.0 - fresnel) * (1.0 - metallic) * sss;
+	punctualSpec = nDosL * fresnel * ash * cavity *
+		MicrofacetDistribution(alphaRoughnessSq, lerp(nDosH, aDotH, anisoSpec)) *
+		MaskingShadowingFunction(alphaRoughnessSq, nDosL, nDosV);
 }
 
-float4 VerusLit(float3 dirToLight, float3 normal, float3 dirToEye, float gloss,
-	float2 lamScaleBias, float4 aniso = 0.0, float eyeFresnel = 0.0)
+void VerusSimpleLit(float3 normal, float3 dirToLight, float3 dirToEye,
+	float3 albedo,
+	float roughness, float metallic,
+	out float3 punctualDiff, out float3 punctualSpec)
 {
-	float4 ret = float4(1, 0, 0, 1);
-	const float3 hv = normalize(dirToEye + dirToLight);
-	const float nDotLRaw = dot(normal, dirToLight);
-	const float nDotL = nDotLRaw * lamScaleBias.x + lamScaleBias.y;
-	const float nDotE = dot(normal, dirToEye);
-	const float nDotH = dot(normal, hv);
-	const float aDotH = SinAcos(dot(aniso.xyz, hv));
+	const float oneMinusRoughness = 1.0 - roughness;
+	roughness = 1.0 - oneMinusRoughness * oneMinusRoughness;
 
-	const float4 spec = pow(saturate(float4(nDotH, aDotH, 1.0 - nDotL, 1.0 - nDotE)), float4(gloss, gloss * 8.0, 5, 5));
+	const float alphaRoughness = roughness * roughness;
+	const float alphaRoughnessSq = alphaRoughness * alphaRoughness;
 
-	const float maxSpec = max(spec.x, spec.y * aniso.w);
-	const float specContrast = 1.0 + gloss * (0.5 / 4096.0);
+	const float3 hv = normalize(dirToLight + dirToEye);
+	const float nDosL = saturate(dot(normal, dirToLight));
+	const float nDosH = saturate(dot(normal, hv));
+	const float vDosH = saturate(dot(dirToEye, hv));
 
-	ret.x = saturate(nDotLRaw * -4.0); // For subsurface scattering effect.
-	ret.y = saturate(nDotL);
-	ret.z = saturate(nDotL * 8.0) * saturate((maxSpec - 0.5) * specContrast + 0.5) * EnergyNorm(gloss);
-	ret.w = lerp(spec.z, spec.w, eyeFresnel); // For fresnel effect.
+	const float3 f0 = ComputeF0(albedo, metallic);
+	const float3 f1 = ComputeRoughnessDependentFresnel(f0, roughness);
+	const float3 fresnel = FresnelSchlick(f0, f1, pow(1.0 - vDosH, 5.0));
 
-	return ret;
+	punctualDiff = nDosL * (1.0 - fresnel) * (1.0 - metallic);
+	punctualSpec = nDosL * fresnel * MicrofacetDistribution(alphaRoughnessSq, nDosH);
+}
+
+void VerusWaterLit(float3 normal, float3 dirToLight, float3 dirToEye,
+	float3 albedo,
+	float roughness, float wrapDiffuse,
+	out float3 punctualDiff, out float3 punctualSpec, out float3 fresnel)
+{
+	const float alphaRoughness = roughness * roughness;
+	const float alphaRoughnessSq = alphaRoughness * alphaRoughness;
+
+	const float3 hv = normalize(dirToLight + dirToEye);
+	const float nDotL = dot(normal, dirToLight);
+	const float nDosL = saturate(nDotL);
+	const float nWrapL = saturate((nDotL + wrapDiffuse) / (1.0 + wrapDiffuse));
+	const float nDosV = saturate(dot(normal, dirToEye));
+	const float nDosH = saturate(dot(normal, hv));
+
+	const float3 f0 = 0.03;
+	const float3 f1 = ComputeRoughnessDependentFresnel(f0, roughness);
+	fresnel = FresnelSchlick(f0, f1, pow(1.0 - nDosV, 5.0));
+
+	punctualDiff = nWrapL;
+	punctualSpec = nDosL * MicrofacetDistribution(alphaRoughnessSq, nDosH);
+}
+
+float3 VerusIBL(float3 normal, float3 dirToEye,
+	float3 albedo, float3 image,
+	float roughness, float metallic,
+	float2 scaleBias = float2(1, 0))
+{
+	const float nDosV = saturate(dot(normal, dirToEye));
+
+	const float3 f0 = ComputeF0(albedo, metallic);
+	const float3 f1 = ComputeRoughnessDependentFresnel(f0, roughness);
+	const float3 fresnel = FresnelSchlick(f0, f1, pow(1.0 - nDosV, 5.0));
+
+	return image * (fresnel * scaleBias.x + scaleBias.y);
 }
 
 float ComputePointLightIntensity(float distSq, float radiusSq, float invRadiusSq)

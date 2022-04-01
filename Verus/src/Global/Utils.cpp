@@ -109,6 +109,61 @@ void Utils::CopyIntToByte4(const int src[4], BYTE dest[4])
 		dest[i] = src[i];
 }
 
+void Utils::ComputeEdgePadding(BYTE* pData, int dataPixelStride, const BYTE* pAlpha, int alphaPixelStride, int width, int height, int radius, int channelCount)
+{
+	channelCount = Math::Min(channelCount, dataPixelStride); // Assume one byte per channel.
+	VERUS_RT_ASSERT(channelCount >= 1 && channelCount <= 4);
+	if (!radius)
+		radius = Math::Clamp((width + height) / 256, 1, 16);
+	const int radiusSq = radius * radius;
+	VERUS_P_FOR(i, height)
+	{
+		const int rowOffset = i * width;
+		VERUS_FOR(j, width)
+		{
+			const BYTE alpha = pAlpha[alphaPixelStride * (rowOffset + j)];
+			if (alpha)
+				continue;
+			BYTE* pDataChannels = &pData[dataPixelStride * (rowOffset + j)];
+
+			int minRadiusSq = INT_MAX;
+			BYTE color[4] = {};
+			// Kernel:
+			for (int di = -radius; di <= radius; ++di)
+			{
+				const int ki = i + di;
+				if (ki < 0 || ki >= height)
+					continue;
+				for (int dj = -radius; dj <= radius; ++dj)
+				{
+					const int kj = j + dj;
+					if (kj < 0 || kj >= width)
+						continue;
+
+					if (!di && !dj)
+						continue; // Skip origin.
+					const int lenSq = di * di + dj * dj;
+					if (lenSq > radiusSq)
+						continue;
+					const BYTE kernelAlpha = pAlpha[alphaPixelStride * (ki * width + kj)];
+					if (!kernelAlpha)
+						continue;
+
+					if (lenSq < minRadiusSq)
+					{
+						minRadiusSq = lenSq;
+						BYTE* pKernelChannels = &pData[dataPixelStride * (ki * width + kj)];
+						memcpy(color, pKernelChannels, channelCount);
+					}
+				}
+			}
+
+			if (minRadiusSq != INT_MAX)
+				memcpy(pDataChannels, color, channelCount);
+		}
+	});
+}
+
 void Utils::TestAll()
 {
 	Convert::Test();

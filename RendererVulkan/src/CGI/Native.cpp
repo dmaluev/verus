@@ -162,7 +162,11 @@ VkFormat CGI::ToNativeFormat(Format format)
 	case Format::unormBC1:          return VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
 	case Format::unormBC2:          return VK_FORMAT_BC2_UNORM_BLOCK;
 	case Format::unormBC3:          return VK_FORMAT_BC3_UNORM_BLOCK;
+	case Format::unormBC4:          return VK_FORMAT_BC4_UNORM_BLOCK;
+	case Format::unormBC5:          return VK_FORMAT_BC5_UNORM_BLOCK;
 	case Format::unormBC7:          return VK_FORMAT_BC7_UNORM_BLOCK;
+	case Format::snormBC4:          return VK_FORMAT_BC4_SNORM_BLOCK;
+	case Format::snormBC5:          return VK_FORMAT_BC5_SNORM_BLOCK;
 	case Format::srgbBC1:           return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
 	case Format::srgbBC2:           return VK_FORMAT_BC2_SRGB_BLOCK;
 	case Format::srgbBC3:           return VK_FORMAT_BC3_SRGB_BLOCK;
@@ -196,12 +200,31 @@ VkFormat CGI::ToNativeFormat(ViaUsage usage, ViaType type, int components)
 {
 	VERUS_RT_ASSERT(components >= 1 && components <= 4);
 	int index = components - 1;
+
 	static const VkFormat floats[] =
 	{
 		VK_FORMAT_R32_SFLOAT,
 		VK_FORMAT_R32G32_SFLOAT,
 		VK_FORMAT_R32G32B32_SFLOAT,
 		VK_FORMAT_R32G32B32A32_SFLOAT
+	};
+	static const VkFormat halfs[] =
+	{
+		VK_FORMAT_R16_SFLOAT,
+		VK_FORMAT_R16G16_SFLOAT,
+		VK_FORMAT_R16G16_SFLOAT,
+		VK_FORMAT_R16G16B16A16_SFLOAT
+	};
+	static const VkFormat shorts[] =
+	{
+		VK_FORMAT_R16G16_SINT,
+		VK_FORMAT_R16G16_SINT,
+		VK_FORMAT_R16G16B16A16_SINT,
+		VK_FORMAT_R16G16B16A16_SINT,
+		VK_FORMAT_R16G16_SNORM,
+		VK_FORMAT_R16G16_SNORM,
+		VK_FORMAT_R16G16B16A16_SNORM,
+		VK_FORMAT_R16G16B16A16_SNORM
 	};
 	static const VkFormat bytes[] =
 	{
@@ -218,17 +241,7 @@ VkFormat CGI::ToNativeFormat(ViaUsage usage, ViaType type, int components)
 		VK_FORMAT_R8G8B8A8_SNORM,
 		VK_FORMAT_R8G8B8A8_SNORM
 	};
-	static const VkFormat shorts[] =
-	{
-		VK_FORMAT_R16G16_SINT,
-		VK_FORMAT_R16G16_SINT,
-		VK_FORMAT_R16G16B16A16_SINT,
-		VK_FORMAT_R16G16B16A16_SINT,
-		VK_FORMAT_R16G16_SNORM,
-		VK_FORMAT_R16G16_SNORM,
-		VK_FORMAT_R16G16B16A16_SNORM,
-		VK_FORMAT_R16G16B16A16_SNORM
-	};
+
 	switch (type)
 	{
 	case ViaType::floats:
@@ -236,15 +249,10 @@ VkFormat CGI::ToNativeFormat(ViaUsage usage, ViaType type, int components)
 		return floats[index];
 	}
 	break;
-	case ViaType::ubytes:
+	case ViaType::halfs:
 	{
-		VERUS_RT_ASSERT(4 == components);
-		switch (usage)
-		{
-		case ViaUsage::normal: index += 8; break; // SNORM.
-		case ViaUsage::color: index += 4; break; // UNORM.
-		}
-		return bytes[index];
+		VERUS_RT_ASSERT(3 != components);
+		return halfs[index];
 	}
 	break;
 	case ViaType::shorts:
@@ -252,11 +260,27 @@ VkFormat CGI::ToNativeFormat(ViaUsage usage, ViaType type, int components)
 		VERUS_RT_ASSERT(2 == components || 4 == components);
 		switch (usage)
 		{
+		case ViaUsage::normal:
 		case ViaUsage::tangent:
 		case ViaUsage::binormal:
 			index += 4; break; // SNORM.
 		}
 		return shorts[index];
+	}
+	break;
+	case ViaType::ubytes:
+	{
+		VERUS_RT_ASSERT(4 == components);
+		switch (usage)
+		{
+		case ViaUsage::normal:
+		case ViaUsage::tangent:
+		case ViaUsage::binormal:
+			index += 8; break; // SNORM.
+		case ViaUsage::color:
+			index += 4; break; // UNORM.
+		}
+		return bytes[index];
 	}
 	break;
 	default: throw VERUS_RECOVERABLE << "ToNativeFormat(); ViaType=?";

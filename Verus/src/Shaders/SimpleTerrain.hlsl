@@ -14,12 +14,12 @@ SamplerState           g_samHeightVS  : register(s1, space0);
 Texture2D              g_texNormalVS  : register(t2, space0);
 SamplerState           g_samNormalVS  : register(s2, space0);
 
-Texture2D              g_texNormal    : register(t1, space1);
-SamplerState           g_samNormal    : register(s1, space1);
-Texture2D              g_texBlend     : register(t2, space1);
-SamplerState           g_samBlend     : register(s2, space1);
-Texture2DArray         g_texLayers    : register(t3, space1);
-SamplerState           g_samLayers    : register(s3, space1);
+Texture2D              g_texBlend     : register(t1, space1);
+SamplerState           g_samBlend     : register(s1, space1);
+Texture2DArray         g_texLayers    : register(t2, space1);
+SamplerState           g_samLayers    : register(s2, space1);
+Texture2DArray         g_texLayersX   : register(t3, space1);
+SamplerState           g_samLayersX   : register(s3, space1);
 Texture2D              g_texShadowCmp : register(t4, space1);
 SamplerComparisonState g_samShadowCmp : register(s4, space1);
 
@@ -55,44 +55,42 @@ VSO mainVS(VSI si)
 	VSO so;
 
 	const float3 eyePos = g_ubSimpleTerrainVS._eyePos.xyz;
-	const float mapSideInv = g_ubSimpleTerrainVS._mapSideInv_clipDistanceOffset.x;
-	const float clipDistanceOffset = g_ubSimpleTerrainVS._mapSideInv_clipDistanceOffset.y;
+	const float invMapSide = g_ubSimpleTerrainVS._invMapSide_clipDistanceOffset.x;
+	const float clipDistanceOffset = g_ubSimpleTerrainVS._invMapSide_clipDistanceOffset.y;
 
 	const float2 edgeCorrection = si.pos.yw;
 	si.pos.yw = 0.0;
 	float3 pos = si.pos.xyz + si.posPatch.xyz;
-	const float2 tcMap = pos.xz * mapSideInv + 0.5; // Range [0, 1).
+	const float2 tcMap = pos.xz * invMapSide + 0.5; // Range [0, 1).
 	const float2 posBlend = pos.xz + edgeCorrection * 0.5;
 
 	// <HeightAndNormal>
 	float3 inNrm;
 	{
-		const float approxHeight = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + (0.5 * mapSideInv) * 16.0, 4.0).r);
-		pos.y = approxHeight;
-
+		pos.y = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + (8.0 * invMapSide), 4.0).r);
 		const float distToEye = distance(pos, eyePos);
 		const float geomipsLod = log2(clamp(distToEye * (2.0 / 100.0), 1.0, 18.0));
 		const float geomipsLodFrac = frac(geomipsLod);
 		const float geomipsLodBase = floor(geomipsLod);
 		const float geomipsLodNext = geomipsLodBase + 1.0;
-		const float2 texelCenterAB = (0.5 * mapSideInv) * exp2(float2(geomipsLodBase, geomipsLodNext));
+		const float2 texelCenterAB = (0.5 * invMapSide) * exp2(float2(geomipsLodBase, geomipsLodNext));
 		const float yA = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + texelCenterAB.xx, geomipsLodBase).r);
 		const float yB = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + texelCenterAB.yy, geomipsLodNext).r);
 		pos.y = lerp(yA, yB, geomipsLodFrac);
 
-		const float4 rawNormal = g_texNormalVS.SampleLevel(g_samNormalVS, tcMap + texelCenterAB.xx, geomipsLodBase);
-		inNrm = float3(rawNormal.x, 0, rawNormal.y) * 2.0 - 1.0;
+		const float4 normalSam = g_texNormalVS.SampleLevel(g_samNormalVS, tcMap + texelCenterAB.xx, geomipsLodBase);
+		inNrm = float3(normalSam.x, 0, normalSam.y) * 2.0 - 1.0;
 		inNrm.y = ComputeNormalZ(inNrm.xz);
 	}
 	// </HeightAndNormal>
 
 	so.pos = mul(float4(pos, 1), g_ubSimpleTerrainVS._matVP);
-	so.posW_depth = float4(pos, so.pos.z);
+	so.posW_depth = float4(pos, so.pos.w);
 	so.nrmW = mul(inNrm, (float3x3)g_ubSimpleTerrainVS._matW);
 	so.layerForChannel = si.layerForChannel;
-	so.tcBlend = posBlend * mapSideInv + 0.5;
+	so.tcBlend = posBlend * invMapSide + 0.5;
 	so.tcLayer_tcMap.xy = pos.xz * g_layerScale;
-	so.tcLayer_tcMap.zw = (pos.xz + 0.5) * mapSideInv + 0.5; // Texel's center.
+	so.tcLayer_tcMap.zw = (pos.xz + 0.5) * invMapSide + 0.5; // Texel's center.
 	so.dirToEye = eyePos - pos;
 	so.clipDistance = pos.y + clipDistanceOffset;
 
@@ -105,68 +103,72 @@ FSO mainFS(VSO si)
 {
 	FSO so;
 
-	const float4 layerForChannel = round(si.layerForChannel);
+	// Fix interpolation errors by rounding:
+	si.layerForChannel = round(si.layerForChannel);
 	const float2 tcLayer = si.tcLayer_tcMap.xy;
 
-	const float4 rawBlend = g_texBlend.Sample(g_samBlend, si.tcBlend);
-	float4 weights = float4(rawBlend.rgb, 1.0 - dot(rawBlend.rgb, float3(1, 1, 1)));
+	const float4 blendSam = g_texBlend.Sample(g_samBlend, si.tcBlend);
+	const float4 weights = float4(blendSam.rgb, 1.0 - dot(blendSam.rgb, 1.0));
+
+	const float4 texEnabled = ceil(weights);
+	const float3 tcLayerR = float3(tcLayer * texEnabled.r, si.layerForChannel.r);
+	const float3 tcLayerG = float3(tcLayer * texEnabled.g, si.layerForChannel.g);
+	const float3 tcLayerB = float3(tcLayer * texEnabled.b, si.layerForChannel.b);
+	const float3 tcLayerA = float3(tcLayer * texEnabled.a, si.layerForChannel.a);
 
 	// <Albedo>
-	float4 albedo;
-	float specMask;
+	float3 albedo;
 	{
-		const float4 rawAlbedos[4] =
-		{
-			g_texLayers.Sample(g_samLayers, float3(tcLayer, layerForChannel.r)),
-			g_texLayers.Sample(g_samLayers, float3(tcLayer, layerForChannel.g)),
-			g_texLayers.Sample(g_samLayers, float3(tcLayer, layerForChannel.b)),
-			g_texLayers.Sample(g_samLayers, float3(tcLayer, layerForChannel.a))
-		};
-		float4 accAlbedo = 0.0;
-		accAlbedo += rawAlbedos[0] * weights.r;
-		accAlbedo += rawAlbedos[1] * weights.g;
-		accAlbedo += rawAlbedos[2] * weights.b;
-		accAlbedo += rawAlbedos[3] * weights.a;
+		float3 accAlbedo = 0.0;
+		accAlbedo += g_texLayers.Sample(g_samLayers, tcLayerR).rgb * weights.r;
+		accAlbedo += g_texLayers.Sample(g_samLayers, tcLayerG).rgb * weights.g;
+		accAlbedo += g_texLayers.Sample(g_samLayers, tcLayerB).rgb * weights.b;
+		accAlbedo += g_texLayers.Sample(g_samLayers, tcLayerA).rgb * weights.a;
 		albedo = accAlbedo;
-
-		static float vSpecStrength[_MAX_TERRAIN_LAYERS] = (float[_MAX_TERRAIN_LAYERS])g_ubSimpleTerrainFS._vSpecStrength;
-		const float4 specStrengthForChannel = float4(
-			vSpecStrength[layerForChannel.r],
-			vSpecStrength[layerForChannel.g],
-			vSpecStrength[layerForChannel.b],
-			vSpecStrength[layerForChannel.a]);
-		specMask = albedo.a * dot(specStrengthForChannel, weights);
 	}
-	float3 realAlbedo = ToRealAlbedo(albedo.rgb);
 	// </Albedo>
 
 	// <Water>
-	float waterGlossBoost;
+	float waterRoughnessScale;
+	float waterRoughnessMin;
 	{
 		const float dryMask = saturate(si.posW_depth.y);
 		const float dryMask3 = dryMask * dryMask * dryMask;
 		const float wetMask = 1.0 - dryMask;
 		const float wetMask3 = wetMask * wetMask * wetMask;
-		realAlbedo *= dryMask3 * 0.5 + 0.5;
-		specMask = dryMask * saturate(specMask + wetMask3 * wetMask3 * 0.1);
-		waterGlossBoost = min(32.0, dryMask * wetMask3 * 100.0);
+		albedo *= 0.4 + 0.6 * dryMask3;
+		waterRoughnessScale = 1.0 - 0.8 * saturate(dryMask * wetMask3 * 16.0);
+		waterRoughnessMin = wetMask3;
 	}
 	// </Water>
 
-	const float gloss64 = lerp(3.3, 15.0, specMask) + waterGlossBoost;
-	const float gloss4K = gloss64 * gloss64;
+	// <X>
+	float occlusion;
+	float roughness;
+	float metallic;
+	{
+		float3 accX = 0.0;
+		accX += g_texLayersX.Sample(g_samLayersX, tcLayerR).rgb * weights.r;
+		accX += g_texLayersX.Sample(g_samLayersX, tcLayerG).rgb * weights.g;
+		accX += g_texLayersX.Sample(g_samLayersX, tcLayerB).rgb * weights.b;
+		accX += g_texLayersX.Sample(g_samLayersX, tcLayerA).rgb * weights.a;
+
+		occlusion = accX.r;
+		roughness = accX.g;
+		const float2 metallic_wrapDiffuse = CleanMutexChannels(SeparateMutexChannels(accX.b));
+		metallic = metallic_wrapDiffuse.r;
+	}
+	// </X>
 
 	const float3 normal = normalize(si.nrmW);
+	const float3 dirToLight = g_ubSimpleTerrainFS._dirToSun.xyz;
 	const float3 dirToEye = normalize(si.dirToEye.xyz);
 	const float depth = si.posW_depth.w;
 
 	// <Shadow>
 	float shadowMask;
 	{
-		float4 shadowConfig = g_ubSimpleTerrainFS._shadowConfig;
-		const float lamBiasMask = saturate(g_ubSimpleTerrainFS._lamScaleBias.y * shadowConfig.y);
-		shadowConfig.y = 1.0 - lamBiasMask; // Keep penumbra blurry.
-		const float3 posForShadow = AdjustPosForShadow(si.posW_depth.xyz, normal, g_ubSimpleTerrainFS._dirToSun.xyz, depth);
+		const float3 posForShadow = AdjustPosForShadow(si.posW_depth.xyz, normal, dirToLight, depth);
 		shadowMask = SimpleShadowMapCSM(
 			g_texShadowCmp,
 			g_samShadowCmp,
@@ -178,25 +180,26 @@ FSO mainFS(VSO si)
 			g_ubSimpleTerrainFS._matShadowCSM3,
 			g_ubSimpleTerrainFS._matScreenCSM,
 			g_ubSimpleTerrainFS._csmSplitRanges,
-			shadowConfig);
+			g_ubSimpleTerrainFS._shadowConfig);
 	}
 	// </Shadow>
 
-	const float4 litRet = VerusLit(g_ubSimpleTerrainFS._dirToSun.xyz, normal, dirToEye,
-		gloss4K,
-		g_ubSimpleTerrainFS._lamScaleBias.xy,
-		float4(0, 0, 1, 0));
+	float3 punctualDiff, punctualSpec;
+	VerusSimpleLit(normal, dirToLight, dirToEye,
+		albedo,
+		roughness, metallic,
+		punctualDiff, punctualSpec);
 
-	const float3 diffColor = litRet.y * g_ubSimpleTerrainFS._sunColor.rgb * shadowMask + g_ubSimpleTerrainFS._ambientColor.rgb;
-	const float3 specColor = litRet.z * g_ubSimpleTerrainFS._sunColor.rgb * shadowMask * specMask;
+	punctualDiff *= g_ubSimpleTerrainFS._sunColor.rgb * shadowMask;
+	punctualSpec *= g_ubSimpleTerrainFS._sunColor.rgb * shadowMask;
 
-	so.color.rgb = realAlbedo * diffColor + specColor;
+	so.color.rgb = (albedo * (g_ubSimpleTerrainFS._ambientColor.rgb * blendSam.a + punctualDiff) + punctualSpec) * occlusion;
 	so.color.a = 1.0;
 
 	const float fog = ComputeFog(depth, g_ubSimpleTerrainFS._fogColor.a, si.posW_depth.y);
 	so.color.rgb = lerp(so.color.rgb, g_ubSimpleTerrainFS._fogColor.rgb, fog);
 
-	so.color.rgb = ToSafeHDR(so.color.rgb);
+	so.color.rgb = SaturateHDR(so.color.rgb);
 
 	return so;
 }

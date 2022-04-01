@@ -187,6 +187,7 @@ void RendererD3D12::InitD3D()
 
 	D3D12MA::ALLOCATOR_DESC allocatorDesc = {};
 	allocatorDesc.pDevice = _pDevice.Get();
+	allocatorDesc.pAdapter = pAdapter.Get();
 	if (FAILED(hr = D3D12MA::CreateAllocator(&allocatorDesc, &_pMaAllocator)))
 		throw VERUS_RUNTIME_ERROR << "CreateAllocator(); hr=" << VERUS_HR(hr);
 
@@ -732,7 +733,9 @@ FBHandle RendererD3D12::CreateFramebuffer(RPHandle renderPassHandle, std::initia
 				return texD3D12.GetD3DResource();
 			}
 			else
+			{
 				return _vSwapChainBuffers[swapChainBufferIndex].Get();
+			}
 		}
 		else
 		{
@@ -750,7 +753,9 @@ FBHandle RendererD3D12::CreateFramebuffer(RPHandle renderPassHandle, std::initia
 				return texD3D12.GetDescriptorHeapRTV().AtCPU(0);
 			}
 			else
+			{
 				return _dhSwapChainBuffersRTVs.AtCPU(swapChainBufferIndex);
+			}
 		}
 		else
 		{
@@ -787,7 +792,11 @@ FBHandle RendererD3D12::CreateFramebuffer(RPHandle renderPassHandle, std::initia
 
 	framebuffer._vResources.reserve(renderPass._vAttachments.size());
 	VERUS_FOR(i, renderPass._vAttachments.size())
+	{
+		if (!i && -1 == swapChainBufferIndex)
+			framebuffer._mipLevels = vTex.front()->GetMipLevelCount();
 		framebuffer._vResources.push_back(GetResource(i));
+	}
 
 	framebuffer._vSubpasses.reserve(renderPass._vSubpasses.size());
 	for (const auto& subpass : renderPass._vSubpasses)

@@ -41,7 +41,7 @@ void Cinema::Init()
 		_pipe.Init(pipeDesc);
 	}
 
-	_texFilmGrain.Init("[Textures]:FilmGrain.FX.dds");
+	_texFilmGrain.Init("[Textures]:FilmGrain.X.dds");
 }
 
 void Cinema::Done()

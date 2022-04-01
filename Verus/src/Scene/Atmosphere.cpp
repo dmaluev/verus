@@ -45,12 +45,13 @@ void Atmosphere::Init()
 	_shadowMapBaker.Init(4096);
 
 	renderer.GetDS().InitByAtmosphere(_shadowMapBaker.GetTexture());
+	renderer.GetDS().InitByAtmosphere(_shadowMapBaker.GetTexture());
 	bloom.InitByAtmosphere(_shadowMapBaker.GetTexture());
 
 	CreateCelestialBodyMesh();
 
 	{
-		CGI::PipelineDesc pipeDesc(_geo, _shader, "#Sun", renderer.GetDS().GetRenderPassHandle_ExtraCompose());
+		CGI::PipelineDesc pipeDesc(_geo, _shader, "#Sun", renderer.GetDS().GetRenderPassHandle_ForwardRendering());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
 		pipeDesc._rasterizationState._cullMode = CGI::CullMode::none;
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
@@ -59,7 +60,7 @@ void Atmosphere::Init()
 		_pipe[PIPE_SUN].Init(pipeDesc);
 	}
 	{
-		CGI::PipelineDesc pipeDesc(_geo, _shader, "#Moon", renderer.GetDS().GetRenderPassHandle_ExtraCompose());
+		CGI::PipelineDesc pipeDesc(_geo, _shader, "#Moon", renderer.GetDS().GetRenderPassHandle_ForwardRendering());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		pipeDesc._rasterizationState._cullMode = CGI::CullMode::none;
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
@@ -104,11 +105,10 @@ void Atmosphere::UpdateSun(float time)
 	{
 		_night = true;
 		_sun._dirTo = _sun._matTilt * Matrix3::rotationZ(quantTime * VERUS_2PI) * Vector3(0, 1, 0);
-		_sun._color = glm::saturation(0.25f, _sun._color.GLM()) * 0.2f;
 	}
 
 	// Reduce light's intensity when near horizon:
-	_sun._alpha = Math::Clamp<float>(abs(_sun._dirTo.getY()) * 4, 0, 1);
+	_sun._alpha = Math::Clamp<float>(abs(_sun._dirTo.getY()) * 4, 0, 1) * (_night ? 0.25f : 1.f);
 	_sun._color *= _sun._alpha;
 
 	if (_sun._light)
@@ -178,7 +178,7 @@ void Atmosphere::Update()
 			_async_loaded = true;
 
 			{
-				CGI::PipelineDesc pipeDesc(_skyDome.GetGeometry(), _shader, "#Sky", renderer.GetDS().GetRenderPassHandle_ExtraCompose());
+				CGI::PipelineDesc pipeDesc(_skyDome.GetGeometry(), _shader, "#Sky", renderer.GetDS().GetRenderPassHandle_ForwardRendering());
 				pipeDesc._vertexInputBindingsFilter = (1 << 0);
 				pipeDesc._depthWriteEnable = false;
 				pipeDesc._depthCompareOp = CGI::CompareOp::lessOrEqual;
@@ -188,7 +188,7 @@ void Atmosphere::Update()
 				_pipe[PIPE_SKY_REFLECTION].Init(pipeDesc);
 			}
 			{
-				CGI::PipelineDesc pipeDesc(_skyDome.GetGeometry(), _shader, "#Clouds", renderer.GetDS().GetRenderPassHandle_ExtraCompose());
+				CGI::PipelineDesc pipeDesc(_skyDome.GetGeometry(), _shader, "#Clouds", renderer.GetDS().GetRenderPassHandle_ForwardRendering());
 				pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 				pipeDesc._vertexInputBindingsFilter = (1 << 0);
 				pipeDesc._depthWriteEnable = false;
@@ -216,42 +216,30 @@ void Atmosphere::Update()
 
 	_clouds._cloudiness.Update();
 
-	const float cloudinessStrength = _clouds._cloudiness * sqrt(_clouds._cloudiness);
-	const float cloudScaleAmb = 1 - 0.6f * cloudinessStrength;
-	const float cloudScaleFog = 1 - 0.9f * cloudinessStrength;
-	const float cloudScaleSun = 1 - 0.999f * cloudinessStrength;
+	const float cloudinessSq = _clouds._cloudiness * _clouds._cloudiness;
+	const float cloudScaleAmb = 1 - 0.9f * _clouds._cloudiness;
+	const float cloudScaleSun = 1 - 0.9999f * cloudinessSq;
 	const int count = 1;
 	std::stringstream ssDebug;
 	VERUS_FOR(i, count)
 	{
 		const float time = (count > 1) ? (i / 256.f) : _time;
+		_ambientMagnitude = GetMagnitude(time, 20000, 5000, 1000) * cloudScaleAmb;
 		float color[3];
-		SampleSkyColor(208, color, 1); _ambientColor = Vector3::MakeFromPointer(color) * (GetMagnitude(time, 64000, 16000, 4000) * cloudScaleAmb);
-		SampleSkyColor(100, color, 1); _fog._color = Vector3::MakeFromPointer(color) * (GetMagnitude(time, 32000, 5000, 300) * cloudScaleFog);
-		SampleSkyColor(240, color, 1); _sun._color = Vector3::MakeFromPointer(color) * (GetMagnitude(time, 90000, 60000, 600) * cloudScaleSun);
+		SampleSkyColor(time, 200, color); _ambientColorY1 = Vector3::MakeFromPointer(color) * _ambientMagnitude;
+		SampleSkyColor(time, 216, color); _ambientColorY0 = Vector3::MakeFromPointer(color) * _ambientMagnitude;
+		SampleSkyColor(time, 232, color); _ambientColor = Vector3::MakeFromPointer(color) * _ambientMagnitude;
+		SampleSkyColor(time, 248, color); _sun._color = Vector3::MakeFromPointer(color) * (GetMagnitude(time, 40000, 20000, 1000) * cloudScaleSun * cloudScaleSun);
 		if (count > 1)
 			ssDebug << static_cast<int>(glm::saturation(0.f, _ambientColor.GLM()).x) << ", ";
 	}
 	const String debug = ssDebug.str();
 
 	// <Cloudiness>
-	glm::vec3 ambientColor = _ambientColor.GLM();
-	glm::vec3 fogColor = _fog._color.GLM();
-	_ambientColor = glm::saturation(0.7f - 0.3f * _clouds._cloudiness, ambientColor);
-	_fog._color = glm::saturation(0.8f - 0.2f * _clouds._cloudiness, fogColor);
-	_fog._density[0] = _fog._density[1] * (1 + 9 * _clouds._cloudiness * _clouds._cloudiness);
+	_ambientColor = glm::saturation(1 - 0.3f * _clouds._cloudiness, _ambientColor.GLM());
+	_ambientColorY0 = glm::saturation(1 - 0.3f * _clouds._cloudiness, _ambientColorY0.GLM());
+	_ambientColorY1 = glm::saturation(1 - 0.3f * _clouds._cloudiness, _ambientColorY1.GLM());
 	// </Cloudiness>
-
-#ifdef _DEBUG
-	if (abs(_time - 0.5f) < 0.01f && glm::epsilonEqual(static_cast<float>(_clouds._cloudiness), 0.25f, 0.05f))
-	{
-		const glm::vec3 grayAmbient = glm::saturation(0.f, _ambientColor.GLM());
-		const glm::vec3 grayFog = glm::saturation(0.f, _fog._color.GLM());
-		const glm::vec3 graySun = glm::saturation(0.f, _sun._color.GLM());
-		//VERUS_RT_ASSERT(glm::epsilonEqual<float>(grayAmbient.x, 4000, 400));
-		//VERUS_RT_ASSERT(glm::epsilonEqual<float>(graySun.x, 16000, 1600));
-	}
-#endif
 
 	// <Clouds>
 	const Vector4 phaseV(_wind._baseVelocity.getX(), _wind._baseVelocity.getZ());
@@ -260,6 +248,12 @@ void Atmosphere::Update()
 	// </Clouds>
 
 	UpdateSun(_time);
+
+	// <Fog>
+	_fog._color = VMath::lerp(0.1f, _ambientColor, _sun._color);
+	_fog._color = glm::saturation(0.9f - 0.4f * cloudinessSq, _fog._color.GLM());
+	_fog._density[0] = _fog._density[1] * (1 + 9 * cloudinessSq);
+	// </Fog>
 }
 
 void Atmosphere::DrawSky(bool reflection)
@@ -282,8 +276,8 @@ void Atmosphere::DrawSky(bool reflection)
 
 	s_ubPerFrame._time_cloudiness.x = _time;
 	s_ubPerFrame._time_cloudiness.y = _clouds._cloudiness;
-	s_ubPerFrame._ambientColor = float4(_ambientColor.GLM(), 0);
-	s_ubPerFrame._fogColor = float4(_fog._color.GLM(), 0);
+	s_ubPerFrame._ambientColor = float4(_ambientColor.GLM(), _ambientMagnitude);
+	s_ubPerFrame._fogColor = float4(_fog._color.GLM(), _fog._density[0]);
 	s_ubPerFrame._dirToSun = float4(_sun._dirTo.GLM(), 0);
 	s_ubPerFrame._sunColor = float4(_sun._color.GLM(), _sun._alpha);
 	s_ubPerFrame._phaseAB = float4(
@@ -363,11 +357,11 @@ void Atmosphere::DrawSky(bool reflection)
 	// </Clouds>
 }
 
-void Atmosphere::SampleSkyColor(int level, float* pOut, float scale)
+void Atmosphere::SampleSkyColor(float time, int level, float* pOut)
 {
 	if (!_texSky.IsLoaded())
 		return;
-	const float texCoord = _time * 256;
+	const float texCoord = time * 256;
 	const int intPartA = static_cast<int>(texCoord) & 0xFF;
 	const int intPartB = (intPartA + 1) & 0xFF;
 	const float fractPart = texCoord - intPartA;
@@ -386,7 +380,7 @@ void Atmosphere::SampleSkyColor(int level, float* pOut, float scale)
 	LoadFromSky(rgbB, offsetB);
 
 	VERUS_FOR(i, 3)
-		pOut[i] = Math::Clamp<float>(Math::Lerp(rgbA[i], rgbB[i], fractPart) * 0.5f * scale, 0, 1);
+		pOut[i] = Math::Lerp(rgbA[i], rgbB[i], fractPart);
 }
 
 float Atmosphere::GetMagnitude(float time, float noon, float dusk, float midnight)
@@ -441,6 +435,12 @@ void Atmosphere::OnSceneResetInitSunLight()
 	desc._data._dir = -_sun._dirTo;
 	_sun._light.Init(desc);
 	_sun._light->SetTransient();
+}
+
+void Atmosphere::SetLatitude(float lat)
+{
+	_sun._latitude = lat;
+	_sun._matTilt = Matrix3::rotationX(_sun._latitude);
 }
 
 RcMatrix3 Atmosphere::GetPlantBendingMatrix() const

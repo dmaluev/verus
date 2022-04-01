@@ -78,8 +78,11 @@ void ViewManager::Done()
 
 	_cursor.Done();
 
-	_shader->FreeDescriptorSet(_cshDebug);
-	_shader->FreeDescriptorSet(_cshDefault);
+	if (_shader)
+	{
+		_shader->FreeDescriptorSet(_cshDebug);
+		_shader->FreeDescriptorSet(_cshDefault);
+	}
 
 	VERUS_DONE(ViewManager);
 }

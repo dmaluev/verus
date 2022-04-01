@@ -1,24 +1,24 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 // Convert non-linear z-buffer value to positive linear form:
-float ToLinearDepth(float dz, float4 zNearFarEx)
+float ToLinearDepth(float unormDepth, float4 zNearFarEx)
 {
 	// INFO: zNearFarEx.z = zFar/(zFar-zNear)
 	// INFO: zNearFarEx.w = zFar*zNear/(zNear-zFar)
-	return zNearFarEx.w / (dz - zNearFarEx.z);
+	return zNearFarEx.w / (unormDepth - zNearFarEx.z);
 }
-float2 ToLinearDepth(float2 dz, float4 zNearFarEx)
+float2 ToLinearDepth(float2 unormDepth, float4 zNearFarEx)
 {
-	return zNearFarEx.w / (dz - zNearFarEx.z);
+	return zNearFarEx.w / (unormDepth - zNearFarEx.z);
 }
-float4 ToLinearDepth(float4 dz, float4 zNearFarEx)
+float4 ToLinearDepth(float4 unormDepth, float4 zNearFarEx)
 {
-	return zNearFarEx.w / (dz - zNearFarEx.z);
+	return zNearFarEx.w / (unormDepth - zNearFarEx.z);
 }
 
 float ComputeFog(float depth, float density, float height = 0.0)
 {
-	const float strength = 1.0 - saturate(height * 0.003);
+	const float strength = 1.0 - saturate(height * 0.0025);
 	const float power = depth * lerp(0.0, density, strength * strength);
 	const float fog = 1.0 / exp(power * power);
 	return 1.0 - saturate(fog);
@@ -26,15 +26,15 @@ float ComputeFog(float depth, float density, float height = 0.0)
 
 float3 AdjustPosForShadow(float3 pos, float3 normal, float3 dirToLight, float depth, float offset = 0.0)
 {
-	const float scale = depth - 5.0;
+	const float depthFactor = depth - 5.0;
 	return pos +
-		normal * 0.015 * max(1.0, scale * 0.2) +
-		dirToLight * max(0.0, scale * 0.002 + offset);
+		normal * 0.015 * max(1.0, depthFactor * 0.2) +
+		dirToLight * max(0.0, depthFactor * 0.002 + offset);
 }
 
-float ComputePenumbraContrast(float deltaScale, float strength, float dzFrag, float dzBlockers)
+float ComputePenumbraContrast(float deltaScale, float strength, float unormFragDepth, float unormBlockersDepth)
 {
-	const float delta = saturate(dzFrag - dzBlockers);
+	const float delta = saturate(unormFragDepth - unormBlockersDepth);
 	return 1.0 + max(0.0, 3.0 - delta * deltaScale) * strength;
 }
 
@@ -46,9 +46,9 @@ float PCF(
 	float3 tc,
 	float4 config)
 {
-	const float dzFrag = tc.z;
+	const float unormFragDepth = tc.z;
 #if _SHADOW_QUALITY <= _Q_MEDIUM
-	return texCmp.SampleCmpLevelZero(samCmp, tc.xy, dzFrag).r;
+	return texCmp.SampleCmpLevelZero(samCmp, tc.xy, unormFragDepth).r;
 #elif _SHADOW_QUALITY <= _Q_HIGH
 	// High quality, use 5x5 PCF:
 	float sum = 0.0;
@@ -59,13 +59,13 @@ float PCF(
 			int2 offset = int2(x, y);
 			if (abs(x) + abs(y) == 4)
 				offset = clamp(offset, -1, 1);
-			sum += texCmp.SampleCmpLevelZero(samCmp, tc.xy, dzFrag, offset).r;
+			sum += texCmp.SampleCmpLevelZero(samCmp, tc.xy, unormFragDepth, offset).r;
 		}
 	}
 	sum *= (1.0 / 9.0); // 3x3
 	if (sum * (1.0 - sum) != 0.0)
 	{
-		float2 dzBlockers_blockerCount = 0.0;
+		float2 unormBlockersDepth_blockerCount = 0.0;
 		sum = 0.0;
 		[unroll] for (int y = -2; y <= 2; ++y)
 		{
@@ -73,17 +73,17 @@ float PCF(
 			{
 				if (abs(x) + abs(y) == 4)
 					continue;
-				sum += texCmp.SampleCmpLevelZero(samCmp, tc.xy, dzFrag, int2(x, y)).r;
-				const float dzBlocker = tex.SampleLevel(sam, tc.xy, 0, int2(x, y)).r;
-				if (dzBlocker < dzFrag)
-					dzBlockers_blockerCount += float2(dzBlocker, 1);
+				sum += texCmp.SampleCmpLevelZero(samCmp, tc.xy, unormFragDepth, int2(x, y)).r;
+				const float unormBlockerDepth = tex.SampleLevel(sam, tc.xy, 0.0, int2(x, y)).r;
+				if (unormBlockerDepth < unormFragDepth)
+					unormBlockersDepth_blockerCount += float2(unormBlockerDepth, 1);
 			}
 		}
 		const float ret = sum *= (1.0 / 21.0); // 5x5 - 4
-		if (dzBlockers_blockerCount.y > 0.0)
+		if (unormBlockersDepth_blockerCount.y > 0.0)
 		{
-			const float dzBlockers = dzBlockers_blockerCount.x / dzBlockers_blockerCount.y;
-			const float contrast = ComputePenumbraContrast(config.x, config.y, dzFrag, dzBlockers);
+			const float unormBlockersDepth = unormBlockersDepth_blockerCount.x / unormBlockersDepth_blockerCount.y;
+			const float contrast = ComputePenumbraContrast(config.x, config.y, unormFragDepth, unormBlockersDepth);
 			return saturate((ret - 0.5) * contrast + 0.5);
 		}
 		else
@@ -91,7 +91,7 @@ float PCF(
 			return ret;
 		}
 	}
-	else
+	else // Zero or one?
 	{
 		return sum;
 	}
@@ -105,13 +105,13 @@ float PCF(
 			int2 offset = int2(x, y);
 			if (abs(x) + abs(y) == 6)
 				offset = clamp(offset, -2, 2);
-			sum += texCmp.SampleCmpLevelZero(samCmp, tc.xy, dzFrag, offset).r;
+			sum += texCmp.SampleCmpLevelZero(samCmp, tc.xy, unormFragDepth, offset).r;
 		}
 	}
 	sum *= (1.0 / 16.0); // 4x4
 	if (sum * (1.0 - sum) != 0.0)
 	{
-		float2 dzBlockers_blockerCount = 0.0;
+		float2 unormBlockersDepth_blockerCount = 0.0;
 		sum = 0.0;
 		[unroll] for (int y = -3; y <= 3; ++y)
 		{
@@ -119,17 +119,17 @@ float PCF(
 			{
 				if (abs(x) + abs(y) == 6)
 					continue;
-				sum += texCmp.SampleCmpLevelZero(samCmp, tc.xy, dzFrag, int2(x, y)).r;
-				const float dzBlocker = tex.SampleLevel(sam, tc.xy, 0, int2(x, y)).r;
-				if (dzBlocker < dzFrag)
-					dzBlockers_blockerCount += float2(dzBlocker, 1);
+				sum += texCmp.SampleCmpLevelZero(samCmp, tc.xy, unormFragDepth, int2(x, y)).r;
+				const float unormBlockerDepth = tex.SampleLevel(sam, tc.xy, 0.0, int2(x, y)).r;
+				if (unormBlockerDepth < unormFragDepth)
+					unormBlockersDepth_blockerCount += float2(unormBlockerDepth, 1);
 			}
 		}
 		const float ret = sum *= (1.0 / 45.0); // 7x7 - 4
-		if (dzBlockers_blockerCount.y > 0.0)
+		if (unormBlockersDepth_blockerCount.y > 0.0)
 		{
-			const float dzBlockers = dzBlockers_blockerCount.x / dzBlockers_blockerCount.y;
-			const float contrast = ComputePenumbraContrast(config.x, config.y, dzFrag, dzBlockers);
+			const float unormBlockersDepth = unormBlockersDepth_blockerCount.x / unormBlockersDepth_blockerCount.y;
+			const float contrast = ComputePenumbraContrast(config.x, config.y, unormFragDepth, unormBlockersDepth);
 			return saturate((ret - 0.5) * contrast + 0.5);
 		}
 		else
@@ -137,7 +137,7 @@ float PCF(
 			return ret;
 		}
 	}
-	else
+	else // Zero or one?
 	{
 		return sum;
 	}

@@ -70,41 +70,55 @@ FSO mainFS(VSO si)
 	const float weightScale = g_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.z;
 	const float weightBias = g_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.w;
 
+	// <Sample>
+	const float depthSam = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
+	const float originDepth = ToLinearDepth(depthSam, g_ubSsaoFS._zNearFarEx);
+
+	// Limit the effect to fix low precision artifacts:
+	const float maxDepth = 50.0;
+	const float invMaxDepth = 1.0 / 50.0;
+	if (originDepth >= maxDepth)
+	{
+		so.color = 1.0;
+		return so;
+	}
+
 	const float3 randNormalWV = g_texRandNormals.SampleLevel(g_samRandNormals, si.tcNorm, 0.0).xyz * 2.0 - 1.0;
 
-	const float4 rawGBuffer1 = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
-	const float3 normalWV = DS_GetNormal(rawGBuffer1);
-
-	const float rawDepth = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
-	const float originDepth = ToLinearDepth(rawDepth, g_ubSsaoFS._zNearFarEx);
+	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
+	const float3 normalWV = DS_GetNormal(gBuffer1Sam);
+	// </Sample>
 
 	const float perspectScale = 1.0 / originDepth;
 	const float4 scale = float4(smallRad, smallRad, largeRad, largeRad) * perspectScale * g_ubSsaoFS._camScale.xyxy;
 
 	float2 acc = _SINGULARITY_FIX;
-	[unroll] for (uint i = 0; i < 8; i++)
+	[unroll] for (int i = 0; i < 8; i++)
 	{
 		const float3 randRayWV = reflect(g_rays[i], randNormalWV);
 		const float3 hemiRayWV = randRayWV + normalWV * saturate(-dot(normalWV, randRayWV)) * 2.0;
-		const float nDotR = saturate(dot(normalWV, hemiRayWV));
+		const float nDosR = saturate(dot(normalWV, hemiRayWV));
 
 		const float3 smallRay = hemiRayWV * float3(scale.xy, smallRad);
 		const float3 largeRay = hemiRayWV * float3(scale.zw, largeRad);
 
-		const float2 rawKernelDepths = float2(
+		const float2 kernelDepthsSam = float2(
 			g_texDepth.SampleLevel(g_samDepth, si.tc0 + smallRay.xy, 0.0).r,
 			g_texDepth.SampleLevel(g_samDepth, si.tc0 + largeRay.xy, 0.0).r);
-		const float2 kernelDepths = ToLinearDepth(rawKernelDepths, g_ubSsaoFS._zNearFarEx);
+		const float2 kernelDepths = ToLinearDepth(kernelDepthsSam, g_ubSsaoFS._zNearFarEx);
 
 		const float2 kernelDeeper = kernelDepths - originDepth;
-		const float2 rayCloser = kernelDeeper + float2(smallRay.z, largeRay.z);
-		const float2 visible = step(0.0, rayCloser);
-		const float weight = saturate(weightBias + weightScale * rayCloser.y) * nDotR;
+		const float2 tipCloser = kernelDeeper + float2(smallRay.z, largeRay.z);
+		const float2 occlusion = step(0.0, tipCloser);
+		const float2 weight = saturate(weightBias + weightScale * tipCloser) * nDosR;
+		const float2 weighted = occlusion * weight;
+		const float2 score = occlusion * 0.5 - weight; // Lower is better.
 
-		acc += float2(min(visible.x, visible.y) * weight, weight);
+		acc += (score.x < score.y) ? float2(weighted.x, weight.x) : float2(weighted.y, weight.y);
 	}
 
-	so.color = acc.x / acc.y;
+	const float fade = saturate(originDepth * invMaxDepth);
+	so.color = max(acc.x / acc.y, fade);
 
 	return so;
 }

@@ -20,6 +20,7 @@ void CommandBufferD3D12::Init()
 
 	_vClearValues.reserve(16);
 	_vAttachmentStates.reserve(4);
+	_vBarriers.reserve(VERUS_MAX_FB_ATTACH);
 	VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
 		_pCommandLists[i] = pRendererD3D12->CreateCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, pRendererD3D12->GetD3DCommandAllocator(i));
 }
@@ -31,6 +32,8 @@ void CommandBufferD3D12::Done()
 		VERUS_COM_RELEASE_CHECK(_pCommandLists[i].Get());
 		_pCommandLists[i].Reset();
 	}
+	VERUS_RT_ASSERT(_vAttachmentStates.capacity() < 100);
+	VERUS_RT_ASSERT(_vBarriers.capacity() < 1000);
 	VERUS_DONE(CommandBufferD3D12);
 }
 
@@ -77,6 +80,24 @@ void CommandBufferD3D12::End()
 		throw VERUS_RUNTIME_ERROR << "Close(); hr=" << VERUS_HR(hr);
 }
 
+void CommandBufferD3D12::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, Range mipLevels, Range arrayLayers)
+{
+	auto& texD3D12 = static_cast<RTextureD3D12>(*tex);
+	_vBarriers.clear();
+	_vBarriers.reserve(mipLevels.GetCount() * arrayLayers.GetCount());
+	for (int layer : arrayLayers)
+	{
+		for (int mip : mipLevels)
+		{
+			const UINT subresource = D3D12CalcSubresource(mip, layer, 0, texD3D12.GetMipLevelCount(), texD3D12.GetArrayLayerCount());
+			_vBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
+				texD3D12.GetD3DResource(), ToNativeImageLayout(oldLayout), ToNativeImageLayout(newLayout), subresource));
+		}
+	}
+	if (!_vBarriers.empty())
+		GetD3DGraphicsCommandList()->ResourceBarrier(static_cast<UINT>(_vBarriers.size()), _vBarriers.data());
+}
+
 void CommandBufferD3D12::BeginRenderPass(RPHandle renderPassHandle, FBHandle framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
 {
 	VERUS_QREF_RENDERER_D3D12;
@@ -120,60 +141,35 @@ void CommandBufferD3D12::EndRenderPass()
 {
 	auto pCmdList = GetD3DGraphicsCommandList();
 
-	CD3DX12_RESOURCE_BARRIER barriers[VERUS_MAX_CA];
-	int barrierCount = 0;
+	_vBarriers.clear();
+	_vBarriers.reserve(VERUS_MAX_FB_ATTACH);
 	int index = 0;
 	for (const auto& attachment : _pRenderPass->_vAttachments)
 	{
 		if (_vAttachmentStates[index] != attachment._finalState)
 		{
-			const auto& resources = _pFramebuffer->_vResources[index];
+			const auto& resource = _pFramebuffer->_vResources[index];
 			UINT subresource = 0;
-			switch (_pFramebuffer->_cubeMapFace)
+			if (CubeMapFace::none != _pFramebuffer->_cubeMapFace)
 			{
-			case CubeMapFace::all:  subresource = ToNativeCubeMapFace(static_cast<CubeMapFace>(index)); break;
-			case CubeMapFace::none: subresource = 0; break;
-			default:                subresource = !index ? ToNativeCubeMapFace(_pFramebuffer->_cubeMapFace) : 0;
+				UINT arrayLayer = 0;
+				switch (_pFramebuffer->_cubeMapFace)
+				{
+				case CubeMapFace::all: arrayLayer = ToNativeCubeMapFace(static_cast<CubeMapFace>(index)); break;
+				default:               arrayLayer = !index ? ToNativeCubeMapFace(_pFramebuffer->_cubeMapFace) : 0;
+				}
+				subresource = D3D12CalcSubresource(0, arrayLayer, 0, _pFramebuffer->_mipLevels, 0);
 			}
-			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[index], attachment._finalState, subresource);
+			_vBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(resource, _vAttachmentStates[index], attachment._finalState, subresource));
 		}
 		index++;
-		if (VERUS_MAX_CA == barrierCount)
-		{
-			pCmdList->ResourceBarrier(barrierCount, barriers);
-			barrierCount = 0;
-		}
 	}
-	if (barrierCount)
-		pCmdList->ResourceBarrier(barrierCount, barriers);
+	if (!_vBarriers.empty())
+		pCmdList->ResourceBarrier(static_cast<UINT>(_vBarriers.size()), _vBarriers.data());
 
 	_pRenderPass = nullptr;
 	_pFramebuffer = nullptr;
 	_subpassIndex = 0;
-}
-
-void CommandBufferD3D12::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilter)
-{
-	auto& geoD3D12 = static_cast<RGeometryD3D12>(*geo);
-	D3D12_VERTEX_BUFFER_VIEW views[VERUS_MAX_VB];
-	const int count = geoD3D12.GetVertexBufferCount();
-	int filteredCount = 0;
-	VERUS_FOR(i, count)
-	{
-		if ((bindingsFilter >> i) & 0x1)
-		{
-			VERUS_RT_ASSERT(filteredCount < VERUS_MAX_VB);
-			views[filteredCount] = *geoD3D12.GetD3DVertexBufferView(i);
-			filteredCount++;
-		}
-	}
-	GetD3DGraphicsCommandList()->IASetVertexBuffers(0, filteredCount, views);
-}
-
-void CommandBufferD3D12::BindIndexBuffer(GeometryPtr geo)
-{
-	auto& geoD3D12 = static_cast<RGeometryD3D12>(*geo);
-	GetD3DGraphicsCommandList()->IASetIndexBuffer(geoD3D12.GetD3DIndexBufferView());
 }
 
 void CommandBufferD3D12::BindPipeline(PipelinePtr pipe)
@@ -228,6 +224,30 @@ void CommandBufferD3D12::SetBlendConstants(const float* p)
 	GetD3DGraphicsCommandList()->OMSetBlendFactor(p);
 }
 
+void CommandBufferD3D12::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilter)
+{
+	auto& geoD3D12 = static_cast<RGeometryD3D12>(*geo);
+	D3D12_VERTEX_BUFFER_VIEW views[VERUS_MAX_VB];
+	const int count = geoD3D12.GetVertexBufferCount();
+	int filteredCount = 0;
+	VERUS_FOR(i, count)
+	{
+		if ((bindingsFilter >> i) & 0x1)
+		{
+			VERUS_RT_ASSERT(filteredCount < VERUS_MAX_VB);
+			views[filteredCount] = *geoD3D12.GetD3DVertexBufferView(i);
+			filteredCount++;
+		}
+	}
+	GetD3DGraphicsCommandList()->IASetVertexBuffers(0, filteredCount, views);
+}
+
+void CommandBufferD3D12::BindIndexBuffer(GeometryPtr geo)
+{
+	auto& geoD3D12 = static_cast<RGeometryD3D12>(*geo);
+	GetD3DGraphicsCommandList()->IASetIndexBuffer(geoD3D12.GetD3DIndexBufferView());
+}
+
 bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int setNumber, CSHandle complexSetHandle)
 {
 	bool copyDescOnly = false;
@@ -276,21 +296,6 @@ void CommandBufferD3D12::PushConstants(ShaderPtr shader, int offset, int size, c
 		GetD3DGraphicsCommandList()->SetGraphicsRoot32BitConstants(0, size, p, offset);
 }
 
-void CommandBufferD3D12::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, Range mipLevels, int arrayLayer)
-{
-	auto& texD3D12 = static_cast<RTextureD3D12>(*tex);
-	CD3DX12_RESOURCE_BARRIER rb[16];
-	VERUS_RT_ASSERT(mipLevels.GetCount() <= VERUS_COUNT_OF(rb));
-	int index = 0;
-	for (int mip : mipLevels)
-	{
-		const UINT subresource = D3D12CalcSubresource(mip, arrayLayer, 0, texD3D12.GetMipLevelCount(), texD3D12.GetArrayLayerCount());
-		rb[index++] = CD3DX12_RESOURCE_BARRIER::Transition(
-			texD3D12.GetD3DResource(), ToNativeImageLayout(oldLayout), ToNativeImageLayout(newLayout), subresource);
-	}
-	GetD3DGraphicsCommandList()->ResourceBarrier(index, rb);
-}
-
 void CommandBufferD3D12::Draw(int vertexCount, int instanceCount, int firstVertex, int firstInstance)
 {
 	GetD3DGraphicsCommandList()->DrawInstanced(vertexCount, instanceCount, firstVertex, firstInstance);
@@ -334,54 +339,62 @@ void CommandBufferD3D12::PrepareSubpass()
 	RP::RcD3DFramebufferSubpass fs = _pFramebuffer->_vSubpasses[_subpassIndex];
 
 	// Resource transitions for this subpass:
-	CD3DX12_RESOURCE_BARRIER barriers[VERUS_MAX_FB_ATTACH];
-	int resIndex = 0;
-	int barrierCount = 0;
-	UINT subresource = 0;
-	switch (_pFramebuffer->_cubeMapFace)
+	_vBarriers.clear();
+	_vBarriers.reserve(VERUS_MAX_FB_ATTACH);
+	int index = 0;
+	auto CalcSubresource = [this](int index) -> UINT
 	{
-	case CubeMapFace::all:  subresource = ToNativeCubeMapFace(static_cast<CubeMapFace>(resIndex)); break;
-	case CubeMapFace::none: subresource = 0; break;
-	default:                subresource = !resIndex ? ToNativeCubeMapFace(_pFramebuffer->_cubeMapFace) : 0;
-	}
+		if (CubeMapFace::none == _pFramebuffer->_cubeMapFace)
+		{
+			return 0;
+		}
+		else
+		{
+			UINT arrayLayer = 0;
+			switch (_pFramebuffer->_cubeMapFace)
+			{
+			case CubeMapFace::all: arrayLayer = ToNativeCubeMapFace(static_cast<CubeMapFace>(index)); break;
+			default:               arrayLayer = !index ? ToNativeCubeMapFace(_pFramebuffer->_cubeMapFace) : 0;
+			}
+			return D3D12CalcSubresource(0, arrayLayer, 0, _pFramebuffer->_mipLevels, 0);
+		}
+	};
 	VERUS_FOR(i, subpass._vInput.size())
 	{
 		const auto& ref = subpass._vInput[i];
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
-			VERUS_RT_ASSERT(barrierCount < VERUS_MAX_FB_ATTACH);
-			const auto& resources = fs._vResources[resIndex];
-			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state, subresource);
+			const auto& resource = fs._vResources[index];
+			_vBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(resource, _vAttachmentStates[ref._index], ref._state, CalcSubresource(index)));
 			_vAttachmentStates[ref._index] = ref._state;
 		}
-		resIndex++;
+		index++;
 	}
 	VERUS_FOR(i, subpass._vColor.size())
 	{
 		const auto& ref = subpass._vColor[i];
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
-			VERUS_RT_ASSERT(barrierCount < VERUS_MAX_FB_ATTACH);
-			const auto& resources = fs._vResources[resIndex];
-			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(resources, _vAttachmentStates[ref._index], ref._state, subresource);
+			const auto& resource = fs._vResources[index];
+			_vBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(resource, _vAttachmentStates[ref._index], ref._state, CalcSubresource(index)));
 			_vAttachmentStates[ref._index] = ref._state;
 		}
-		resIndex++;
+		index++;
 	}
 	if (subpass._depthStencil._index >= 0)
 	{
 		const auto& ref = subpass._depthStencil;
 		if (_vAttachmentStates[ref._index] != ref._state)
 		{
-			VERUS_RT_ASSERT(barrierCount < VERUS_MAX_FB_ATTACH);
-			barriers[barrierCount++] = CD3DX12_RESOURCE_BARRIER::Transition(fs._vResources.back(), _vAttachmentStates[ref._index], ref._state, subresource);
+			_vBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(fs._vResources.back(), _vAttachmentStates[ref._index], ref._state, CalcSubresource(index)));
 			_vAttachmentStates[ref._index] = ref._state;
 		}
 	}
-	pCmdList->ResourceBarrier(barrierCount, barriers);
+	if (!_vBarriers.empty())
+		pCmdList->ResourceBarrier(static_cast<UINT>(_vBarriers.size()), _vBarriers.data());
 
 	// Clear attachments for this subpass:
-	int index = 0;
+	index = 0;
 	for (const auto& ref : subpass._vColor)
 	{
 		const auto& attachment = _pRenderPass->_vAttachments[ref._index];

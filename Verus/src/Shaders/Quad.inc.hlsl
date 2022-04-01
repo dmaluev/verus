@@ -8,5 +8,8 @@ VERUS_UBUFFER UB_QuadVS
 
 VERUS_UBUFFER UB_QuadFS
 {
-	float4 _dummy;
+	float4 _rMultiplexer;
+	float4 _gMultiplexer;
+	float4 _bMultiplexer;
+	float4 _aMultiplexer;
 };

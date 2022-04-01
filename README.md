@@ -17,6 +17,7 @@ Verus Engine is a modern, platform-agnostic 3D game engine. It is developed usin
 * Native cross-platform code
 * Same HLSL shader code for all APIs
 * Deferred shading
+* PBR/GGX with Metallic-Roughness workflow
 * Efficient textures and streaming
 * Large terrain support
 * Built-in audio system
@@ -39,6 +40,7 @@ You can download the latest version of VerusEdit here: https://verushub.com/page
 These features should be implemented in version **1.x**:
 
 - [x] glTF file format support
+- [x] Materials v2.0: PBR/GGX with Metallic-Roughness workflow
 - [ ] Shadow maps for all lights
 - [ ] Triggers
 - [ ] Quest system, dialogue system
@@ -47,11 +49,11 @@ These features should be implemented in version **1.x**:
 - [ ] Waypoints and A-Star navigation
 - [ ] Lua scripting
 - [ ] Linux support
+- [ ] OpenXR
 
 These features should be implemented in version **2.x**:
 
 - [ ] Signed distance field (SDF) fonts
-- [ ] Materials v2.0: separate textures for gloss, emission, etc.
 - [ ] Ray tracing
 - [ ] Mesh shaders
 - [ ] Multithreaded renderer

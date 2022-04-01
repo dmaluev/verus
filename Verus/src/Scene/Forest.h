@@ -23,6 +23,7 @@ namespace verus
 				PIPE_DEPTH,
 				PIPE_SIMPLE_ENV_MAP,
 				PIPE_SIMPLE_PLANAR_REF,
+				PIPE_MESH_BAKE,
 				PIPE_COUNT
 			};
 
@@ -40,11 +41,13 @@ namespace verus
 				SCATTER_TYPE_COUNT
 			};
 
+			static const int s_scatterSide = 32;
+
 		private:
 			struct Vertex
 			{
 				glm::vec3 _pos;
-				short     _tc[2]; // psize, angle.
+				half      _tc[2]; // {psize, angle}
 			};
 			VERUS_TYPEDEFS(Vertex);
 
@@ -101,39 +104,41 @@ namespace verus
 					TEX_GBUFFER_0,
 					TEX_GBUFFER_1,
 					TEX_GBUFFER_2,
+					TEX_GBUFFER_3,
 					TEX_COUNT
 				};
 
-				String                       _url;
-				Mesh                         _mesh;
-				MaterialPwn                  _material;
-				CGI::TexturePwns<TEX_COUNT>  _tex;
-				CGI::CSHandle                _csh;
-				CGI::CSHandle                _cshSimple;
-				Vector<BakedChunk>           _vBakedChunks;
-				Vector<float>                _vScales;
-				float                        _alignToNormal = 1;
-				float                        _maxScale = 0;
-				float                        _maxSize = 0;
-				float                        _windBending = 1;
-				float                        _aoSize = 1;
-				char                         _allowedNormal = 116;
+				String                      _url;
+				Mesh                        _mesh;
+				MaterialPwn                 _material;
+				CGI::TexturePwns<TEX_COUNT> _tex;
+				CGI::CSHandle               _csh;
+				CGI::CSHandle               _cshSimple;
+				Vector<BakedChunk>          _vBakedChunks;
+				Vector<float>               _vScales;
+				float                       _alignToNormal = 1;
+				float                       _maxScale = 0;
+				float                       _maxSize = 0;
+				float                       _windBending = 1;
+				char                        _allowedNormal = 116;
 
 				float GetSize() const;
 			};
 			VERUS_TYPEDEFS(Plant);
 
-			class LayerPlants
+			class LayerData
 			{
 			public:
 				char _plants[SCATTER_TYPE_COUNT];
+				BYTE _occlusion[s_scatterSide * s_scatterSide];
 
-				LayerPlants()
+				LayerData()
 				{
 					std::fill(_plants, _plants + SCATTER_TYPE_COUNT, -1);
+					std::fill(_occlusion, _occlusion + sizeof(_occlusion), 0xFF);
 				}
 			};
-			VERUS_TYPEDEFS(LayerPlants);
+			VERUS_TYPEDEFS(LayerData);
 
 			class DrawPlant
 			{
@@ -161,7 +166,7 @@ namespace verus
 			Math::Octree                     _octree;
 			Scatter                          _scatter;
 			Vector<Plant>                    _vPlants;
-			Vector<LayerPlants>              _vLayerPlants;
+			Vector<LayerData>                _vLayerData;
 			Vector<DrawPlant>                _vDrawPlants;
 			DifferenceVector<CollisionPlant> _vCollisionPlants;
 			Pool<CollisionPoolBlock>         _vCollisionPool;
@@ -182,12 +187,12 @@ namespace verus
 			public:
 				CSZ   _url = nullptr;
 				float _alignToNormal = 1;
-				float _minScale = 0.5f;
-				float _maxScale = 1.5f;
+				float _minScale = 0.8f;
+				float _maxScale = 1.25f;
 				float _windBending = 1;
 				char  _allowedNormal = 116;
 
-				void Set(CSZ url, float alignToNormal = 1, float minScale = 0.5f, float maxScale = 1.5f, float windBending = 1, char allowedNormal = 116)
+				void Set(CSZ url, float alignToNormal = 1, float minScale = 0.8f, float maxScale = 1.25f, float windBending = 1, char allowedNormal = 116)
 				{
 					_url = url;
 					_alignToNormal = alignToNormal;
@@ -223,8 +228,7 @@ namespace verus
 			void Draw(bool allowTess = true);
 			VERUS_P(void DrawModels(bool allowTess));
 			VERUS_P(void DrawSprites());
-			void DrawAO();
-			void DrawSimple(DrawSimpleMode mode);
+			void DrawSimple(DrawSimpleMode mode, CGI::CubeMapFace cubeMapFace = CGI::CubeMapFace::none);
 
 			void UpdateCollision(const Vector<Vector4>& vZones);
 
@@ -235,6 +239,9 @@ namespace verus
 			void SetLayer(int layer, RcLayerDesc desc);
 			VERUS_P(int FindPlant(CSZ url) const);
 			VERUS_P(void BakeChunks(RPlant plant));
+			VERUS_P(void UpdateOcclusion(RPlant plant));
+			VERUS_P(void AddOcclusionAt(const int ij[2], int layer, int radius));
+
 			bool LoadSprite(RPlant plant);
 			void BakeSprite(RPlant plant, CSZ url);
 			bool BakeSprites(CSZ url);
@@ -243,6 +250,8 @@ namespace verus
 				float scale, float angle, UINT32 r) override;
 
 			virtual Continue Octree_ProcessNode(void* pToken, void* pUser) override;
+
+			BYTE GetOcclusionAt(const int ij[2], int layer) const;
 		};
 		VERUS_TYPEDEFS(Forest);
 	}

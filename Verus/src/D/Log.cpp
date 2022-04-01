@@ -6,11 +6,15 @@ using namespace verus::D;
 
 void Log::Write(CSZ txt, std::thread::id tid, CSZ filename, UINT32 line, Severity severity)
 {
-	if (strstr(txt, "VUID-StandaloneSpirv-Offset-04663"))
+	if (strstr(txt, "UNASSIGNED-BestPractices-TransitionUndefinedToReadOnly"))
 		return;
 	if (strstr(txt, "UNASSIGNED-BestPractices-vkAllocateMemory-small-allocation"))
 		return;
 	if (strstr(txt, "UNASSIGNED-BestPractices-vkBindMemory-small-dedicated-allocation"))
+		return;
+	if (strstr(txt, "UNASSIGNED-BestPractices-vkCreateDevice-physical-device-features-not-retrieved"))
+		return;
+	if (strstr(txt, "UNASSIGNED-BestPractices-vkCreateInstance-specialuse-extension-debugging"))
 		return;
 	if (strstr(txt, "UNASSIGNED-CoreValidation-Shader-InconsistentSpirv"))
 		return;

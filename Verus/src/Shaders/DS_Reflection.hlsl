@@ -1,18 +1,15 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 #include "Lib.hlsl"
-#include "LibDeferredShading.hlsl"
 #include "DS_Reflection.inc.hlsl"
 
 ConstantBuffer<UB_ReflectionVS> g_ubReflectionVS : register(b0, space0);
 ConstantBuffer<UB_ReflectionFS> g_ubReflectionFS : register(b0, space1);
 
-Texture2D    g_texGBuffer0 : register(t1, space1);
-SamplerState g_samGBuffer0 : register(s1, space1);
-Texture2D    g_texGBuffer2 : register(t2, space1);
-SamplerState g_samGBuffer2 : register(s2, space1);
-Texture2D    g_texReflect  : register(t3, space1);
-SamplerState g_samReflect  : register(s3, space1);
+Texture2D    g_texGBuffer1 : register(t1, space1);
+SamplerState g_samGBuffer1 : register(s1, space1);
+Texture2D    g_texReflect  : register(t2, space1);
+SamplerState g_samReflect  : register(s2, space1);
 
 struct VSI
 {
@@ -48,14 +45,19 @@ FSO mainFS(VSO si)
 {
 	FSO so;
 
-	const float4 rawGBuffer0 = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.0);
-	const float4 rawGBuffer2 = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.0);
-	const float4 rawReflect = g_texReflect.SampleLevel(g_samReflect, si.tc0, 0.0);
+	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
+	const float4 reflectSam = g_texReflect.SampleLevel(g_samReflect, si.tc0, 0.0);
 
-	const float specMask = rawGBuffer0.a;
-	const float3 metalColor = ToMetalColor(rawGBuffer0.rgb);
-	const float2 metalMask = DS_GetMetallicity(rawGBuffer2);
-	so.color.rgb = rawReflect.rgb * lerp(1.0, metalColor, metalMask.x) * specMask;
+	// <BackgroundColor>
+	const float2 normalWasSet = ceil(gBuffer1Sam.rg);
+	const float bgMask = saturate(normalWasSet.r + normalWasSet.g);
+	// </BackgroundColor>
+
+#ifdef DEF_DEBUG_CUBE_MAP
+	so.color.rgb = reflectSam.rgb;
+#else
+	so.color.rgb = reflectSam.rgb * bgMask;
+#endif
 	so.color.a = 1.0;
 
 	return so;
@@ -63,3 +65,4 @@ FSO mainFS(VSO si)
 #endif
 
 //@main:#
+//@main:#DebugCubeMap DEBUG_CUBE_MAP

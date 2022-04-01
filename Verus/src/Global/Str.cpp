@@ -232,6 +232,10 @@ void Str::ReplaceFilename(RString pathname, CSZ filename)
 		const size_t count = pathname.length() - pos;
 		pathname.replace(pos + 1, count, filename);
 	}
+	else
+	{
+		pathname = filename;
+	}
 }
 
 void Str::ReplaceExtension(RString pathname, CSZ ext)
@@ -262,21 +266,30 @@ String Str::ToPakFriendlyUrl(CSZ url)
 glm::vec2 Str::FromStringVec2(CSZ s)
 {
 	glm::vec2 v;
-	sscanf(s, "%f %f", &v.x, &v.y);
+	if ('[' == *s)
+		sscanf(s, "[%f, %f]", &v.x, &v.y);
+	else
+		sscanf(s, "%f %f", &v.x, &v.y);
 	return v;
 }
 
 glm::vec3 Str::FromStringVec3(CSZ s)
 {
 	glm::vec3 v;
-	sscanf(s, "%f %f %f", &v.x, &v.y, &v.z);
+	if ('[' == *s)
+		sscanf(s, "[%f, %f, %f]", &v.x, &v.y, &v.z);
+	else
+		sscanf(s, "%f %f %f", &v.x, &v.y, &v.z);
 	return v;
 }
 
 glm::vec4 Str::FromStringVec4(CSZ s)
 {
 	glm::vec4 v;
-	sscanf(s, "%f %f %f %f", &v.x, &v.y, &v.z, &v.w);
+	if ('[' == *s)
+		sscanf(s, "[%f, %f, %f, %f]", &v.x, &v.y, &v.z, &v.w);
+	else
+		sscanf(s, "%f %f %f %f", &v.x, &v.y, &v.z, &v.w);
 	return v;
 }
 
@@ -294,24 +307,24 @@ String Str::ToString(float f)
 	return buffer;
 }
 
-String Str::ToString(const glm::vec2& v)
+String Str::ToString(const glm::vec2& v, bool brackets)
 {
 	char buffer[40];
-	sprintf_s(buffer, "%g %g", v.x, v.y);
+	sprintf_s(buffer, brackets ? "[%g, %g]" : "%g %g", v.x, v.y);
 	return buffer;
 }
 
-String Str::ToString(const glm::vec3& v)
+String Str::ToString(const glm::vec3& v, bool brackets)
 {
 	char buffer[60];
-	sprintf_s(buffer, "%g %g %g", v.x, v.y, v.z);
+	sprintf_s(buffer, brackets ? "[%g, %g, %g]" : "%g %g %g", v.x, v.y, v.z);
 	return buffer;
 }
 
-String Str::ToString(const glm::vec4& v)
+String Str::ToString(const glm::vec4& v, bool brackets)
 {
 	char buffer[80];
-	sprintf_s(buffer, "%g %g %g %g", v.x, v.y, v.z, v.w);
+	sprintf_s(buffer, brackets ? "[%g, %g, %g, %g]" : "%g %g %g %g", v.x, v.y, v.z, v.w);
 	return buffer;
 }
 
@@ -322,11 +335,11 @@ glm::vec4 Str::FromColorString(CSZ sz, bool sRGB)
 	return glm::make_vec4(rgba);
 }
 
-String Str::ToColorString(const glm::vec4& v, bool sRGB)
+String Str::ToColorString(const glm::vec4& v, bool sRGB, bool hexPrefix)
 {
 	const UINT32 color = Convert::ColorFloatToInt32(glm::value_ptr(v), sRGB);
 	char txt[20];
-	sprintf_s(txt, "%02X%02X%02X%02X",
+	sprintf_s(txt, hexPrefix ? "0x%02X%02X%02X%02X" : "%02X%02X%02X%02X",
 		(color >> 0) & 0xFF,
 		(color >> 8) & 0xFF,
 		(color >> 16) & 0xFF,

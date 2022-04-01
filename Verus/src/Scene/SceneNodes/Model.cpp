@@ -97,6 +97,11 @@ void Model::Deserialize(IO::RStream stream, CSZ url)
 	char mat[IO::Stream::s_bufferSize] = {};
 	stream.ReadString(mat);
 
+	// TODO: handle old names, remove later:
+	char* pOldExt = strstr(mat, ".xmt");
+	if (pOldExt)
+		strncpy(pOldExt, ".vml", 4);
+
 	Desc desc;
 	desc._url = url;
 	desc._mat = mat;

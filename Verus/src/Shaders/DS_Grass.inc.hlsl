@@ -6,7 +6,7 @@ VERUS_UBUFFER UB_GrassVS
 	mataff _matWV;
 	matrix _matVP;
 	matrix _matP;
-	float4 _phase_mapSideInv_bushMask;
+	float4 _phase_invMapSide_bushMask;
 	float4 _posEye;
 	float4 _viewportSize;
 	float4 _warp_turb;

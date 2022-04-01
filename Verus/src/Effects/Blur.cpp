@@ -48,28 +48,26 @@ void Blur::Init()
 	VERUS_QREF_RENDERER;
 
 	Vector<CSZ> vIgnoreList;
-	if (settings._postProcessBloom)
+	if (settings._postProcessSSAO)
 	{
-		_bloomHandles._rphU = renderer->CreateSimpleRenderPass(CGI::Format::srgbR8G8B8A8);
-		_bloomHandles._rphV = renderer->CreateSimpleRenderPass(CGI::Format::srgbR8G8B8A8);
+		_rphSsao = renderer->CreateSimpleRenderPass(CGI::Format::unormR8G8B8A8); // >> GBuffer2.r
+	}
+	else
+	{
+		vIgnoreList.push_back("#Ssao");
+	}
+	{
+		_rdsHandles._rphU = renderer->CreateSimpleRenderPass(CGI::Format::floatR11G11B10);
+		_rdsHandles._rphV = renderer->CreateSimpleRenderPass(CGI::Format::floatR11G11B10);
 	}
 	{
 		_dofHandles._rphU = renderer->CreateSimpleRenderPass(CGI::Format::floatR11G11B10);
 		_dofHandles._rphV = renderer->CreateSimpleRenderPass(CGI::Format::floatR11G11B10);
 	}
-	if (settings._postProcessSSAO)
+	if (settings._postProcessBloom)
 	{
-		_ssaoHandles._rphU = renderer->CreateSimpleRenderPass(CGI::Format::srgbR8G8B8A8);
-		_ssaoHandles._rphV = renderer->CreateSimpleRenderPass(CGI::Format::unormR8);
-	}
-	else
-	{
-		vIgnoreList.push_back("#USsao");
-		vIgnoreList.push_back("#VSsao");
-	}
-	{
-		_ssrHandles._rphU = renderer->CreateSimpleRenderPass(CGI::Format::floatR11G11B10);
-		_ssrHandles._rphV = renderer->CreateSimpleRenderPass(CGI::Format::floatR11G11B10);
+		_bloomHandles._rphU = renderer->CreateSimpleRenderPass(CGI::Format::srgbR8G8B8A8);
+		_bloomHandles._rphV = renderer->CreateSimpleRenderPass(CGI::Format::srgbR8G8B8A8);
 	}
 	_rphAntiAliasing = renderer->CreateSimpleRenderPass(CGI::Format::floatR11G11B10);
 	_rphMotionBlur = renderer->CreateSimpleRenderPass(CGI::Format::floatR11G11B10);
@@ -101,9 +99,39 @@ void Blur::Init()
 		pipeDesc._shaderBranch = "#V";
 		_pipe[PIPE_V].Init(pipeDesc);
 	}
+	if (settings._postProcessSSAO)
+	{
+		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#Ssao", _rphSsao);
+		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_MIN;
+		pipeDesc._colorAttachWriteMasks[0] = "r"; // >> GBuffer2.r
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc.DisableDepthTest();
+		_pipe[PIPE_SSAO].Init(pipeDesc);
+	}
+	{
+		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#ResolveDithering", _rdsHandles._rphU);
+		pipeDesc._colorAttachWriteMasks[0] = "rgb";
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc.DisableDepthTest();
+		_pipe[PIPE_RESOLVE_DITHERING].Init(pipeDesc);
+		pipeDesc._shaderBranch = "#Sharpen";
+		pipeDesc._renderPassHandle = _rdsHandles._rphV;
+		_pipe[PIPE_SHARPEN].Init(pipeDesc);
+	}
+	{
+		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#UDoF", _dofHandles._rphU);
+		pipeDesc._colorAttachWriteMasks[0] = "rgb";
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc.DisableDepthTest();
+		_pipe[PIPE_DOF_U].Init(pipeDesc);
+		pipeDesc._shaderBranch = "#VDoF";
+		pipeDesc._renderPassHandle = _dofHandles._rphV;
+		_pipe[PIPE_DOF_V].Init(pipeDesc);
+	}
 	if (settings._postProcessBloom)
 	{
 		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#U", _bloomHandles._rphU);
+		pipeDesc._colorAttachWriteMasks[0] = "rgb";
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_BLOOM_U].Init(pipeDesc);
@@ -112,43 +140,15 @@ void Blur::Init()
 		_pipe[PIPE_BLOOM_V].Init(pipeDesc);
 	}
 	{
-		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#UDoF", _dofHandles._rphU);
-		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
-		pipeDesc.DisableDepthTest();
-		_pipe[PIPE_DOF_U].Init(pipeDesc);
-		pipeDesc._shaderBranch = "#VDoF";
-		pipeDesc._renderPassHandle = _dofHandles._rphV;
-		_pipe[PIPE_DOF_V].Init(pipeDesc);
-	}
-	if (settings._postProcessSSAO)
-	{
-		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#USsao", _ssaoHandles._rphU);
-		pipeDesc._colorAttachWriteMasks[0] = "a";
-		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
-		pipeDesc.DisableDepthTest();
-		_pipe[PIPE_SSAO_U].Init(pipeDesc);
-		pipeDesc._shaderBranch = "#VSsao";
-		pipeDesc._colorAttachWriteMasks[0] = "rgba";
-		pipeDesc._renderPassHandle = _ssaoHandles._rphV;
-		_pipe[PIPE_SSAO_V].Init(pipeDesc);
-	}
-	{
-		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#USsr", _ssrHandles._rphU);
-		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
-		pipeDesc.DisableDepthTest();
-		_pipe[PIPE_SSR_U].Init(pipeDesc);
-		pipeDesc._shaderBranch = "#VSsr";
-		pipeDesc._renderPassHandle = _ssrHandles._rphV;
-		_pipe[PIPE_SSR_V].Init(pipeDesc);
-	}
-	{
 		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#AntiAliasing", _rphAntiAliasing);
+		pipeDesc._colorAttachWriteMasks[0] = "rgb";
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_AA].Init(pipeDesc);
 	}
 	{
 		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#Motion", _rphMotionBlur);
+		pipeDesc._colorAttachWriteMasks[0] = "rgb";
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_MOTION_BLUR].Init(pipeDesc);
@@ -160,18 +160,25 @@ void Blur::Init()
 void Blur::Done()
 {
 	VERUS_QREF_RENDERER;
+
 	renderer->DeleteFramebuffer(_fbhMotionBlur);
 	renderer->DeleteRenderPass(_rphMotionBlur);
+
 	renderer->DeleteFramebuffer(_fbhAntiAliasing);
 	renderer->DeleteRenderPass(_rphAntiAliasing);
-	_ssrHandles.DeleteFramebuffers();
-	_ssrHandles.DeleteRenderPasses();
-	_ssaoHandles.DeleteFramebuffers();
-	_ssaoHandles.DeleteRenderPasses();
-	_dofHandles.DeleteFramebuffers();
-	_dofHandles.DeleteRenderPasses();
+
 	_bloomHandles.DeleteFramebuffers();
 	_bloomHandles.DeleteRenderPasses();
+
+	_dofHandles.DeleteFramebuffers();
+	_dofHandles.DeleteRenderPasses();
+
+	_rdsHandles.DeleteFramebuffers();
+	_rdsHandles.DeleteRenderPasses();
+
+	renderer->DeleteFramebuffer(_fbhSsao);
+	renderer->DeleteRenderPass(_rphSsao);
+
 	VERUS_DONE(Blur);
 }
 
@@ -183,7 +190,6 @@ void Blur::OnSwapChainResized()
 	VERUS_QREF_BLOOM;
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_SSAO;
 
 	{
 		_shader->FreeDescriptorSet(_cshMotionBlurExtra);
@@ -194,21 +200,19 @@ void Blur::OnSwapChainResized()
 		_shader->FreeDescriptorSet(_cshAntiAliasing);
 		renderer->DeleteFramebuffer(_fbhAntiAliasing);
 
-		_shader->FreeDescriptorSet(_cshSsrExtra);
-		_ssrHandles.FreeDescriptorSets(_shader);
-		_ssrHandles.DeleteFramebuffers();
-
-		_ssaoHandles.FreeDescriptorSets(_shader);
-		_ssaoHandles.DeleteFramebuffers();
+		_bloomHandles.FreeDescriptorSets(_shader);
+		_bloomHandles.DeleteFramebuffers();
 
 		_shader->FreeDescriptorSet(_cshDofExtra);
 		_dofHandles.FreeDescriptorSets(_shader);
 		_dofHandles.DeleteFramebuffers();
 
-		_bloomHandles.FreeDescriptorSets(_shader);
-		_bloomHandles.DeleteFramebuffers();
+		_shader->FreeDescriptorSet(_cshRdsExtra);
+		_rdsHandles.FreeDescriptorSets(_shader);
+		_rdsHandles.DeleteFramebuffers();
 
-		_tex.Done();
+		_shader->FreeDescriptorSet(_cshSsao);
+		renderer->DeleteFramebuffer(_fbhSsao);
 	}
 	{
 		const int scaledSwapChainWidth = settings.Scale(renderer.GetSwapChainWidth());
@@ -216,23 +220,24 @@ void Blur::OnSwapChainResized()
 		const int scaledSwapChainHalfWidth = scaledSwapChainWidth / 2;
 		const int scaledSwapChainHalfHeight = scaledSwapChainHeight / 2;
 
-		CGI::TextureDesc texDesc;
-		texDesc._name = "Blur.Tex";
-		texDesc._format = CGI::Format::srgbR8G8B8A8;
-		texDesc._width = scaledSwapChainWidth;
-		texDesc._height = scaledSwapChainHeight;
-		texDesc._flags = CGI::TextureDesc::Flags::colorAttachment;
-		_tex.Init(texDesc);
-
-		if (settings._postProcessBloom)
+		if (settings._postProcessSSAO)
 		{
-			_bloomHandles._fbhU = renderer->CreateFramebuffer(_bloomHandles._rphU, { bloom.GetPongTexture() }, scaledSwapChainHalfWidth, scaledSwapChainHalfHeight);
-			_bloomHandles._fbhV = renderer->CreateFramebuffer(_bloomHandles._rphV, { bloom.GetTexture() }, scaledSwapChainHalfWidth, scaledSwapChainHalfHeight);
-			_bloomHandles._cshU = _shader->BindDescriptorSetTextures(1, { bloom.GetTexture() });
-			_bloomHandles._cshV = _shader->BindDescriptorSetTextures(1, { bloom.GetPongTexture() });
+			// GBuffer3.r >> GBuffer2.r:
+			_fbhSsao = renderer->CreateFramebuffer(_rphSsao, { renderer.GetDS().GetGBuffer(2) }, scaledSwapChainWidth, scaledSwapChainHeight);
+			_cshSsao = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetGBuffer(3) });
 		}
 
 		{
+			// ComposedA >> ComposedB >> ComposedA:
+			_rdsHandles._fbhU = renderer->CreateFramebuffer(_rdsHandles._rphU, { renderer.GetDS().GetComposedTextureB() }, scaledSwapChainWidth, scaledSwapChainHeight);
+			_rdsHandles._fbhV = renderer->CreateFramebuffer(_rdsHandles._rphV, { renderer.GetDS().GetComposedTextureA() }, scaledSwapChainWidth, scaledSwapChainHeight);
+			_rdsHandles._cshU = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureA() });
+			_rdsHandles._cshV = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureB() });
+			_cshRdsExtra = _shader->BindDescriptorSetTextures(2, { renderer.GetDS().GetGBuffer(3), renderer.GetDS().GetGBuffer(3) });
+		}
+
+		{
+			// ComposedA >> ComposedB >> ComposedA:
 			_dofHandles._fbhU = renderer->CreateFramebuffer(_dofHandles._rphU, { renderer.GetDS().GetComposedTextureB() }, scaledSwapChainWidth, scaledSwapChainHeight);
 			_dofHandles._fbhV = renderer->CreateFramebuffer(_dofHandles._rphV, { renderer.GetDS().GetComposedTextureA() }, scaledSwapChainWidth, scaledSwapChainHeight);
 			_dofHandles._cshU = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureA() });
@@ -240,29 +245,24 @@ void Blur::OnSwapChainResized()
 			_cshDofExtra = _shader->BindDescriptorSetTextures(2, { renderer.GetDS().GetGBuffer(1), renderer.GetTexDepthStencil() });
 		}
 
-		if (settings._postProcessSSAO)
+		if (settings._postProcessBloom)
 		{
-			_ssaoHandles._fbhU = renderer->CreateFramebuffer(_ssaoHandles._rphU, { _tex }, scaledSwapChainWidth, scaledSwapChainHeight);
-			_ssaoHandles._fbhV = renderer->CreateFramebuffer(_ssaoHandles._rphV, { ssao.GetTexture() }, scaledSwapChainWidth, scaledSwapChainHeight);
-			_ssaoHandles._cshU = _shader->BindDescriptorSetTextures(1, { ssao.GetTexture() });
-			_ssaoHandles._cshV = _shader->BindDescriptorSetTextures(1, { _tex });
+			// Ping >> Pong >> Ping:
+			_bloomHandles._fbhU = renderer->CreateFramebuffer(_bloomHandles._rphU, { bloom.GetPongTexture() }, scaledSwapChainHalfWidth, scaledSwapChainHalfHeight);
+			_bloomHandles._fbhV = renderer->CreateFramebuffer(_bloomHandles._rphV, { bloom.GetTexture() }, scaledSwapChainHalfWidth, scaledSwapChainHalfHeight);
+			_bloomHandles._cshU = _shader->BindDescriptorSetTextures(1, { bloom.GetTexture() });
+			_bloomHandles._cshV = _shader->BindDescriptorSetTextures(1, { bloom.GetPongTexture() });
 		}
 
 		{
-			_ssrHandles._fbhU = renderer->CreateFramebuffer(_ssrHandles._rphU, { renderer.GetDS().GetLightAccDiffTexture() }, scaledSwapChainWidth, scaledSwapChainHeight);
-			_ssrHandles._fbhV = renderer->CreateFramebuffer(_ssrHandles._rphV, { renderer.GetDS().GetLightAccSpecTexture() }, scaledSwapChainWidth, scaledSwapChainHeight);
-			_ssrHandles._cshU = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetLightAccSpecTexture() });
-			_ssrHandles._cshV = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetLightAccDiffTexture() });
-			_cshSsrExtra = _shader->BindDescriptorSetTextures(2, { ssao.GetTexture(), renderer.GetDS().GetGBuffer(2) });
-		}
-
-		{
+			// ComposedA >> ComposedB:
 			_fbhAntiAliasing = renderer->CreateFramebuffer(_rphAntiAliasing, { renderer.GetDS().GetComposedTextureB() }, scaledSwapChainWidth, scaledSwapChainHeight);
 			_cshAntiAliasing = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureA() });
 			_cshAntiAliasingExtra = _shader->BindDescriptorSetTextures(2, { renderer.GetDS().GetGBuffer(1), renderer.GetTexDepthStencil() });
 		}
 
 		{
+			// ComposedB >> ComposedA:
 			_fbhMotionBlur = renderer->CreateFramebuffer(_rphMotionBlur, { renderer.GetDS().GetComposedTextureA() }, scaledSwapChainWidth, scaledSwapChainHeight);
 			_cshMotionBlur = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureB() });
 			_cshMotionBlurExtra = _shader->BindDescriptorSetTextures(2, { renderer.GetDS().GetGBuffer(1), renderer.GetTexDepthStencil() });
@@ -270,70 +270,56 @@ void Blur::OnSwapChainResized()
 	}
 }
 
-void Blur::Generate()
+void Blur::GenerateForSsao()
 {
-}
-
-void Blur::GenerateForBloom(bool forLightShafts)
-{
-	VERUS_QREF_BLOOM;
-	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
-
-	if (bloom.IsEditMode())
-	{
-		ImGui::DragFloat("Bloom blur radius", &_bloomRadius, 0.001f);
-		ImGui::DragFloat("Bloom (god rays) blur radius", &_bloomLightShaftsRadius, 0.001f);
-	}
-
-	const float radius = forLightShafts ? _bloomLightShaftsRadius : _bloomRadius;
-	float samplesPerPixel = 1;
-	int maxSamples = 1;
-	switch (settings._gpuShaderQuality)
-	{
-	case App::Settings::Quality::low:
-		samplesPerPixel = 1 / 6.f;
-		maxSamples = 12 - 1;
-		break;
-	case App::Settings::Quality::medium:
-		samplesPerPixel = 1 / 6.f;
-		maxSamples = 16 - 1;
-		break;
-	case App::Settings::Quality::high:
-		samplesPerPixel = 1 / 4.f;
-		maxSamples = 24 - 1;
-		break;
-	case App::Settings::Quality::ultra:
-		samplesPerPixel = 1 / 4.f;
-		maxSamples = 32 - 1;
-		break;
-	}
 
 	auto cb = renderer.GetCommandBuffer();
 
 	s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
-	s_ubBlurVS._matV = Math::ToUVMatrix(0, bloom.GetTexture()->GetSize()).UniformBufferFormat();
-	UpdateUniformBuffer(radius, 0, renderer.GetSwapChainWidth(), samplesPerPixel, maxSamples);
+	s_ubBlurVS._matV = Math::ToUVMatrix(0, renderer.GetDS().GetGBuffer(2)->GetSize(), nullptr, 0.5f, 0.5f).UniformBufferFormat();
 
 	_shader->BeginBindDescriptors();
 	{
-		cb->BeginRenderPass(_bloomHandles._rphU, _bloomHandles._fbhU, { bloom.GetPongTexture()->GetClearValue() });
+		cb->BeginRenderPass(_rphSsao, _fbhSsao, { renderer.GetDS().GetGBuffer(2)->GetClearValue() });
 
-		cb->BindPipeline(_pipe[PIPE_BLOOM_U]);
+		cb->BindPipeline(_pipe[PIPE_SSAO]);
 		cb->BindDescriptors(_shader, 0);
-		cb->BindDescriptors(_shader, 1, _bloomHandles._cshU);
+		cb->BindDescriptors(_shader, 1, _cshSsao);
 		renderer.DrawQuad(cb.Get());
 
 		cb->EndRenderPass();
 	}
-	s_ubBlurVS._matV = Math::ToUVMatrix(0, bloom.GetTexture()->GetSize()).UniformBufferFormat();
-	UpdateUniformBuffer(radius * renderer.GetSwapChainAspectRatio(), 0, renderer.GetSwapChainHeight(), samplesPerPixel, maxSamples);
-	{
-		cb->BeginRenderPass(_bloomHandles._rphV, _bloomHandles._fbhV, { bloom.GetTexture()->GetClearValue() });
+	_shader->EndBindDescriptors();
+}
 
-		cb->BindPipeline(_pipe[PIPE_BLOOM_V]);
+void Blur::GenerateForResolveDitheringAndSharpen()
+{
+	VERUS_QREF_RENDERER;
+
+	auto cb = renderer.GetCommandBuffer();
+
+	s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
+	s_ubBlurVS._matV = Math::ToUVMatrix().UniformBufferFormat();
+
+	_shader->BeginBindDescriptors();
+	{
+		cb->BeginRenderPass(_rdsHandles._rphU, _rdsHandles._fbhU, { renderer.GetDS().GetComposedTextureB()->GetClearValue() });
+
+		cb->BindPipeline(_pipe[PIPE_RESOLVE_DITHERING]);
 		cb->BindDescriptors(_shader, 0);
-		cb->BindDescriptors(_shader, 1, _bloomHandles._cshV);
+		cb->BindDescriptors(_shader, 1, _rdsHandles._cshU);
+		cb->BindDescriptors(_shader, 2, _cshRdsExtra);
+		renderer.DrawQuad(cb.Get());
+
+		cb->EndRenderPass();
+	}
+	{
+		cb->BeginRenderPass(_rdsHandles._rphV, _rdsHandles._fbhV, { renderer.GetDS().GetComposedTextureA()->GetClearValue() });
+
+		cb->BindPipeline(_pipe[PIPE_SHARPEN]);
+		cb->BindDescriptors(_shader, 0);
+		cb->BindDescriptors(_shader, 1, _rdsHandles._cshV);
 		renderer.DrawQuad(cb.Get());
 
 		cb->EndRenderPass();
@@ -424,52 +410,19 @@ void Blur::GenerateForDepthOfField()
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilReadOnly, CGI::ImageLayout::depthStencilAttachment, 0);
 }
 
-void Blur::GenerateForSsao()
+void Blur::GenerateForBloom(bool forLightShafts)
 {
-	VERUS_QREF_RENDERER;
-	VERUS_QREF_SSAO;
-
-	auto cb = renderer.GetCommandBuffer();
-
-	s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
-	s_ubBlurVS._matV = Math::ToUVMatrix(0, _tex->GetSize(), nullptr, 0.5f, 0).UniformBufferFormat();
-
-	_shader->BeginBindDescriptors();
-	{
-		cb->BeginRenderPass(_ssaoHandles._rphU, _ssaoHandles._fbhU, { _tex->GetClearValue() });
-
-		cb->BindPipeline(_pipe[PIPE_SSAO_U]);
-		cb->BindDescriptors(_shader, 0);
-		cb->BindDescriptors(_shader, 1, _ssaoHandles._cshU);
-		renderer.DrawQuad(cb.Get());
-
-		cb->EndRenderPass();
-	}
-	s_ubBlurVS._matV = Math::ToUVMatrix(0, _tex->GetSize(), nullptr, 0, 0.5f).UniformBufferFormat();
-	{
-		cb->BeginRenderPass(_ssaoHandles._rphV, _ssaoHandles._fbhV, { ssao.GetTexture()->GetClearValue() });
-
-		cb->BindPipeline(_pipe[PIPE_SSAO_V]);
-		cb->BindDescriptors(_shader, 0);
-		cb->BindDescriptors(_shader, 1, _ssaoHandles._cshV);
-		renderer.DrawQuad(cb.Get());
-
-		cb->EndRenderPass();
-	}
-	_shader->EndBindDescriptors();
-}
-
-void Blur::GenerateForSsr()
-{
+	VERUS_QREF_BLOOM;
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_SSR;
 
-	if (ssr.IsEditMode())
+	if (bloom.IsEditMode())
 	{
-		ImGui::DragFloat("SSR blur radius", &_ssrRadius, 0.001f);
+		ImGui::DragFloat("Bloom blur radius", &_bloomRadius, 0.001f);
+		ImGui::DragFloat("Bloom (god rays) blur radius", &_bloomLightShaftsRadius, 0.001f);
 	}
 
+	const float radius = forLightShafts ? _bloomLightShaftsRadius : _bloomRadius;
 	float samplesPerPixel = 1;
 	int maxSamples = 1;
 	switch (settings._gpuShaderQuality)
@@ -495,30 +448,28 @@ void Blur::GenerateForSsr()
 	auto cb = renderer.GetCommandBuffer();
 
 	s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
-	s_ubBlurVS._matV = Math::ToUVMatrix(0, renderer.GetDS().GetLightAccDiffTexture()->GetSize()).UniformBufferFormat();
-	UpdateUniformBuffer(_ssrRadius, 0, renderer.GetSwapChainWidth(), samplesPerPixel, maxSamples);
+	s_ubBlurVS._matV = Math::ToUVMatrix(0, bloom.GetTexture()->GetSize()).UniformBufferFormat();
+	UpdateUniformBuffer(radius, 0, renderer.GetSwapChainWidth(), samplesPerPixel, maxSamples);
 
 	_shader->BeginBindDescriptors();
 	{
-		cb->BeginRenderPass(_ssrHandles._rphU, _ssrHandles._fbhU, { renderer.GetDS().GetLightAccDiffTexture()->GetClearValue() });
+		cb->BeginRenderPass(_bloomHandles._rphU, _bloomHandles._fbhU, { bloom.GetPongTexture()->GetClearValue() });
 
-		cb->BindPipeline(_pipe[PIPE_SSR_U]);
+		cb->BindPipeline(_pipe[PIPE_BLOOM_U]);
 		cb->BindDescriptors(_shader, 0);
-		cb->BindDescriptors(_shader, 1, _ssrHandles._cshU);
-		cb->BindDescriptors(_shader, 2, _cshSsrExtra);
+		cb->BindDescriptors(_shader, 1, _bloomHandles._cshU);
 		renderer.DrawQuad(cb.Get());
 
 		cb->EndRenderPass();
 	}
-	s_ubBlurVS._matV = Math::ToUVMatrix(0, renderer.GetDS().GetLightAccSpecTexture()->GetSize()).UniformBufferFormat();
-	UpdateUniformBuffer(_ssrRadius * renderer.GetSwapChainAspectRatio(), 0, renderer.GetSwapChainHeight(), samplesPerPixel, maxSamples);
+	s_ubBlurVS._matV = Math::ToUVMatrix(0, bloom.GetTexture()->GetSize()).UniformBufferFormat();
+	UpdateUniformBuffer(radius * renderer.GetSwapChainAspectRatio(), 0, renderer.GetSwapChainHeight(), samplesPerPixel, maxSamples);
 	{
-		cb->BeginRenderPass(_ssrHandles._rphV, _ssrHandles._fbhV, { renderer.GetDS().GetLightAccSpecTexture()->GetClearValue() });
+		cb->BeginRenderPass(_bloomHandles._rphV, _bloomHandles._fbhV, { bloom.GetTexture()->GetClearValue() });
 
-		cb->BindPipeline(_pipe[PIPE_SSR_V]);
+		cb->BindPipeline(_pipe[PIPE_BLOOM_V]);
 		cb->BindDescriptors(_shader, 0);
-		cb->BindDescriptors(_shader, 1, _ssrHandles._cshV);
-		cb->BindDescriptors(_shader, 2, _cshSsrExtra);
+		cb->BindDescriptors(_shader, 1, _bloomHandles._cshV);
 		renderer.DrawQuad(cb.Get());
 
 		cb->EndRenderPass();

@@ -30,10 +30,21 @@ namespace verus
 	typedef const char* CSZ;
 	typedef wchar_t* WSZ;
 	typedef const wchar_t* CWSZ;
+
 	typedef std::string       String;
 	typedef std::wstring      WideString;
 	typedef std::stringstream StringStream;
-	typedef glm::quat         Quaternion;
+
+	typedef glm::quat   Quaternion;
+	typedef glm::ivec2  int2;
+	typedef glm::ivec3  int3;
+	typedef glm::ivec4  int4;
+	typedef glm::vec2   float2;
+	typedef glm::vec3   float3;
+	typedef glm::vec4   float4;
+	typedef glm::mat4   matrix;
+	typedef glm::mat3x4 mataff;
+	typedef UINT16      half;
 
 	VERUS_TYPEDEFS(String);
 	VERUS_TYPEDEFS(WideString);
