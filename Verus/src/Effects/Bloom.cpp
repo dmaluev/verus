@@ -109,12 +109,13 @@ void Bloom::OnSwapChainResized()
 		const int w = scaledSwapChainWidth / 2;
 		const int h = scaledSwapChainHeight / 2;
 		CGI::TextureDesc texDesc;
-		texDesc._name = "Bloom.Pong";
+		texDesc._name = "Bloom.Ping";
 		texDesc._format = CGI::Format::srgbR8G8B8A8;
 		texDesc._width = w;
 		texDesc._height = h;
 		texDesc._flags = CGI::TextureDesc::Flags::colorAttachment;
 		_tex[TEX_PING].Init(texDesc);
+		texDesc._name = "Bloom.Pong";
 		_tex[TEX_PONG].Init(texDesc);
 		_fbh = renderer->CreateFramebuffer(_rph, { _tex[TEX_PING] }, w, h);
 		_csh = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureA() });

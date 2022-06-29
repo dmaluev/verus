@@ -8,22 +8,22 @@
 #include "LibVertex.hlsl"
 #include "DS.inc.hlsl"
 
-ConstantBuffer<UB_PerFrame>   g_ubPerFrame   : register(b0, space0);
-ConstantBuffer<UB_TexturesFS> g_ubTexturesFS : register(b0, space1);
-ConstantBuffer<UB_PerMeshVS>  g_ubPerMeshVS  : register(b0, space2);
-ConstantBuffer<UB_ShadowFS>   g_ubShadowFS   : register(b0, space3);
+CBUFFER(0, UB_PerFrame, g_ubPerFrame)
+CBUFFER(1, UB_TexturesFS, g_ubTexturesFS)
+CBUFFER(2, UB_PerMeshVS, g_ubPerMeshVS)
+CBUFFER(3, UB_ShadowFS, g_ubShadowFS)
 VK_PUSH_CONSTANT
-ConstantBuffer<UB_PerObject>  g_ubPerObject  : register(b0, space4);
+CBUFFER(4, UB_PerObject, g_ubPerObject)
 
-VK_SUBPASS_INPUT(0, g_texGBuffer0, g_samGBuffer0, t1, s1, space1);
-VK_SUBPASS_INPUT(1, g_texGBuffer1, g_samGBuffer1, t2, s2, space1);
-VK_SUBPASS_INPUT(2, g_texGBuffer2, g_samGBuffer2, t3, s3, space1);
-VK_SUBPASS_INPUT(3, g_texGBuffer3, g_samGBuffer3, t4, s4, space1);
-VK_SUBPASS_INPUT(4, g_texDepth, g_samDepth, t5, s5, space1);
-Texture2D              g_texShadowCmp : register(t6, space1);
-SamplerComparisonState g_samShadowCmp : register(s6, space1);
-Texture2D              g_texShadow    : register(t7, space1);
-SamplerState           g_samShadow    : register(s7, space1);
+VK_SUBPASS_INPUT(0, g_texGBuffer0, g_samGBuffer0, 1, space1);
+VK_SUBPASS_INPUT(1, g_texGBuffer1, g_samGBuffer1, 2, space1);
+VK_SUBPASS_INPUT(2, g_texGBuffer2, g_samGBuffer2, 3, space1);
+VK_SUBPASS_INPUT(3, g_texGBuffer3, g_samGBuffer3, 4, space1);
+VK_SUBPASS_INPUT(4, g_texDepth, g_samDepth, 5, space1);
+Texture2D              g_texShadowCmp : REG(t6, space1, t5);
+SamplerComparisonState g_samShadowCmp : REG(s6, space1, s5);
+Texture2D              g_texShadow    : REG(t7, space1, t6);
+SamplerState           g_samShadow    : REG(s7, space1, s6);
 
 struct VSI
 {

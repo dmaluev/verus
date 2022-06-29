@@ -1,5 +1,5 @@
 #include <cstdlib>
-#include "..\zlib-1.2.11\zlib.h"
+#include "..\zlib-1.2.12\zlib.h"
 
 static unsigned char* my_compress(unsigned char* data, int data_len, int* out_len, int quality)
 {

@@ -64,8 +64,6 @@ namespace verus
 			static CSZ s_requiredValidationLayers[];
 			static CSZ s_requiredDeviceExtensions[];
 
-			typedef Map<String, VkRenderPass> TMapRenderPasses;
-
 			VkInstance               _instance = VK_NULL_HANDLE;
 			VkDebugUtilsMessengerEXT _debugUtilsMessenger = VK_NULL_HANDLE;
 			VkSurfaceKHR             _surface = VK_NULL_HANDLE;
@@ -129,7 +127,8 @@ namespace verus
 			void CreateSamplers();
 
 		public:
-			VkCommandBuffer CreateCommandBuffer(VkCommandPool commandPool);
+			// <CreateAndGet>
+			VkCommandBuffer CreateVkCommandBuffer(VkCommandPool commandPool);
 
 			VkDevice GetVkDevice() const { return _device; }
 			VkQueue GetVkGraphicsQueue() const { return _graphicsQueue; }
@@ -137,6 +136,7 @@ namespace verus
 			VmaAllocator GetVmaAllocator() const { return _vmaAllocator; }
 			VkCommandPool GetVkCommandPool(int ringBufferIndex) const { return _commandPools[ringBufferIndex]; }
 			const VkSampler* GetImmutableSampler(Sampler s) const;
+			// </CreateAndGet>
 
 			static void ImGuiCheckVkResultFn(VkResult res);
 			virtual void ImGuiInit(RPHandle renderPassHandle) override;
@@ -148,11 +148,11 @@ namespace verus
 			virtual Gapi GetGapi() override { return Gapi::vulkan; }
 
 			// <FrameCycle>
-			virtual void BeginFrame(bool present) override;
-			virtual void EndFrame(bool present) override;
-			virtual void Present() override;
-			virtual void Sync(bool present) override;
+			virtual void BeginFrame() override;
+			virtual void AcquireSwapChainImage() override;
+			virtual void EndFrame() override;
 			virtual void WaitIdle() override;
+			virtual void OnMinimized() override;
 			// </FrameCycle>
 
 			// <Resources>

@@ -62,8 +62,7 @@ void ShaderVulkan::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			return;
 		VERUS_QREF_RENDERER_VULKAN;
 		VkResult res = VK_SUCCESS;
-		VkShaderModuleCreateInfo vksmci = {};
-		vksmci.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		VkShaderModuleCreateInfo vksmci = { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
 		vksmci.codeSize = size;
 		vksmci.pCode = pCode;
 		if (VK_SUCCESS != (res = vkCreateShaderModule(pRendererVulkan->GetVkDevice(), &vksmci, pRendererVulkan->GetAllocator(), &shaderModule)))
@@ -203,8 +202,8 @@ void ShaderVulkan::Done()
 {
 	VERUS_QREF_RENDERER_VULKAN;
 
-	VERUS_VULKAN_DESTROY(_descriptorPool, vkDestroyDescriptorPool(pRendererVulkan->GetVkDevice(), _descriptorPool, pRendererVulkan->GetAllocator()));
 	VERUS_VULKAN_DESTROY(_pipelineLayout, vkDestroyPipelineLayout(pRendererVulkan->GetVkDevice(), _pipelineLayout, pRendererVulkan->GetAllocator()));
+	VERUS_VULKAN_DESTROY(_descriptorPool, vkDestroyDescriptorPool(pRendererVulkan->GetVkDevice(), _descriptorPool, pRendererVulkan->GetAllocator()));
 	for (auto& x : _vDescriptorSetLayouts)
 		VERUS_VULKAN_DESTROY(x, vkDestroyDescriptorSetLayout(pRendererVulkan->GetVkDevice(), x, pRendererVulkan->GetAllocator()));
 	_vDescriptorSetLayouts.clear();
@@ -276,8 +275,7 @@ void ShaderVulkan::CreatePipelineLayout()
 	};
 
 	VkPushConstantRange vkpcr = {};
-	VkPipelineLayoutCreateInfo vkplci = {};
-	vkplci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	VkPipelineLayoutCreateInfo vkplci = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 	if (_vDescriptorSetDesc.empty())
 	{
 		vkplci.setLayoutCount = 0;
@@ -330,8 +328,7 @@ void ShaderVulkan::CreatePipelineLayout()
 						vkdslb.pImmutableSamplers = pRendererVulkan->GetImmutableSampler(dsd._vSamplers[i]);
 					vBindings.push_back(vkdslb);
 				}
-				VkDescriptorSetLayoutCreateInfo vkdslci = {};
-				vkdslci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+				VkDescriptorSetLayoutCreateInfo vkdslci = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
 				vkdslci.bindingCount = Utils::Cast32(vBindings.size());
 				vkdslci.pBindings = vBindings.data();
 
@@ -410,7 +407,7 @@ CSHandle ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
-	// New complex descriptor set's ID:
+	// <NewComplexSetHandle>
 	int complexSetHandle = -1;
 	VERUS_FOR(i, _vComplexDescriptorSets.size())
 	{
@@ -425,13 +422,13 @@ CSHandle ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer
 		complexSetHandle = Utils::Cast32(_vComplexDescriptorSets.size());
 		_vComplexDescriptorSets.resize(complexSetHandle + 1);
 	}
+	// </NewComplexSetHandle>
 
-	auto& dsd = _vDescriptorSetDesc[setNumber];
+	const auto& dsd = _vDescriptorSetDesc[setNumber];
 	VERUS_RT_ASSERT(dsd._vSamplers.size() == il.size());
 
 	// Allocate from pool:
-	VkDescriptorSetAllocateInfo vkdsai = {};
-	vkdsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	VkDescriptorSetAllocateInfo vkdsai = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 	vkdsai.descriptorPool = _descriptorPool;
 	vkdsai.descriptorSetCount = 1;
 	vkdsai.pSetLayouts = &_vDescriptorSetLayouts[setNumber];
@@ -481,8 +478,7 @@ CSHandle ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer
 	vWriteDescriptorSet.reserve(1 + il.size());
 
 	// First comes uniform buffer:
-	VkWriteDescriptorSet vkwds = {};
-	vkwds.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	VkWriteDescriptorSet vkwds = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 	vkwds.dstSet = descriptorSet;
 	vkwds.dstBinding = 0;
 	vkwds.dstArrayElement = 0;
@@ -495,8 +491,7 @@ CSHandle ShaderVulkan::BindDescriptorSetTextures(int setNumber, std::initializer
 	index = 0;
 	for (const auto& x : il)
 	{
-		VkWriteDescriptorSet vkwds = {};
-		vkwds.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		VkWriteDescriptorSet vkwds = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 		vkwds.dstSet = descriptorSet;
 		vkwds.dstBinding = index + 1;
 		vkwds.dstArrayElement = 0;
@@ -574,8 +569,7 @@ void ShaderVulkan::CreateDescriptorPool()
 	VERUS_QREF_RENDERER_VULKAN;
 	VkResult res = VK_SUCCESS;
 
-	VkDescriptorPoolCreateInfo vkdpci = {};
-	vkdpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	VkDescriptorPoolCreateInfo vkdpci = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 	vkdpci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 	vkdpci.poolSizeCount = 1;
 	VkDescriptorPoolSize vkdps[4] = {};
@@ -612,8 +606,7 @@ void ShaderVulkan::CreateDescriptorSets()
 	{
 		if (index < _vDescriptorSetLayouts.size())
 		{
-			VkDescriptorSetAllocateInfo vkdsai = {};
-			vkdsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+			VkDescriptorSetAllocateInfo vkdsai = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 			vkdsai.descriptorPool = _descriptorPool;
 			vkdsai.descriptorSetCount = 1;
 			vkdsai.pSetLayouts = &_vDescriptorSetLayouts[index];
@@ -627,8 +620,7 @@ void ShaderVulkan::CreateDescriptorSets()
 			vkdbi.buffer = dsd._buffer;
 			vkdbi.offset = 0;
 			vkdbi.range = dsd._size;
-			VkWriteDescriptorSet vkwds = {};
-			vkwds.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			VkWriteDescriptorSet vkwds = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 			vkwds.dstSet = dsd._descriptorSet;
 			vkwds.dstBinding = 0;
 			vkwds.dstArrayElement = 0;

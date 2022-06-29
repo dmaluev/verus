@@ -1,7 +1,7 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-// Last updated on 6-Feb-2022
+// Last updated on 13-Jul-2022
 
 // Base64 (https://sourceforge.net/projects/libb64/):
 #ifdef _WIN32
@@ -67,7 +67,7 @@ static inline ImVec4 operator*(const ImVec4& lhs, const ImVec4& rhs) { return Im
 #include "nativefiledialog/nfd.h"
 
 // pugixml (https://pugixml.org/):
-#include "pugixml-1.11/pugixml.hpp"
+#include "pugixml-1.12/pugixml.hpp"
 
 // Sony Vector Math (https://github.com/glampert/vectormath):
 #include "vectormath/sse/vectormath.hpp"
@@ -83,4 +83,4 @@ static inline ImVec4 operator*(const ImVec4& lhs, const ImVec4& rhs) { return Im
 #include "utf8.h"
 
 // zlib (https://zlib.net/):
-#include "zlib-1.2.11/zlib.h"
+#include "zlib-1.2.12/zlib.h"

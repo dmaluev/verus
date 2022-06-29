@@ -3,11 +3,11 @@
 #include "Lib.hlsl"
 #include "Cinema.inc.hlsl"
 
-ConstantBuffer<UB_CinemaVS> g_ubCinemaVS : register(b0, space0);
-ConstantBuffer<UB_CinemaFS> g_ubCinemaFS : register(b0, space1);
+CBUFFER(0, UB_CinemaVS, g_ubCinemaVS)
+CBUFFER(1, UB_CinemaFS, g_ubCinemaFS)
 
-Texture2D    g_texFilmGrain : register(t1, space1);
-SamplerState g_samFilmGrain : register(s1, space1);
+Texture2D    g_texFilmGrain : REG(t1, space1, t0);
+SamplerState g_samFilmGrain : REG(s1, space1, s0);
 
 struct VSI
 {

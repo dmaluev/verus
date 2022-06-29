@@ -251,27 +251,24 @@ void RendererVulkan::CreateInstance()
 	const int patch = (VERUS_SDK_VERSION) & 0xFFFF;
 
 	VkValidationFeatureEnableEXT enabledValidationFeatures[] = { VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT };
-	VkValidationFeaturesEXT vkvf = {};
-	vkvf.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+	VkValidationFeaturesEXT vkvf = { VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT };
 	vkvf.enabledValidationFeatureCount = VERUS_COUNT_OF(enabledValidationFeatures);
 	vkvf.pEnabledValidationFeatures = enabledValidationFeatures;
 
-	VkApplicationInfo vkai = {};
-	vkai.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	VkApplicationInfo vkai = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
 	vkai.pApplicationName = "Game";
 	vkai.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 	vkai.pEngineName = "Verus";
 	vkai.engineVersion = VK_MAKE_VERSION(major, minor, patch);
 	vkai.apiVersion = s_apiVersion;
 
-	VkInstanceCreateInfo vkici = {};
-	vkici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	VkInstanceCreateInfo vkici = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
 	vkici.pApplicationInfo = &vkai;
 	vkici.enabledExtensionCount = Utils::Cast32(vExtensions.size());
 	vkici.ppEnabledExtensionNames = vExtensions.data();
 #if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	vkici.pNext = &vkvf;
-	VkDebugUtilsMessengerCreateInfoEXT vkdumci = {};
+	VkDebugUtilsMessengerCreateInfoEXT vkdumci = { VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
 	FillDebugUtilsMessengerCreateInfo(vkdumci);
 	vkvf.pNext = &vkdumci;
 	vkici.enabledLayerCount = VERUS_COUNT_OF(s_requiredValidationLayers);
@@ -283,7 +280,6 @@ void RendererVulkan::CreateInstance()
 
 void RendererVulkan::FillDebugUtilsMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& vkdumci)
 {
-	vkdumci.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 	vkdumci.messageSeverity =
 #if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 		VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
@@ -405,10 +401,8 @@ void RendererVulkan::CreateDevice()
 	VERUS_QREF_CONST_SETTINGS;
 	VkResult res = VK_SUCCESS;
 
-	VkPhysicalDeviceLineRasterizationFeaturesEXT lineRasterizationFeatures = {};
-	lineRasterizationFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT;
-	VkPhysicalDeviceFeatures2 vkpdf2 = {};
-	vkpdf2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+	VkPhysicalDeviceLineRasterizationFeaturesEXT lineRasterizationFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT };
+	VkPhysicalDeviceFeatures2 vkpdf2 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
 	vkpdf2.pNext = &lineRasterizationFeatures;
 	vkGetPhysicalDeviceFeatures2(_physicalDevice, &vkpdf2);
 
@@ -428,8 +422,7 @@ void RendererVulkan::CreateDevice()
 	const float queuePriorities[] = { 1.0f };
 	for (int queueFamilyIndex : setUniqueQueueFamilies)
 	{
-		VkDeviceQueueCreateInfo vkdqci = {};
-		vkdqci.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		VkDeviceQueueCreateInfo vkdqci = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
 		vkdqci.queueFamilyIndex = queueFamilyIndex;
 		vkdqci.queueCount = 1;
 		vkdqci.pQueuePriorities = queuePriorities;
@@ -446,8 +439,7 @@ void RendererVulkan::CreateDevice()
 	physicalDeviceFeatures.shaderImageGatherExtended = VK_TRUE; // 94%
 	physicalDeviceFeatures.tessellationShader = settings._gpuTessellation ? VK_TRUE : VK_FALSE; // 81%
 
-	VkDeviceCreateInfo vkdci = {};
-	vkdci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	VkDeviceCreateInfo vkdci = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
 	vkdci.pNext = &lineRasterizationFeatures;
 	vkdci.queueCreateInfoCount = Utils::Cast32(vDeviceQueueCreateInfos.size());
 	vkdci.pQueueCreateInfos = vDeviceQueueCreateInfos.data();
@@ -507,8 +499,7 @@ void RendererVulkan::CreateSwapChain(VkSwapchainKHR oldSwapchain)
 	const uint32_t height = Math::Clamp<uint32_t>(renderer.GetSwapChainHeight(),
 		swapChainInfo._surfaceCapabilities.minImageExtent.height, swapChainInfo._surfaceCapabilities.maxImageExtent.height);
 
-	VkSwapchainCreateInfoKHR vksci = {};
-	vksci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	VkSwapchainCreateInfoKHR vksci = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
 	vksci.surface = _surface;
 	vksci.minImageCount = _swapChainBufferCount;
 	vksci.imageFormat = VK_FORMAT_B8G8R8A8_SRGB;
@@ -553,8 +544,7 @@ void RendererVulkan::CreateImageViews()
 	_vSwapChainImageViews.resize(_swapChainBufferCount);
 	VERUS_FOR(i, _swapChainBufferCount)
 	{
-		VkImageViewCreateInfo vkivci = {};
-		vkivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		VkImageViewCreateInfo vkivci = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 		vkivci.image = _vSwapChainImages[i];
 		vkivci.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		vkivci.format = VK_FORMAT_B8G8R8A8_SRGB;
@@ -577,8 +567,7 @@ void RendererVulkan::CreateCommandPools()
 	VkResult res = VK_SUCCESS;
 	VERUS_FOR(i, s_ringBufferSize)
 	{
-		VkCommandPoolCreateInfo vkcpci = {};
-		vkcpci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		VkCommandPoolCreateInfo vkcpci = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
 		vkcpci.queueFamilyIndex = _queueFamilyIndices._graphicsFamilyIndex;
 		if (VK_SUCCESS != (res = vkCreateCommandPool(_device, &vkcpci, GetAllocator(), &_commandPools[i])))
 			throw VERUS_RUNTIME_ERROR << "vkCreateCommandPool(); res=" << res;
@@ -588,10 +577,8 @@ void RendererVulkan::CreateCommandPools()
 void RendererVulkan::CreateSyncObjects()
 {
 	VkResult res = VK_SUCCESS;
-	VkSemaphoreCreateInfo vksci = {};
-	vksci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-	VkFenceCreateInfo vkfci = {};
-	vkfci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	VkSemaphoreCreateInfo vksci = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+	VkFenceCreateInfo vkfci = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
 	vkfci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 	VERUS_FOR(i, s_ringBufferSize)
 	{
@@ -612,9 +599,8 @@ void RendererVulkan::CreateSamplers()
 
 	_vSamplers.resize(+Sampler::count);
 
-	VkSamplerCreateInfo vksci = {};
-	VkSamplerCreateInfo init = {};
-	init.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	VkSamplerCreateInfo vksci = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+	VkSamplerCreateInfo init = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	init.magFilter = VK_FILTER_LINEAR;
 	init.minFilter = VK_FILTER_LINEAR;
 	init.mipmapMode = tf ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
@@ -719,11 +705,10 @@ void RendererVulkan::CreateSamplers()
 	// </Clamp>
 }
 
-VkCommandBuffer RendererVulkan::CreateCommandBuffer(VkCommandPool commandPool)
+VkCommandBuffer RendererVulkan::CreateVkCommandBuffer(VkCommandPool commandPool)
 {
 	VkResult res = VK_SUCCESS;
-	VkCommandBufferAllocateInfo vkcbai = {};
-	vkcbai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	VkCommandBufferAllocateInfo vkcbai = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
 	vkcbai.commandPool = commandPool;
 	vkcbai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	vkcbai.commandBufferCount = 1;
@@ -748,8 +733,7 @@ void RendererVulkan::ImGuiInit(RPHandle renderPassHandle)
 {
 	VkResult res = VK_SUCCESS;
 	VkDescriptorPoolSize vkdps = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 };
-	VkDescriptorPoolCreateInfo vkdpci = {};
-	vkdpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	VkDescriptorPoolCreateInfo vkdpci = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 	vkdpci.maxSets = 1;
 	vkdpci.poolSizeCount = 1;
 	vkdpci.pPoolSizes = &vkdps;
@@ -822,20 +806,19 @@ void RendererVulkan::ResizeSwapChain()
 	VERUS_VULKAN_DESTROY(oldSwapchain, vkDestroySwapchainKHR(_device, oldSwapchain, GetAllocator()));
 }
 
-void RendererVulkan::BeginFrame(bool present)
+void RendererVulkan::BeginFrame()
 {
 	VERUS_QREF_RENDERER;
 	VkResult res = VK_SUCCESS;
 
+	// <Wait>
+	if (VK_SUCCESS != (res = vkWaitForFences(_device, 1, &_queueSubmitFences[_ringBufferIndex], VK_TRUE, UINT64_MAX)))
+		throw VERUS_RUNTIME_ERROR << "vkWaitForFences(); res=" << res;
 	if (VK_SUCCESS != (res = vkResetFences(_device, 1, &_queueSubmitFences[_ringBufferIndex])))
 		throw VERUS_RUNTIME_ERROR << "vkResetFences(); res=" << res;
-	if (present)
-	{
-		uint32_t imageIndex = _swapChainBufferIndex;
-		if (VK_SUCCESS != (res = vkAcquireNextImageKHR(_device, _swapChain, UINT64_MAX, _acquireNextImageSemaphores[_ringBufferIndex], VK_NULL_HANDLE, &imageIndex)))
-			throw VERUS_RUNTIME_ERROR << "vkAcquireNextImageKHR(); res=" << res;
-		_swapChainBufferIndex = imageIndex;
-	}
+	// </Wait>
+
+	_swapChainBufferIndex = -1;
 
 	vmaSetCurrentFrameIndex(_vmaAllocator, static_cast<uint32_t>(renderer.GetFrameCount()));
 
@@ -849,7 +832,17 @@ void RendererVulkan::BeginFrame(bool present)
 	ImGui::NewFrame();
 }
 
-void RendererVulkan::EndFrame(bool present)
+void RendererVulkan::AcquireSwapChainImage()
+{
+	VkResult res = VK_SUCCESS;
+
+	uint32_t imageIndex = _swapChainBufferIndex;
+	if (VK_SUCCESS != (res = vkAcquireNextImageKHR(_device, _swapChain, UINT64_MAX, _acquireNextImageSemaphores[_ringBufferIndex], VK_NULL_HANDLE, &imageIndex)))
+		throw VERUS_RUNTIME_ERROR << "vkAcquireNextImageKHR(); res=" << res;
+	_swapChainBufferIndex = imageIndex;
+}
+
+void RendererVulkan::EndFrame()
 {
 	VERUS_QREF_RENDERER;
 	VkResult res = VK_SUCCESS;
@@ -861,13 +854,13 @@ void RendererVulkan::EndFrame(bool present)
 	auto cb = renderer.GetCommandBuffer();
 	cb->End();
 
+	// <QueueSubmit>
 	const VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	_acquireNextImageSemaphore = _acquireNextImageSemaphores[_ringBufferIndex];
 	_queueSubmitSemaphore = _queueSubmitSemaphores[_ringBufferIndex];
 	VkCommandBuffer commandBuffer = static_cast<CommandBufferVulkan*>(cb.Get())->GetVkCommandBuffer();
-	VkSubmitInfo vksi = {};
-	vksi.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	if (present)
+	VkSubmitInfo vksi = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+	if (_swapChainBufferIndex >= 0)
 	{
 		vksi.waitSemaphoreCount = 1;
 		vksi.pWaitSemaphores = &_acquireNextImageSemaphore;
@@ -882,46 +875,41 @@ void RendererVulkan::EndFrame(bool present)
 	}
 	if (VK_SUCCESS != (res = vkQueueSubmit(_graphicsQueue, 1, &vksi, _queueSubmitFences[_ringBufferIndex])))
 		throw VERUS_RUNTIME_ERROR << "vkQueueSubmit(); res=" << res;
-}
-
-void RendererVulkan::Present()
-{
-	VkResult res = VK_SUCCESS;
-
-	const VkSwapchainKHR swapChains[] = { _swapChain };
-
-	const uint32_t imageIndex = _swapChainBufferIndex;
-	VkPresentInfoKHR vkpi = {};
-	vkpi.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	if (!_queueFamilyIndices.IsSameQueue())
-	{
-		vkpi.waitSemaphoreCount = 1;
-		vkpi.pWaitSemaphores = &_queueSubmitSemaphore;
-	}
-	vkpi.swapchainCount = VERUS_COUNT_OF(swapChains);
-	vkpi.pSwapchains = swapChains;
-	vkpi.pImageIndices = &imageIndex;
-	if (VK_SUCCESS != (res = vkQueuePresentKHR(_presentQueue, &vkpi)))
-	{
-		if (res != VK_ERROR_OUT_OF_DATE_KHR)
-			throw VERUS_RUNTIME_ERROR << "vkQueuePresentKHR(); res=" << res;
-	}
-}
-
-void RendererVulkan::Sync(bool present)
-{
-	VkResult res = VK_SUCCESS;
-
 	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
+	// </QueueSubmit>
 
-	if (VK_SUCCESS != (res = vkWaitForFences(_device, 1, &_queueSubmitFences[_ringBufferIndex], VK_TRUE, UINT64_MAX)))
-		throw VERUS_RUNTIME_ERROR << "vkWaitForFences(); res=" << res;
+	// <Present>
+	if (_swapChainBufferIndex >= 0)
+	{
+		const VkSwapchainKHR swapChains[] = { _swapChain };
+		const uint32_t imageIndex = _swapChainBufferIndex;
+		VkPresentInfoKHR vkpi = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+		if (!_queueFamilyIndices.IsSameQueue())
+		{
+			vkpi.waitSemaphoreCount = 1;
+			vkpi.pWaitSemaphores = &_queueSubmitSemaphore;
+		}
+		vkpi.swapchainCount = VERUS_COUNT_OF(swapChains);
+		vkpi.pSwapchains = swapChains;
+		vkpi.pImageIndices = &imageIndex;
+		if (VK_SUCCESS != (res = vkQueuePresentKHR(_presentQueue, &vkpi)))
+		{
+			if (res != VK_ERROR_OUT_OF_DATE_KHR)
+				throw VERUS_RUNTIME_ERROR << "vkQueuePresentKHR(); res=" << res;
+		}
+	}
+	// </Present>
 }
 
 void RendererVulkan::WaitIdle()
 {
 	if (_device)
 		vkDeviceWaitIdle(_device);
+}
+
+void RendererVulkan::OnMinimized()
+{
+	WaitIdle();
 }
 
 // Resources:
@@ -1164,8 +1152,7 @@ RPHandle RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> 
 	}
 
 	VkRenderPass renderPass = VK_NULL_HANDLE;
-	VkRenderPassCreateInfo vkrpci = {};
-	vkrpci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	VkRenderPassCreateInfo vkrpci = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
 	vkrpci.attachmentCount = Utils::Cast32(vAttachmentDesc.size());
 	vkrpci.pAttachments = vAttachmentDesc.data();
 	vkrpci.subpassCount = Utils::Cast32(vSubpassDesc.size());
@@ -1190,8 +1177,7 @@ FBHandle RendererVulkan::CreateFramebuffer(RPHandle renderPassHandle, std::initi
 
 	VkImageView imageViews[VERUS_MAX_FB_ATTACH] = {};
 	VkFramebuffer framebuffer = VK_NULL_HANDLE;
-	VkFramebufferCreateInfo vkfci = {};
-	vkfci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	VkFramebufferCreateInfo vkfci = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 	vkfci.renderPass = GetRenderPass(renderPassHandle);
 	int count = 0;
 	if (swapChainBufferIndex >= 0)
@@ -1298,8 +1284,7 @@ void RendererVulkan::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, H
 {
 	VkResult res = VK_SUCCESS;
 
-	VkBufferCreateInfo vkbci = {};
-	vkbci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	VkBufferCreateInfo vkbci = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 	vkbci.size = size;
 	vkbci.usage = usage;
 	VmaAllocationCreateInfo vmaaci = {};

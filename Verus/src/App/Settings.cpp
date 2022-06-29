@@ -216,14 +216,8 @@ void Settings::HandleHighDpi()
 {
 	if (_displayAllowHighDPI)
 	{
-		HRESULT hr = 0;
-		if (FAILED(hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)))
-		{
-			if (E_ACCESSDENIED != hr)
-				throw VERUS_RUNTIME_ERROR << "SetProcessDpiAwareness(); hr=" << VERUS_HR(hr);
-			else
-				VERUS_LOG_INFO("SetProcessDpiAwareness(); E_ACCESSDENIED");
-		}
+		if (!SetProcessDPIAware())
+			throw VERUS_RUNTIME_ERROR << "SetProcessDPIAware()";
 		UpdateHighDpiScale();
 	}
 }
@@ -233,6 +227,7 @@ void Settings::HandleCommandLineArgs()
 	switch (_commandLine._gapi)
 	{
 	case 0:  _gapi = 0; break;
+	case 11: _gapi = 11; break;
 	case 12: _gapi = 12; break;
 	}
 

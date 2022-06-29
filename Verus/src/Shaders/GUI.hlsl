@@ -3,11 +3,11 @@
 #include "Lib.hlsl"
 #include "GUI.inc.hlsl"
 
-ConstantBuffer<UB_Gui>   g_ubGui   : register(b0, space0);
-ConstantBuffer<UB_GuiFS> g_ubGuiFS : register(b0, space1);
+CBUFFER(0, UB_Gui, g_ubGui)
+CBUFFER(1, UB_GuiFS, g_ubGuiFS)
 
-Texture2D    g_tex : register(t1, space1);
-SamplerState g_sam : register(s1, space1);
+Texture2D    g_tex : REG(t1, space1, t0);
+SamplerState g_sam : REG(s1, space1, s0);
 
 struct VSI
 {

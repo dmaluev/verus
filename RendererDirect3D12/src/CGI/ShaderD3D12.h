@@ -21,6 +21,11 @@ namespace verus
 		class ShaderD3D12 : public BaseShader
 		{
 		public:
+			enum SET_MOD
+			{
+				SET_MOD_TO_VIEW_HEAP = 0x10000
+			};
+
 			struct Compiled
 			{
 				ComPtr<ID3DBlob> _pBlobs[+Stage::count];
@@ -28,11 +33,6 @@ namespace verus
 				int              _stageCount = 0;
 			};
 			VERUS_TYPEDEFS(Compiled);
-
-			enum SET_MOD
-			{
-				SET_MOD_TO_VIEW_HEAP = 0x10000
-			};
 
 		private:
 			typedef Map<String, Compiled> TMapCompiled;
@@ -98,7 +98,7 @@ namespace verus
 
 			UINT ToRootParameterIndex(int setNumber) const;
 			bool TryRootConstants(int setNumber, RBaseCommandBuffer cb);
-			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateUniformBuffer(int setNumber, int complexSetHandle, bool copyDescOnly = false);
+			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateUniformBuffer(int setNumber, int complexSetHandle);
 			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateSamplers(int setNumber, int complexSetHandle);
 			int GetDescriptorSetCount() const { return static_cast<int>(_vDescriptorSetDesc.size()); }
 			bool IsCompute() const { return _compute; }

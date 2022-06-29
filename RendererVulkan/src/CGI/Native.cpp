@@ -114,6 +114,10 @@ VkShaderStageFlags CGI::ToNativeStageFlags(ShaderStageFlags stageFlags)
 		ret |= VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
 	if (stageFlags & ShaderStageFlags::rtc)
 		ret |= VK_SHADER_STAGE_CALLABLE_BIT_KHR;
+	if (stageFlags & ShaderStageFlags::ts)
+		ret |= VK_SHADER_STAGE_TASK_BIT_NV;
+	if (stageFlags & ShaderStageFlags::ms)
+		ret |= VK_SHADER_STAGE_MESH_BIT_NV;
 	return ret;
 }
 

@@ -6,19 +6,19 @@
 #include "LibVertex.hlsl"
 #include "Sky.inc.hlsl"
 
-ConstantBuffer<UB_PerFrame>      g_ubPerFrame      : register(b0, space0);
-ConstantBuffer<UB_PerMaterialFS> g_ubPerMaterialFS : register(b0, space1);
-ConstantBuffer<UB_PerMeshVS>     g_ubPerMeshVS     : register(b0, space2);
-ConstantBuffer<UB_PerObject>     g_ubPerObject     : register(b0, space3);
+CBUFFER(0, UB_PerFrame, g_ubPerFrame)
+CBUFFER(1, UB_PerMaterialFS, g_ubPerMaterialFS)
+CBUFFER(2, UB_PerMeshVS, g_ubPerMeshVS)
+CBUFFER(3, UB_PerObject, g_ubPerObject)
 
-Texture2D    g_texSky      : register(t1, space1);
-SamplerState g_samSky      : register(s1, space1);
-Texture2D    g_texStars    : register(t2, space1);
-SamplerState g_samStars    : register(s2, space1);
-Texture2D    g_texClouds   : register(t3, space1);
-SamplerState g_samClouds   : register(s3, space1);
-Texture2D    g_texCloudsNM : register(t4, space1);
-SamplerState g_samCloudsNM : register(s4, space1);
+Texture2D    g_texSky      : REG(t1, space1, t0);
+SamplerState g_samSky      : REG(s1, space1, s0);
+Texture2D    g_texStars    : REG(t2, space1, t1);
+SamplerState g_samStars    : REG(s2, space1, s1);
+Texture2D    g_texClouds   : REG(t3, space1, t2);
+SamplerState g_samClouds   : REG(s3, space1, s2);
+Texture2D    g_texCloudsNM : REG(t4, space1, t3);
+SamplerState g_samCloudsNM : REG(s4, space1, s3);
 
 struct VSI
 {

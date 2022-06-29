@@ -19,7 +19,7 @@ void CommandBufferVulkan::Init()
 	VERUS_QREF_RENDERER_VULKAN;
 
 	VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
-		_commandBuffers[i] = pRendererVulkan->CreateCommandBuffer(pRendererVulkan->GetVkCommandPool(i));
+		_commandBuffers[i] = pRendererVulkan->CreateVkCommandBuffer(pRendererVulkan->GetVkCommandPool(i));
 }
 
 void CommandBufferVulkan::Done()
@@ -31,9 +31,10 @@ void CommandBufferVulkan::InitOneTimeSubmit()
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_VULKAN;
+
 	_oneTimeSubmit = true;
 	auto commandPool = pRendererVulkan->GetVkCommandPool(renderer->GetRingBufferIndex());
-	auto commandBuffer = pRendererVulkan->CreateCommandBuffer(commandPool);
+	auto commandBuffer = pRendererVulkan->CreateVkCommandBuffer(commandPool);
 	VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
 		_commandBuffers[i] = commandBuffer;
 	Begin();
@@ -43,9 +44,9 @@ void CommandBufferVulkan::DoneOneTimeSubmit()
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_VULKAN;
+
 	End();
-	VkSubmitInfo submitInfo = {};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = _commandBuffers;
 	vkQueueSubmit(pRendererVulkan->GetVkGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
@@ -58,8 +59,7 @@ void CommandBufferVulkan::DoneOneTimeSubmit()
 void CommandBufferVulkan::Begin()
 {
 	VkResult res = VK_SUCCESS;
-	VkCommandBufferBeginInfo vkcbbi = {};
-	vkcbbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	VkCommandBufferBeginInfo vkcbbi = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 	if (_oneTimeSubmit)
 		vkcbbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 	if (VK_SUCCESS != (res = vkBeginCommandBuffer(GetVkCommandBuffer(), &vkcbbi)))
@@ -80,8 +80,7 @@ void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout
 	VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; // Which stage is waiting to start (BOTTOM_OF_PIPE means nothing is waiting).
 	const VkPipelineStageFlags dstStageMaskXS = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
-	VkImageMemoryBarrier vkimb = {};
-	vkimb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	VkImageMemoryBarrier vkimb = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
 	vkimb.oldLayout = ToNativeImageLayout(oldLayout);
 	vkimb.newLayout = ToNativeImageLayout(newLayout);
 	vkimb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -186,10 +185,10 @@ void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout
 void CommandBufferVulkan::BeginRenderPass(RPHandle renderPassHandle, FBHandle framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
 {
 	VERUS_QREF_RENDERER_VULKAN;
+
 	RendererVulkan::RcFramebuffer framebuffer = pRendererVulkan->GetFramebuffer(framebufferHandle);
 	// The application must ensure (using scissor if necessary) that all rendering is contained within the render area.
-	VkRenderPassBeginInfo vkrpbi = {};
-	vkrpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	VkRenderPassBeginInfo vkrpbi = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
 	vkrpbi.renderPass = pRendererVulkan->GetRenderPass(renderPassHandle);
 	vkrpbi.framebuffer = framebuffer._framebuffer;
 	vkrpbi.renderArea.extent.width = framebuffer._width;
@@ -308,12 +307,10 @@ void CommandBufferVulkan::BindIndexBuffer(GeometryPtr geo)
 
 bool CommandBufferVulkan::BindDescriptors(ShaderPtr shader, int setNumber, CSHandle complexSetHandle)
 {
-	if (setNumber < 0)
-		return true;
-
 	auto& shaderVulkan = static_cast<RShaderVulkan>(*shader);
 	if (shaderVulkan.TryPushConstants(setNumber, *this))
 		return true;
+
 	const int offset = shaderVulkan.UpdateUniformBuffer(setNumber);
 	if (offset < 0)
 		return false;

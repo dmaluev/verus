@@ -143,7 +143,7 @@ DXGI_FORMAT CGI::ToNativeFormat(Format format, bool typeless)
 	case Format::srgbBC7:           return DXGI_FORMAT_BC7_UNORM_SRGB;
 
 	default: throw VERUS_RECOVERABLE << "ToNativeFormat()";
-	};
+	}
 }
 
 DXGI_FORMAT CGI::ToNativeSampledDepthFormat(Format format)
@@ -155,7 +155,7 @@ DXGI_FORMAT CGI::ToNativeSampledDepthFormat(Format format)
 	case Format::floatD32:       return DXGI_FORMAT_R32_FLOAT;
 
 	default: throw VERUS_RECOVERABLE << "ToNativeSampledDepthFormat()";
-	};
+	}
 }
 
 CSZ CGI::ToNativeSemanticName(ViaUsage usage)

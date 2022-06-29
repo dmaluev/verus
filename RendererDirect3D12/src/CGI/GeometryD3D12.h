@@ -9,8 +9,8 @@ namespace verus
 		{
 			struct BufferEx
 			{
-				ComPtr<ID3D12Resource>   _pBuffer;
 				D3D12MA::Allocation* _pMaAllocation = nullptr;
+				ComPtr<ID3D12Resource>   _pBuffer;
 				UINT64                   _bufferSize = 0;
 				D3D12_VERTEX_BUFFER_VIEW _bufferView[BaseRenderer::s_ringBufferSize] = {};
 				INT64                    _utilization = -1;
@@ -21,7 +21,7 @@ namespace verus
 			Vector<BufferEx>                 _vStagingVertexBuffers;
 			BufferEx                         _stagingIndexBuffer;
 			D3D12_INDEX_BUFFER_VIEW          _indexBufferView[BaseRenderer::s_ringBufferSize] = {};
-			Vector<D3D12_INPUT_ELEMENT_DESC> _vInputElementDesc;
+			Vector<D3D12_INPUT_ELEMENT_DESC> _vInputElementDescs;
 			Vector<int>                      _vStrides;
 
 		public:
@@ -43,7 +43,7 @@ namespace verus
 			// D3D12
 			//
 
-			D3D12_INPUT_LAYOUT_DESC GetD3DInputLayoutDesc(UINT32 bindingsFilter, Vector<D3D12_INPUT_ELEMENT_DESC>& vInputElementDesc) const;
+			D3D12_INPUT_LAYOUT_DESC GetD3DInputLayoutDesc(UINT32 bindingsFilter, Vector<D3D12_INPUT_ELEMENT_DESC>& vInputElementDescs) const;
 
 			int GetVertexBufferCount() const { return Utils::Cast32(_vVertexBuffers.size()); }
 			const D3D12_VERTEX_BUFFER_VIEW* GetD3DVertexBufferView(int binding) const;

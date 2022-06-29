@@ -5,7 +5,7 @@
 #include "DebugDraw.inc.hlsl"
 
 VK_PUSH_CONSTANT
-ConstantBuffer<UB_DebugDraw> g_ubDebugDraw : register(b0, space0);
+CBUFFER(0, UB_DebugDraw, g_ubDebugDraw)
 
 struct VSI
 {

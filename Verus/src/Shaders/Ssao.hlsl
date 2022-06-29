@@ -5,15 +5,15 @@
 #include "LibDepth.hlsl"
 #include "Ssao.inc.hlsl"
 
-ConstantBuffer<UB_SsaoVS> g_ubSsaoVS : register(b0, space0);
-ConstantBuffer<UB_SsaoFS> g_ubSsaoFS : register(b0, space1);
+CBUFFER(0, UB_SsaoVS, g_ubSsaoVS)
+CBUFFER(1, UB_SsaoFS, g_ubSsaoFS)
 
-Texture2D    g_texRandNormals : register(t1, space1);
-SamplerState g_samRandNormals : register(s1, space1);
-Texture2D    g_texGBuffer1    : register(t2, space1);
-SamplerState g_samGBuffer1    : register(s2, space1);
-Texture2D    g_texDepth       : register(t3, space1);
-SamplerState g_samDepth       : register(s3, space1);
+Texture2D    g_texRandNormals : REG(t1, space1, t0);
+SamplerState g_samRandNormals : REG(s1, space1, s0);
+Texture2D    g_texGBuffer1    : REG(t2, space1, t1);
+SamplerState g_samGBuffer1    : REG(s2, space1, s1);
+Texture2D    g_texDepth       : REG(t3, space1, t2);
+SamplerState g_samDepth       : REG(s3, space1, s2);
 
 // Normalized diagonal 1/sqrt(1+1+1):
 static const float g_s = 0.57735;

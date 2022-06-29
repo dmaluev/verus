@@ -4,17 +4,17 @@
 #include "LibDeferredShading.hlsl"
 #include "DS_Forest.inc.hlsl"
 
-ConstantBuffer<UB_ForestVS> g_ubForestVS : register(b0, space0);
-ConstantBuffer<UB_ForestFS> g_ubForestFS : register(b0, space1);
+CBUFFER(0, UB_ForestVS, g_ubForestVS)
+CBUFFER(1, UB_ForestFS, g_ubForestFS)
 
-Texture2D    g_texGBuffer0 : register(t1, space1);
-SamplerState g_samGBuffer0 : register(s1, space1);
-Texture2D    g_texGBuffer1 : register(t2, space1);
-SamplerState g_samGBuffer1 : register(s2, space1);
-Texture2D    g_texGBuffer2 : register(t3, space1);
-SamplerState g_samGBuffer2 : register(s3, space1);
-Texture2D    g_texGBuffer3 : register(t4, space1);
-SamplerState g_samGBuffer3 : register(s4, space1);
+Texture2D    g_texGBuffer0 : REG(t1, space1, t0);
+SamplerState g_samGBuffer0 : REG(s1, space1, s0);
+Texture2D    g_texGBuffer1 : REG(t2, space1, t1);
+SamplerState g_samGBuffer1 : REG(s2, space1, s1);
+Texture2D    g_texGBuffer2 : REG(t3, space1, t2);
+SamplerState g_samGBuffer2 : REG(s3, space1, s2);
+Texture2D    g_texGBuffer3 : REG(t4, space1, t3);
+SamplerState g_samGBuffer3 : REG(s4, space1, s3);
 
 struct VSI
 {

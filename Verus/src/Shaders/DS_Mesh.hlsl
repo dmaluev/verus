@@ -8,25 +8,25 @@
 #include "LibVertex.hlsl"
 #include "DS_Mesh.inc.hlsl"
 
-ConstantBuffer<UB_PerFrame>      g_ubPerFrame      : register(b0, space0);
-ConstantBuffer<UB_PerMaterialFS> g_ubPerMaterialFS : register(b0, space1);
-ConstantBuffer<UB_PerMeshVS>     g_ubPerMeshVS     : register(b0, space2);
-ConstantBuffer<UB_SkeletonVS>    g_ubSkeletonVS    : register(b0, space3);
+CBUFFER(0, UB_PerFrame, g_ubPerFrame)
+CBUFFER(1, UB_PerMaterialFS, g_ubPerMaterialFS)
+CBUFFER(2, UB_PerMeshVS, g_ubPerMeshVS)
+CBUFFER(3, UB_SkeletonVS, g_ubSkeletonVS)
 VK_PUSH_CONSTANT
-ConstantBuffer<UB_PerObject>     g_ubPerObject     : register(b0, space4);
+CBUFFER(4, UB_PerObject, g_ubPerObject)
 
-Texture2D    g_texA       : register(t1, space1);
-SamplerState g_samA       : register(s1, space1);
-Texture2D    g_texN       : register(t2, space1);
-SamplerState g_samN       : register(s2, space1);
-Texture2D    g_texX       : register(t3, space1);
-SamplerState g_samX       : register(s3, space1);
-Texture2D    g_texDetail  : register(t4, space1);
-SamplerState g_samDetail  : register(s4, space1);
-Texture2D    g_texDetailN : register(t5, space1);
-SamplerState g_samDetailN : register(s5, space1);
-Texture2D    g_texStrass  : register(t6, space1);
-SamplerState g_samStrass  : register(s6, space1);
+Texture2D    g_texA       : REG(t1, space1, t0);
+SamplerState g_samA       : REG(s1, space1, s0);
+Texture2D    g_texN       : REG(t2, space1, t1);
+SamplerState g_samN       : REG(s2, space1, s1);
+Texture2D    g_texX       : REG(t3, space1, t2);
+SamplerState g_samX       : REG(s3, space1, s2);
+Texture2D    g_texDetail  : REG(t4, space1, t3);
+SamplerState g_samDetail  : REG(s4, space1, s3);
+Texture2D    g_texDetailN : REG(t5, space1, t4);
+SamplerState g_samDetailN : REG(s5, space1, s4);
+Texture2D    g_texStrass  : REG(t6, space1, t5);
+SamplerState g_samStrass  : REG(s6, space1, s5);
 
 struct VSI
 {
@@ -287,7 +287,7 @@ DS_FSO mainFS(VSO si)
 	DS_Reset(so);
 
 #ifdef DEF_SOLID_COLOR
-	//DS_SolidColor(so, si.color0.rgb);
+	DS_SolidColor(so, si.color0.rgb);
 #else
 	const float dither = Dither2x2(si.pos.xy);
 	const float3 rand = Rand(si.pos.xy);

@@ -7,7 +7,7 @@ namespace verus
 	{
 		class TextureVulkan : public BaseTexture
 		{
-			struct VkBufferEx
+			struct BufferEx
 			{
 				VkBuffer      _buffer = VK_NULL_HANDLE;
 				VmaAllocation _vmaAllocation = VK_NULL_HANDLE;
@@ -22,8 +22,8 @@ namespace verus
 			VkSampler           _sampler = VK_NULL_HANDLE;
 			Vector<UINT32>      _vDefinedSubresources;
 			Vector<VkImageView> _vStorageImageViews;
-			Vector<VkBufferEx>  _vStagingBuffers;
-			Vector<VkBufferEx>  _vReadbackBuffers;
+			Vector<BufferEx>    _vStagingBuffers;
+			Vector<BufferEx>    _vReadbackBuffers;
 			Vector<CSHandle>    _vCshGenerateMips;
 			bool                _definedStorage = false;
 

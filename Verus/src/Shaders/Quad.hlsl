@@ -3,11 +3,11 @@
 #include "Lib.hlsl"
 #include "Quad.inc.hlsl"
 
-ConstantBuffer<UB_QuadVS> g_ubQuadVS : register(b0, space0);
-ConstantBuffer<UB_QuadFS> g_ubQuadFS : register(b0, space1);
+CBUFFER(0, UB_QuadVS, g_ubQuadVS)
+CBUFFER(1, UB_QuadFS, g_ubQuadFS)
 
-Texture2D    g_tex : register(t1, space1);
-SamplerState g_sam : register(s1, space1);
+Texture2D    g_tex : REG(t1, space1, t0);
+SamplerState g_sam : REG(s1, space1, s0);
 
 struct VSI
 {

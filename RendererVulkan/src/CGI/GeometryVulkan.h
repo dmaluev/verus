@@ -7,18 +7,18 @@ namespace verus
 	{
 		class GeometryVulkan : public BaseGeometry
 		{
-			struct VkBufferEx
+			struct BufferEx
 			{
-				VkBuffer      _buffer = VK_NULL_HANDLE;
 				VmaAllocation _vmaAllocation = VK_NULL_HANDLE;
+				VkBuffer      _buffer = VK_NULL_HANDLE;
 				VkDeviceSize  _bufferSize = 0;
 				INT64         _utilization = -1;
 			};
 
-			Vector<VkBufferEx>                        _vVertexBuffers;
-			VkBufferEx                                _indexBuffer;
-			Vector<VkBufferEx>                        _vStagingVertexBuffers;
-			VkBufferEx                                _stagingIndexBuffer;
+			Vector<BufferEx>                          _vVertexBuffers;
+			BufferEx                                  _indexBuffer;
+			Vector<BufferEx>                          _vStagingVertexBuffers;
+			BufferEx                                  _stagingIndexBuffer;
 			Vector<VkVertexInputBindingDescription>   _vVertexInputBindingDesc;
 			Vector<VkVertexInputAttributeDescription> _vVertexInputAttributeDesc;
 			Vector<int>                               _vStrides;

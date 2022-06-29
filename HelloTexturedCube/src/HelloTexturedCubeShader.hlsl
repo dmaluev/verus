@@ -11,6 +11,14 @@
 #	define VK_LOCATION_COLOR0
 #endif
 
+#ifdef _DIRECT3D11
+#	define CBUFFER(set, type, name) cbuffer type : register(b##set) { type name; }
+#	define REG(slot, space, sm50slot) register(sm50slot)
+#else
+#	define CBUFFER(set, type, name) ConstantBuffer<type> name : register(b0, space##set);
+#	define REG(slot, space, sm50slot) register(slot, space)
+#endif
+
 VERUS_UBUFFER UB_ShaderVS
 {
 	mataff _matW;
@@ -22,11 +30,11 @@ VERUS_UBUFFER UB_ShaderFS
 	float _phase;
 };
 
-ConstantBuffer<UB_ShaderVS> g_ubShaderVS : register(b0, space0);
-ConstantBuffer<UB_ShaderFS> g_ubShaderFS : register(b0, space1);
+CBUFFER(0, UB_ShaderVS, g_ubShaderVS)
+CBUFFER(1, UB_ShaderFS, g_ubShaderFS)
 
-Texture2D    g_tex : register(t1, space1);
-SamplerState g_sam : register(s1, space1);
+Texture2D    g_tex : REG(t1, space1, t0);
+SamplerState g_sam : REG(s1, space1, s0);
 
 struct VSI
 {

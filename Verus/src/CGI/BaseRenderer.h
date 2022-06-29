@@ -9,6 +9,7 @@ namespace verus
 		{
 			unknown,
 			vulkan,
+			direct3D11,
 			direct3D12
 		};
 
@@ -60,11 +61,11 @@ namespace verus
 			virtual Gapi GetGapi() = 0;
 
 			// <FrameCycle>
-			virtual void BeginFrame(bool present = true) = 0;
-			virtual void EndFrame(bool present = true) = 0;
-			virtual void Present() = 0;
-			virtual void Sync(bool present = true) = 0;
+			virtual void BeginFrame() = 0;
+			virtual void AcquireSwapChainImage() = 0;
+			virtual void EndFrame() = 0;
 			virtual void WaitIdle() = 0;
+			virtual void OnMinimized() = 0;
 			// </FrameCycle>
 
 			// <Resources>

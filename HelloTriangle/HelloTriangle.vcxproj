@@ -23,6 +23,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\RendererDirect3D11\RendererDirect3D11.vcxproj">
+      <Project>{8269dcce-e226-46e4-b9f6-290ab5df2678}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\RendererDirect3D12\RendererDirect3D12.vcxproj">
       <Project>{53923514-84b2-4b78-889a-8709c6bfa3a5}</Project>
     </ProjectReference>

@@ -43,8 +43,7 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	const bool arrayTexture = (_desc._arrayLayers > 1) || (_desc._flags & TextureDesc::Flags::forceArrayTexture);
 
 	// Create:
-	VkImageCreateInfo vkici = {};
-	vkici.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	VkImageCreateInfo vkici = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 	vkici.imageType = (_desc._depth > 1) ? VK_IMAGE_TYPE_3D : VK_IMAGE_TYPE_2D;
 	vkici.format = ToNativeFormat(_desc._format);
 	vkici.extent.width = _desc._width;
@@ -79,7 +78,7 @@ void TextureVulkan::Init(RcTextureDesc desc)
 	if (_desc._flags & TextureDesc::Flags::generateMips)
 	{
 		VERUS_RT_ASSERT(_desc._mipLevels > 1);
-		// Create storage image for compute shader's output. No need to have the first mip level.
+		// Create storage image for compute shader. First mip level is not required.
 		VkImageCreateInfo vkiciStorage = vkici;
 		vkiciStorage.extent.width = Math::Max(1, _desc._width >> 1);
 		vkiciStorage.extent.height = Math::Max(1, _desc._height >> 1);
@@ -95,10 +94,9 @@ void TextureVulkan::Init(RcTextureDesc desc)
 
 		_vCshGenerateMips.reserve(Math::DivideByMultiple<int>(_desc._mipLevels, 4));
 		_vStorageImageViews.resize(vkiciStorage.mipLevels * _desc._arrayLayers);
-		VkImageViewCreateInfo vkivci = {};
-		vkivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		VkImageViewCreateInfo vkivci = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 		vkivci.image = _storageImage;
-		vkivci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		vkivci.viewType = (_desc._arrayLayers > 1) ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
 		vkivci.format = vkiciStorage.format;
 		VERUS_FOR(layer, _desc._arrayLayers)
 		{
@@ -130,16 +128,15 @@ void TextureVulkan::Init(RcTextureDesc desc)
 		const int h = Math::Max(1, _desc._height >> _desc._readbackMip);
 		VkDeviceSize bufferSize = _bytesPerPixel * w * h;
 		_vReadbackBuffers.resize(BaseRenderer::s_ringBufferSize);
-		for (auto& x : _vReadbackBuffers)
+		for (auto& readbackBuffer : _vReadbackBuffers)
 		{
 			pRendererVulkan->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, HostAccess::random,
-				x._buffer, x._vmaAllocation);
+				readbackBuffer._buffer, readbackBuffer._vmaAllocation);
 		}
 	}
 
 	// Create views:
-	VkImageViewCreateInfo vkivci = {};
-	vkivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	VkImageViewCreateInfo vkivci = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 	vkivci.image = _image;
 	vkivci.viewType = (_desc._depth > 1) ? VK_IMAGE_VIEW_TYPE_3D : VK_IMAGE_VIEW_TYPE_2D;
 	if (cubeMap)
@@ -560,8 +557,7 @@ void TextureVulkan::CreateSampler()
 
 	const bool tf = settings._gpuTrilinearFilter;
 
-	VkSamplerCreateInfo vksci = {};
-	vksci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	VkSamplerCreateInfo vksci = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
 	if ('a' == _desc._pSamplerDesc->_filterMagMinMip[0])
 	{

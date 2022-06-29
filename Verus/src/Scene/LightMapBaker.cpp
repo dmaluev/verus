@@ -325,7 +325,7 @@ void LightMapBaker::Update()
 
 void LightMapBaker::Draw()
 {
-	if (!IsInitialized() || !IsBaking() || Mode::faces == GetMode())
+	if (!IsInitialized() || !IsBaking() || !_debugDraw || Mode::faces == GetMode())
 		return;
 
 	VERUS_QREF_RENDERER;

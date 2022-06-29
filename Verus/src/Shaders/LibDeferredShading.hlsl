@@ -46,6 +46,14 @@ void DS_Reset(out DS_ACC_FSO so)
 	so.target2 = 0.0;
 }
 
+void DS_SolidColor(out DS_FSO so, float3 color)
+{
+	so.target0 = float4(color, 0.5);
+	so.target1 = float4(EncodeNormal(float3(0, 0, 1)), 1, 1);
+	so.target2 = float4(1, 1, 0, 0);
+	so.target3 = 0.0;
+}
+
 // <GBuffer0>
 void DS_SetAlbedo(inout DS_FSO so, float3 albedo)
 {

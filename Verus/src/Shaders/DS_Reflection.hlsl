@@ -3,13 +3,13 @@
 #include "Lib.hlsl"
 #include "DS_Reflection.inc.hlsl"
 
-ConstantBuffer<UB_ReflectionVS> g_ubReflectionVS : register(b0, space0);
-ConstantBuffer<UB_ReflectionFS> g_ubReflectionFS : register(b0, space1);
+CBUFFER(0, UB_ReflectionVS, g_ubReflectionVS)
+CBUFFER(1, UB_ReflectionFS, g_ubReflectionFS)
 
-Texture2D    g_texGBuffer1 : register(t1, space1);
-SamplerState g_samGBuffer1 : register(s1, space1);
-Texture2D    g_texReflect  : register(t2, space1);
-SamplerState g_samReflect  : register(s2, space1);
+Texture2D    g_texGBuffer1 : REG(t1, space1, t0);
+SamplerState g_samGBuffer1 : REG(s1, space1, s0);
+Texture2D    g_texReflect  : REG(t2, space1, t1);
+SamplerState g_samReflect  : REG(s2, space1, s1);
 
 struct VSI
 {

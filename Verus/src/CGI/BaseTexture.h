@@ -36,7 +36,7 @@ namespace verus
 				depthSampledR = (1 << 2), // Depth can be sampled in a shader, initial layout will be depthStencilReadOnly.
 				depthSampledW = (1 << 3), // Depth can be sampled in a shader, initial layout will be depthStencilAttachment.
 				anyShaderResource = (1 << 4), // Will use xsReadOnly as main layout (any shader can sample this texture).
-				generateMips = (1 << 5), // Allows GenerateMips calls.
+				generateMips = (1 << 5), // Allows GenerateMips calls. Not compatible with BGRA format on some systems.
 				forceArrayTexture = (1 << 6), // Create array texture even if arrayLayers=1.
 				sync = (1 << 7), // Load image data synchronously.
 				exposureMips = (1 << 8), // Internal flag for automatic exposure.

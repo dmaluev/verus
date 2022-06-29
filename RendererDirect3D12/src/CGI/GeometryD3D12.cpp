@@ -22,7 +22,7 @@ void GeometryD3D12::Init(RcGeometryDesc desc)
 	_dynBindingsMask = desc._dynBindingsMask;
 	_32BitIndices = desc._32BitIndices;
 
-	_vInputElementDesc.reserve(GetVertexInputAttrDescCount(desc._pVertexInputAttrDesc));
+	_vInputElementDescs.reserve(GetVertexInputAttrDescCount(desc._pVertexInputAttrDesc));
 	int i = 0;
 	while (desc._pVertexInputAttrDesc[i]._offset >= 0)
 	{
@@ -46,7 +46,7 @@ void GeometryD3D12::Init(RcGeometryDesc desc)
 			inputClassification,
 			instanceDataStepRate
 		};
-		_vInputElementDesc.push_back(ieDesc);
+		_vInputElementDescs.push_back(ieDesc);
 		i++;
 	}
 
@@ -146,6 +146,7 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, PBaseCommandB
 		auto& vb = _vVertexBuffers[binding];
 		const int elementSize = _vStrides[binding];
 		size = size ? size * elementSize : vb._bufferSize;
+
 		CD3DX12_RANGE readRange(0, 0);
 		void* pData = nullptr;
 		if (FAILED(hr = vb._pBuffer->Map(0, &readRange, &pData)))
@@ -183,6 +184,7 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, PBaseCommandB
 		if (!pCB)
 			pCB = renderer.GetCommandBuffer().Get();
 		auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
+
 		if (revertState)
 		{
 			const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
@@ -195,8 +197,8 @@ void GeometryD3D12::UpdateVertexBuffer(const void* p, int binding, PBaseCommandB
 		sd.SlicePitch = sd.RowPitch;
 		UpdateSubresources<1>(pCmdList,
 			vb._pBuffer.Get(),
-			svb._pBuffer.Get(),
-			0, 0, 1, &sd);
+			svb._pBuffer.Get(), 0,
+			0, 1, &sd);
 		const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
 			vb._pBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 		pCmdList->ResourceBarrier(1, &barrier);
@@ -266,6 +268,7 @@ void GeometryD3D12::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, INT
 	{
 		const int elementSize = _32BitIndices ? sizeof(UINT32) : sizeof(UINT16);
 		size = size ? size * elementSize : _indexBuffer._bufferSize;
+
 		CD3DX12_RANGE readRange(0, 0);
 		void* pData = nullptr;
 		if (FAILED(hr = _indexBuffer._pBuffer->Map(0, &readRange, &pData)))
@@ -298,6 +301,7 @@ void GeometryD3D12::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, INT
 		if (!pCB)
 			pCB = renderer.GetCommandBuffer().Get();
 		auto pCmdList = static_cast<PCommandBufferD3D12>(pCB)->GetD3DGraphicsCommandList();
+
 		if (revertState)
 		{
 			const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
@@ -310,8 +314,8 @@ void GeometryD3D12::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, INT
 		sd.SlicePitch = sd.RowPitch;
 		UpdateSubresources<1>(pCmdList,
 			_indexBuffer._pBuffer.Get(),
-			_stagingIndexBuffer._pBuffer.Get(),
-			0, 0, 1, &sd);
+			_stagingIndexBuffer._pBuffer.Get(), 0,
+			0, 1, &sd);
 		const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
 			_indexBuffer._pBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER);
 		pCmdList->ResourceBarrier(1, &barrier);
@@ -339,13 +343,13 @@ Continue GeometryD3D12::Scheduled_Update()
 	return Continue::no;
 }
 
-D3D12_INPUT_LAYOUT_DESC GeometryD3D12::GetD3DInputLayoutDesc(UINT32 bindingsFilter, Vector<D3D12_INPUT_ELEMENT_DESC>& vInputElementDesc) const
+D3D12_INPUT_LAYOUT_DESC GeometryD3D12::GetD3DInputLayoutDesc(UINT32 bindingsFilter, Vector<D3D12_INPUT_ELEMENT_DESC>& vInputElementDescs) const
 {
 	if (UINT32_MAX == bindingsFilter)
-		return { _vInputElementDesc.data(), Utils::Cast32(_vInputElementDesc.size()) };
+		return { _vInputElementDescs.data(), Utils::Cast32(_vInputElementDescs.size()) };
 
-	uint32_t replaceBinding[VERUS_MAX_VB] = {}; // For bindings compaction.
-	int binding = 0;
+	UINT replaceBinding[VERUS_MAX_VB] = {}; // For bindings compaction.
+	UINT binding = 0;
 	VERUS_FOR(i, VERUS_MAX_VB)
 	{
 		replaceBinding[i] = binding;
@@ -353,17 +357,17 @@ D3D12_INPUT_LAYOUT_DESC GeometryD3D12::GetD3DInputLayoutDesc(UINT32 bindingsFilt
 			binding++;
 	}
 
-	vInputElementDesc.reserve(_vInputElementDesc.size());
-	for (const auto& x : _vInputElementDesc)
+	vInputElementDescs.reserve(_vInputElementDescs.size());
+	for (const auto& x : _vInputElementDescs)
 	{
 		if ((bindingsFilter >> x.InputSlot) & 0x1)
 		{
-			vInputElementDesc.push_back(x);
-			vInputElementDesc.back().InputSlot = replaceBinding[x.InputSlot];
+			vInputElementDescs.push_back(x);
+			vInputElementDescs.back().InputSlot = replaceBinding[x.InputSlot];
 		}
 	}
 
-	return { vInputElementDesc.data(), Utils::Cast32(vInputElementDesc.size()) };
+	return { vInputElementDescs.data(), Utils::Cast32(vInputElementDescs.size()) };
 }
 
 const D3D12_VERTEX_BUFFER_VIEW* GeometryD3D12::GetD3DVertexBufferView(int binding) const

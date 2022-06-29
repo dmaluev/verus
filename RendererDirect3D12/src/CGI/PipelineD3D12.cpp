@@ -86,8 +86,8 @@ void PipelineD3D12::Init(RcPipelineDesc desc)
 		gpsDesc.DepthStencilState.StencilEnable = desc._stencilTestEnable;
 	}
 
-	Vector<D3D12_INPUT_ELEMENT_DESC> vInputElementDesc;
-	gpsDesc.InputLayout = geo.GetD3DInputLayoutDesc(_vertexInputBindingsFilter, vInputElementDesc);
+	Vector<D3D12_INPUT_ELEMENT_DESC> vInputElementDescs;
+	gpsDesc.InputLayout = geo.GetD3DInputLayoutDesc(_vertexInputBindingsFilter, vInputElementDescs);
 	gpsDesc.IBStripCutValue = desc._primitiveRestartEnable ? GetStripCutValue() : D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
 	gpsDesc.PrimitiveTopologyType = ToNativePrimitiveTopologyType(desc._topology);
 

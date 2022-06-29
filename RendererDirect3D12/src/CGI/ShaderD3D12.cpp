@@ -119,6 +119,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 			vDefines.push_back({ "VERUS_MAX_BONES", defMaxNumBones });
 		}
 		vDefines.push_back({ "_DIRECT3D", "1" });
+		vDefines.push_back({ "_DIRECT3D12", "1" });
 		const int typeIndex = Utils::Cast32(vDefines.size());
 		vDefines.push_back({ "_XS", "1" });
 		vDefines.push_back({});
@@ -211,9 +212,9 @@ void ShaderD3D12::Done()
 void ShaderD3D12::CreateDescriptorSet(int setNumber, const void* pSrc, int size, int capacity, std::initializer_list<Sampler> il, ShaderStageFlags stageFlags)
 {
 	VERUS_QREF_RENDERER_D3D12;
-	HRESULT hr = 0;
 	VERUS_RT_ASSERT(_vDescriptorSetDesc.size() == setNumber);
 	VERUS_RT_ASSERT(!(reinterpret_cast<intptr_t>(pSrc) & 0xF));
+	HRESULT hr = 0;
 
 	DescriptorSetDesc dsd;
 	dsd._vSamplers.assign(il);
@@ -335,7 +336,7 @@ void ShaderD3D12::CreatePipelineLayout()
 							Sampler s = dsd._vSamplers[i];
 							if (Sampler::input == s)
 								s = Sampler::nearestMipN;
-							D3D12_STATIC_SAMPLER_DESC samplerDesc = pRendererD3D12->GetStaticSamplerDesc(s);
+							D3D12_STATIC_SAMPLER_DESC samplerDesc = pRendererD3D12->GetD3DStaticSamplerDesc(s);
 							samplerDesc.ShaderRegister = i + 1;
 							samplerDesc.RegisterSpace = space;
 							samplerDesc.ShaderVisibility = visibility;
@@ -405,6 +406,7 @@ CSHandle ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_
 {
 	VERUS_QREF_RENDERER_D3D12;
 
+	// <NewComplexSetHandle>
 	int complexSetHandle = -1;
 	VERUS_FOR(i, _vComplexSets.size())
 	{
@@ -419,6 +421,7 @@ CSHandle ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_
 		complexSetHandle = Utils::Cast32(_vComplexSets.size());
 		_vComplexSets.resize(complexSetHandle + 1);
 	}
+	// </NewComplexSetHandle>
 
 	bool toViewHeap = false;
 	if (setNumber & ShaderD3D12::SET_MOD_TO_VIEW_HEAP)
@@ -427,14 +430,14 @@ CSHandle ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_
 		toViewHeap = true;
 	}
 
-	auto& dsd = _vDescriptorSetDesc[setNumber];
+	const auto& dsd = _vDescriptorSetDesc[setNumber];
 	VERUS_RT_ASSERT(dsd._vSamplers.size() == il.size());
 
 	RComplexSet complexSet = _vComplexSets[complexSetHandle];
 	complexSet._vTextures.reserve(il.size());
-	if (toViewHeap)
+	if (toViewHeap) // Copy directly to view heap? This will work only during this frame.
 		complexSet._hpBase = pRendererD3D12->GetViewHeap().GetNextHandlePair(1 + Utils::Cast32(il.size()));
-	else
+	else // Create yet another descriptor heap? There is a limit on their number.
 		complexSet._dhViews.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Utils::Cast32(il.size()));
 	if (!dsd._staticSamplersOnly)
 		complexSet._dhSamplers.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, Utils::Cast32(il.size()));
@@ -469,14 +472,14 @@ CSHandle ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_
 			{
 				pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
 					CD3DX12_CPU_DESCRIPTOR_HANDLE(complexSet._hpBase._hCPU, 1 + index, pRendererD3D12->GetViewHeap().GetHandleIncrementSize()),
-					texD3D12.GetDescriptorHeapSRV().AtCPU(mipLevel + arrayLayer * mipLevelCount),
+					texD3D12.GetDescriptorHeapSRV().AtCPU(0),
 					D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 			}
 			else
 			{
 				pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
 					complexSet._dhViews.AtCPU(index),
-					texD3D12.GetDescriptorHeapSRV().AtCPU(mipLevel + arrayLayer * mipLevelCount),
+					texD3D12.GetDescriptorHeapSRV().AtCPU(0),
 					D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 			}
 			if (Sampler::custom == dsd._vSamplers[index])
@@ -497,9 +500,11 @@ void ShaderD3D12::FreeDescriptorSet(CSHandle& complexSetHandle)
 {
 	if (complexSetHandle.IsSet() && complexSetHandle.Get() < _vComplexSets.size())
 	{
-		_vComplexSets[complexSetHandle.Get()]._vTextures.clear();
-		_vComplexSets[complexSetHandle.Get()]._dhViews.Reset();
-		_vComplexSets[complexSetHandle.Get()]._dhSamplers.Reset();
+		auto& complexSet = _vComplexSets[complexSetHandle.Get()];
+		complexSet._vTextures.clear();
+		complexSet._dhViews.Reset();
+		complexSet._dhSamplers.Reset();
+		complexSet._hpBase = HandlePair();
 	}
 	complexSetHandle = CSHandle();
 }
@@ -551,7 +556,7 @@ UINT ShaderD3D12::ToRootParameterIndex(int setNumber) const
 
 bool ShaderD3D12::TryRootConstants(int setNumber, RBaseCommandBuffer cb)
 {
-	auto& dsd = _vDescriptorSetDesc[setNumber];
+	const auto& dsd = _vDescriptorSetDesc[setNumber];
 	if (!dsd._capacity)
 	{
 		auto& cbD3D12 = static_cast<RCommandBufferD3D12>(cb);
@@ -565,31 +570,23 @@ bool ShaderD3D12::TryRootConstants(int setNumber, RBaseCommandBuffer cb)
 	return false;
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, int complexSetHandle, bool copyDescOnly)
+CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, int complexSetHandle)
 {
 	VERUS_QREF_RENDERER_D3D12;
 
 	auto& dsd = _vDescriptorSetDesc[setNumber];
-	int at = 0;
-	if (copyDescOnly)
+	if (dsd._offset + dsd._alignedSize > dsd._capacityInBytes)
 	{
-		at = dsd._capacity * pRendererD3D12->GetRingBufferIndex();
+		VERUS_RT_FAIL("UniformBuffer is full.");
+		return CD3DX12_GPU_DESCRIPTOR_HANDLE(D3D12_DEFAULT);
 	}
-	else
-	{
-		if (dsd._offset + dsd._alignedSize > dsd._capacityInBytes)
-		{
-			VERUS_RT_FAIL("UniformBuffer is full.");
-			return CD3DX12_GPU_DESCRIPTOR_HANDLE(D3D12_DEFAULT);
-		}
 
-		VERUS_RT_ASSERT(dsd._pMappedData);
-		at = dsd._capacity * pRendererD3D12->GetRingBufferIndex() + dsd._index;
-		memcpy(dsd._pMappedData + dsd._offset, dsd._pSrc, dsd._size);
-		dsd._offset += dsd._alignedSize;
-		dsd._peakLoad = Math::Max(dsd._peakLoad, dsd._offset);
-		dsd._index++;
-	}
+	VERUS_RT_ASSERT(dsd._pMappedData);
+	const int at = dsd._capacity * pRendererD3D12->GetRingBufferIndex() + dsd._index;
+	memcpy(dsd._pMappedData + dsd._offset, dsd._pSrc, dsd._size);
+	dsd._offset += dsd._alignedSize;
+	dsd._peakLoad = Math::Max(dsd._peakLoad, dsd._offset);
+	dsd._index++;
 
 	bool hpBaseUsed = false;
 	HandlePair hpBase;
@@ -629,7 +626,7 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateSamplers(int setNumber, int com
 	VERUS_QREF_RENDERER_D3D12;
 	VERUS_RT_ASSERT(complexSetHandle >= 0);
 
-	auto& dsd = _vDescriptorSetDesc[setNumber];
+	const auto& dsd = _vDescriptorSetDesc[setNumber];
 	if (dsd._staticSamplersOnly)
 		return CD3DX12_GPU_DESCRIPTOR_HANDLE(D3D12_DEFAULT);
 
@@ -656,6 +653,7 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateSamplers(int setNumber, int com
 void ShaderD3D12::OnError(CSZ s)
 {
 	VERUS_QREF_RENDERER;
+
 	if (strstr(s, "HS': entrypoint not found"))
 		return;
 	if (strstr(s, "DS': entrypoint not found"))
@@ -786,6 +784,7 @@ void ShaderD3D12::UpdateDebugInfo(
 void ShaderD3D12::UpdateUtilization()
 {
 	VERUS_QREF_RENDERER;
+
 	int setNumber = 0;
 	for (const auto& dsd : _vDescriptorSetDesc)
 	{

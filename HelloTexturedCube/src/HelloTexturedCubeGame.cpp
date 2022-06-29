@@ -126,6 +126,9 @@ void HelloTexturedCubeGame::BaseGame_Draw()
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_TIMER;
 
+	// If swap chain is used, then at some point an image must be acquired from this swap chain:
+	renderer.AcquireSwapChainImage();
+
 	if (!_csh.IsSet() && _tex->IsLoaded())
 		_csh = _shader->BindDescriptorSetTextures(1, { _tex });
 

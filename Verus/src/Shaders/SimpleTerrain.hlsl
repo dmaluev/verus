@@ -6,22 +6,22 @@
 #include "LibSurface.hlsl"
 #include "SimpleTerrain.inc.hlsl"
 
-ConstantBuffer<UB_SimpleTerrainVS> g_ubSimpleTerrainVS : register(b0, space0);
-ConstantBuffer<UB_SimpleTerrainFS> g_ubSimpleTerrainFS : register(b0, space1);
+CBUFFER(0, UB_SimpleTerrainVS, g_ubSimpleTerrainVS)
+CBUFFER(1, UB_SimpleTerrainFS, g_ubSimpleTerrainFS)
 
-Texture2D              g_texHeightVS  : register(t1, space0);
-SamplerState           g_samHeightVS  : register(s1, space0);
-Texture2D              g_texNormalVS  : register(t2, space0);
-SamplerState           g_samNormalVS  : register(s2, space0);
+Texture2D              g_texHeightVS  : REG(t1, space0, t0);
+SamplerState           g_samHeightVS  : REG(s1, space0, s0);
+Texture2D              g_texNormalVS  : REG(t2, space0, t1);
+SamplerState           g_samNormalVS  : REG(s2, space0, s1);
 
-Texture2D              g_texBlend     : register(t1, space1);
-SamplerState           g_samBlend     : register(s1, space1);
-Texture2DArray         g_texLayers    : register(t2, space1);
-SamplerState           g_samLayers    : register(s2, space1);
-Texture2DArray         g_texLayersX   : register(t3, space1);
-SamplerState           g_samLayersX   : register(s3, space1);
-Texture2D              g_texShadowCmp : register(t4, space1);
-SamplerComparisonState g_samShadowCmp : register(s4, space1);
+Texture2D              g_texBlend     : REG(t1, space1, t2);
+SamplerState           g_samBlend     : REG(s1, space1, s2);
+Texture2DArray         g_texLayers    : REG(t2, space1, t3);
+SamplerState           g_samLayers    : REG(s2, space1, s3);
+Texture2DArray         g_texLayersX   : REG(t3, space1, t4);
+SamplerState           g_samLayersX   : REG(s3, space1, s4);
+Texture2D              g_texShadowCmp : REG(t4, space1, t5);
+SamplerComparisonState g_samShadowCmp : REG(s4, space1, s5);
 
 struct VSI
 {

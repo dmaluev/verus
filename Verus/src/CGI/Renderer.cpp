@@ -41,10 +41,16 @@ void Renderer::Init(PRendererDelegate pDelegate, bool allowInitShaders)
 	CSZ dll = "RendererVulkan.dll";
 	switch (settings._gapi)
 	{
+	case 11:
+	{
+		dll = "RendererDirect3D11.dll";
+		VERUS_LOG_INFO("Using Direct3D 11 (Shader Model 5)");
+	}
+	break;
 	case 12:
 	{
 		dll = "RendererDirect3D12.dll";
-		VERUS_LOG_INFO("Using Direct3D 12");
+		VERUS_LOG_INFO("Using Direct3D 12 (Shader Model 5.1)");
 	}
 	break;
 	default:
@@ -83,7 +89,7 @@ void Renderer::Init(PRendererDelegate pDelegate, bool allowInitShaders)
 	// Draw to offscreen buffer, then later to swap chain buffer:
 	_rphOffscreen = _pBaseRenderer->CreateRenderPass(
 		{
-			RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().Layout(ImageLayout::fsReadOnly, ImageLayout::fsReadOnly)
+			RP::Attachment("Color", Format::srgbR8G8B8A8).LoadOpClear().Layout(ImageLayout::fsReadOnly, ImageLayout::fsReadOnly)
 		},
 		{
 			RP::Subpass("Sp0").Color({RP::Ref("Color", ImageLayout::colorAttachment)})
@@ -91,7 +97,7 @@ void Renderer::Init(PRendererDelegate pDelegate, bool allowInitShaders)
 		{});
 	_rphOffscreenWithDepth = _pBaseRenderer->CreateRenderPass(
 		{
-			RP::Attachment("Color", Format::srgbB8G8R8A8).LoadOpClear().Layout(ImageLayout::fsReadOnly, ImageLayout::fsReadOnly),
+			RP::Attachment("Color", Format::srgbR8G8B8A8).LoadOpClear().Layout(ImageLayout::fsReadOnly, ImageLayout::fsReadOnly),
 			RP::Attachment("Depth", Format::unormD24uintS8).Layout(ImageLayout::depthStencilAttachment),
 		},
 		{
@@ -268,14 +274,27 @@ void Renderer::Draw()
 		_pRendererDelegate->Renderer_OnDraw();
 }
 
-void Renderer::Present()
+void Renderer::BeginFrame()
 {
-	if (_pRendererDelegate)
-		_pRendererDelegate->Renderer_OnPresent();
-	_frameCount++;
+	_pBaseRenderer->BeginFrame();
+}
 
-	VERUS_QREF_TIMER;
-	_fps = Math::Lerp(_fps, timer.GetDeltaTimeInv(), 0.25f);
+void Renderer::AcquireSwapChainImage()
+{
+	_pBaseRenderer->AcquireSwapChainImage();
+}
+
+void Renderer::EndFrame()
+{
+	_pBaseRenderer->EndFrame();
+
+	if (_pBaseRenderer->GetSwapChainBufferIndex() >= 0)
+	{
+		_frameCount++;
+
+		VERUS_QREF_TIMER;
+		_fps = Math::Lerp(_fps, timer.GetDeltaTimeInv(), 0.25f);
+	}
 }
 
 bool Renderer::OnWindowSizeChanged(int w, int h)
@@ -335,7 +354,7 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 		if (settings._displayOffscreenDraw)
 		{
 			texDesc._name = "Renderer.OffscreenColor";
-			texDesc._format = Format::srgbB8G8R8A8;
+			texDesc._format = Format::srgbR8G8B8A8;
 			texDesc._width = _swapChainWidth;
 			texDesc._height = _swapChainHeight;
 			texDesc._mipLevels = 0;
@@ -377,9 +396,9 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 
 		if (settings._displayOffscreenDraw)
 		{
-			_fbhOffscreen = _pBaseRenderer->CreateFramebuffer(_rphSwapChain, { _tex[TEX_OFFSCREEN_COLOR] },
+			_fbhOffscreen = _pBaseRenderer->CreateFramebuffer(_rphOffscreen, { _tex[TEX_OFFSCREEN_COLOR] },
 				_swapChainWidth, _swapChainHeight);
-			_fbhOffscreenWithDepth = _pBaseRenderer->CreateFramebuffer(_rphSwapChainWithDepth, { _tex[TEX_OFFSCREEN_COLOR], _tex[TEX_DEPTH_STENCIL] },
+			_fbhOffscreenWithDepth = _pBaseRenderer->CreateFramebuffer(_rphOffscreenWithDepth, { _tex[TEX_OFFSCREEN_COLOR], _tex[TEX_DEPTH_STENCIL] },
 				_swapChainWidth, _swapChainHeight);
 
 			_cshOffscreenColor = _shader[SHADER_QUAD]->BindDescriptorSetTextures(1, { _tex[TEX_OFFSCREEN_COLOR] });

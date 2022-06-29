@@ -67,9 +67,6 @@
     <Filter Include="src\App">
       <UniqueIdentifier>{8487cc8d-90f6-4f48-83f8-433947c79c5c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\ThirdParty\zlib-1.2.11">
-      <UniqueIdentifier>{1767d32c-2bef-4021-9c12-bdf6bd11ac7f}</UniqueIdentifier>
-    </Filter>
     <Filter Include="src\Shaders">
       <UniqueIdentifier>{3086e5cd-cd8e-44c2-becb-2fb5938d0744}</UniqueIdentifier>
     </Filter>
@@ -91,9 +88,6 @@
     <Filter Include="src\Scene\SceneNodes">
       <UniqueIdentifier>{07af1a9e-5cdc-4264-811b-d958ec70a709}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\ThirdParty\pugixml-1.11">
-      <UniqueIdentifier>{a659491b-ee62-496a-8451-762951446c2f}</UniqueIdentifier>
-    </Filter>
     <Filter Include="src\ThirdParty\tinygltf-2.5.0">
       <UniqueIdentifier>{54a71e7f-5bcd-480d-990e-0d5e79d7ded9}</UniqueIdentifier>
     </Filter>
@@ -105,6 +99,12 @@
     </Filter>
     <Filter Include="src\Game\Mechanics">
       <UniqueIdentifier>{e81cdb7e-c6de-41ee-bfe5-76bd2aa3a602}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\ThirdParty\pugixml-1.12">
+      <UniqueIdentifier>{d3724a28-fcb7-457f-93f7-eb1e09443c61}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\ThirdParty\zlib-1.2.12">
+      <UniqueIdentifier>{8b9c1325-e416-4e6f-8277-1d5e18f9122f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -417,39 +417,6 @@
     <ClInclude Include="src\Game\Spirit.h">
       <Filter>src\Game</Filter>
     </ClInclude>
-    <ClInclude Include="src\ThirdParty\zlib-1.2.11\crc32.h">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\zlib-1.2.11\deflate.h">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\zlib-1.2.11\gzguts.h">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\zlib-1.2.11\inffast.h">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\zlib-1.2.11\inffixed.h">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\zlib-1.2.11\inflate.h">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\zlib-1.2.11\inftrees.h">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\zlib-1.2.11\trees.h">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\zlib-1.2.11\zconf.h">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\zlib-1.2.11\zlib.h">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\zlib-1.2.11\zutil.h">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClInclude>
     <ClInclude Include="src\ThirdParty\json.hpp">
       <Filter>src\ThirdParty</Filter>
     </ClInclude>
@@ -684,12 +651,6 @@
     <ClInclude Include="src\Game\ChainAward.h">
       <Filter>src\Game</Filter>
     </ClInclude>
-    <ClInclude Include="src\ThirdParty\pugixml-1.11\pugiconfig.hpp">
-      <Filter>src\ThirdParty\pugixml-1.11</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ThirdParty\pugixml-1.11\pugixml.hpp">
-      <Filter>src\ThirdParty\pugixml-1.11</Filter>
-    </ClInclude>
     <ClInclude Include="src\ThirdParty\tinygltf-2.5.0\stb_image.h">
       <Filter>src\ThirdParty\tinygltf-2.5.0</Filter>
     </ClInclude>
@@ -785,6 +746,45 @@
     </ClInclude>
     <ClInclude Include="src\CGI\DeferredShading.h">
       <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\pugixml-1.12\pugiconfig.hpp">
+      <Filter>src\ThirdParty\pugixml-1.12</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\pugixml-1.12\pugixml.hpp">
+      <Filter>src\ThirdParty\pugixml-1.12</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\zlib-1.2.12\crc32.h">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\zlib-1.2.12\deflate.h">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\zlib-1.2.12\gzguts.h">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\zlib-1.2.12\inffast.h">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\zlib-1.2.12\inffixed.h">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\zlib-1.2.12\inflate.h">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\zlib-1.2.12\inftrees.h">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\zlib-1.2.12\trees.h">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\zlib-1.2.12\zconf.h">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\zlib-1.2.12\zlib.h">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThirdParty\zlib-1.2.12\zutil.h">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -997,51 +997,6 @@
     </ClCompile>
     <ClCompile Include="src\Game\Spirit.cpp">
       <Filter>src\Game</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\zlib-1.2.11\adler32.c">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\zlib-1.2.11\compress.c">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\zlib-1.2.11\crc32.c">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\zlib-1.2.11\deflate.c">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\zlib-1.2.11\gzclose.c">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\zlib-1.2.11\gzlib.c">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\zlib-1.2.11\gzread.c">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\zlib-1.2.11\gzwrite.c">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\zlib-1.2.11\infback.c">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\zlib-1.2.11\inffast.c">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\zlib-1.2.11\inflate.c">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\zlib-1.2.11\inftrees.c">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\zlib-1.2.11\trees.c">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\zlib-1.2.11\uncompr.c">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ThirdParty\zlib-1.2.11\zutil.c">
-      <Filter>src\ThirdParty\zlib-1.2.11</Filter>
     </ClCompile>
     <ClCompile Include="src\Scene\Terrain.cpp">
       <Filter>src\Scene</Filter>
@@ -1256,9 +1211,6 @@
     <ClCompile Include="src\Game\ChainAward.cpp">
       <Filter>src\Game</Filter>
     </ClCompile>
-    <ClCompile Include="src\ThirdParty\pugixml-1.11\pugixml.cpp">
-      <Filter>src\ThirdParty\pugixml-1.11</Filter>
-    </ClCompile>
     <ClCompile Include="src\ThirdParty\tinygltf-2.5.0\tinygltf.cpp">
       <Filter>src\ThirdParty\tinygltf-2.5.0</Filter>
     </ClCompile>
@@ -1348,6 +1300,54 @@
     </ClCompile>
     <ClCompile Include="src\CGI\DeferredShading.cpp">
       <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\pugixml-1.12\pugixml.cpp">
+      <Filter>src\ThirdParty\pugixml-1.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\zlib-1.2.12\adler32.c">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\zlib-1.2.12\compress.c">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\zlib-1.2.12\crc32.c">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\zlib-1.2.12\deflate.c">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\zlib-1.2.12\gzclose.c">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\zlib-1.2.12\gzlib.c">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\zlib-1.2.12\gzread.c">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\zlib-1.2.12\gzwrite.c">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\zlib-1.2.12\infback.c">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\zlib-1.2.12\inffast.c">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\zlib-1.2.12\inflate.c">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\zlib-1.2.12\inftrees.c">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\zlib-1.2.12\trees.c">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\zlib-1.2.12\uncompr.c">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ThirdParty\zlib-1.2.12\zutil.c">
+      <Filter>src\ThirdParty\zlib-1.2.12</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1539,14 +1539,14 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Natvis Include="src\ThirdParty\pugixml-1.11\pugixml.natvis">
-      <Filter>src\ThirdParty\pugixml-1.11</Filter>
-    </Natvis>
-    <Natvis Include="src\ThirdParty\pugixml-1.11\pugixml_compact.natvis">
-      <Filter>src\ThirdParty\pugixml-1.11</Filter>
-    </Natvis>
     <Natvis Include="src\ThirdParty\imgui\imgui.natvis">
       <Filter>src\ThirdParty\imgui</Filter>
+    </Natvis>
+    <Natvis Include="src\ThirdParty\pugixml-1.12\pugixml.natvis">
+      <Filter>src\ThirdParty\pugixml-1.12</Filter>
+    </Natvis>
+    <Natvis Include="src\ThirdParty\pugixml-1.12\pugixml_compact.natvis">
+      <Filter>src\ThirdParty\pugixml-1.12</Filter>
     </Natvis>
   </ItemGroup>
 </Project>

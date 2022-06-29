@@ -26,6 +26,7 @@ PBaseRenderer BaseRenderer::Load(CSZ dll, RBaseRendererDesc desc)
 		return CreateRenderer(VERUS_SDK_VERSION, &desc);
 	}
 	break;
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN8
 	case App::Settings::Platform::uwp:
 	{
 		PFNCREATERENDERER CreateRenderer = reinterpret_cast<PFNCREATERENDERER>(
@@ -33,6 +34,7 @@ PBaseRenderer BaseRenderer::Load(CSZ dll, RBaseRendererDesc desc)
 		return CreateRenderer(VERUS_SDK_VERSION, &desc);
 	}
 	break;
+#endif
 	default:
 		return nullptr;
 	}

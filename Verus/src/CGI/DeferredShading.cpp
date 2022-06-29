@@ -153,11 +153,11 @@ void DeferredShading::Init()
 		{
 			Sampler::nearestClampMipN, // GBuffer0
 			Sampler::nearestClampMipN, // GBuffer1
-			Sampler::nearestClampMipN, // GBuffer2|Bloom
-			Sampler::nearestClampMipN, // Depth|Composed
+			Sampler::linearClampMipN, // GBuffer2|Composed
+			Sampler::nearestClampMipN, // Depth
 			Sampler::nearestClampMipN, // Ambient
 			Sampler::nearestClampMipN, // Diffuse
-			Sampler::nearestClampMipN // Specular
+			Sampler::linearClampMipN // Specular|Bloom
 		}, ShaderStageFlags::fs);
 	_shader[SHADER_COMPOSE]->CreatePipelineLayout();
 
@@ -306,11 +306,11 @@ void DeferredShading::InitByBloom(TexturePtr tex)
 		{
 				_tex[TEX_GBUFFER_0],
 				_tex[TEX_GBUFFER_1],
-				tex,
 				_tex[TEX_COMPOSED_A],
-				_tex[TEX_LIGHT_ACC_AMBIENT],
-				_tex[TEX_LIGHT_ACC_DIFFUSE],
-				_tex[TEX_LIGHT_ACC_SPECULAR]
+				_tex[TEX_COMPOSED_A],
+				tex,
+				tex,
+				tex
 		});
 }
 
@@ -450,7 +450,7 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 			{
 				_tex[TEX_GBUFFER_0],
 				_tex[TEX_GBUFFER_1],
-				_tex[TEX_GBUFFER_2],
+				_tex[TEX_COMPOSED_A],
 				_tex[TEX_COMPOSED_A],
 				_tex[TEX_LIGHT_ACC_AMBIENT],
 				_tex[TEX_LIGHT_ACC_DIFFUSE],

@@ -5,12 +5,35 @@ namespace verus
 {
 	namespace CGI
 	{
+		enum class ViewType : int
+		{
+			screen,
+			splitScreen2H,
+			splitScreen2V,
+			splitScreen2X,
+			splitScreen4,
+			openXR
+		};
+
+		struct ViewDesc
+		{
+			Transform3 _matV = Transform3::identity();
+			Matrix4    _matP = Matrix4::identity();
+			Quat       _orientation = Quat(0);
+			Point3     _position = Point3(0);
+			float      _fovLeft = 0;
+			float      _fovRight = 0;
+			float      _fovUp = 0;
+			float      _fovDown = 0;
+			ViewType   _type = ViewType::screen;
+			int        _index = 0;
+		};
+		VERUS_TYPEDEFS(ViewDesc);
+
 		struct RendererDelegate
 		{
 			virtual void Renderer_OnDraw() = 0;
-			virtual void Renderer_OnDrawOverlay() = 0;
-			virtual void Renderer_OnPresent() = 0;
-			virtual void Renderer_OnDrawCubeMap() {}
+			virtual void Renderer_OnDrawView(RcViewDesc viewDesc) {}
 		};
 		VERUS_TYPEDEFS(RendererDelegate);
 
@@ -107,7 +130,9 @@ namespace verus
 			// Frame cycle:
 			void Update();
 			void Draw();
-			void Present();
+			void BeginFrame();
+			void AcquireSwapChainImage();
+			void EndFrame();
 
 			bool OnWindowSizeChanged(int w, int h);
 			VERUS_P(void OnSwapChainResized(bool init, bool done));

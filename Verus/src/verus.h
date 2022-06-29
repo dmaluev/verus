@@ -1,6 +1,7 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
+#define _WIN32_WINNT _WIN32_WINNT_WIN7
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 
@@ -12,12 +13,10 @@
 #ifdef _WIN32
 #	include <WS2tcpip.h>
 #	include <shellapi.h>
-#	include <ShellScalingApi.h>
 #	include <Shlwapi.h>
 #	include <tchar.h>
 #	pragma comment(lib, "WS2_32.lib")
 #	pragma comment(lib, "ShLwApi.lib")
-#	pragma comment(lib, "shcore.lib")
 #else
 #	include <dlfcn.h>
 #endif
@@ -42,12 +41,24 @@
 #	include "ThirdParty/vk_mem_alloc.h" // See: https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
 #endif
 
+// Direct3D 11:
+#ifdef VERUS_INCLUDE_D3D11
+#	include <d3d11.h>
+#	include <d3dcompiler.h>
+#	include <wrl.h> // ComPtr
+using namespace Microsoft::WRL;
+#	pragma comment(lib, "d3d11.lib")
+#	pragma comment(lib, "d3dcompiler.lib")
+#	pragma comment(lib, "dxgi.lib")
+#	pragma comment(lib, "dxguid.lib")
+#endif
+
 // Direct3D 12:
 #ifdef VERUS_INCLUDE_D3D12
-#	include <dxgi1_6.h>
 #	include <d3d12.h>
 #	include <d3dcompiler.h>
-#	include <wrl.h>
+#	include <dxgi1_6.h>
+#	include <wrl.h> // ComPtr
 using namespace Microsoft::WRL;
 #	pragma comment(lib, "d3d12.lib")
 #	pragma comment(lib, "d3dcompiler.lib")
@@ -129,7 +140,7 @@ using namespace Microsoft::WRL;
 #include <unordered_set>
 #include <vector>
 
-#define VERUS_SDK_VERSION 0x01000000
+#define VERUS_SDK_VERSION 0x01010000
 
 #include "ThirdParty/ThirdParty.h" // Third-party software components
 #include "Global/Basic.h"          // Essentials

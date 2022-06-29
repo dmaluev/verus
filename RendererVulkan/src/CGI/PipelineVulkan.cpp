@@ -51,8 +51,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 		entryNames[+stage] = compiled._entry + suffix;
 		if (shaderModule != VK_NULL_HANDLE)
 		{
-			VkPipelineShaderStageCreateInfo vkpssci = {};
-			vkpssci.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+			VkPipelineShaderStageCreateInfo vkpssci = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 			vkpssci.stage = shaderStageFlagBits;
 			vkpssci.module = shaderModule;
 			vkpssci.pName = _C(entryNames[+stage]);
@@ -70,31 +69,26 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	VkPipelineVertexInputStateCreateInfo vertexInputState = geo.GetVkPipelineVertexInputStateCreateInfo(_vertexInputBindingsFilter,
 		vVertexInputBindingDesc, vVertexInputAttributeDesc);
 
-	VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {};
-	inputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
 	inputAssemblyState.topology = ToNativePrimitiveTopology(desc._topology);
 	inputAssemblyState.primitiveRestartEnable = desc._primitiveRestartEnable;
 
-	VkPipelineTessellationStateCreateInfo tessellationState = {};
-	tessellationState.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
+	VkPipelineTessellationStateCreateInfo tessellationState = { VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO };
 	tessellationState.patchControlPoints = 3;
 	switch (desc._topology)
 	{
 	case PrimitiveTopology::patchList4: tessellationState.patchControlPoints = 4; break;
 	}
 
-	VkPipelineViewportStateCreateInfo viewportState = {};
-	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	VkPipelineViewportStateCreateInfo viewportState = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
 	viewportState.viewportCount = 1;
 	viewportState.scissorCount = 1;
 
-	VkPipelineRasterizationLineStateCreateInfoEXT rasterizationLineState = {};
-	rasterizationLineState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_LINE_STATE_CREATE_INFO_EXT;
+	VkPipelineRasterizationLineStateCreateInfoEXT rasterizationLineState = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_LINE_STATE_CREATE_INFO_EXT };
 	rasterizationLineState.lineRasterizationMode = VK_LINE_RASTERIZATION_MODE_BRESENHAM_EXT;
 	if (desc._colorAttachBlendEqs[0] == VERUS_COLOR_BLEND_ALPHA)
 		rasterizationLineState.lineRasterizationMode = VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH_EXT;
-	VkPipelineRasterizationStateCreateInfo rasterizationState = {};
-	rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	VkPipelineRasterizationStateCreateInfo rasterizationState = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
 	rasterizationState.pNext = pRendererVulkan->IsAdvancedLineRasterizationSupported() ? &rasterizationLineState : nullptr;
 	rasterizationState.depthClampEnable = VK_FALSE;
 	rasterizationState.polygonMode = ToNativePolygonMode(desc._rasterizationState._polygonMode);
@@ -106,12 +100,10 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	rasterizationState.depthBiasSlopeFactor = desc._rasterizationState._depthBiasSlopeFactor;
 	rasterizationState.lineWidth = 1;
 
-	VkPipelineMultisampleStateCreateInfo multisampleState = {};
-	multisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	VkPipelineMultisampleStateCreateInfo multisampleState = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 	multisampleState.rasterizationSamples = ToNativeSampleCount(desc._sampleCount);
 
-	VkPipelineDepthStencilStateCreateInfo depthStencilState = {};
-	depthStencilState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	VkPipelineDepthStencilStateCreateInfo depthStencilState = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
 	depthStencilState.depthTestEnable = desc._depthTestEnable;
 	depthStencilState.depthWriteEnable = desc._depthWriteEnable;
 	depthStencilState.depthCompareOp = ToNativeCompareOp(desc._depthCompareOp);
@@ -119,8 +111,7 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 
 	VkPipelineColorBlendAttachmentState vkpcbas[VERUS_MAX_CA] = {};
 	FillColorBlendAttachmentStates(desc, attachmentCount, vkpcbas);
-	VkPipelineColorBlendStateCreateInfo colorBlendState = {};
-	colorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	VkPipelineColorBlendStateCreateInfo colorBlendState = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
 	colorBlendState.logicOpEnable = VK_FALSE;
 	colorBlendState.logicOp = VK_LOGIC_OP_CLEAR;
 	colorBlendState.attachmentCount = attachmentCount;
@@ -131,13 +122,11 @@ void PipelineVulkan::Init(RcPipelineDesc desc)
 	colorBlendState.blendConstants[3] = 1;
 
 	VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_BLEND_CONSTANTS };
-	VkPipelineDynamicStateCreateInfo dynamicState = {};
-	dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	VkPipelineDynamicStateCreateInfo dynamicState = { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
 	dynamicState.dynamicStateCount = VERUS_COUNT_OF(dynamicStates);
 	dynamicState.pDynamicStates = dynamicStates;
 
-	VkGraphicsPipelineCreateInfo vkgpci = {};
-	vkgpci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	VkGraphicsPipelineCreateInfo vkgpci = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 	vkgpci.stageCount = Utils::Cast32(vShaderStages.size());
 	vkgpci.pStages = vShaderStages.data();
 	vkgpci.pVertexInputState = &vertexInputState;
@@ -177,8 +166,7 @@ void PipelineVulkan::InitCompute(RcPipelineDesc desc)
 	const VkShaderModule shaderModule = compiled._shaderModules[+BaseShader::Stage::cs];
 	String entryName = compiled._entry + "CS";
 
-	VkComputePipelineCreateInfo vkcpci = {};
-	vkcpci.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	VkComputePipelineCreateInfo vkcpci = { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
 	vkcpci.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	vkcpci.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 	vkcpci.stage.module = shaderModule;

@@ -90,26 +90,26 @@ void RendererD3D12::EnableDebugLayer()
 #endif
 }
 
-ComPtr<IDXGIFactory7> RendererD3D12::CreateDXGIFactory()
+ComPtr<IDXGIFactory6> RendererD3D12::CreateFactory()
 {
 	HRESULT hr = 0;
-	ComPtr<IDXGIFactory7> pFactory;
+	ComPtr<IDXGIFactory6> pFactory;
 	UINT flags = 0;
 #if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	flags = DXGI_CREATE_FACTORY_DEBUG;
 #endif
-	if (FAILED(hr = CreateDXGIFactory2(flags, IID_PPV_ARGS(&pFactory))))
+	if (FAILED(hr = CreateDXGIFactory2(flags, IID_PPV_ARGS(&pFactory)))) // DXGI 1.3, Windows 8.1.
 		throw VERUS_RUNTIME_ERROR << "CreateDXGIFactory2(); hr=" << VERUS_HR(hr);
 	return pFactory;
 }
 
-ComPtr<IDXGIAdapter4> RendererD3D12::GetAdapter(ComPtr<IDXGIFactory7> pFactory, D3D_FEATURE_LEVEL featureLevel)
+ComPtr<IDXGIAdapter4> RendererD3D12::GetAdapter(ComPtr<IDXGIFactory6> pFactory, D3D_FEATURE_LEVEL featureLevel)
 {
 	ComPtr<IDXGIAdapter4> pAdapter;
 	for (UINT index = 0; SUCCEEDED(pFactory->EnumAdapterByGpuPreference(index, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&pAdapter))); ++index)
 	{
-		DXGI_ADAPTER_DESC1 adapterDesc = {};
-		pAdapter->GetDesc1(&adapterDesc);
+		DXGI_ADAPTER_DESC3 adapterDesc = {};
+		pAdapter->GetDesc3(&adapterDesc);
 		if (adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
 			continue;
 		if (SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), featureLevel, _uuidof(ID3D12Device), nullptr)))
@@ -120,14 +120,14 @@ ComPtr<IDXGIAdapter4> RendererD3D12::GetAdapter(ComPtr<IDXGIFactory7> pFactory, 
 	if (!pAdapter)
 		throw VERUS_RUNTIME_ERROR << "GetAdapter(); Adapter not found";
 
-	DXGI_ADAPTER_DESC1 adapterDesc = {};
-	pAdapter->GetDesc1(&adapterDesc);
+	DXGI_ADAPTER_DESC3 adapterDesc = {};
+	pAdapter->GetDesc3(&adapterDesc);
 	const String description = Str::WideToUtf8(adapterDesc.Description);
 	VERUS_LOG_INFO("Adapter desc: " << description);
 	return pAdapter;
 }
 
-bool RendererD3D12::CheckFeatureSupportAllowTearing(ComPtr<IDXGIFactory7> pFactory)
+bool RendererD3D12::CheckFeatureSupportAllowTearing(ComPtr<IDXGIFactory6> pFactory)
 {
 	BOOL featureSupportData = FALSE;
 	if (FAILED(pFactory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &featureSupportData, sizeof(featureSupportData))))
@@ -145,10 +145,10 @@ void RendererD3D12::CreateSwapChainBuffersRTVs()
 		ComPtr<ID3D12Resource> pBuffer;
 		if (FAILED(hr = _pSwapChain->GetBuffer(i, IID_PPV_ARGS(&pBuffer))))
 			throw VERUS_RUNTIME_ERROR << "GetBuffer(); hr=" << VERUS_HR(hr);
-		D3D12_RENDER_TARGET_VIEW_DESC desc = {};
-		desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
-		desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-		_pDevice->CreateRenderTargetView(pBuffer.Get(), &desc, _dhSwapChainBuffersRTVs.AtCPU(i));
+		D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+		rtvDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+		rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+		_pDevice->CreateRenderTargetView(pBuffer.Get(), &rtvDesc, _dhSwapChainBuffersRTVs.AtCPU(i));
 		_vSwapChainBuffers[i] = pBuffer;
 	}
 }
@@ -157,32 +157,39 @@ void RendererD3D12::InitD3D()
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_CONST_SETTINGS;
-
 	HRESULT hr = 0;
+
+	// <SDL>
+	SDL_Window* pWnd = renderer.GetMainWindow()->GetSDL();
+	VERUS_RT_ASSERT(pWnd);
+	SDL_SysWMinfo wmInfo = {};
+	SDL_VERSION(&wmInfo.version);
+	if (!SDL_GetWindowWMInfo(pWnd, &wmInfo))
+		throw VERUS_RUNTIME_ERROR << "SDL_GetWindowWMInfo()";
+	// </SDL>
 
 #if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	EnableDebugLayer();
 #endif
 
-	const D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
+	_featureLevel = D3D_FEATURE_LEVEL_11_0;
 
-	ComPtr<IDXGIFactory7> pFactory = CreateDXGIFactory();
+	ComPtr<IDXGIFactory6> pFactory = CreateFactory();
+	ComPtr<IDXGIAdapter4> pAdapter = GetAdapter(pFactory, _featureLevel);
 
-	ComPtr<IDXGIAdapter4> pAdapter = GetAdapter(pFactory, featureLevel);
-
-	hr = D3D12CreateDevice(pAdapter.Get(), featureLevel, IID_PPV_ARGS(&_pDevice));
+	hr = D3D12CreateDevice(pAdapter.Get(), _featureLevel, IID_PPV_ARGS(&_pDevice));
 #if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	if (FAILED(hr))
 	{
 		if (FAILED(hr = pFactory->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter))))
 			throw VERUS_RUNTIME_ERROR << "EnumWarpAdapter(); hr=" << VERUS_HR(hr);
-		hr = D3D12CreateDevice(pAdapter.Get(), featureLevel, IID_PPV_ARGS(&_pDevice));
+		hr = D3D12CreateDevice(pAdapter.Get(), _featureLevel, IID_PPV_ARGS(&_pDevice));
 	}
 #endif
 	if (FAILED(hr))
 		throw VERUS_RUNTIME_ERROR << "D3D12CreateDevice(); hr=" << VERUS_HR(hr);
 
-	VERUS_RT_ASSERT(D3D_FEATURE_LEVEL_11_0 == featureLevel);
+	VERUS_RT_ASSERT(D3D_FEATURE_LEVEL_11_0 == _featureLevel);
 	VERUS_LOG_INFO("Using feature level: 11_0");
 
 	D3D12MA::ALLOCATOR_DESC allocatorDesc = {};
@@ -201,7 +208,7 @@ void RendererD3D12::InitD3D()
 	}
 #endif
 
-	_pCommandQueue = CreateCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	_pCommandQueue = CreateD3DCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 	const bool allowTearing = CheckFeatureSupportAllowTearing(pFactory);
 
@@ -210,22 +217,12 @@ void RendererD3D12::InitD3D()
 	_swapChainDesc.Width = renderer.GetSwapChainWidth();
 	_swapChainDesc.Height = renderer.GetSwapChainHeight();
 	_swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-	_swapChainDesc.Stereo = FALSE;
 	_swapChainDesc.SampleDesc.Count = 1;
 	_swapChainDesc.SampleDesc.Quality = 0;
 	_swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	_swapChainDesc.BufferCount = _swapChainBufferCount;
-	_swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
 	_swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	_swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 	_swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT | (allowTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0);
-
-	SDL_Window* pWnd = renderer.GetMainWindow()->GetSDL();
-	VERUS_RT_ASSERT(pWnd);
-	SDL_SysWMinfo wmInfo = {};
-	SDL_VERSION(&wmInfo.version);
-	if (!SDL_GetWindowWMInfo(pWnd, &wmInfo))
-		throw VERUS_RUNTIME_ERROR << "SDL_GetWindowWMInfo()";
 
 	ComPtr<IDXGISwapChain1> pSwapChain1;
 	switch (settings._platform)
@@ -255,16 +252,15 @@ void RendererD3D12::InitD3D()
 	CreateSwapChainBuffersRTVs();
 
 	VERUS_FOR(i, s_ringBufferSize)
-		_mapCommandAllocators[i][std::this_thread::get_id()] = CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		_mapCommandAllocators[i][std::this_thread::get_id()] = CreateD3DCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-	_pFence = CreateFence();
+	_pFence = CreateD3DFence();
 	_hFence = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	if (!_hFence)
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
 		throw VERUS_RUNTIME_ERROR << "CreateEvent(); hr=" << VERUS_HR(hr);
 	}
-	_fenceValues[_ringBufferIndex]++;
 
 	_dhViews.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, settings.GetLimits()._d3d12_dhViewsCapacity, 16, true);
 	_dhSamplers.Create(_pDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, settings.GetLimits()._d3d12_dhSamplersCapacity, 0, true);
@@ -279,7 +275,7 @@ void RendererD3D12::WaitForFrameLatencyWaitableObject()
 		throw VERUS_RUNTIME_ERROR << "WaitForFrameLatencyWaitableObject(); ret=" << VERUS_HR(ret);
 }
 
-ComPtr<ID3D12CommandQueue> RendererD3D12::CreateCommandQueue(D3D12_COMMAND_LIST_TYPE type)
+ComPtr<ID3D12CommandQueue> RendererD3D12::CreateD3DCommandQueue(D3D12_COMMAND_LIST_TYPE type)
 {
 	HRESULT hr = 0;
 	ComPtr<ID3D12CommandQueue> pCommandQueue;
@@ -292,7 +288,7 @@ ComPtr<ID3D12CommandQueue> RendererD3D12::CreateCommandQueue(D3D12_COMMAND_LIST_
 	return pCommandQueue;
 }
 
-ComPtr<ID3D12CommandAllocator> RendererD3D12::CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE type)
+ComPtr<ID3D12CommandAllocator> RendererD3D12::CreateD3DCommandAllocator(D3D12_COMMAND_LIST_TYPE type)
 {
 	HRESULT hr = 0;
 	ComPtr<ID3D12CommandAllocator> pCommandAllocator;
@@ -301,7 +297,7 @@ ComPtr<ID3D12CommandAllocator> RendererD3D12::CreateCommandAllocator(D3D12_COMMA
 	return pCommandAllocator;
 }
 
-ComPtr<ID3D12GraphicsCommandList3> RendererD3D12::CreateCommandList(D3D12_COMMAND_LIST_TYPE type, ComPtr<ID3D12CommandAllocator> pCommandAllocator)
+ComPtr<ID3D12GraphicsCommandList3> RendererD3D12::CreateD3DCommandList(D3D12_COMMAND_LIST_TYPE type, ComPtr<ID3D12CommandAllocator> pCommandAllocator)
 {
 	HRESULT hr = 0;
 	ComPtr<ID3D12GraphicsCommandList3> pGraphicsCommandList;
@@ -312,7 +308,7 @@ ComPtr<ID3D12GraphicsCommandList3> RendererD3D12::CreateCommandList(D3D12_COMMAN
 	return pGraphicsCommandList;
 }
 
-ComPtr<ID3D12Fence> RendererD3D12::CreateFence()
+ComPtr<ID3D12Fence> RendererD3D12::CreateD3DFence()
 {
 	HRESULT hr = 0;
 	ComPtr<ID3D12Fence> pFence;
@@ -324,7 +320,7 @@ ComPtr<ID3D12Fence> RendererD3D12::CreateFence()
 UINT64 RendererD3D12::QueueSignal()
 {
 	HRESULT hr = 0;
-	const UINT64 value = _fenceValues[_ringBufferIndex];
+	const UINT64 value = _nextFenceValue++;
 	if (FAILED(hr = _pCommandQueue->Signal(_pFence.Get(), value)))
 		throw VERUS_RUNTIME_ERROR << "Signal(); hr=" << VERUS_HR(hr);
 	return value;
@@ -344,10 +340,7 @@ void RendererD3D12::WaitForFenceValue(UINT64 value)
 void RendererD3D12::QueueWaitIdle()
 {
 	if (_pCommandQueue)
-	{
 		WaitForFenceValue(QueueSignal());
-		_fenceValues[_ringBufferIndex]++;
-	}
 }
 
 void RendererD3D12::CreateSamplers()
@@ -444,7 +437,7 @@ void RendererD3D12::CreateSamplers()
 	// </Clamp>
 }
 
-D3D12_STATIC_SAMPLER_DESC RendererD3D12::GetStaticSamplerDesc(Sampler s) const
+D3D12_STATIC_SAMPLER_DESC RendererD3D12::GetD3DStaticSamplerDesc(Sampler s) const
 {
 	return _vSamplers[+s];
 }
@@ -496,32 +489,34 @@ void RendererD3D12::ImGuiRenderDrawData()
 void RendererD3D12::ResizeSwapChain()
 {
 	VERUS_QREF_RENDERER;
+	HRESULT hr = 0;
 
 	_dhSwapChainBuffersRTVs.Reset();
 	_vSwapChainBuffers.clear();
 
-	_pSwapChain->ResizeBuffers(
+	if (FAILED(hr = _pSwapChain->ResizeBuffers(
 		_swapChainDesc.BufferCount,
 		renderer.GetSwapChainWidth(),
 		renderer.GetSwapChainHeight(),
 		_swapChainDesc.Format,
-		_swapChainDesc.Flags);
+		_swapChainDesc.Flags)))
+		throw VERUS_RUNTIME_ERROR << "ResizeBuffers(); hr=" << VERUS_HR(hr);
 
 	_swapChainBufferIndex = _pSwapChain->GetCurrentBackBufferIndex();
 
 	CreateSwapChainBuffersRTVs();
 }
 
-void RendererD3D12::BeginFrame(bool present)
+void RendererD3D12::BeginFrame()
 {
 	VERUS_QREF_RENDERER;
 	HRESULT hr = 0;
 
-	if (present)
-	{
-		WaitForFrameLatencyWaitableObject();
-		_swapChainBufferIndex = _pSwapChain->GetCurrentBackBufferIndex();
-	}
+	// <Wait>
+	WaitForFenceValue(_fenceValues[_ringBufferIndex]);
+	// </Wait>
+
+	_swapChainBufferIndex = -1;
 
 	auto pCommandAllocator = _mapCommandAllocators[_ringBufferIndex][std::this_thread::get_id()];
 	if (FAILED(hr = pCommandAllocator->Reset()))
@@ -536,9 +531,17 @@ void RendererD3D12::BeginFrame(bool present)
 	ImGui::NewFrame();
 }
 
-void RendererD3D12::EndFrame(bool present)
+void RendererD3D12::AcquireSwapChainImage()
 {
+	WaitForFrameLatencyWaitableObject();
+	_swapChainBufferIndex = _pSwapChain->GetCurrentBackBufferIndex();
+}
+
+void RendererD3D12::EndFrame()
+{
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
+	HRESULT hr = 0;
 
 	UpdateScheduled();
 
@@ -547,35 +550,36 @@ void RendererD3D12::EndFrame(bool present)
 	auto cb = renderer.GetCommandBuffer();
 	cb->End();
 
+	// <QueueSubmit>
 	ID3D12CommandList* ppCommandLists[] = { static_cast<CommandBufferD3D12*>(cb.Get())->GetD3DGraphicsCommandList() };
 	_pCommandQueue->ExecuteCommandLists(VERUS_COUNT_OF(ppCommandLists), ppCommandLists);
-}
-
-void RendererD3D12::Present()
-{
-	VERUS_QREF_CONST_SETTINGS;
-	HRESULT hr = 0;
-
-	UINT syncInterval = settings._displayVSync ? 1 : 0;
-	const bool allowTearing = !!(_swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING);
-	UINT flags = 0;
-	if (!syncInterval && allowTearing && App::DisplayMode::exclusiveFullscreen != settings._displayMode)
-		flags |= DXGI_PRESENT_ALLOW_TEARING;
-	if (FAILED(hr = _pSwapChain->Present(syncInterval, flags)))
-		throw VERUS_RUNTIME_ERROR << "Present(); hr=" << VERUS_HR(hr);
-}
-
-void RendererD3D12::Sync(bool present)
-{
-	const UINT64 currentFenceValue = QueueSignal();
+	_fenceValues[_ringBufferIndex] = QueueSignal();
 	_ringBufferIndex = (_ringBufferIndex + 1) % s_ringBufferSize;
-	WaitForFenceValue(_fenceValues[_ringBufferIndex]);
-	_fenceValues[_ringBufferIndex] = currentFenceValue + 1;
+	// </QueueSubmit>
+
+	// <Present>
+	if (_swapChainBufferIndex >= 0)
+	{
+		UINT syncInterval = settings._displayVSync ? 1 : 0;
+		const bool allowTearing = !!(_swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING);
+		UINT flags = 0;
+		if (!syncInterval && allowTearing && App::DisplayMode::exclusiveFullscreen != settings._displayMode)
+			flags |= DXGI_PRESENT_ALLOW_TEARING;
+		if (FAILED(hr = _pSwapChain->Present(syncInterval, flags)))
+			throw VERUS_RUNTIME_ERROR << "Present(); hr=" << VERUS_HR(hr);
+	}
+	// </Present>
 }
 
 void RendererD3D12::WaitIdle()
 {
 	QueueWaitIdle();
+}
+
+void RendererD3D12::OnMinimized()
+{
+	WaitIdle();
+	_pSwapChain->Present(0, 0);
 }
 
 // Resources:

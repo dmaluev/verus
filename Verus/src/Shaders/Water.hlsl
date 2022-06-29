@@ -5,34 +5,34 @@
 #include "LibLighting.hlsl"
 #include "Water.inc.hlsl"
 
-ConstantBuffer<UB_WaterVS> g_ubWaterVS : register(b0, space0);
-ConstantBuffer<UB_WaterFS> g_ubWaterFS : register(b0, space1);
+CBUFFER(0, UB_WaterVS, g_ubWaterVS)
+CBUFFER(1, UB_WaterFS, g_ubWaterFS)
 
-Texture2D              g_texTerrainHeightmapVS : register(t1, space0);
-SamplerState           g_samTerrainHeightmapVS : register(s1, space0);
-Texture2D              g_texGenHeightmapVS     : register(t2, space0);
-SamplerState           g_samGenHeightmapVS     : register(s2, space0);
-Texture2D              g_texFoamVS             : register(t3, space0);
-SamplerState           g_samFoamVS             : register(s3, space0);
+Texture2D              g_texTerrainHeightmapVS : REG(t1, space0, t0);
+SamplerState           g_samTerrainHeightmapVS : REG(s1, space0, s0);
+Texture2D              g_texGenHeightmapVS     : REG(t2, space0, t1);
+SamplerState           g_samGenHeightmapVS     : REG(s2, space0, s1);
+Texture2D              g_texFoamVS             : REG(t3, space0, t2);
+SamplerState           g_samFoamVS             : REG(s3, space0, s2);
 
-Texture2D              g_texTerrainHeightmap   : register(t1, space1);
-SamplerState           g_samTerrainHeightmap   : register(s1, space1);
-Texture2D              g_texGenHeightmap       : register(t2, space1);
-SamplerState           g_samGenHeightmap       : register(s2, space1);
-Texture2D              g_texGenNormals         : register(t3, space1);
-SamplerState           g_samGenNormals         : register(s3, space1);
-Texture2D              g_texFoam               : register(t4, space1);
-SamplerState           g_samFoam               : register(s4, space1);
-Texture2D              g_texReflection         : register(t5, space1);
-SamplerState           g_samReflection         : register(s5, space1);
-Texture2D              g_texRefraction         : register(t6, space1);
-SamplerState           g_samRefraction         : register(s6, space1);
-Texture2D              g_texGBuffer3           : register(t7, space1);
-SamplerState           g_samGBuffer3           : register(s7, space1);
-Texture2D              g_texShadowCmp          : register(t8, space1);
-SamplerComparisonState g_samShadowCmp          : register(s8, space1);
-Texture2D              g_texShadow             : register(t9, space1);
-SamplerState           g_samShadow             : register(s9, space1);
+Texture2D              g_texTerrainHeightmap   : REG(t1, space1, t3);
+SamplerState           g_samTerrainHeightmap   : REG(s1, space1, s3);
+Texture2D              g_texGenHeightmap       : REG(t2, space1, t4);
+SamplerState           g_samGenHeightmap       : REG(s2, space1, s4);
+Texture2D              g_texGenNormals         : REG(t3, space1, t5);
+SamplerState           g_samGenNormals         : REG(s3, space1, s5);
+Texture2D              g_texFoam               : REG(t4, space1, t6);
+SamplerState           g_samFoam               : REG(s4, space1, s6);
+Texture2D              g_texReflection         : REG(t5, space1, t7);
+SamplerState           g_samReflection         : REG(s5, space1, s7);
+Texture2D              g_texRefraction         : REG(t6, space1, t8);
+SamplerState           g_samRefraction         : REG(s6, space1, s8);
+Texture2D              g_texGBuffer3           : REG(t7, space1, t9);
+SamplerState           g_samGBuffer3           : REG(s7, space1, s9);
+Texture2D              g_texShadowCmp          : REG(t8, space1, t10);
+SamplerComparisonState g_samShadowCmp          : REG(s8, space1, s10);
+Texture2D              g_texShadow             : REG(t9, space1, t11);
+SamplerState           g_samShadow             : REG(s9, space1, s11);
 
 struct VSI
 {

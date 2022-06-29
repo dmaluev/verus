@@ -84,6 +84,7 @@ void GeometryVulkan::Done()
 	VERUS_VULKAN_DESTROY(_indexBuffer._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), _indexBuffer._buffer, _indexBuffer._vmaAllocation));
 	for (auto& x : _vVertexBuffers)
 		VERUS_VULKAN_DESTROY(x._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), x._buffer, x._vmaAllocation));
+	_vVertexBuffers.clear();
 
 	VERUS_DONE(GeometryVulkan);
 }
@@ -121,6 +122,7 @@ void GeometryVulkan::UpdateVertexBuffer(const void* p, int binding, PBaseCommand
 		auto& vb = _vVertexBuffers[binding];
 		const int elementSize = _vStrides[binding];
 		size = size ? size * elementSize : vb._bufferSize;
+
 		void* pData = nullptr;
 		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), vb._vmaAllocation, &pData)))
 			throw VERUS_RECOVERABLE << "vmaMapMemory(); res=" << res;
@@ -182,6 +184,7 @@ void GeometryVulkan::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, IN
 	{
 		const int elementSize = _32BitIndices ? sizeof(UINT32) : sizeof(UINT16);
 		size = size ? size * elementSize : _indexBuffer._bufferSize;
+
 		void* pData = nullptr;
 		if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), _indexBuffer._vmaAllocation, &pData)))
 			throw VERUS_RECOVERABLE << "vmaMapMemory(); res=" << res;
@@ -219,6 +222,7 @@ Continue GeometryVulkan::Scheduled_Update()
 	VERUS_VULKAN_DESTROY(_stagingIndexBuffer._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), _stagingIndexBuffer._buffer, _stagingIndexBuffer._vmaAllocation));
 	for (auto& x : _vStagingVertexBuffers)
 		VERUS_VULKAN_DESTROY(x._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), x._buffer, x._vmaAllocation));
+	_vStagingVertexBuffers.clear();
 
 	return Continue::no;
 }
@@ -228,8 +232,7 @@ VkPipelineVertexInputStateCreateInfo GeometryVulkan::GetVkPipelineVertexInputSta
 {
 	if (UINT32_MAX == bindingsFilter)
 	{
-		VkPipelineVertexInputStateCreateInfo vertexInputState = {};
-		vertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+		VkPipelineVertexInputStateCreateInfo vertexInputState = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 		vertexInputState.vertexBindingDescriptionCount = Utils::Cast32(_vVertexInputBindingDesc.size());
 		vertexInputState.pVertexBindingDescriptions = _vVertexInputBindingDesc.data();
 		vertexInputState.vertexAttributeDescriptionCount = Utils::Cast32(_vVertexInputAttributeDesc.size());
@@ -265,8 +268,7 @@ VkPipelineVertexInputStateCreateInfo GeometryVulkan::GetVkPipelineVertexInputSta
 		}
 	}
 
-	VkPipelineVertexInputStateCreateInfo vertexInputState = {};
-	vertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	VkPipelineVertexInputStateCreateInfo vertexInputState = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 	vertexInputState.vertexBindingDescriptionCount = Utils::Cast32(vVertexInputBindingDesc.size());
 	vertexInputState.pVertexBindingDescriptions = vVertexInputBindingDesc.data();
 	vertexInputState.vertexAttributeDescriptionCount = Utils::Cast32(vVertexInputAttributeDesc.size());

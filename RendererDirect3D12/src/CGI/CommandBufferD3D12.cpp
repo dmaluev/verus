@@ -22,7 +22,7 @@ void CommandBufferD3D12::Init()
 	_vAttachmentStates.reserve(4);
 	_vBarriers.reserve(VERUS_MAX_FB_ATTACH);
 	VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
-		_pCommandLists[i] = pRendererD3D12->CreateCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, pRendererD3D12->GetD3DCommandAllocator(i));
+		_pCommandLists[i] = pRendererD3D12->CreateD3DCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, pRendererD3D12->GetD3DCommandAllocator(i));
 }
 
 void CommandBufferD3D12::Done()
@@ -34,6 +34,7 @@ void CommandBufferD3D12::Done()
 	}
 	VERUS_RT_ASSERT(_vAttachmentStates.capacity() < 100);
 	VERUS_RT_ASSERT(_vBarriers.capacity() < 1000);
+
 	VERUS_DONE(CommandBufferD3D12);
 }
 
@@ -41,8 +42,9 @@ void CommandBufferD3D12::InitOneTimeSubmit()
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_D3D12;
-	_pOneTimeCommandAllocator = pRendererD3D12->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
-	auto pCmdList = pRendererD3D12->CreateCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, _pOneTimeCommandAllocator);
+
+	_pOneTimeCommandAllocator = pRendererD3D12->CreateD3DCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	auto pCmdList = pRendererD3D12->CreateD3DCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, _pOneTimeCommandAllocator);
 	VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
 		_pCommandLists[i] = pCmdList;
 	_pOneTimeCommandAllocator->Reset();
@@ -54,9 +56,10 @@ void CommandBufferD3D12::DoneOneTimeSubmit()
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_D3D12;
+
 	End();
 	ID3D12CommandList* ppCommandLists[] = { _pCommandLists[0].Get() };
-	pRendererD3D12->GetCommandQueue()->ExecuteCommandLists(VERUS_COUNT_OF(ppCommandLists), ppCommandLists);
+	pRendererD3D12->GetD3DCommandQueue()->ExecuteCommandLists(VERUS_COUNT_OF(ppCommandLists), ppCommandLists);
 	pRendererD3D12->QueueWaitIdle();
 	_pOneTimeCommandAllocator.Reset();
 	VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
@@ -66,6 +69,7 @@ void CommandBufferD3D12::DoneOneTimeSubmit()
 void CommandBufferD3D12::Begin()
 {
 	VERUS_QREF_RENDERER_D3D12;
+
 	HRESULT hr = 0;
 	if (FAILED(hr = GetD3DGraphicsCommandList()->Reset(
 		_pOneTimeCommandAllocator ? _pOneTimeCommandAllocator.Get() : pRendererD3D12->GetD3DCommandAllocator(pRendererD3D12->GetRingBufferIndex()),
@@ -108,7 +112,7 @@ void CommandBufferD3D12::BeginRenderPass(RPHandle renderPassHandle, FBHandle fra
 	VERUS_RT_ASSERT(_pRenderPass->_vAttachments.size() == ilClearValues.size());
 
 	_vClearValues.clear();
-	for (auto x : ilClearValues)
+	for (const auto& x : ilClearValues)
 	{
 		auto pColor = x.ToPointer();
 		_vClearValues.push_back(pColor[0]);
@@ -184,7 +188,7 @@ void CommandBufferD3D12::BindPipeline(PipelinePtr pipe)
 	else
 	{
 		pCmdList->SetGraphicsRootSignature(pipeD3D12.GetD3DRootSignature());
-		pCmdList->IASetPrimitiveTopology(pipeD3D12.GetPrimitiveTopology());
+		pCmdList->IASetPrimitiveTopology(pipeD3D12.GetD3DPrimitiveTopology());
 	}
 }
 
@@ -199,7 +203,7 @@ void CommandBufferD3D12::SetViewport(std::initializer_list<Vector4> il, float mi
 
 	VERUS_RT_ASSERT(il.size() <= VERUS_MAX_CA);
 	CD3DX12_VIEWPORT vpD3D12[VERUS_MAX_CA];
-	int count = 0;
+	UINT count = 0;
 	for (const auto& rc : il)
 		vpD3D12[count++] = CD3DX12_VIEWPORT(rc.getX(), rc.getY(), rc.Width(), rc.Height(), minDepth, maxDepth);
 	GetD3DGraphicsCommandList()->RSSetViewports(count, vpD3D12);
@@ -209,7 +213,7 @@ void CommandBufferD3D12::SetScissor(std::initializer_list<Vector4> il)
 {
 	VERUS_RT_ASSERT(il.size() <= VERUS_MAX_CA);
 	CD3DX12_RECT rcD3D12[VERUS_MAX_CA];
-	int count = 0;
+	UINT count = 0;
 	for (const auto& rc : il)
 		rcD3D12[count++] = CD3DX12_RECT(
 			static_cast<LONG>(rc.getX()),
@@ -250,20 +254,11 @@ void CommandBufferD3D12::BindIndexBuffer(GeometryPtr geo)
 
 bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int setNumber, CSHandle complexSetHandle)
 {
-	bool copyDescOnly = false;
-	if (setNumber < 0)
-	{
-		// On a Resource Binding Tier 2 hardware, all descriptor tables of type CBV and UAV declared in the currently set Root Signature
-		// must be populated, even if the shaders do not need the descriptor.
-		setNumber = -setNumber;
-		copyDescOnly = true;
-	}
-
 	auto& shaderD3D12 = static_cast<RShaderD3D12>(*shader);
 	if (shaderD3D12.TryRootConstants(setNumber, *this))
 		return true;
 
-	const D3D12_GPU_DESCRIPTOR_HANDLE hGPU = shaderD3D12.UpdateUniformBuffer(setNumber, complexSetHandle.Get(), copyDescOnly);
+	const D3D12_GPU_DESCRIPTOR_HANDLE hGPU = shaderD3D12.UpdateUniformBuffer(setNumber, complexSetHandle.Get());
 	if (!hGPU.ptr)
 		return false;
 

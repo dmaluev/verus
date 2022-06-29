@@ -6,17 +6,17 @@
 #include "LibLighting.hlsl"
 #include "SimpleForest.inc.hlsl"
 
-ConstantBuffer<UB_SimpleForestVS> g_ubSimpleForestVS : register(b0, space0);
-ConstantBuffer<UB_SimpleForestFS> g_ubSimpleForestFS : register(b0, space1);
+CBUFFER(0, UB_SimpleForestVS, g_ubSimpleForestVS)
+CBUFFER(1, UB_SimpleForestFS, g_ubSimpleForestFS)
 
-Texture2D              g_texGBuffer0  : register(t1, space1);
-SamplerState           g_samGBuffer0  : register(s1, space1);
-Texture2D              g_texGBuffer1  : register(t2, space1);
-SamplerState           g_samGBuffer1  : register(s2, space1);
-Texture2D              g_texGBuffer2  : register(t3, space1);
-SamplerState           g_samGBuffer2  : register(s3, space1);
-Texture2D              g_texShadowCmp : register(t4, space1);
-SamplerComparisonState g_samShadowCmp : register(s4, space1);
+Texture2D              g_texGBuffer0  : REG(t1, space1, t0);
+SamplerState           g_samGBuffer0  : REG(s1, space1, s0);
+Texture2D              g_texGBuffer1  : REG(t2, space1, t1);
+SamplerState           g_samGBuffer1  : REG(s2, space1, s1);
+Texture2D              g_texGBuffer2  : REG(t3, space1, t2);
+SamplerState           g_samGBuffer2  : REG(s3, space1, s2);
+Texture2D              g_texShadowCmp : REG(t4, space1, t3);
+SamplerComparisonState g_samShadowCmp : REG(s4, space1, s3);
 
 struct VSI
 {

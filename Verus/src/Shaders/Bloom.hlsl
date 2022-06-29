@@ -5,16 +5,16 @@
 #include "LibDepth.hlsl"
 #include "Bloom.inc.hlsl"
 
-ConstantBuffer<UB_BloomVS>            g_ubBloomVS            : register(b0, space0);
-ConstantBuffer<UB_BloomFS>            g_ubBloomFS            : register(b0, space1);
-ConstantBuffer<UB_BloomLightShaftsFS> g_ubBloomLightShaftsFS : register(b0, space2);
+CBUFFER(0, UB_BloomVS, g_ubBloomVS)
+CBUFFER(1, UB_BloomFS, g_ubBloomFS)
+CBUFFER(2, UB_BloomLightShaftsFS, g_ubBloomLightShaftsFS)
 
-Texture2D              g_texColor  : register(t1, space1);
-SamplerState           g_samColor  : register(s1, space1);
-Texture2D              g_texDepth  : register(t1, space2);
-SamplerState           g_samDepth  : register(s1, space2);
-Texture2D              g_texShadow : register(t2, space2);
-SamplerComparisonState g_samShadow : register(s2, space2);
+Texture2D              g_texColor  : REG(t1, space1, t0);
+SamplerState           g_samColor  : REG(s1, space1, s0);
+Texture2D              g_texDepth  : REG(t1, space2, t1);
+SamplerState           g_samDepth  : REG(s1, space2, s1);
+Texture2D              g_texShadow : REG(t2, space2, t2);
+SamplerComparisonState g_samShadow : REG(s2, space2, s2);
 
 struct VSI
 {

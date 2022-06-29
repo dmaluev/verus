@@ -6,23 +6,23 @@
 #include "LibDepth.hlsl"
 #include "DS_Compose.inc.hlsl"
 
-ConstantBuffer<UB_ComposeVS> g_ubComposeVS : register(b0, space0);
-ConstantBuffer<UB_ComposeFS> g_ubComposeFS : register(b0, space1);
+CBUFFER(0, UB_ComposeVS, g_ubComposeVS)
+CBUFFER(1, UB_ComposeFS, g_ubComposeFS)
 
-Texture2D    g_texGBuffer0 : register(t1, space1);
-SamplerState g_samGBuffer0 : register(s1, space1);
-Texture2D    g_texGBuffer1 : register(t2, space1);
-SamplerState g_samGBuffer1 : register(s2, space1);
-Texture2D    g_texGBuffer2 : register(t3, space1);
-SamplerState g_samGBuffer2 : register(s3, space1);
-Texture2D    g_texDepth    : register(t4, space1);
-SamplerState g_samDepth    : register(s4, space1);
-Texture2D    g_texAccAmb   : register(t5, space1);
-SamplerState g_samAccAmb   : register(s5, space1);
-Texture2D    g_texAccDiff  : register(t6, space1);
-SamplerState g_samAccDiff  : register(s6, space1);
-Texture2D    g_texAccSpec  : register(t7, space1);
-SamplerState g_samAccSpec  : register(s7, space1);
+Texture2D    g_texGBuffer0 : REG(t1, space1, t0);
+SamplerState g_samGBuffer0 : REG(s1, space1, s0);
+Texture2D    g_texGBuffer1 : REG(t2, space1, t1);
+SamplerState g_samGBuffer1 : REG(s2, space1, s1);
+Texture2D    g_texGBuffer2 : REG(t3, space1, t2);
+SamplerState g_samGBuffer2 : REG(s3, space1, s2);
+Texture2D    g_texDepth    : REG(t4, space1, t3);
+SamplerState g_samDepth    : REG(s4, space1, s3);
+Texture2D    g_texAccAmb   : REG(t5, space1, t4);
+SamplerState g_samAccAmb   : REG(s5, space1, s4);
+Texture2D    g_texAccDiff  : REG(t6, space1, t5);
+SamplerState g_samAccDiff  : REG(s6, space1, s5);
+Texture2D    g_texAccSpec  : REG(t7, space1, t6);
+SamplerState g_samAccSpec  : REG(s7, space1, s6);
 
 struct VSI
 {
@@ -149,15 +149,15 @@ FSO mainFS(VSO si)
 		const float2 tcR = si.tc0 + offset;
 		const float2 tcG = si.tc0;
 		const float2 tcB = si.tc0 - offset;
-		composed.r = g_texDepth.SampleLevel(g_samDepth, tcR, 0.0).r;
-		composed.g = g_texDepth.SampleLevel(g_samDepth, tcG, 0.0).g;
-		composed.b = g_texDepth.SampleLevel(g_samDepth, tcB, 0.0).b;
+		composed.r = g_texGBuffer2.SampleLevel(g_samGBuffer2, tcR, 0.0).r;
+		composed.g = g_texGBuffer2.SampleLevel(g_samGBuffer2, tcG, 0.0).g;
+		composed.b = g_texGBuffer2.SampleLevel(g_samGBuffer2, tcB, 0.0).b;
 #else
-		composed = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).rgb;
+		composed = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.0).rgb;
 #endif
 	}
 #ifdef DEF_BLOOM
-	const float4 gBuffer2Sam = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.0);
+	const float4 gBuffer2Sam = g_texAccSpec.SampleLevel(g_samAccSpec, si.tc0, 0.0);
 #endif
 	// </Sample>
 

@@ -7,30 +7,30 @@
 #include "LibTessellation.hlsl"
 #include "DS_Terrain.inc.hlsl"
 
-ConstantBuffer<UB_TerrainVS> g_ubTerrainVS : register(b0, space0);
-ConstantBuffer<UB_TerrainFS> g_ubTerrainFS : register(b0, space1);
+CBUFFER(0, UB_TerrainVS, g_ubTerrainVS)
+CBUFFER(1, UB_TerrainFS, g_ubTerrainFS)
 
-Texture2D      g_texHeightVS : register(t1, space0);
-SamplerState   g_samHeightVS : register(s1, space0);
-Texture2D      g_texNormalVS : register(t2, space0);
-SamplerState   g_samNormalVS : register(s2, space0);
+Texture2D      g_texHeightVS : REG(t1, space0, t0);
+SamplerState   g_samHeightVS : REG(s1, space0, s0);
+Texture2D      g_texNormalVS : REG(t2, space0, t1);
+SamplerState   g_samNormalVS : REG(s2, space0, s1);
 
-Texture2D      g_texNormal   : register(t1, space1);
-SamplerState   g_samNormal   : register(s1, space1);
-Texture2D      g_texBlend    : register(t2, space1);
-SamplerState   g_samBlend    : register(s2, space1);
-Texture2DArray g_texLayers   : register(t3, space1);
-SamplerState   g_samLayers   : register(s3, space1);
-Texture2DArray g_texLayersN  : register(t4, space1);
-SamplerState   g_samLayersN  : register(s4, space1);
-Texture2DArray g_texLayersX  : register(t5, space1);
-SamplerState   g_samLayersX  : register(s5, space1);
-Texture2D      g_texDetail   : register(t6, space1);
-SamplerState   g_samDetail   : register(s6, space1);
-Texture2D      g_texDetailN  : register(t7, space1);
-SamplerState   g_samDetailN  : register(s7, space1);
-Texture2D      g_texStrass   : register(t8, space1);
-SamplerState   g_samStrass   : register(s8, space1);
+Texture2D      g_texNormal   : REG(t1, space1, t2);
+SamplerState   g_samNormal   : REG(s1, space1, s2);
+Texture2D      g_texBlend    : REG(t2, space1, t3);
+SamplerState   g_samBlend    : REG(s2, space1, s3);
+Texture2DArray g_texLayers   : REG(t3, space1, t4);
+SamplerState   g_samLayers   : REG(s3, space1, s4);
+Texture2DArray g_texLayersN  : REG(t4, space1, t5);
+SamplerState   g_samLayersN  : REG(s4, space1, s5);
+Texture2DArray g_texLayersX  : REG(t5, space1, t6);
+SamplerState   g_samLayersX  : REG(s5, space1, s6);
+Texture2D      g_texDetail   : REG(t6, space1, t7);
+SamplerState   g_samDetail   : REG(s6, space1, s7);
+Texture2D      g_texDetailN  : REG(t7, space1, t8);
+SamplerState   g_samDetailN  : REG(s7, space1, s8);
+Texture2D      g_texStrass   : REG(t8, space1, t9);
+SamplerState   g_samStrass   : REG(s8, space1, s9);
 
 struct VSI
 {
@@ -179,7 +179,7 @@ DS_FSO mainFS(VSO si)
 	DS_Reset(so);
 
 #ifdef DEF_SOLID_COLOR
-	//DS_SolidColor(so, si.layerForChannel.rgb);
+	DS_SolidColor(so, si.layerForChannel.rgb);
 #else
 	// Fix interpolation errors by rounding:
 	si.layerForChannel = round(si.layerForChannel);

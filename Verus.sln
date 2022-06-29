@@ -19,6 +19,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HelloTriangle", "HelloTrian
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HelloTexturedCube", "HelloTexturedCube\HelloTexturedCube.vcxproj", "{26BD6E61-E36D-464A-A312-4110ADF10083}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RendererDirect3D11", "RendererDirect3D11\RendererDirect3D11.vcxproj", "{8269DCCE-E226-46E4-B9F6-290AB5DF2678}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -57,6 +59,10 @@ Global
 		{26BD6E61-E36D-464A-A312-4110ADF10083}.Debug|x64.Build.0 = Debug|x64
 		{26BD6E61-E36D-464A-A312-4110ADF10083}.Release|x64.ActiveCfg = Release|x64
 		{26BD6E61-E36D-464A-A312-4110ADF10083}.Release|x64.Build.0 = Release|x64
+		{8269DCCE-E226-46E4-B9F6-290AB5DF2678}.Debug|x64.ActiveCfg = Debug|x64
+		{8269DCCE-E226-46E4-B9F6-290AB5DF2678}.Debug|x64.Build.0 = Debug|x64
+		{8269DCCE-E226-46E4-B9F6-290AB5DF2678}.Release|x64.ActiveCfg = Release|x64
+		{8269DCCE-E226-46E4-B9F6-290AB5DF2678}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

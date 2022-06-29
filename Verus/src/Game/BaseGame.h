@@ -27,7 +27,6 @@ namespace verus
 			virtual void BaseGame_UnloadContent() = 0;
 			virtual void BaseGame_Update() = 0;
 			virtual void BaseGame_Draw() = 0;
-			virtual void BaseGame_DrawOverlay() {}
 			virtual void BaseGame_OnWindowMoved() {}
 			virtual void BaseGame_OnWindowSizeChanged() {}
 			virtual void BaseGame_OnActivated() {}
@@ -63,7 +62,7 @@ namespace verus
 			void BulletDebugDraw();
 
 			bool IsRestartAppRequested() const { return _restartApp; }
-			void RestartApp();
+			static void RestartApp();
 			void RequestAppRestart();
 		};
 		VERUS_TYPEDEFS(BaseGame);

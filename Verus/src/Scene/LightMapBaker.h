@@ -120,6 +120,7 @@ namespace verus
 			float                         _invMapSize = 0;
 			float                         _normalizationFactor = 0;
 			Stats                         _stats;
+			bool                          _debugDraw = false;
 
 		public:
 			LightMapBaker();
@@ -141,6 +142,9 @@ namespace verus
 
 			bool IsBaking() const { return Mode::idle != _desc._mode; }
 			Mode GetMode() const { return _desc._mode; }
+
+			bool IsDebugDrawEnabled() const { return _debugDraw; }
+			void EnableDebugDraw(bool b = true) { _debugDraw = b; }
 
 			virtual Continue Quadtree_ProcessNode(void* pToken, void* pUser) override;
 

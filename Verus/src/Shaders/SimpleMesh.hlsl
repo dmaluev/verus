@@ -7,19 +7,19 @@
 #include "LibVertex.hlsl"
 #include "SimpleMesh.inc.hlsl"
 
-ConstantBuffer<UB_SimplePerFrame>      g_ubSimplePerFrame      : register(b0, space0);
-ConstantBuffer<UB_SimplePerMaterialFS> g_ubSimplePerMaterialFS : register(b0, space1);
-ConstantBuffer<UB_SimplePerMeshVS>     g_ubSimplePerMeshVS     : register(b0, space2);
-ConstantBuffer<UB_SimpleSkeletonVS>    g_ubSimpleSkeletonVS    : register(b0, space3);
+CBUFFER(0, UB_SimplePerFrame, g_ubSimplePerFrame)
+CBUFFER(1, UB_SimplePerMaterialFS, g_ubSimplePerMaterialFS)
+CBUFFER(2, UB_SimplePerMeshVS, g_ubSimplePerMeshVS)
+CBUFFER(3, UB_SimpleSkeletonVS, g_ubSimpleSkeletonVS)
 VK_PUSH_CONSTANT
-ConstantBuffer<UB_SimplePerObject>     g_ubSimplePerObject     : register(b0, space4);
+CBUFFER(4, UB_SimplePerObject, g_ubSimplePerObject)
 
-Texture2D              g_texA         : register(t1, space1);
-SamplerState           g_samA         : register(s1, space1);
-Texture2D              g_texX         : register(t2, space1);
-SamplerState           g_samX         : register(s2, space1);
-Texture2D              g_texShadowCmp : register(t3, space1);
-SamplerComparisonState g_samShadowCmp : register(s3, space1);
+Texture2D              g_texA         : REG(t1, space1, t0);
+SamplerState           g_samA         : REG(s1, space1, s0);
+Texture2D              g_texX         : REG(t2, space1, t1);
+SamplerState           g_samX         : REG(s2, space1, s1);
+Texture2D              g_texShadowCmp : REG(t3, space1, t2);
+SamplerComparisonState g_samShadowCmp : REG(s3, space1, s2);
 
 struct VSI
 {

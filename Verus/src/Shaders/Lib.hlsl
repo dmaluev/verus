@@ -21,7 +21,7 @@
 #	define VK_LOCATION_PSIZE        [[vk::location(7)]]
 
 #	define VK_PUSH_CONSTANT [[vk::push_constant]]
-#	define VK_SUBPASS_INPUT(index, tex, sam, t, s, space) layout(input_attachment_index = index) SubpassInput<float4> tex : register(t, space)
+#	define VK_SUBPASS_INPUT(index, tex, sam, slot, space) layout(input_attachment_index = index) SubpassInput<float4> tex : REG(t##slot, space, t##index)
 #	define VK_SUBPASS_LOAD(tex, sam, tc) tex.SubpassLoad()
 
 #	ifdef _VS
@@ -43,13 +43,21 @@
 #	define VK_LOCATION_PSIZE
 
 #	define VK_PUSH_CONSTANT
-#	define VK_SUBPASS_INPUT(index, tex, sam, t, s, space)\
-	Texture2D    tex : register(t, space);\
-	SamplerState sam : register(s, space)
+#	define VK_SUBPASS_INPUT(index, tex, sam, slot, space)\
+	Texture2D    tex : REG(t##slot, space, t##index);\
+	SamplerState sam : REG(s##slot, space, s##index)
 #	define VK_SUBPASS_LOAD(tex, sam, tc) tex.SampleLevel(sam, tc, 0.0)
 
 #	define VK_POINT_SIZE
 #	define VK_SET_POINT_SIZE
+#endif
+
+#ifdef _DIRECT3D11
+#	define CBUFFER(set, type, name) cbuffer type : register(b##set) { type name; }
+#	define REG(slot, space, sm50slot) register(sm50slot)
+#else
+#	define CBUFFER(set, type, name) ConstantBuffer<type> name : register(b0, space##set);
+#	define REG(slot, space, sm50slot) register(slot, space)
 #endif
 
 #ifdef DEF_INSTANCED

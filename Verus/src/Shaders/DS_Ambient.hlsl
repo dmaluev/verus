@@ -6,18 +6,18 @@
 #include "LibLighting.hlsl"
 #include "DS_Ambient.inc.hlsl"
 
-ConstantBuffer<UB_AmbientVS> g_ubAmbientVS : register(b0, space0);
-ConstantBuffer<UB_AmbientFS> g_ubAmbientFS : register(b0, space1);
+CBUFFER(0, UB_AmbientVS, g_ubAmbientVS)
+CBUFFER(1, UB_AmbientFS, g_ubAmbientFS)
 
-VK_SUBPASS_INPUT(0, g_texGBuffer0, g_samGBuffer0, t1, s1, space1);
-VK_SUBPASS_INPUT(1, g_texGBuffer1, g_samGBuffer1, t2, s2, space1);
-VK_SUBPASS_INPUT(2, g_texGBuffer2, g_samGBuffer2, t3, s3, space1);
-VK_SUBPASS_INPUT(3, g_texGBuffer3, g_samGBuffer3, t4, s4, space1);
-VK_SUBPASS_INPUT(4, g_texDepth, g_samDepth, t5, s5, space1);
-Texture2D    g_texTerrainHeightmap : register(t6, space1);
-SamplerState g_samTerrainHeightmap : register(s6, space1);
-Texture2D    g_texTerrainBlend     : register(t7, space1);
-SamplerState g_samTerrainBlend     : register(s7, space1);
+VK_SUBPASS_INPUT(0, g_texGBuffer0, g_samGBuffer0, 1, space1);
+VK_SUBPASS_INPUT(1, g_texGBuffer1, g_samGBuffer1, 2, space1);
+VK_SUBPASS_INPUT(2, g_texGBuffer2, g_samGBuffer2, 3, space1);
+VK_SUBPASS_INPUT(3, g_texGBuffer3, g_samGBuffer3, 4, space1);
+VK_SUBPASS_INPUT(4, g_texDepth, g_samDepth, 5, space1);
+Texture2D    g_texTerrainHeightmap : REG(t6, space1, t5);
+SamplerState g_samTerrainHeightmap : REG(s6, space1, s5);
+Texture2D    g_texTerrainBlend     : REG(t7, space1, t6);
+SamplerState g_samTerrainBlend     : REG(s7, space1, s6);
 
 struct VSI
 {

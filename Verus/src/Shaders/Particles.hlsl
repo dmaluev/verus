@@ -4,11 +4,11 @@
 #include "LibDepth.hlsl"
 #include "Particles.inc.hlsl"
 
-ConstantBuffer<UB_ParticlesVS> g_ubParticlesVS : register(b0, space0);
-ConstantBuffer<UB_ParticlesFS> g_ubParticlesFS : register(b0, space1);
+CBUFFER(0, UB_ParticlesVS, g_ubParticlesVS)
+CBUFFER(1, UB_ParticlesFS, g_ubParticlesFS)
 
-Texture2D    g_tex : register(t1, space1);
-SamplerState g_sam : register(s1, space1);
+Texture2D    g_tex : REG(t1, space1, t0);
+SamplerState g_sam : REG(s1, space1, s0);
 
 struct VSI
 {

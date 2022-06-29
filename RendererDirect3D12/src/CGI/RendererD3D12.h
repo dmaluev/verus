@@ -15,22 +15,26 @@ namespace verus
 		{
 			typedef Map<std::thread::id, ComPtr<ID3D12CommandAllocator>> TMapCommandAllocators;
 
+			D3D12MA::Allocator* _pMaAllocator = nullptr;
 			ComPtr<ID3D12Device3>             _pDevice;
 			ComPtr<ID3D12CommandQueue>        _pCommandQueue;
-			D3D12MA::Allocator* _pMaAllocator = nullptr;
 			ComPtr<IDXGISwapChain4>           _pSwapChain;
 			Vector<ComPtr<ID3D12Resource>>    _vSwapChainBuffers;
 			DescriptorHeap                    _dhSwapChainBuffersRTVs;
+
 			DynamicDescriptorHeap             _dhViews;
 			DynamicDescriptorHeap             _dhSamplers;
 			TMapCommandAllocators             _mapCommandAllocators[s_ringBufferSize];
 			ComPtr<ID3D12Fence>               _pFence;
 			HANDLE                            _hFence = INVALID_HANDLE_VALUE;
 			HANDLE                            _hFrameLatencyWaitableObject = INVALID_HANDLE_VALUE;
+			UINT64                            _nextFenceValue = 1;
 			UINT64                            _fenceValues[s_ringBufferSize] = {};
+
 			Vector<D3D12_STATIC_SAMPLER_DESC> _vSamplers;
 			Vector<RP::D3DRenderPass>         _vRenderPasses;
 			Vector<RP::D3DFramebuffer>        _vFramebuffers;
+			D3D_FEATURE_LEVEL                 _featureLevel = D3D_FEATURE_LEVEL_11_0;
 			DXGI_SWAP_CHAIN_DESC1             _swapChainDesc = {};
 
 		public:
@@ -44,28 +48,30 @@ namespace verus
 
 		private:
 			static void EnableDebugLayer();
-			static ComPtr<IDXGIFactory7> CreateDXGIFactory();
-			static ComPtr<IDXGIAdapter4> GetAdapter(ComPtr<IDXGIFactory7> pFactory, D3D_FEATURE_LEVEL featureLevel);
-			static bool CheckFeatureSupportAllowTearing(ComPtr<IDXGIFactory7> pFactory);
+			static ComPtr<IDXGIFactory6> CreateFactory();
+			static ComPtr<IDXGIAdapter4> GetAdapter(ComPtr<IDXGIFactory6> pFactory, D3D_FEATURE_LEVEL featureLevel);
+			static bool CheckFeatureSupportAllowTearing(ComPtr<IDXGIFactory6> pFactory);
 			void CreateSwapChainBuffersRTVs();
 			void InitD3D();
 			void WaitForFrameLatencyWaitableObject();
 
 		public:
-			ComPtr<ID3D12CommandQueue>         CreateCommandQueue(D3D12_COMMAND_LIST_TYPE type);
-			ComPtr<ID3D12CommandAllocator>     CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE type);
-			ComPtr<ID3D12GraphicsCommandList3> CreateCommandList(D3D12_COMMAND_LIST_TYPE type, ComPtr<ID3D12CommandAllocator> pCommandAllocator);
-			ComPtr<ID3D12Fence>                CreateFence();
+			// <CreateAndGet>
+			ComPtr<ID3D12CommandQueue>         CreateD3DCommandQueue(D3D12_COMMAND_LIST_TYPE type);
+			ComPtr<ID3D12CommandAllocator>     CreateD3DCommandAllocator(D3D12_COMMAND_LIST_TYPE type);
+			ComPtr<ID3D12GraphicsCommandList3> CreateD3DCommandList(D3D12_COMMAND_LIST_TYPE type, ComPtr<ID3D12CommandAllocator> pCommandAllocator);
+			ComPtr<ID3D12Fence>                CreateD3DFence();
 			UINT64 QueueSignal();
 			void WaitForFenceValue(UINT64 value);
 			void QueueWaitIdle();
 			void CreateSamplers();
 
 			ID3D12Device3* GetD3DDevice() const { return _pDevice.Get(); }
-			ID3D12CommandQueue* GetCommandQueue() const { return _pCommandQueue.Get(); }
+			ID3D12CommandQueue* GetD3DCommandQueue() const { return _pCommandQueue.Get(); }
 			D3D12MA::Allocator* GetMaAllocator() const { return _pMaAllocator; }
 			ID3D12CommandAllocator* GetD3DCommandAllocator(int ringBufferIndex) const { return _mapCommandAllocators[ringBufferIndex].at(std::this_thread::get_id()).Get(); }
-			D3D12_STATIC_SAMPLER_DESC GetStaticSamplerDesc(Sampler s) const;
+			D3D12_STATIC_SAMPLER_DESC GetD3DStaticSamplerDesc(Sampler s) const;
+			// </CreateAndGet>
 
 			virtual void ImGuiInit(RPHandle renderPassHandle) override;
 			virtual void ImGuiRenderDrawData() override;
@@ -76,11 +82,11 @@ namespace verus
 			virtual Gapi GetGapi() override { return Gapi::direct3D12; }
 
 			// <FrameCycle>
-			virtual void BeginFrame(bool present) override;
-			virtual void EndFrame(bool present) override;
-			virtual void Present() override;
-			virtual void Sync(bool present) override;
+			virtual void BeginFrame() override;
+			virtual void AcquireSwapChainImage() override;
+			virtual void EndFrame() override;
 			virtual void WaitIdle() override;
+			virtual void OnMinimized() override;
 			// </FrameCycle>
 
 			// <Resources>

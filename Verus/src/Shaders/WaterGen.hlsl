@@ -4,14 +4,14 @@
 #include "LibSurface.hlsl"
 #include "WaterGen.inc.hlsl"
 
-ConstantBuffer<UB_Gen>            g_ubGen            : register(b0, space0);
-ConstantBuffer<UB_GenHeightmapFS> g_ubGenHeightmapFS : register(b0, space1);
-ConstantBuffer<UB_GenNormalsFS>   g_ubGenNormalsFS   : register(b0, space2);
+CBUFFER(0, UB_Gen, g_ubGen)
+CBUFFER(1, UB_GenHeightmapFS, g_ubGenHeightmapFS)
+CBUFFER(2, UB_GenNormalsFS, g_ubGenNormalsFS)
 
-Texture2D    g_texSourceHeightmap : register(t1, space1);
-SamplerState g_samSourceHeightmap : register(s1, space1);
-Texture2D    g_texGenHeightmap    : register(t1, space2);
-SamplerState g_samGenHeightmap    : register(s1, space2);
+Texture2D    g_texSourceHeightmap : REG(t1, space1, t0);
+SamplerState g_samSourceHeightmap : REG(s1, space1, s0);
+Texture2D    g_texGenHeightmap    : REG(t1, space2, t1);
+SamplerState g_samGenHeightmap    : REG(s1, space2, s1);
 
 struct VSI
 {

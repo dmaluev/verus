@@ -4,10 +4,10 @@
 #include "LibColor.hlsl"
 #include "Font.inc.hlsl"
 
-ConstantBuffer<UB_FontFS> g_ubFontFS : register(b0, space0);
+CBUFFER(0, UB_FontFS, g_ubFontFS)
 
-Texture2D    g_tex : register(t1, space0);
-SamplerState g_sam : register(s1, space0);
+Texture2D    g_tex : REG(t1, space0, t0);
+SamplerState g_sam : REG(s1, space0, s0);
 
 struct VSI
 {

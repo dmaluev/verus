@@ -15,21 +15,6 @@ struct MyRendererDelegate : CGI::RendererDelegate
 	{
 		_p->BaseGame_Draw();
 	}
-
-	virtual void Renderer_OnDrawOverlay() override
-	{
-		_p->BaseGame_DrawOverlay();
-	}
-
-	virtual void Renderer_OnPresent() override
-	{
-		VERUS_QREF_RENDERER;
-		renderer->Present();
-	}
-
-	virtual void Renderer_OnDrawCubeMap() override
-	{
-	}
 };
 VERUS_TYPEDEFS(MyRendererDelegate);
 
@@ -123,14 +108,13 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc windowDes
 	if (Scene::SceneManager::IsValidSingleton())
 		Scene::SceneManager::I().SetCamera(&_p->_camera);
 
-	renderer->BeginFrame(false); // Begin recording a command buffer.
+	renderer.BeginFrame(); // Begin recording a command buffer.
 	renderer.InitCmd();
 	_engineInit.InitCmd();
 	if (Scene::MaterialManager::IsValidSingleton())
 		Scene::MaterialManager::I().InitCmd();
 	BaseGame_LoadContent();
-	renderer->EndFrame(false); // End recording a command buffer.
-	renderer->Sync(false);
+	renderer.EndFrame(); // End recording a command buffer.
 }
 
 void BaseGame::Loop(bool relativeMouseMode)
@@ -237,7 +221,7 @@ void BaseGame::Loop(bool relativeMouseMode)
 						{
 							_p->_minimized = true;
 							BaseGame_OnDeactivated();
-							renderer->WaitIdle();
+							renderer->OnMinimized();
 						}
 					}
 					break;
@@ -261,6 +245,9 @@ void BaseGame::Loop(bool relativeMouseMode)
 		if (_p->_escapeKeyExitGame && im.IsKeyDownEvent(SDL_SCANCODE_ESCAPE))
 			Exit();
 
+		if (_p->_minimized)
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
 		if (_p->_minimized || _restartApp)
 			continue;
 
@@ -268,7 +255,7 @@ void BaseGame::Loop(bool relativeMouseMode)
 		// UPDATE
 		//
 
-		renderer->BeginFrame();
+		renderer.BeginFrame();
 
 		async.Update();
 
@@ -320,9 +307,7 @@ void BaseGame::Loop(bool relativeMouseMode)
 		// Draw current frame:
 		renderer.Draw();
 		im.ResetInputState();
-		renderer->EndFrame();
-		renderer.Present();
-		renderer->Sync();
+		renderer.EndFrame();
 
 		// Show FPS:
 		if (_p->_showFPS && timer.IsEventEvery(500))
@@ -332,6 +317,7 @@ void BaseGame::Loop(bool relativeMouseMode)
 			switch (renderer->GetGapi())
 			{
 			case CGI::Gapi::vulkan:     gapi = "Vulkan"; break;
+			case CGI::Gapi::direct3D11: gapi = "Direct3D 11"; break;
 			case CGI::Gapi::direct3D12: gapi = "Direct3D 12"; break;
 			}
 			sprintf_s(title, "GAPI: %s, FPS: %.1f", gapi, renderer.GetFps());

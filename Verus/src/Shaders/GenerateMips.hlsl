@@ -4,15 +4,15 @@
 #include "LibColor.hlsl"
 #include "GenerateMips.inc.hlsl"
 
-ConstantBuffer<UB_GenerateMips> g_ub : register(b0, space0);
+CBUFFER(0, UB_GenerateMips, g_ub)
 
-Texture2D    g_texSrcMip : register(t1, space0);
-SamplerState g_samSrcMip : register(s1, space0);
+Texture2D    g_texSrcMip : REG(t1, space0, t0);
+SamplerState g_samSrcMip : REG(s1, space0, s0);
 
-RWTexture2D<float4> g_uavOutMip1 : register(u2, space0);
-RWTexture2D<float4> g_uavOutMip2 : register(u3, space0);
-RWTexture2D<float4> g_uavOutMip3 : register(u4, space0);
-RWTexture2D<float4> g_uavOutMip4 : register(u5, space0);
+RWTexture2D<float4> g_uavOutMip1 : REG(u2, space0, u0);
+RWTexture2D<float4> g_uavOutMip2 : REG(u3, space0, u1);
+RWTexture2D<float4> g_uavOutMip3 : REG(u4, space0, u2);
+RWTexture2D<float4> g_uavOutMip4 : REG(u5, space0, u3);
 
 struct CSI
 {

@@ -6,18 +6,18 @@
 #include "LibSurface.hlsl"
 #include "DS_Grass.inc.hlsl"
 
-ConstantBuffer<UB_GrassVS> g_ubGrassVS : register(b0, space0);
-ConstantBuffer<UB_GrassFS> g_ubGrassFS : register(b0, space1);
+CBUFFER(0, UB_GrassVS, g_ubGrassVS)
+CBUFFER(1, UB_GrassFS, g_ubGrassFS)
 
-Texture2D    g_texHeightVS : register(t1, space0);
-SamplerState g_samHeightVS : register(s1, space0);
-Texture2D    g_texNormalVS : register(t2, space0);
-SamplerState g_samNormalVS : register(s2, space0);
-Texture2D    g_texMLayerVS : register(t3, space0);
-SamplerState g_samMLayerVS : register(s3, space0);
+Texture2D    g_texHeightVS : REG(t1, space0, t0);
+SamplerState g_samHeightVS : REG(s1, space0, s0);
+Texture2D    g_texNormalVS : REG(t2, space0, t1);
+SamplerState g_samNormalVS : REG(s2, space0, s1);
+Texture2D    g_texMLayerVS : REG(t3, space0, t2);
+SamplerState g_samMLayerVS : REG(s3, space0, s2);
 
-Texture2D    g_texAlbedo : register(t1, space1);
-SamplerState g_samAlbedo : register(s1, space1);
+Texture2D    g_texAlbedo : REG(t1, space1, t3);
+SamplerState g_samAlbedo : REG(s1, space1, s3);
 
 struct VSI
 {

@@ -6,16 +6,16 @@
 #include "LibDepth.hlsl"
 #include "Blur.inc.hlsl"
 
-ConstantBuffer<UB_BlurVS>      g_ubBlurVS      : register(b0, space0);
-ConstantBuffer<UB_BlurFS>      g_ubBlurFS      : register(b0, space1);
-ConstantBuffer<UB_ExtraBlurFS> g_ubExtraBlurFS : register(b0, space2);
+CBUFFER(0, UB_BlurVS, g_ubBlurVS)
+CBUFFER(1, UB_BlurFS, g_ubBlurFS)
+CBUFFER(2, UB_ExtraBlurFS, g_ubExtraBlurFS)
 
-Texture2D    g_tex         : register(t1, space1);
-SamplerState g_sam         : register(s1, space1);
-Texture2D    g_texGBuffer1 : register(t1, space2);
-SamplerState g_samGBuffer1 : register(s1, space2);
-Texture2D    g_texDepth    : register(t2, space2);
-SamplerState g_samDepth    : register(s2, space2);
+Texture2D    g_tex         : REG(t1, space1, t0);
+SamplerState g_sam         : REG(s1, space1, s0);
+Texture2D    g_texGBuffer1 : REG(t1, space2, t1);
+SamplerState g_samGBuffer1 : REG(s1, space2, s1);
+Texture2D    g_texDepth    : REG(t2, space2, t2);
+SamplerState g_samDepth    : REG(s2, space2, s2);
 
 struct VSI
 {
@@ -63,7 +63,7 @@ FSO mainFS(VSO si)
 	for (int i = 0; i < sampleCount; ++i)
 	{
 		// Poor man's gaussian kernel:
-		const float ratio = 1.0 - saturate(abs(offset_weightSum.x) * invRadius);
+		const float ratio = 1.0 - abs(offset_weightSum.x * invRadius);
 		const float curve = smoothstep(0.0, 1.0, ratio);
 		const float weight = lerp(ratio, curve * curve * curve, 0.8);
 #ifdef DEF_U

@@ -89,25 +89,25 @@ void TextureD3D12::Init(RcTextureDesc desc)
 	if (_desc._flags & TextureDesc::Flags::generateMips)
 	{
 		VERUS_RT_ASSERT(_desc._mipLevels > 1);
-		// Create storage image for compute shader's output. No need to have the first mip level.
-		const int uavMipLevels = Math::Max(1, _desc._mipLevels - 1);
-		D3D12_RESOURCE_DESC resDescUAV = resDesc;
-		resDescUAV.Width = Math::Max(1, _desc._width >> 1);
-		resDescUAV.Height = Math::Max(1, _desc._height >> 1);
-		resDescUAV.MipLevels = uavMipLevels;
-		resDescUAV.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		// Create storage image for compute shader. First mip level is not required.
+		const int uaMipLevels = Math::Max(1, _desc._mipLevels - 1);
+		D3D12_RESOURCE_DESC uaResDesc = resDesc;
+		uaResDesc.Width = Math::Max(1, _desc._width >> 1);
+		uaResDesc.Height = Math::Max(1, _desc._height >> 1);
+		uaResDesc.MipLevels = uaMipLevels;
+		uaResDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 		// sRGB cannot be used with UAV:
-		switch (resDescUAV.Format)
+		switch (uaResDesc.Format)
 		{
-		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB: resDescUAV.Format = DXGI_FORMAT_R8G8B8A8_UNORM; break;
-		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB: resDescUAV.Format = DXGI_FORMAT_B8G8R8A8_UNORM; break;
+		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB: uaResDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; break;
+		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB: uaResDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; break;
 		}
 
 		D3D12MA::ALLOCATION_DESC allocDesc = {};
 		allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
 		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
 			&allocDesc,
-			&resDescUAV,
+			&uaResDesc,
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			nullptr,
 			&_uaResource._pMaAllocation,
@@ -116,13 +116,13 @@ void TextureD3D12::Init(RcTextureDesc desc)
 		_uaResource._pResource->SetName(_C(Str::Utf8ToWide(_name + " (UAV)")));
 
 		_vCshGenerateMips.reserve(Math::DivideByMultiple<int>(_desc._mipLevels, 4));
-		_dhUAV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, uavMipLevels * _desc._arrayLayers);
+		_dhUAV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, uaMipLevels * _desc._arrayLayers);
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-		uavDesc.Format = resDescUAV.Format;
+		uavDesc.Format = uaResDesc.Format;
 		uavDesc.ViewDimension = (_desc._arrayLayers > 1) ? D3D12_UAV_DIMENSION_TEXTURE2DARRAY : D3D12_UAV_DIMENSION_TEXTURE2D;
 		VERUS_FOR(layer, _desc._arrayLayers)
 		{
-			VERUS_FOR(mip, uavMipLevels)
+			VERUS_FOR(mip, uaMipLevels)
 			{
 				if (D3D12_UAV_DIMENSION_TEXTURE2D == uavDesc.ViewDimension)
 				{
@@ -140,7 +140,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 						const int faceIndex = layer % +CubeMapFace::count;
 						uavDesc.Texture2DArray.FirstArraySlice = (cubeIndex * +CubeMapFace::count) + ToNativeCubeMapFace(static_cast<CubeMapFace>(faceIndex));
 					}
-					pRendererD3D12->GetD3DDevice()->CreateUnorderedAccessView(_uaResource._pResource.Get(), nullptr, &uavDesc, _dhUAV.AtCPU(mip + layer * uavMipLevels));
+					pRendererD3D12->GetD3DDevice()->CreateUnorderedAccessView(_uaResource._pResource.Get(), nullptr, &uavDesc, _dhUAV.AtCPU(mip + layer * uaMipLevels));
 				}
 			}
 		}
@@ -155,7 +155,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 		const int h = Math::Max(1, _desc._height >> _desc._readbackMip);
 		const UINT64 bufferSize = _bytesPerPixel * w * h;
 		_vReadbackBuffers.resize(BaseRenderer::s_ringBufferSize);
-		for (auto& x : _vReadbackBuffers)
+		for (auto& readbackBuffer : _vReadbackBuffers)
 		{
 			D3D12MA::ALLOCATION_DESC allocDesc = {};
 			allocDesc.HeapType = D3D12_HEAP_TYPE_READBACK;
@@ -165,10 +165,10 @@ void TextureD3D12::Init(RcTextureDesc desc)
 				&resDesc,
 				D3D12_RESOURCE_STATE_COPY_DEST,
 				nullptr,
-				&x._pMaAllocation,
-				IID_PPV_ARGS(&x._pResource))))
+				&readbackBuffer._pMaAllocation,
+				IID_PPV_ARGS(&readbackBuffer._pResource))))
 				throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_READBACK); hr=" << VERUS_HR(hr);
-			x._pResource->SetName(_C(Str::Utf8ToWide(_name + " (Readback)")));
+			readbackBuffer._pResource->SetName(_C(Str::Utf8ToWide(_name + " (Readback)")));
 		}
 	}
 
@@ -181,7 +181,6 @@ void TextureD3D12::Init(RcTextureDesc desc)
 			D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 			rtvDesc.Format = ToNativeFormat(_desc._format, false);
 			rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
-			rtvDesc.Texture2DArray.MipSlice = 0;
 			VERUS_FOR(i, +CubeMapFace::count)
 			{
 				rtvDesc.Texture2DArray.FirstArraySlice = ToNativeCubeMapFace(static_cast<CubeMapFace>(i));
@@ -200,16 +199,14 @@ void TextureD3D12::Init(RcTextureDesc desc)
 		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
 		dsvDesc.Format = clearValue.Format;
 		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-		dsvDesc.Texture2D.MipSlice = 0;
 		_dhDSV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
-		pRendererD3D12->GetD3DDevice()->CreateDepthStencilView(_resource._pResource.Get(), depthSampled ? &dsvDesc : nullptr, _dhDSV.AtCPU(0));
+		pRendererD3D12->GetD3DDevice()->CreateDepthStencilView(_resource._pResource.Get(), &dsvDesc, _dhDSV.AtCPU(0));
 		if (depthSampled)
 		{
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 			srvDesc.Format = ToNativeSampledDepthFormat(_desc._format);
 			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.Texture2D.MostDetailedMip = 0;
 			srvDesc.Texture2D.MipLevels = 1;
 			_dhSRV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 			pRendererD3D12->GetD3DDevice()->CreateShaderResourceView(_resource._pResource.Get(), &srvDesc, _dhSRV.AtCPU(0));
@@ -225,14 +222,12 @@ void TextureD3D12::Init(RcTextureDesc desc)
 			if (_desc._arrayLayers > +CubeMapFace::count)
 			{
 				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
-				srvDesc.TextureCubeArray.MostDetailedMip = 0;
 				srvDesc.TextureCubeArray.MipLevels = _desc._mipLevels;
 				srvDesc.TextureCubeArray.NumCubes = _desc._arrayLayers / +CubeMapFace::count;
 			}
 			else
 			{
 				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-				srvDesc.TextureCube.MostDetailedMip = 0;
 				srvDesc.TextureCube.MipLevels = _desc._mipLevels;
 			}
 			_dhSRV.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
@@ -256,6 +251,14 @@ void TextureD3D12::Done()
 {
 	ForceScheduled();
 
+	_dhSampler.Reset();
+	_dhDSV.Reset();
+	_dhRTV.Reset();
+	_dhUAV.Reset();
+	_dhSRV.Reset();
+
+	_vCshGenerateMips.clear();
+
 	for (auto& x : _vReadbackBuffers)
 	{
 		VERUS_SMART_RELEASE(x._pMaAllocation);
@@ -263,10 +266,7 @@ void TextureD3D12::Done()
 		x._pResource.Reset();
 	}
 	_vReadbackBuffers.clear();
-	_dhSampler.Reset();
-	_dhDSV.Reset();
-	_dhRTV.Reset();
-	_dhSRV.Reset();
+
 	VERUS_SMART_RELEASE(_uaResource._pMaAllocation);
 	VERUS_COM_RELEASE_CHECK(_uaResource._pResource.Get());
 	_uaResource._pResource.Reset();
@@ -330,11 +330,8 @@ void TextureD3D12::UpdateSubresource(const void* p, int mipLevel, int arrayLayer
 	UpdateSubresources<1>(
 		pCmdList,
 		_resource._pResource.Get(),
-		sb._pResource.Get(),
-		0,
-		subresource,
-		1,
-		&sd);
+		sb._pResource.Get(), 0,
+		subresource, 1, &sd);
 	pCB->PipelineImageMemoryBarrier(TexturePtr::From(this), ImageLayout::transferDst, _mainLayout, mipLevel, arrayLayer);
 
 	Schedule();
