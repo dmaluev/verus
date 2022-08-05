@@ -32,7 +32,7 @@ struct VSI
 struct VSO
 {
 	float4 pos : SV_Position;
-	float2 tc0 : TEXCOORD0;
+	float4 tc0 : TEXCOORD0;
 };
 
 struct FSO
@@ -59,7 +59,8 @@ VSO mainVS(VSI si)
 
 	// Standard quad:
 	so.pos = float4(mul(si.pos, g_ubSsrVS._matW), 1);
-	so.tc0 = mul(si.pos, g_ubSsrVS._matV).xy;
+	so.tc0.xy = mul(si.pos, g_ubSsrVS._matV).xy;
+	so.tc0.zw = so.tc0.xy * g_ubSsrVS._tcViewScaleBias.xy + g_ubSsrVS._tcViewScaleBias.zw;
 
 	return so;
 }
@@ -71,7 +72,7 @@ FSO mainFS(VSO si)
 	FSO so;
 
 	const float3 rand = Rand(si.pos.xy);
-	const float2 ndcPos = ToNdcPos(si.tc0);
+	const float2 ndcPos = ToNdcPos(si.tc0.xy);
 
 	const float radius = g_ubSsrFS._radius_depthBias_thickness_equalizeDist.x;
 	const float depthBias = g_ubSsrFS._radius_depthBias_thickness_equalizeDist.y;
@@ -79,20 +80,20 @@ FSO mainFS(VSO si)
 	const float equalizeDist = g_ubSsrFS._radius_depthBias_thickness_equalizeDist.w;
 
 	// <Sample>
-	const float4 gBuffer0Sam = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.0);
+	const float4 gBuffer0Sam = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0.zw, 0.0);
 	const float3 albedo = gBuffer0Sam.rgb;
 
-	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
+	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0.zw, 0.0);
 	const float3 normalWV = DS_GetNormal(gBuffer1Sam);
 
-	const float4 gBuffer2Sam = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.0);
+	const float4 gBuffer2Sam = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0.zw, 0.0);
 	const float occlusion = gBuffer2Sam.r;
 	const float roughness = gBuffer2Sam.g;
 	const float metallic = gBuffer2Sam.b;
 
-	const float underwaterMask = g_texGBuffer3.SampleLevel(g_samGBuffer3, si.tc0, 0.0).b;
+	const float underwaterMask = g_texGBuffer3.SampleLevel(g_samGBuffer3, si.tc0.zw, 0.0).b;
 
-	const float depthSam = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
+	const float depthSam = g_texDepth.SampleLevel(g_samDepth, si.tc0.zw, 0.0).r;
 	const float3 posWV = DS_GetPosition(depthSam, g_ubSsrFS._matInvP, ndcPos);
 	// </Sample>
 
@@ -144,13 +145,14 @@ FSO mainFS(VSO si)
 	const float3 rayStride = reflectedDir * stride;
 
 	float3 kernelPosWV = posWV + normalWV * depthBias + rayStride * rand.x;
-	float2 prevTcRaySample = si.tc0;
+	float2 prevTcRaySample = si.tc0.xy;
 	float prevRayDeeper = stride * rand.x * 0.5; // Assumption.
 	for (int i = 0; i < sampleCount; ++i)
 	{
 		float4 tcRaySample = mul(float4(kernelPosWV, 1), g_ubSsrFS._matPTex);
 		tcRaySample /= tcRaySample.w;
-		const float kernelDepthSam = g_texDepth.SampleLevel(g_samDepth, tcRaySample.xy, 0.0).r;
+		const float2 tcRaySampleForView = tcRaySample.xy * g_ubSsrFS._tcViewScaleBias.xy + g_ubSsrFS._tcViewScaleBias.zw;
+		const float kernelDepthSam = g_texDepth.SampleLevel(g_samDepth, tcRaySampleForView, 0.0).r;
 
 		const float2 rayDepth_texDepth = ToLinearDepth(float2(tcRaySample.z, kernelDepthSam), g_ubSsrFS._zNearFarEx);
 		const float rayDeeper = rayDepth_texDepth.x - rayDepth_texDepth.y;
@@ -166,7 +168,9 @@ FSO mainFS(VSO si)
 
 			const float alpha = tcMask * AdjustFade(fade) * fresnel * mipFactor;
 
-			color.rgb = lerp(color.rgb, g_texScene.SampleLevel(g_samScene, tcFinal, 0.0).rgb, alpha);
+			const float2 tcFinalForView = tcFinal * g_ubSsrFS._tcViewScaleBias.xy + g_ubSsrFS._tcViewScaleBias.zw;
+
+			color.rgb = lerp(color.rgb, g_texScene.SampleLevel(g_samScene, tcFinalForView, 0.0).rgb, alpha);
 			color.a = alpha;
 			break;
 		}

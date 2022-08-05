@@ -85,11 +85,7 @@ void TextureVulkan::Init(RcTextureDesc desc)
 		vkiciStorage.mipLevels = Math::Max(1, _desc._mipLevels - 1);
 		vkiciStorage.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 		// sRGB cannot be used with storage image:
-		switch (vkiciStorage.format)
-		{
-		case VK_FORMAT_R8G8B8A8_SRGB: vkiciStorage.format = VK_FORMAT_R8G8B8A8_UNORM; break;
-		case VK_FORMAT_B8G8R8A8_SRGB: vkiciStorage.format = VK_FORMAT_B8G8R8A8_UNORM; break;
-		}
+		vkiciStorage.format = RemoveSRGB(vkiciStorage.format);
 		pRendererVulkan->CreateImage(&vkiciStorage, HostAccess::forbidden, _storageImage, _storageVmaAllocation);
 
 		_vCshGenerateMips.reserve(Math::DivideByMultiple<int>(_desc._mipLevels, 4));
@@ -658,4 +654,14 @@ ImageLayout TextureVulkan::GetSubresourceMainLayout(int mipLevel, int arrayLayer
 void TextureVulkan::MarkSubresourceDefined(int mipLevel, int arrayLayer)
 {
 	_vDefinedSubresources[arrayLayer] |= 1 << mipLevel;
+}
+
+VkFormat TextureVulkan::RemoveSRGB(VkFormat format)
+{
+	switch (format)
+	{
+	case VK_FORMAT_R8G8B8A8_SRGB: return VK_FORMAT_R8G8B8A8_UNORM;
+	case VK_FORMAT_B8G8R8A8_SRGB: return VK_FORMAT_B8G8R8A8_UNORM;
+	}
+	return format;
 }

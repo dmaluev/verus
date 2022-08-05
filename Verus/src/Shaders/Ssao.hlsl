@@ -37,7 +37,7 @@ struct VSI
 struct VSO
 {
 	float4 pos    : SV_Position;
-	float2 tc0    : TEXCOORD0;
+	float4 tc0    : TEXCOORD0;
 	float2 tcNorm : TEXCOORD1;
 };
 
@@ -53,7 +53,8 @@ VSO mainVS(VSI si)
 
 	// Standard quad & wrapped random normal:
 	so.pos = float4(mul(si.pos, g_ubSsaoVS._matW), 1);
-	so.tc0 = mul(si.pos, g_ubSsaoVS._matV).xy;
+	so.tc0.xy = mul(si.pos, g_ubSsaoVS._matV).xy;
+	so.tc0.zw = so.tc0.xy * g_ubSsaoVS._tcViewScaleBias.xy + g_ubSsaoVS._tcViewScaleBias.zw;
 	so.tcNorm = mul(si.pos, g_ubSsaoVS._matP).xy;
 
 	return so;
@@ -71,7 +72,7 @@ FSO mainFS(VSO si)
 	const float weightBias = g_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.w;
 
 	// <Sample>
-	const float depthSam = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
+	const float depthSam = g_texDepth.SampleLevel(g_samDepth, si.tc0.zw, 0.0).r;
 	const float originDepth = ToLinearDepth(depthSam, g_ubSsaoFS._zNearFarEx);
 
 	// Limit the effect to fix low precision artifacts:
@@ -85,7 +86,7 @@ FSO mainFS(VSO si)
 
 	const float3 randNormalWV = g_texRandNormals.SampleLevel(g_samRandNormals, si.tcNorm, 0.0).xyz * 2.0 - 1.0;
 
-	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
+	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0.zw, 0.0);
 	const float3 normalWV = DS_GetNormal(gBuffer1Sam);
 	// </Sample>
 
@@ -103,8 +104,8 @@ FSO mainFS(VSO si)
 		const float3 largeRay = hemiRayWV * float3(scale.zw, largeRad);
 
 		const float2 kernelDepthsSam = float2(
-			g_texDepth.SampleLevel(g_samDepth, si.tc0 + smallRay.xy, 0.0).r,
-			g_texDepth.SampleLevel(g_samDepth, si.tc0 + largeRay.xy, 0.0).r);
+			g_texDepth.SampleLevel(g_samDepth, si.tc0.zw + smallRay.xy * g_ubSsaoFS._tcViewScaleBias.xy, 0.0).r,
+			g_texDepth.SampleLevel(g_samDepth, si.tc0.zw + largeRay.xy * g_ubSsaoFS._tcViewScaleBias.xy, 0.0).r);
 		const float2 kernelDepths = ToLinearDepth(kernelDepthsSam, g_ubSsaoFS._zNearFarEx);
 
 		const float2 kernelDeeper = kernelDepths - originDepth;

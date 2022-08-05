@@ -786,6 +786,12 @@
     <ClInclude Include="src\ThirdParty\zlib-1.2.12\zutil.h">
       <Filter>src\ThirdParty\zlib-1.2.12</Filter>
     </ClInclude>
+    <ClInclude Include="src\Input\Gamepad.h">
+      <Filter>src\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CGI\BaseExtReality.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -1348,6 +1354,12 @@
     </ClCompile>
     <ClCompile Include="src\ThirdParty\zlib-1.2.12\zutil.c">
       <Filter>src\ThirdParty\zlib-1.2.12</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Input\Gamepad.cpp">
+      <Filter>src\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\BaseExtReality.cpp">
+      <Filter>src\CGI</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

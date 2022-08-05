@@ -4,23 +4,14 @@
 using namespace verus;
 using namespace verus::CGI;
 
-static VkResult CreateDebugUtilsMessengerEXT(
-	VkInstance instance,
-	const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-	const VkAllocationCallbacks* pAllocator,
-	VkDebugUtilsMessengerEXT* pMessenger)
+static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+	const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger)
 {
 	auto fn = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
-	if (fn)
-		return fn(instance, pCreateInfo, pAllocator, pMessenger);
-	else
-		return VK_ERROR_EXTENSION_NOT_PRESENT;
+	return fn ? fn(instance, pCreateInfo, pAllocator, pMessenger) : VK_ERROR_EXTENSION_NOT_PRESENT;
 }
 
-static void DestroyDebugUtilsMessengerEXT(
-	VkInstance instance,
-	VkDebugUtilsMessengerEXT messenger,
-	const VkAllocationCallbacks* pAllocator)
+static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* pAllocator)
 {
 	auto fn = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
 	if (fn)
@@ -57,12 +48,16 @@ void RendererVulkan::ReleaseMe()
 void RendererVulkan::Init()
 {
 	VERUS_INIT();
+	VERUS_QREF_CONST_SETTINGS;
 	VkResult res = VK_SUCCESS;
 
 	_vRenderPasses.reserve(20);
 	_vFramebuffers.reserve(40);
 
 	VulkanCompilerInit();
+
+	if (settings._openXR)
+		_extReality.Init();
 
 	CreateInstance();
 #if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
@@ -86,6 +81,9 @@ void RendererVulkan::Init()
 	CreateCommandPools();
 	CreateSyncObjects();
 	CreateSamplers();
+
+	if (_extReality.IsInitialized())
+		_extReality.InitByRenderer(this);
 }
 
 void RendererVulkan::Done()
@@ -115,8 +113,8 @@ void RendererVulkan::Done()
 	}
 	VERUS_FOR(i, s_ringBufferSize)
 		VERUS_VULKAN_DESTROY(_commandPools[i], vkDestroyCommandPool(_device, _commandPools[i], GetAllocator()));
-	for (auto swapChainImageViews : _vSwapChainImageViews)
-		vkDestroyImageView(_device, swapChainImageViews, GetAllocator());
+	for (auto swapChainImageView : _vSwapChainImageViews)
+		vkDestroyImageView(_device, swapChainImageView, GetAllocator());
 	_vSwapChainImageViews.clear();
 	_vSwapChainImages.clear();
 	VERUS_VULKAN_DESTROY(_swapChain, vkDestroySwapchainKHR(_device, _swapChain, GetAllocator()));
@@ -175,19 +173,19 @@ bool RendererVulkan::VulkanCompile(CSZ source, CSZ sourceName, CSZ* defines, Bas
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL RendererVulkan::DebugUtilsMessengerCallback(
-	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-	VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverityFlagBits,
+	VkDebugUtilsMessageTypeFlagsEXT messageTypeFlags,
 	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
 	void* pUserData)
 {
 	D::Log::Severity severity = D::Log::Severity::error;
-	if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
+	if (messageSeverityFlagBits & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
 		severity = D::Log::Severity::debug;
-	if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
+	if (messageSeverityFlagBits & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
 		severity = D::Log::Severity::info;
-	if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+	if (messageSeverityFlagBits & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
 		severity = D::Log::Severity::warning;
-	if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+	if (messageSeverityFlagBits & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
 		severity = D::Log::Severity::error;
 	D::Log::I().Write(pCallbackData->pMessage, std::this_thread::get_id(), __FILE__, __LINE__, severity);
 	return VK_FALSE;
@@ -274,8 +272,16 @@ void RendererVulkan::CreateInstance()
 	vkici.enabledLayerCount = VERUS_COUNT_OF(s_requiredValidationLayers);
 	vkici.ppEnabledLayerNames = s_requiredValidationLayers;
 #endif
-	if (VK_SUCCESS != (res = vkCreateInstance(&vkici, GetAllocator(), &_instance)))
-		throw VERUS_RUNTIME_ERROR << "vkCreateInstance(); res=" << res;
+	if (_extReality.IsInitialized())
+	{
+		if (VK_SUCCESS != (res = _extReality.CreateVulkanInstance(&vkici, GetAllocator(), &_instance)))
+			throw VERUS_RUNTIME_ERROR << "CreateVulkanInstance(); res=" << res;
+	}
+	else
+	{
+		if (VK_SUCCESS != (res = vkCreateInstance(&vkici, GetAllocator(), &_instance)))
+			throw VERUS_RUNTIME_ERROR << "vkCreateInstance(); res=" << res;
+	}
 }
 
 void RendererVulkan::FillDebugUtilsMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& vkdumci)
@@ -297,7 +303,7 @@ void RendererVulkan::FillDebugUtilsMessengerCreateInfo(VkDebugUtilsMessengerCrea
 void RendererVulkan::CreateDebugUtilsMessenger()
 {
 	VkResult res = VK_SUCCESS;
-	VkDebugUtilsMessengerCreateInfoEXT vkdumci = {};
+	VkDebugUtilsMessengerCreateInfoEXT vkdumci = { VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
 	FillDebugUtilsMessengerCreateInfo(vkdumci);
 	if (VK_SUCCESS != (res = CreateDebugUtilsMessengerEXT(_instance, &vkdumci, GetAllocator(), &_debugUtilsMessenger)))
 		throw VERUS_RUNTIME_ERROR << "CreateDebugUtilsMessengerEXT(); res=" << res;
@@ -310,20 +316,6 @@ void RendererVulkan::CreateSurface()
 	VERUS_RT_ASSERT(pWnd);
 	if (!SDL_Vulkan_CreateSurface(pWnd, _instance, &_surface))
 		throw VERUS_RUNTIME_ERROR << "SDL_Vulkan_CreateSurface()";
-}
-
-bool RendererVulkan::CheckRequiredDeviceExtensions(VkPhysicalDevice device)
-{
-	uint32_t propertyCount = 0;
-	vkEnumerateDeviceExtensionProperties(device, nullptr, &propertyCount, nullptr);
-	Vector<VkExtensionProperties> vExtensionProperties(propertyCount);
-	vkEnumerateDeviceExtensionProperties(device, nullptr, &propertyCount, vExtensionProperties.data());
-	Set<String> setRequiredDeviceExtensions;
-	for (CSZ extensionName : s_requiredDeviceExtensions)
-		setRequiredDeviceExtensions.insert(extensionName);
-	for (const auto& extensionProperties : vExtensionProperties)
-		setRequiredDeviceExtensions.erase(extensionProperties.extensionName);
-	return setRequiredDeviceExtensions.empty();
 }
 
 RendererVulkan::QueueFamilyIndices RendererVulkan::FindQueueFamilyIndices(VkPhysicalDevice device)
@@ -352,6 +344,20 @@ RendererVulkan::QueueFamilyIndices RendererVulkan::FindQueueFamilyIndices(VkPhys
 	return ret;
 }
 
+bool RendererVulkan::CheckRequiredDeviceExtensions(VkPhysicalDevice device)
+{
+	uint32_t propertyCount = 0;
+	vkEnumerateDeviceExtensionProperties(device, nullptr, &propertyCount, nullptr);
+	Vector<VkExtensionProperties> vExtensionProperties(propertyCount);
+	vkEnumerateDeviceExtensionProperties(device, nullptr, &propertyCount, vExtensionProperties.data());
+	Set<String> setRequiredDeviceExtensions;
+	for (CSZ extensionName : s_requiredDeviceExtensions)
+		setRequiredDeviceExtensions.insert(extensionName);
+	for (const auto& extensionProperties : vExtensionProperties)
+		setRequiredDeviceExtensions.erase(extensionProperties.extensionName);
+	return setRequiredDeviceExtensions.empty();
+}
+
 bool RendererVulkan::IsDeviceSuitable(VkPhysicalDevice device)
 {
 	const QueueFamilyIndices queueFamilyIndices = FindQueueFamilyIndices(device);
@@ -370,18 +376,25 @@ bool RendererVulkan::IsDeviceSuitable(VkPhysicalDevice device)
 
 void RendererVulkan::PickPhysicalDevice()
 {
-	uint32_t physicalDeviceCount = 0;
-	vkEnumeratePhysicalDevices(_instance, &physicalDeviceCount, nullptr);
-	if (!physicalDeviceCount)
-		throw VERUS_RUNTIME_ERROR << "vkEnumeratePhysicalDevices(); physicalDeviceCount=0";
-	Vector<VkPhysicalDevice> vPhysicalDevices(physicalDeviceCount);
-	vkEnumeratePhysicalDevices(_instance, &physicalDeviceCount, vPhysicalDevices.data());
-	for (const auto& physicalDevice : vPhysicalDevices)
+	if (_extReality.IsInitialized())
 	{
-		if (IsDeviceSuitable(physicalDevice))
+		_physicalDevice = _extReality.GetVulkanGraphicsDevice(_instance);
+	}
+	else
+	{
+		uint32_t physicalDeviceCount = 0;
+		vkEnumeratePhysicalDevices(_instance, &physicalDeviceCount, nullptr);
+		if (!physicalDeviceCount)
+			throw VERUS_RUNTIME_ERROR << "vkEnumeratePhysicalDevices(); physicalDeviceCount=0";
+		Vector<VkPhysicalDevice> vPhysicalDevices(physicalDeviceCount);
+		vkEnumeratePhysicalDevices(_instance, &physicalDeviceCount, vPhysicalDevices.data());
+		for (const auto& physicalDevice : vPhysicalDevices)
 		{
-			_physicalDevice = physicalDevice;
-			break;
+			if (IsDeviceSuitable(physicalDevice))
+			{
+				_physicalDevice = physicalDevice;
+				break;
+			}
 		}
 	}
 	if (VK_NULL_HANDLE == _physicalDevice)
@@ -438,6 +451,8 @@ void RendererVulkan::CreateDevice()
 	physicalDeviceFeatures.shaderClipDistance = VK_TRUE; // 85%
 	physicalDeviceFeatures.shaderImageGatherExtended = VK_TRUE; // 94%
 	physicalDeviceFeatures.tessellationShader = settings._gpuTessellation ? VK_TRUE : VK_FALSE; // 81%
+	if (vkpdf2.features.shaderStorageImageMultisample) // Required for OpenXR.
+		physicalDeviceFeatures.shaderStorageImageMultisample = VK_TRUE; // 39%
 
 	VkDeviceCreateInfo vkdci = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
 	vkdci.pNext = &lineRasterizationFeatures;
@@ -450,8 +465,16 @@ void RendererVulkan::CreateDevice()
 	vkdci.enabledExtensionCount = VERUS_COUNT_OF(s_requiredDeviceExtensions);
 	vkdci.ppEnabledExtensionNames = s_requiredDeviceExtensions;
 	vkdci.pEnabledFeatures = &physicalDeviceFeatures;
-	if (VK_SUCCESS != (res = vkCreateDevice(_physicalDevice, &vkdci, GetAllocator(), &_device)))
-		throw VERUS_RUNTIME_ERROR << "vkCreateDevice(); res=" << res;
+	if (_extReality.IsInitialized())
+	{
+		if (VK_SUCCESS != (res = _extReality.CreateVulkanDevice(_physicalDevice, &vkdci, GetAllocator(), &_device)))
+			throw VERUS_RUNTIME_ERROR << "CreateVulkanDevice(); res=" << res;
+	}
+	else
+	{
+		if (VK_SUCCESS != (res = vkCreateDevice(_physicalDevice, &vkdci, GetAllocator(), &_device)))
+			throw VERUS_RUNTIME_ERROR << "vkCreateDevice(); res=" << res;
+	}
 
 	vkGetDeviceQueue(_device, _queueFamilyIndices._graphicsFamilyIndex, 0, &_graphicsQueue);
 	vkGetDeviceQueue(_device, _queueFamilyIndices._presentFamilyIndex, 0, &_presentQueue);
@@ -489,20 +512,20 @@ void RendererVulkan::CreateSwapChain(VkSwapchainKHR oldSwapchain)
 
 	VkResult res = VK_SUCCESS;
 
-	_swapChainBufferCount = settings._displayVSync ? 3 : 2;
+	_swapChainBufferCount = (settings._displayVSync && !settings._openXR) ? 3 : 2;
 
 	const SwapChainInfo swapChainInfo = GetSwapChainInfo(_physicalDevice);
 
 	// Useful for maximized windows:
-	const uint32_t width = Math::Clamp<uint32_t>(renderer.GetSwapChainWidth(),
+	const uint32_t width = Math::Clamp<uint32_t>(renderer.GetScreenSwapChainWidth(),
 		swapChainInfo._surfaceCapabilities.minImageExtent.width, swapChainInfo._surfaceCapabilities.maxImageExtent.width);
-	const uint32_t height = Math::Clamp<uint32_t>(renderer.GetSwapChainHeight(),
+	const uint32_t height = Math::Clamp<uint32_t>(renderer.GetScreenSwapChainHeight(),
 		swapChainInfo._surfaceCapabilities.minImageExtent.height, swapChainInfo._surfaceCapabilities.maxImageExtent.height);
 
 	VkSwapchainCreateInfoKHR vksci = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
 	vksci.surface = _surface;
 	vksci.minImageCount = _swapChainBufferCount;
-	vksci.imageFormat = VK_FORMAT_B8G8R8A8_SRGB;
+	vksci.imageFormat = ToNativeFormat(Renderer::GetSwapChainFormat());
 	vksci.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 	vksci.imageExtent.width = width;
 	vksci.imageExtent.height = height;
@@ -510,7 +533,7 @@ void RendererVulkan::CreateSwapChain(VkSwapchainKHR oldSwapchain)
 	vksci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 	vksci.preTransform = swapChainInfo._surfaceCapabilities.currentTransform;
 	vksci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-	vksci.presentMode = settings._displayVSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
+	vksci.presentMode = (settings._displayVSync && !settings._openXR) ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
 	vksci.clipped = VK_TRUE;
 	vksci.oldSwapchain = oldSwapchain;
 	const uint32_t queueFamilyIndicesArray[] =
@@ -547,11 +570,7 @@ void RendererVulkan::CreateImageViews()
 		VkImageViewCreateInfo vkivci = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 		vkivci.image = _vSwapChainImages[i];
 		vkivci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		vkivci.format = VK_FORMAT_B8G8R8A8_SRGB;
-		vkivci.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-		vkivci.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-		vkivci.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-		vkivci.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+		vkivci.format = ToNativeFormat(Renderer::GetSwapChainFormat());
 		vkivci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		vkivci.subresourceRange.baseMipLevel = 0;
 		vkivci.subresourceRange.levelCount = 1;
@@ -771,7 +790,7 @@ void RendererVulkan::ImGuiInit(RPHandle renderPassHandle)
 	info.PipelineCache = nullptr;
 	info.DescriptorPool = _descriptorPoolImGui;
 	info.Allocator = GetAllocator();
-	info.MinImageCount = settings._displayVSync ? 3 : 2;
+	info.MinImageCount = (settings._displayVSync && !settings._openXR) ? 3 : 2;
 	info.ImageCount = s_ringBufferSize;
 	info.CheckVkResultFn = ImGuiCheckVkResultFn;
 	ImGui_ImplVulkan_Init(&info, _vRenderPasses[renderPassHandle.Get()]);
@@ -804,6 +823,11 @@ void RendererVulkan::ResizeSwapChain()
 	CreateSwapChain(oldSwapchain);
 	CreateImageViews();
 	VERUS_VULKAN_DESTROY(oldSwapchain, vkDestroySwapchainKHR(_device, oldSwapchain, GetAllocator()));
+}
+
+PBaseExtReality RendererVulkan::GetExtReality()
+{
+	return &_extReality;
 }
 
 void RendererVulkan::BeginFrame()
@@ -1182,7 +1206,24 @@ FBHandle RendererVulkan::CreateFramebuffer(RPHandle renderPassHandle, std::initi
 	int count = 0;
 	if (swapChainBufferIndex >= 0)
 	{
-		imageViews[count] = _vSwapChainImageViews[swapChainBufferIndex];
+		const ViewType viewType = static_cast<ViewType>(swapChainBufferIndex >> 16);
+		switch (viewType)
+		{
+		case ViewType::none:
+		case ViewType::screen:
+		{
+			imageViews[count] = _vSwapChainImageViews[swapChainBufferIndex];
+		}
+		break;
+		case ViewType::openXR:
+		{
+			const int viewIndex = (swapChainBufferIndex >> 8) & 0xFF;
+			const int imageIndex = swapChainBufferIndex & 0xFF;
+			if (_extReality.IsInitialized())
+				imageViews[count] = _extReality.GetVkImageView(viewIndex, imageIndex);
+		}
+		break;
+		}
 		count++;
 	}
 	for (const auto& x : il)

@@ -13,6 +13,7 @@ namespace verus
 		class RendererD3D11 : public Singleton<RendererD3D11>, public BaseRenderer,
 			private TStoreCommandBuffers, private TStoreGeometry, private TStorePipelines, private TStoreShaders, private TStoreTextures
 		{
+			ExtRealityD3D11                    _extReality;
 			ComPtr<ID3D11Device>               _pDevice;
 			ComPtr<ID3D11DeviceContext>        _pDeviceContext;
 			ComPtr<IDXGISwapChain>             _pSwapChain;
@@ -36,7 +37,7 @@ namespace verus
 
 		private:
 			static ComPtr<IDXGIFactory1> CreateFactory();
-			static ComPtr<IDXGIAdapter1> GetAdapter(ComPtr<IDXGIFactory1> pFactory);
+			ComPtr<IDXGIAdapter1> GetAdapter(ComPtr<IDXGIFactory1> pFactory) const;
 			void CreateSwapChainBufferRTV();
 			void InitD3D();
 
@@ -53,6 +54,8 @@ namespace verus
 			virtual void ImGuiRenderDrawData() override;
 
 			virtual void ResizeSwapChain() override;
+
+			virtual PBaseExtReality GetExtReality() override;
 
 			// Which graphics API?
 			virtual Gapi GetGapi() override { return Gapi::direct3D11; }

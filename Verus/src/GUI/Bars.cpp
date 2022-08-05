@@ -27,7 +27,7 @@ void Bars::Draw()
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_VM;
 
-	const float currentAspectRatio = renderer.GetSwapChainAspectRatio();
+	const float currentAspectRatio = renderer.GetCurrentViewAspectRatio();
 	const float barsRatio = Math::Max(0.f, 1 - (1 / _aspectRatio * currentAspectRatio));
 	if (!barsRatio)
 		return;

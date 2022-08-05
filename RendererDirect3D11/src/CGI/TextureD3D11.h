@@ -48,6 +48,8 @@ namespace verus
 			ID3D11RenderTargetView* GetRTV(int index = 0) const { return _vRTVs[index].Get(); }
 			ID3D11DepthStencilView* GetDSV(bool readOnly = false) const { return readOnly ? _pDSV[1].Get() : _pDSV[0].Get(); }
 			ID3D11SamplerState* GetD3DSamplerState() const { return _pSamplerState.Get(); }
+
+			static DXGI_FORMAT RemoveSRGB(DXGI_FORMAT format);
 		};
 		VERUS_TYPEDEFS(TextureD3D11);
 	}

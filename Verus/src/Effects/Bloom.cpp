@@ -33,12 +33,12 @@ void Bloom::Init()
 	_rphLightShafts = renderer->CreateSimpleRenderPass(CGI::Format::srgbR8G8B8A8, CGI::RP::Attachment::LoadOp::load);
 
 	_shader.Init("[Shaders]:Bloom.hlsl");
-	_shader->CreateDescriptorSet(0, &s_ubBloomVS, sizeof(s_ubBloomVS), 4, {}, CGI::ShaderStageFlags::vs);
-	_shader->CreateDescriptorSet(1, &s_ubBloomFS, sizeof(s_ubBloomFS), 4,
+	_shader->CreateDescriptorSet(0, &s_ubBloomVS, sizeof(s_ubBloomVS), 16, {}, CGI::ShaderStageFlags::vs);
+	_shader->CreateDescriptorSet(1, &s_ubBloomFS, sizeof(s_ubBloomFS), 16,
 		{
 			CGI::Sampler::linearClampMipN
 		}, CGI::ShaderStageFlags::fs);
-	_shader->CreateDescriptorSet(2, &s_ubBloomLightShaftsFS, sizeof(s_ubBloomLightShaftsFS), 4,
+	_shader->CreateDescriptorSet(2, &s_ubBloomLightShaftsFS, sizeof(s_ubBloomLightShaftsFS), 16,
 		{
 			CGI::Sampler::linearClampMipN,
 			CGI::Sampler::shadow
@@ -103,21 +103,19 @@ void Bloom::OnSwapChainResized()
 		_tex.Done();
 	}
 	{
-		const int scaledSwapChainWidth = settings.Scale(renderer.GetSwapChainWidth());
-		const int scaledSwapChainHeight = settings.Scale(renderer.GetSwapChainHeight());
+		const int scaled05CombinedSwapChainWidth = settings.Scale(renderer.GetCombinedSwapChainWidth(), 0.5f);
+		const int scaled05CombinedSwapChainHeight = settings.Scale(renderer.GetCombinedSwapChainHeight(), 0.5f);
 
-		const int w = scaledSwapChainWidth / 2;
-		const int h = scaledSwapChainHeight / 2;
 		CGI::TextureDesc texDesc;
 		texDesc._name = "Bloom.Ping";
 		texDesc._format = CGI::Format::srgbR8G8B8A8;
-		texDesc._width = w;
-		texDesc._height = h;
+		texDesc._width = scaled05CombinedSwapChainWidth;
+		texDesc._height = scaled05CombinedSwapChainHeight;
 		texDesc._flags = CGI::TextureDesc::Flags::colorAttachment;
 		_tex[TEX_PING].Init(texDesc);
 		texDesc._name = "Bloom.Pong";
 		_tex[TEX_PONG].Init(texDesc);
-		_fbh = renderer->CreateFramebuffer(_rph, { _tex[TEX_PING] }, w, h);
+		_fbh = renderer->CreateFramebuffer(_rph, { _tex[TEX_PING] }, scaled05CombinedSwapChainWidth, scaled05CombinedSwapChainHeight);
 		_csh = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureA() });
 
 		if (_texAtmoShadow)
@@ -150,13 +148,15 @@ void Bloom::Generate()
 
 	auto cb = renderer.GetCommandBuffer();
 
+	cb->BeginRenderPass(_rph, _fbh, { _tex[TEX_PING]->GetClearValue() },
+		CGI::ViewportScissorFlags::setAllForCurrentViewScaled | CGI::ViewportScissorFlags::applyHalfScale);
+
 	s_ubBloomVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubBloomVS._matV = Math::ToUVMatrix().UniformBufferFormat();
+	s_ubBloomVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 	s_ubBloomFS._colorScale_colorBias_exposure.x = _colorScale;
 	s_ubBloomFS._colorScale_colorBias_exposure.y = _colorBias;
 	s_ubBloomFS._colorScale_colorBias_exposure.z = renderer.GetExposure();
-
-	cb->BeginRenderPass(_rph, _fbh, { _tex[TEX_PING]->GetClearValue() });
 
 	cb->BindPipeline(_pipe[PIPE_MAIN]);
 	_shader->BeginBindDescriptors();
@@ -172,6 +172,10 @@ void Bloom::Generate()
 
 	if (settings._postProcessLightShafts)
 	{
+		cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
+		cb->BeginRenderPass(_rphLightShafts, _fbh, { _tex[TEX_PING]->GetClearValue() },
+			CGI::ViewportScissorFlags::setAllForCurrentViewScaled | CGI::ViewportScissorFlags::applyHalfScale);
+
 		s_ubBloomLightShaftsFS._matInvVP = Matrix4(VMath::inverse(sm.GetMainCamera()->GetMatrixVP())).UniformBufferFormat();
 		s_ubBloomLightShaftsFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
 		s_ubBloomLightShaftsFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
@@ -187,9 +191,6 @@ void Bloom::Generate()
 		s_ubBloomLightShaftsFS._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixVP().UniformBufferFormat();
 		s_ubBloomLightShaftsFS._csmSplitRanges = atmo.GetShadowMapBaker().GetSplitRanges().GLM();
 		memcpy(&s_ubBloomLightShaftsFS._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubBloomLightShaftsFS._shadowConfig));
-
-		cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
-		cb->BeginRenderPass(_rphLightShafts, _fbh, { _tex[TEX_PING]->GetClearValue() });
 
 		cb->BindPipeline(_pipe[PIPE_LIGHT_SHAFTS]);
 		_shader->BeginBindDescriptors();

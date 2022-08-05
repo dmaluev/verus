@@ -16,4 +16,5 @@
 #include "ShaderD3D12.h"
 #include "PipelineD3D12.h"
 #include "CommandBufferD3D12.h"
+#include "ExtRealityD3D12.h"
 #include "RendererD3D12.h"

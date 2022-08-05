@@ -24,6 +24,8 @@ namespace verus
 
 				PIPE_BLOOM_U,
 				PIPE_BLOOM_V,
+				PIPE_BLOOM_LIGHT_SHAFTS_U,
+				PIPE_BLOOM_LIGHT_SHAFTS_V,
 
 				PIPE_AA,
 				PIPE_MOTION_BLUR,
@@ -77,7 +79,7 @@ namespace verus
 			float                         _dofFocusDist = 10;
 			float                         _dofBlurStrength = 0.2f;
 			float                         _bloomRadius = 0.02f;
-			float                         _bloomLightShaftsRadius = 0.004f;
+			float                         _bloomLightShaftsRadius = 0.002f;
 			bool                          _enableDepthOfField = false;
 
 		public:

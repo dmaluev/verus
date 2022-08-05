@@ -15,6 +15,11 @@ struct MyRendererDelegate : CGI::RendererDelegate
 	{
 		_p->BaseGame_Draw();
 	}
+
+	virtual void Renderer_OnDrawView(CGI::RcViewDesc viewDesc)
+	{
+		_p->BaseGame_DrawView(viewDesc);
+	}
 };
 VERUS_TYPEDEFS(MyRendererDelegate);
 
@@ -103,7 +108,6 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc windowDes
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
 	VERUS_QREF_MM;
-	_p->_camera.SetAspectRatio(renderer.GetSwapChainAspectRatio());
 	_p->_camera.Update();
 	if (Scene::SceneManager::IsValidSingleton())
 		Scene::SceneManager::I().SetCamera(&_p->_camera);
@@ -115,6 +119,10 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc windowDes
 		Scene::MaterialManager::I().InitCmd();
 	BaseGame_LoadContent();
 	renderer.EndFrame(); // End recording a command buffer.
+
+	auto pExtReality = renderer->GetExtReality();
+	if (pExtReality->IsInitialized())
+		pExtReality->CreateActions();
 }
 
 void BaseGame::Loop(bool relativeMouseMode)
@@ -208,7 +216,7 @@ void BaseGame::Loop(bool relativeMouseMode)
 							Scene::PCamera pCamera = Scene::SceneManager::IsValidSingleton() ? Scene::SceneManager::I().GetCamera() : nullptr;
 							if (pCamera)
 							{
-								pCamera->SetAspectRatio(renderer.GetSwapChainAspectRatio());
+								pCamera->SetAspectRatio(renderer.GetCurrentViewAspectRatio());
 								pCamera->Update();
 							}
 							BaseGame_OnWindowSizeChanged();
@@ -240,6 +248,13 @@ void BaseGame::Loop(bool relativeMouseMode)
 				break;
 				}
 			}
+		}
+
+		auto pExtReality = renderer->GetExtReality();
+		if (pExtReality->IsInitialized())
+		{
+			pExtReality->PollEvents();
+			pExtReality->SyncActions();
 		}
 
 		if (_p->_escapeKeyExitGame && im.IsKeyDownEvent(SDL_SCANCODE_ESCAPE))

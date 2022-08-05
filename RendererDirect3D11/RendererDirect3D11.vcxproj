@@ -97,6 +97,7 @@
   <ItemGroup>
     <ClInclude Include="src\CGI\CGI.h" />
     <ClInclude Include="src\CGI\CommandBufferD3D11.h" />
+    <ClInclude Include="src\CGI\ExtRealityD3D11.h" />
     <ClInclude Include="src\CGI\GeometryD3D11.h" />
     <ClInclude Include="src\CGI\Native.h" />
     <ClInclude Include="src\CGI\PipelineD3D11.h" />
@@ -109,6 +110,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\CommandBufferD3D11.cpp" />
+    <ClCompile Include="src\CGI\ExtRealityD3D11.cpp" />
     <ClCompile Include="src\CGI\GeometryD3D11.cpp" />
     <ClCompile Include="src\CGI\Native.cpp" />
     <ClCompile Include="src\CGI\PipelineD3D11.cpp" />

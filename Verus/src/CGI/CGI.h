@@ -11,6 +11,7 @@
 #include "BaseShader.h"
 #include "BasePipeline.h"
 #include "BaseCommandBuffer.h"
+#include "BaseExtReality.h"
 #include "BaseRenderer.h"
 
 #include "TextureRAM.h"

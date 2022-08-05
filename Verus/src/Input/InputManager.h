@@ -1,11 +1,10 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-#define VERUS_INPUT_JOYAXIS_THRESHOLD 0.25f
-#define VERUS_INPUT_MAX_KB            SDL_NUM_SCANCODES
-#define VERUS_INPUT_MAX_MOUSE         8
-#define VERUS_BUTTON_WHEELUP          6
-#define VERUS_BUTTON_WHEELDOWN        7
+#define VERUS_INPUT_MAX_KB     SDL_NUM_SCANCODES
+#define VERUS_INPUT_MAX_MOUSE  8
+#define VERUS_BUTTON_WHEELUP   6
+#define VERUS_BUTTON_WHEELDOWN 7
 
 namespace verus
 {
@@ -23,65 +22,148 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(InputFocus);
 
-		enum
+		enum class ActionType : int
 		{
-			JOY_AXIS_LEFTX,
-			JOY_AXIS_LEFTY,
-			JOY_AXIS_RIGHTX,
-			JOY_AXIS_RIGHTY,
-			JOY_AXIS_TRIGGERLEFT,
-			JOY_AXIS_TRIGGERRIGHT,
-			JOY_AXIS_MAX
-		};
-
-		enum
-		{
-			JOY_BUTTON_DPAD_UP,
-			JOY_BUTTON_DPAD_DOWN,
-			JOY_BUTTON_DPAD_LEFT,
-			JOY_BUTTON_DPAD_RIGHT,
-			JOY_BUTTON_START,
-			JOY_BUTTON_BACK,
-			JOY_BUTTON_LEFTSTICK,
-			JOY_BUTTON_RIGHTSTICK,
-			JOY_BUTTON_LEFTSHOULDER,
-			JOY_BUTTON_RIGHTSHOULDER,
-			JOY_BUTTON_A,
-			JOY_BUTTON_B,
-			JOY_BUTTON_X,
-			JOY_BUTTON_Y,
-			JOY_BUTTON_GUIDE,
-			JOY_BUTTON_MAX
+			inBoolean,
+			inFloat,
+			inVector2,
+			inPose,
+			outVibration
 		};
 
 		class InputManager : public Singleton<InputManager>, public Object
 		{
+		public:
+			struct ActionSet
+			{
+				String _name; // Must be lowercase.
+				String _localizedName;
+				UINT32 _priority = 0;
+			};
+			VERUS_TYPEDEFS(ActionSet);
+
 			struct Action
 			{
-				int    _key;
-				int    _keyEx;
-				int    _actionID;
-				String _actionName;
+				Vector<String> _vSubactionPaths;
+				Vector<String> _vBindingPaths;
+				String         _name; // Must be lowercase.
+				String         _localizedName;
+				ActionType     _type = ActionType::inBoolean;
+				int            _setIndex = 0;
+
+				bool           _changedState = false;
+				bool           _booleanValue = false;
+				float          _floatValue = 0;
+			};
+			VERUS_TYPEDEFS(Action);
+
+			struct ActionIndex
+			{
+				UINT32 _atom = 0;
+				int    _actionIndex = 0;
+
+				bool   _booleanValue = false;
+				float  _floatValue = 0;
+			};
+			VERUS_TYPEDEFS(ActionIndex);
+
+		private:
+			enum class PathEntity : int
+			{
+				undefined,
+				gamepad,
+				handLeft,
+				handRight,
+				head,
+				keyboard,
+				mouse,
+				treadmill
 			};
 
-			typedef Map<int, int> TMapLookup;
+			enum class PathIdentifier : int
+			{
+				undefined,
+				aim,
+				buttonA,
+				buttonB,
+				buttonEnd,
+				buttonHome,
+				buttonSelect,
+				buttonStart,
+				buttonX,
+				buttonY,
+				diamondDown,
+				diamondLeft,
+				diamondRight,
+				diamondUp,
+				dpadDown,
+				dpadLeft,
+				dpadRight,
+				dpadUp,
+				grip,
+				haptic,
+				joystick,
+				miscBack,
+				miscMenu,
+				miscMuteMic,
+				miscPlayPause,
+				miscView,
+				miscVolumeDown,
+				miscVolumeUp,
+				pedal,
+				shoulder,
+				squeeze,
+				system,
+				throttle,
+				thumbrest,
+				thumbstick,
+				trackball,
+				trackpad,
+				trigger,
+				wheel
+			};
 
-			Vector<PInputFocus>   _vInputFocusStack;
-			Vector<Action>        _mapAction;
-			TMapLookup            _mapLookupByKey;
-			TMapLookup            _mapLookupByAction;
-			bool                  _kbStatePressed[VERUS_INPUT_MAX_KB];
-			bool                  _kbStateDownEvent[VERUS_INPUT_MAX_KB];
-			bool                  _kbStateUpEvent[VERUS_INPUT_MAX_KB];
-			bool                  _mouseStatePressed[VERUS_INPUT_MAX_MOUSE];
-			bool                  _mouseStateDownEvent[VERUS_INPUT_MAX_MOUSE];
-			bool                  _mouseStateUpEvent[VERUS_INPUT_MAX_MOUSE];
-			bool                  _mouseStateDoubleClick[VERUS_INPUT_MAX_MOUSE];
-			Vector<SDL_Joystick*> _vJoysticks;
-			float                 _joyStateAxis[JOY_AXIS_MAX];
-			bool                  _joyStatePressed[JOY_BUTTON_MAX];
-			bool                  _joyStateDownEvent[JOY_BUTTON_MAX];
-			bool                  _joyStateUpEvent[JOY_BUTTON_MAX];
+			enum class PathLocation : int
+			{
+				undefined,
+				left,
+				leftLower,
+				leftUpper,
+				lower,
+				right,
+				rightLower,
+				rightUpper,
+				upper
+			};
+
+			enum class PathComponent : int
+			{
+				undefined,
+				click,
+				force,
+				pose,
+				scalarX,
+				scalarY,
+				touch,
+				twist,
+				value
+			};
+
+			static const int s_maxGamepads = 4;
+
+			Vector<PInputFocus> _vInputFocusStack;
+			Vector<ActionSet>   _vActionSets;
+			Vector<Action>      _vActions;
+			Vector<ActionIndex> _vActionIndex;
+			Gamepad             _gamepads[s_maxGamepads];
+			int                 _axisThreshold = 8192;
+			bool                _kbStatePressed[VERUS_INPUT_MAX_KB];
+			bool                _kbStateDownEvent[VERUS_INPUT_MAX_KB];
+			bool                _kbStateUpEvent[VERUS_INPUT_MAX_KB];
+			bool                _mouseStatePressed[VERUS_INPUT_MAX_MOUSE];
+			bool                _mouseStateDownEvent[VERUS_INPUT_MAX_MOUSE];
+			bool                _mouseStateUpEvent[VERUS_INPUT_MAX_MOUSE];
+			bool                _mouseStateDoubleClick[VERUS_INPUT_MAX_MOUSE];
 
 		public:
 			InputManager();
@@ -96,7 +178,7 @@ namespace verus
 			int GainFocus(PInputFocus p);
 			int LoseFocus(PInputFocus p);
 
-			void Load(Action* pAction);
+			void ResetInputState();
 
 			bool IsKeyPressed(int scancode) const;
 			bool IsKeyDownEvent(int scancode) const;
@@ -107,17 +189,27 @@ namespace verus
 			bool IsMouseUpEvent(int button) const;
 			bool IsMouseDoubleClick(int button) const;
 
-			bool IsActionPressed(int actionID) const;
-			bool IsActionDownEvent(int actionID) const;
-			bool IsActionUpEvent(int actionID) const;
-
-			float GetJoyAxisState(int button) const;
-
-			void BuildLookup();
-
-			void ResetInputState();
-
 			static float GetMouseScale();
+
+			int CreateActionSet(CSZ name, CSZ localizedName, int priority = 0);
+			int CreateAction(int setIndex, CSZ name, CSZ localizedName, ActionType type,
+				std::initializer_list<CSZ> ilSubactionPaths, std::initializer_list<CSZ> ilBindingPaths);
+
+			int GetActionSetCount() const { return static_cast<int>(_vActionSets.size()); }
+			int GetActionCount() const { return static_cast<int>(_vActions.size()); }
+
+			RcActionSet GetActionSet(int index) { return _vActionSets[index]; }
+			RcAction GetAction(int index) { return _vActions[index]; }
+
+			static UINT32 ToAtom(CSZ path);
+			static UINT32 ToAtom(int user, PathEntity entity, int inOut,
+				PathIdentifier identifier, PathLocation location, PathComponent component);
+
+			int GetGamepadIndex(SDL_JoystickID joystickID) const;
+
+			bool GetActionStateBoolean(int actionIndex, bool* pChangedState = nullptr, int subaction = -1) const;
+			float GetActionStateFloat(int actionIndex, bool* pChangedState = nullptr, int subaction = -1) const;
+			bool GetActionStatePose(int actionIndex, Math::RPose pose, int subaction = -1) const;
 
 			static CSZ GetSingletonFailMessage() { return "Make_Input(); // FAIL.\r\n"; }
 
@@ -133,11 +225,8 @@ namespace verus
 			void OnMouseUp(int button);
 			void OnMouseDoubleClick(int button);
 
-			void OnJoyAxis(int button, int value);
-			void OnJoyDown(int button);
-			void OnJoyUp(int button);
-			void TranslateJoy(int button, bool up);
-			bool TranslateJoyPress(int button, bool mouse) const;
+			void UpdateActionStateBoolean(UINT32 atom, bool value);
+			void UpdateActionStateFloat(UINT32 atom, float value);
 		};
 		VERUS_TYPEDEFS(InputManager);
 	}

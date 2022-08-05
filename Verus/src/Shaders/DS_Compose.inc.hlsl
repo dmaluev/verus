@@ -4,6 +4,7 @@ VERUS_UBUFFER UB_ComposeVS
 {
 	mataff _matW;
 	mataff _matV;
+	float4 _tcViewScaleBias;
 };
 
 VERUS_UBUFFER UB_ComposeFS

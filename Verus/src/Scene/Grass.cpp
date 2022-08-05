@@ -209,7 +209,7 @@ void Grass::Layout()
 
 	const float zFar = sm.GetCamera()->GetZFar();
 	sm.GetCamera()->SetZFar(128);
-	sm.GetCamera()->Update();
+	sm.GetCamera()->UpdateZNearFar();
 
 	Math::RQuadtreeIntegral quadtree = _pTerrain->GetQuadtree();
 	_visiblePatchCount = 0;
@@ -218,7 +218,7 @@ void Grass::Layout()
 	quadtree.SetDelegate(_pTerrain);
 
 	sm.GetCamera()->SetZFar(zFar);
-	sm.GetCamera()->Update();
+	sm.GetCamera()->UpdateZNearFar();
 }
 
 void Grass::Draw()

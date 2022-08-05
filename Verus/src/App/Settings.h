@@ -84,8 +84,8 @@ namespace verus
 			int _ds_ubAOPerMeshVSCapacity = 10;
 			int _generateMips_ubCapacity = 50;
 			int _generateCubeMapMips_ubCapacity = 50;
-			int _grass_ubVSCapacity = 4;
-			int _grass_ubFSCapacity = 4;
+			int _grass_ubVSCapacity = 16;
+			int _grass_ubFSCapacity = 16;
 			int _gui_ubGuiCapacity = 100;
 			int _gui_ubGuiFSCapacity = 100;
 			int _mesh_ubPerFrameCapacity = 200;
@@ -102,8 +102,8 @@ namespace verus
 			int _sky_ubPerObjectCapacity = 50;
 			int _terrain_ubVSCapacity = 20;
 			int _terrain_ubFSCapacity = 20;
-			int _water_ubVSCapacity = 2;
-			int _water_ubFSCapacity = 2;
+			int _water_ubVSCapacity = 16;
+			int _water_ubFSCapacity = 16;
 		};
 		VERUS_TYPEDEFS(Limits);
 
@@ -117,6 +117,7 @@ namespace verus
 			struct CommandLine
 			{
 				int  _gapi = -1;
+				int  _openXR = -1;
 				bool _exclusiveFullscreen = false;
 				bool _windowed = false;
 				bool _borderlessWindowed = false;
@@ -137,6 +138,7 @@ namespace verus
 			bool        _displayVSync = true;
 			int         _gapi = 0;
 			float       _inputMouseSensitivity = 1;
+			bool        _openXR = false;
 			bool        _physicsSupportDebugDraw = false;
 			String      _uiLang = "EN";
 			CommandLine _commandLine;
@@ -167,7 +169,8 @@ namespace verus
 			void UpdateHighDpiScale();
 			int GetFontSize() const;
 
-			int Scale(int size) const;
+			int Scale(int size, float extraScale = 1) const;
+			float GetScale() const;
 		};
 		VERUS_TYPEDEFS(Settings);
 	}

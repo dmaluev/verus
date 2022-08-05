@@ -7,6 +7,7 @@ VERUS_UBUFFER UB_PerFrame
 	mataff _matInvV;
 	matrix _matVP;
 	matrix _matInvP;
+	float4 _tcViewScaleBias;
 };
 
 VERUS_UBUFFER UB_TexturesFS

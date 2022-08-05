@@ -20,8 +20,13 @@ namespace verus
 		Quat(const VMath::Quat& that) : VMath::Quat(that) {}
 		Quat& operator=(const VMath::Quat& that) { VMath::Quat::operator=(that); return *this; }
 
+		// GLM:
 		Quat(const glm::quat& that) : VMath::Quat(that.x, that.y, that.z, that.w) {}
 		glm::quat GLM() const { return glm::quat(getW(), getX(), getY(), getZ()); }
+
+		// XR:
+		Quat(const XrQuaternionf& that) : VMath::Quat(that.x, that.y, that.z, that.w) {}
+		XrQuaternionf XR() const { return { getX(), getY(), getZ(), getW() }; }
 
 		const float* ToPointer() const { return reinterpret_cast<const float*>(this); }
 

@@ -126,10 +126,12 @@ void Widget::GetViewport(int xywh[4])
 
 	float x, y;
 	GetAbsolutePosition(x, y);
-	xywh[0] = int(x * renderer.GetSwapChainWidth());
-	xywh[1] = int(y * renderer.GetSwapChainHeight());
-	xywh[2] = int(GetW() * renderer.GetSwapChainWidth());
-	xywh[3] = int(GetH() * renderer.GetSwapChainHeight());
+	x += renderer.GetCurrentViewX();
+	y += renderer.GetCurrentViewY();
+	xywh[0] = int(x * renderer.GetCurrentViewWidth());
+	xywh[1] = int(y * renderer.GetCurrentViewHeight());
+	xywh[2] = int(GetW() * renderer.GetCurrentViewWidth());
+	xywh[3] = int(GetH() * renderer.GetCurrentViewHeight());
 }
 
 void Widget::Parse(pugi::xml_node node)
@@ -169,7 +171,7 @@ void Widget::Parse(pugi::xml_node node)
 	if (_useAspect)
 	{
 		VERUS_QREF_RENDERER;
-		const float newW = _w / renderer.GetSwapChainAspectRatio();
+		const float newW = _w / renderer.GetCurrentViewAspectRatio();
 		_aspectOffset = (_w - newW) * 0.5f;
 		_w = newW;
 		_x += _aspectOffset;

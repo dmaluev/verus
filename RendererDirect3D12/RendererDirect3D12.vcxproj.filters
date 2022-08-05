@@ -69,6 +69,9 @@
     <ClInclude Include="src\pch.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="src\CGI\ExtRealityD3D12.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -109,6 +112,9 @@
     </ClCompile>
     <ClCompile Include="src\pch.cpp">
       <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\ExtRealityD3D12.cpp">
+      <Filter>src\CGI</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

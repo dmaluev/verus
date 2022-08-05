@@ -79,12 +79,12 @@ void Blur::Init()
 		shaderDesc._ignoreList = vIgnoreList.data();
 	}
 	_shader.Init(shaderDesc);
-	_shader->CreateDescriptorSet(0, &s_ubBlurVS, sizeof(s_ubBlurVS), 20, {}, CGI::ShaderStageFlags::vs);
-	_shader->CreateDescriptorSet(1, &s_ubBlurFS, sizeof(s_ubBlurFS), 20,
+	_shader->CreateDescriptorSet(0, &s_ubBlurVS, sizeof(s_ubBlurVS), 64, {}, CGI::ShaderStageFlags::vs);
+	_shader->CreateDescriptorSet(1, &s_ubBlurFS, sizeof(s_ubBlurFS), 64,
 		{
 			CGI::Sampler::linearClampMipN
 		}, CGI::ShaderStageFlags::fs);
-	_shader->CreateDescriptorSet(2, &s_ubExtraBlurFS, sizeof(s_ubExtraBlurFS), 10,
+	_shader->CreateDescriptorSet(2, &s_ubExtraBlurFS, sizeof(s_ubExtraBlurFS), 32,
 		{
 			CGI::Sampler::linearClampMipN,
 			CGI::Sampler::linearClampMipN
@@ -138,6 +138,13 @@ void Blur::Init()
 		pipeDesc._shaderBranch = "#V";
 		pipeDesc._renderPassHandle = _bloomHandles._rphV;
 		_pipe[PIPE_BLOOM_V].Init(pipeDesc);
+
+		pipeDesc._shaderBranch = "#UBox";
+		pipeDesc._renderPassHandle = _bloomHandles._rphU;
+		_pipe[PIPE_BLOOM_LIGHT_SHAFTS_U].Init(pipeDesc);
+		pipeDesc._shaderBranch = "#VBox";
+		pipeDesc._renderPassHandle = _bloomHandles._rphV;
+		_pipe[PIPE_BLOOM_LIGHT_SHAFTS_V].Init(pipeDesc);
 	}
 	{
 		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#AntiAliasing", _rphAntiAliasing);
@@ -215,22 +222,22 @@ void Blur::OnSwapChainResized()
 		renderer->DeleteFramebuffer(_fbhSsao);
 	}
 	{
-		const int scaledSwapChainWidth = settings.Scale(renderer.GetSwapChainWidth());
-		const int scaledSwapChainHeight = settings.Scale(renderer.GetSwapChainHeight());
-		const int scaledSwapChainHalfWidth = scaledSwapChainWidth / 2;
-		const int scaledSwapChainHalfHeight = scaledSwapChainHeight / 2;
+		const int scaledCombinedSwapChainWidth = settings.Scale(renderer.GetCombinedSwapChainWidth());
+		const int scaledCombinedSwapChainHeight = settings.Scale(renderer.GetCombinedSwapChainHeight());
+		const int scaled05CombinedSwapChainWidth = settings.Scale(renderer.GetCombinedSwapChainWidth(), 0.5f);
+		const int scaled05CombinedSwapChainHeight = settings.Scale(renderer.GetCombinedSwapChainHeight(), 0.5f);
 
 		if (settings._postProcessSSAO)
 		{
 			// GBuffer3.r >> GBuffer2.r:
-			_fbhSsao = renderer->CreateFramebuffer(_rphSsao, { renderer.GetDS().GetGBuffer(2) }, scaledSwapChainWidth, scaledSwapChainHeight);
+			_fbhSsao = renderer->CreateFramebuffer(_rphSsao, { renderer.GetDS().GetGBuffer(2) }, scaledCombinedSwapChainWidth, scaledCombinedSwapChainHeight);
 			_cshSsao = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetGBuffer(3) });
 		}
 
 		{
 			// ComposedA >> ComposedB >> ComposedA:
-			_rdsHandles._fbhU = renderer->CreateFramebuffer(_rdsHandles._rphU, { renderer.GetDS().GetComposedTextureB() }, scaledSwapChainWidth, scaledSwapChainHeight);
-			_rdsHandles._fbhV = renderer->CreateFramebuffer(_rdsHandles._rphV, { renderer.GetDS().GetComposedTextureA() }, scaledSwapChainWidth, scaledSwapChainHeight);
+			_rdsHandles._fbhU = renderer->CreateFramebuffer(_rdsHandles._rphU, { renderer.GetDS().GetComposedTextureB() }, scaledCombinedSwapChainWidth, scaledCombinedSwapChainHeight);
+			_rdsHandles._fbhV = renderer->CreateFramebuffer(_rdsHandles._rphV, { renderer.GetDS().GetComposedTextureA() }, scaledCombinedSwapChainWidth, scaledCombinedSwapChainHeight);
 			_rdsHandles._cshU = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureA() });
 			_rdsHandles._cshV = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureB() });
 			_cshRdsExtra = _shader->BindDescriptorSetTextures(2, { renderer.GetDS().GetGBuffer(3), renderer.GetDS().GetGBuffer(3) });
@@ -238,8 +245,8 @@ void Blur::OnSwapChainResized()
 
 		{
 			// ComposedA >> ComposedB >> ComposedA:
-			_dofHandles._fbhU = renderer->CreateFramebuffer(_dofHandles._rphU, { renderer.GetDS().GetComposedTextureB() }, scaledSwapChainWidth, scaledSwapChainHeight);
-			_dofHandles._fbhV = renderer->CreateFramebuffer(_dofHandles._rphV, { renderer.GetDS().GetComposedTextureA() }, scaledSwapChainWidth, scaledSwapChainHeight);
+			_dofHandles._fbhU = renderer->CreateFramebuffer(_dofHandles._rphU, { renderer.GetDS().GetComposedTextureB() }, scaledCombinedSwapChainWidth, scaledCombinedSwapChainHeight);
+			_dofHandles._fbhV = renderer->CreateFramebuffer(_dofHandles._rphV, { renderer.GetDS().GetComposedTextureA() }, scaledCombinedSwapChainWidth, scaledCombinedSwapChainHeight);
 			_dofHandles._cshU = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureA() });
 			_dofHandles._cshV = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureB() });
 			_cshDofExtra = _shader->BindDescriptorSetTextures(2, { renderer.GetDS().GetGBuffer(1), renderer.GetTexDepthStencil() });
@@ -248,22 +255,22 @@ void Blur::OnSwapChainResized()
 		if (settings._postProcessBloom)
 		{
 			// Ping >> Pong >> Ping:
-			_bloomHandles._fbhU = renderer->CreateFramebuffer(_bloomHandles._rphU, { bloom.GetPongTexture() }, scaledSwapChainHalfWidth, scaledSwapChainHalfHeight);
-			_bloomHandles._fbhV = renderer->CreateFramebuffer(_bloomHandles._rphV, { bloom.GetTexture() }, scaledSwapChainHalfWidth, scaledSwapChainHalfHeight);
+			_bloomHandles._fbhU = renderer->CreateFramebuffer(_bloomHandles._rphU, { bloom.GetPongTexture() }, scaled05CombinedSwapChainWidth, scaled05CombinedSwapChainHeight);
+			_bloomHandles._fbhV = renderer->CreateFramebuffer(_bloomHandles._rphV, { bloom.GetTexture() }, scaled05CombinedSwapChainWidth, scaled05CombinedSwapChainHeight);
 			_bloomHandles._cshU = _shader->BindDescriptorSetTextures(1, { bloom.GetTexture() });
 			_bloomHandles._cshV = _shader->BindDescriptorSetTextures(1, { bloom.GetPongTexture() });
 		}
 
 		{
 			// ComposedA >> ComposedB:
-			_fbhAntiAliasing = renderer->CreateFramebuffer(_rphAntiAliasing, { renderer.GetDS().GetComposedTextureB() }, scaledSwapChainWidth, scaledSwapChainHeight);
+			_fbhAntiAliasing = renderer->CreateFramebuffer(_rphAntiAliasing, { renderer.GetDS().GetComposedTextureB() }, scaledCombinedSwapChainWidth, scaledCombinedSwapChainHeight);
 			_cshAntiAliasing = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureA() });
 			_cshAntiAliasingExtra = _shader->BindDescriptorSetTextures(2, { renderer.GetDS().GetGBuffer(1), renderer.GetTexDepthStencil() });
 		}
 
 		{
 			// ComposedB >> ComposedA:
-			_fbhMotionBlur = renderer->CreateFramebuffer(_rphMotionBlur, { renderer.GetDS().GetComposedTextureA() }, scaledSwapChainWidth, scaledSwapChainHeight);
+			_fbhMotionBlur = renderer->CreateFramebuffer(_rphMotionBlur, { renderer.GetDS().GetComposedTextureA() }, scaledCombinedSwapChainWidth, scaledCombinedSwapChainHeight);
 			_cshMotionBlur = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureB() });
 			_cshMotionBlurExtra = _shader->BindDescriptorSetTextures(2, { renderer.GetDS().GetGBuffer(1), renderer.GetTexDepthStencil() });
 		}
@@ -276,12 +283,14 @@ void Blur::GenerateForSsao()
 
 	auto cb = renderer.GetCommandBuffer();
 
-	s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
-	s_ubBlurVS._matV = Math::ToUVMatrix(0, renderer.GetDS().GetGBuffer(2)->GetSize(), nullptr, 0.5f, 0.5f).UniformBufferFormat();
-
 	_shader->BeginBindDescriptors();
 	{
 		cb->BeginRenderPass(_rphSsao, _fbhSsao, { renderer.GetDS().GetGBuffer(2)->GetClearValue() });
+
+		s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
+		s_ubBlurVS._matV = Math::ToUVMatrix(0, cb->GetViewportSize(), nullptr, 0.5f, 0.5f).UniformBufferFormat();
+		s_ubBlurVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+		s_ubBlurFS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 
 		cb->BindPipeline(_pipe[PIPE_SSAO]);
 		cb->BindDescriptors(_shader, 0);
@@ -299,12 +308,14 @@ void Blur::GenerateForResolveDitheringAndSharpen()
 
 	auto cb = renderer.GetCommandBuffer();
 
-	s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
-	s_ubBlurVS._matV = Math::ToUVMatrix().UniformBufferFormat();
-
 	_shader->BeginBindDescriptors();
 	{
 		cb->BeginRenderPass(_rdsHandles._rphU, _rdsHandles._fbhU, { renderer.GetDS().GetComposedTextureB()->GetClearValue() });
+
+		s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
+		s_ubBlurVS._matV = Math::ToUVMatrix().UniformBufferFormat();
+		s_ubBlurVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+		s_ubBlurFS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 
 		cb->BindPipeline(_pipe[PIPE_RESOLVE_DITHERING]);
 		cb->BindDescriptors(_shader, 0);
@@ -369,21 +380,23 @@ void Blur::GenerateForDepthOfField()
 
 	auto cb = renderer.GetCommandBuffer();
 
-	s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
-	s_ubBlurVS._matV = Math::ToUVMatrix().UniformBufferFormat();
-	s_ubExtraBlurFS._zNearFarEx = sm.GetMainCamera()->GetZNearFarEx().GLM();
-	s_ubExtraBlurFS._textureSize = renderer.GetDS().GetComposedTextureA()->GetSize().GLM();
-	s_ubExtraBlurFS._focusDist_blurStrength.x = _dofFocusDist;
-	s_ubExtraBlurFS._focusDist_blurStrength.y = _dofBlurStrength;
-
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
 	_shader->BeginBindDescriptors();
-	UpdateUniformBuffer(radius, 0, renderer.GetSwapChainWidth(), samplesPerPixel, maxSamples);
-	s_ubExtraBlurFS._blurDir = float4(
-		dirs[0].getX(), dirs[0].getY() * renderer.GetSwapChainAspectRatio(),
-		dirs[1].getX(), dirs[1].getY() * renderer.GetSwapChainAspectRatio());
 	{
 		cb->BeginRenderPass(_dofHandles._rphU, _dofHandles._fbhU, { renderer.GetDS().GetComposedTextureB()->GetClearValue() });
+
+		s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
+		s_ubBlurVS._matV = Math::ToUVMatrix().UniformBufferFormat();
+		s_ubBlurVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+		s_ubBlurFS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+		UpdateUniformBuffer(radius, 0, renderer.GetCurrentViewWidth(), samplesPerPixel, maxSamples);
+		s_ubExtraBlurFS._zNearFarEx = sm.GetMainCamera()->GetZNearFarEx().GLM();
+		s_ubExtraBlurFS._textureSize = cb->GetViewportSize().GLM();
+		s_ubExtraBlurFS._focusDist_blurStrength.x = _dofFocusDist;
+		s_ubExtraBlurFS._focusDist_blurStrength.y = _dofBlurStrength;
+		s_ubExtraBlurFS._blurDir = float4(
+			dirs[0].getX(), dirs[0].getY() * renderer.GetCurrentViewAspectRatio(),
+			dirs[1].getX(), dirs[1].getY() * renderer.GetCurrentViewAspectRatio());
 
 		cb->BindPipeline(_pipe[PIPE_DOF_U]);
 		cb->BindDescriptors(_shader, 0);
@@ -393,10 +406,11 @@ void Blur::GenerateForDepthOfField()
 
 		cb->EndRenderPass();
 	}
-	UpdateUniformBuffer(radius * 0.5f, 0, renderer.GetSwapChainWidth(), samplesPerPixel, maxSamples);
-	s_ubExtraBlurFS._blurDir = float4(dirs[2].getX(), dirs[2].getY() * renderer.GetSwapChainAspectRatio(), 0, 0);
 	{
 		cb->BeginRenderPass(_dofHandles._rphV, _dofHandles._fbhV, { renderer.GetDS().GetComposedTextureA()->GetClearValue() });
+
+		UpdateUniformBuffer(radius * 0.5f, 0, renderer.GetCurrentViewHeight(), samplesPerPixel, maxSamples);
+		s_ubExtraBlurFS._blurDir = float4(dirs[2].getX(), dirs[2].getY() * renderer.GetCurrentViewAspectRatio(), 0, 0);
 
 		cb->BindPipeline(_pipe[PIPE_DOF_V]);
 		cb->BindDescriptors(_shader, 0);
@@ -428,46 +442,52 @@ void Blur::GenerateForBloom(bool forLightShafts)
 	switch (settings._gpuShaderQuality)
 	{
 	case App::Settings::Quality::low:
-		samplesPerPixel = 1 / 6.f;
+		samplesPerPixel = 1 / 5.f;
 		maxSamples = 12 - 1;
 		break;
 	case App::Settings::Quality::medium:
-		samplesPerPixel = 1 / 6.f;
+		samplesPerPixel = 1 / 5.f;
 		maxSamples = 16 - 1;
 		break;
 	case App::Settings::Quality::high:
-		samplesPerPixel = 1 / 4.f;
+		samplesPerPixel = 1 / 3.f;
 		maxSamples = 24 - 1;
 		break;
 	case App::Settings::Quality::ultra:
-		samplesPerPixel = 1 / 4.f;
+		samplesPerPixel = 1 / 3.f;
 		maxSamples = 32 - 1;
 		break;
 	}
+	if (forLightShafts)
+		samplesPerPixel = 1;
 
 	auto cb = renderer.GetCommandBuffer();
 
-	s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
-	s_ubBlurVS._matV = Math::ToUVMatrix(0, bloom.GetTexture()->GetSize()).UniformBufferFormat();
-	UpdateUniformBuffer(radius, 0, renderer.GetSwapChainWidth(), samplesPerPixel, maxSamples);
-
 	_shader->BeginBindDescriptors();
 	{
-		cb->BeginRenderPass(_bloomHandles._rphU, _bloomHandles._fbhU, { bloom.GetPongTexture()->GetClearValue() });
+		cb->BeginRenderPass(_bloomHandles._rphU, _bloomHandles._fbhU, { bloom.GetPongTexture()->GetClearValue() },
+			CGI::ViewportScissorFlags::setAllForCurrentViewScaled | CGI::ViewportScissorFlags::applyHalfScale);
 
-		cb->BindPipeline(_pipe[PIPE_BLOOM_U]);
+		s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
+		s_ubBlurVS._matV = Math::ToUVMatrix().UniformBufferFormat();
+		s_ubBlurVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+		s_ubBlurFS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+		UpdateUniformBuffer(radius, 0, renderer.GetCurrentViewWidth() / 2, samplesPerPixel, maxSamples);
+
+		cb->BindPipeline(_pipe[forLightShafts ? PIPE_BLOOM_LIGHT_SHAFTS_U : PIPE_BLOOM_U]);
 		cb->BindDescriptors(_shader, 0);
 		cb->BindDescriptors(_shader, 1, _bloomHandles._cshU);
 		renderer.DrawQuad(cb.Get());
 
 		cb->EndRenderPass();
 	}
-	s_ubBlurVS._matV = Math::ToUVMatrix(0, bloom.GetTexture()->GetSize()).UniformBufferFormat();
-	UpdateUniformBuffer(radius * renderer.GetSwapChainAspectRatio(), 0, renderer.GetSwapChainHeight(), samplesPerPixel, maxSamples);
 	{
-		cb->BeginRenderPass(_bloomHandles._rphV, _bloomHandles._fbhV, { bloom.GetTexture()->GetClearValue() });
+		cb->BeginRenderPass(_bloomHandles._rphV, _bloomHandles._fbhV, { bloom.GetTexture()->GetClearValue() },
+			CGI::ViewportScissorFlags::setAllForCurrentViewScaled | CGI::ViewportScissorFlags::applyHalfScale);
 
-		cb->BindPipeline(_pipe[PIPE_BLOOM_V]);
+		UpdateUniformBuffer(radius * renderer.GetCurrentViewAspectRatio(), 0, renderer.GetCurrentViewHeight() / 2, samplesPerPixel, maxSamples);
+
+		cb->BindPipeline(_pipe[forLightShafts ? PIPE_BLOOM_LIGHT_SHAFTS_V : PIPE_BLOOM_V]);
 		cb->BindDescriptors(_shader, 0);
 		cb->BindDescriptors(_shader, 1, _bloomHandles._cshV);
 		renderer.DrawQuad(cb.Get());
@@ -484,13 +504,15 @@ void Blur::GenerateForAntiAliasing()
 
 	auto cb = renderer.GetCommandBuffer();
 
-	s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
-	s_ubBlurVS._matV = Math::ToUVMatrix().UniformBufferFormat();
-	s_ubExtraBlurFS._zNearFarEx = sm.GetMainCamera()->GetZNearFarEx().GLM();
-	s_ubExtraBlurFS._textureSize = renderer.GetDS().GetComposedTextureA()->GetSize().GLM();
-
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
 	cb->BeginRenderPass(_rphAntiAliasing, _fbhAntiAliasing, { renderer.GetDS().GetComposedTextureB()->GetClearValue() });
+
+	s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
+	s_ubBlurVS._matV = Math::ToUVMatrix().UniformBufferFormat();
+	s_ubBlurVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+	s_ubBlurFS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+	s_ubExtraBlurFS._zNearFarEx = sm.GetMainCamera()->GetZNearFarEx().GLM();
+	s_ubExtraBlurFS._textureSize = cb->GetViewportSize().GLM();
 
 	cb->BindPipeline(_pipe[PIPE_AA]);
 	_shader->BeginBindDescriptors();
@@ -511,14 +533,16 @@ void Blur::GenerateForMotionBlur()
 
 	auto cb = renderer.GetCommandBuffer();
 
+	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
+	cb->BeginRenderPass(_rphMotionBlur, _fbhMotionBlur, { renderer.GetDS().GetComposedTextureB()->GetClearValue() });
+
 	s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubBlurVS._matV = Math::ToUVMatrix().UniformBufferFormat();
+	s_ubBlurVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+	s_ubBlurFS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 	s_ubExtraBlurFS._matInvVP = Matrix4(VMath::inverse(sm.GetMainCamera()->GetMatrixVP())).UniformBufferFormat();
 	s_ubExtraBlurFS._matPrevVP = sm.GetMainCamera()->GetMatrixPrevVP().UniformBufferFormat();
 	s_ubExtraBlurFS._zNearFarEx = sm.GetMainCamera()->GetZNearFarEx().GLM();
-
-	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
-	cb->BeginRenderPass(_rphMotionBlur, _fbhMotionBlur, { renderer.GetDS().GetComposedTextureB()->GetClearValue() });
 
 	cb->BindPipeline(_pipe[PIPE_MOTION_BLUR]);
 	_shader->BeginBindDescriptors();

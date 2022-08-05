@@ -103,7 +103,8 @@ void CubeMapBaker::BeginEnvMap(CGI::CubeMapFace cubeMapFace, RcPoint3 center)
 		{
 			_tex[TEX_COLOR]->GetClearValue(),
 			_tex[TEX_DEPTH]->GetClearValue()
-		});
+		},
+		CGI::ViewportScissorFlags::setAllForFramebuffer);
 }
 
 void CubeMapBaker::EndEnvMap()

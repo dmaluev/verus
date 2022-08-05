@@ -36,6 +36,8 @@ namespace verus
 			void Init(int side);
 			void Done();
 
+			void UpdateMatrixForCurrentView();
+
 			void SetSnapToTexels(bool b) { _snapToTexels = b; }
 			bool IsBaking() const { return !!_pPrevCamera; }
 
@@ -71,6 +73,8 @@ namespace verus
 
 			void Init(int side);
 			void Done();
+
+			void UpdateMatrixForCurrentView();
 
 			void Begin(RcVector3 dirToSun, int split);
 			void End(int split);

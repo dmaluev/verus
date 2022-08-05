@@ -97,11 +97,7 @@ void TextureD3D12::Init(RcTextureDesc desc)
 		uaResDesc.MipLevels = uaMipLevels;
 		uaResDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 		// sRGB cannot be used with UAV:
-		switch (uaResDesc.Format)
-		{
-		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB: uaResDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; break;
-		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB: uaResDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; break;
-		}
+		uaResDesc.Format = RemoveSRGB(uaResDesc.Format);
 
 		D3D12MA::ALLOCATION_DESC allocDesc = {};
 		allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
@@ -700,4 +696,14 @@ void TextureD3D12::CreateSampler()
 	pRendererD3D12->GetD3DDevice()->CreateSampler(&samplerDesc, _dhSampler.AtCPU(0));
 
 	_desc._pSamplerDesc = nullptr;
+}
+
+DXGI_FORMAT TextureD3D12::RemoveSRGB(DXGI_FORMAT format)
+{
+	switch (format)
+	{
+	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB: return DXGI_FORMAT_R8G8B8A8_UNORM;
+	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB: return DXGI_FORMAT_B8G8R8A8_UNORM;
+	}
+	return format;
 }

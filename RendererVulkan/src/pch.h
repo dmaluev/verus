@@ -2,6 +2,7 @@
 #pragma once
 
 #define VERUS_INCLUDE_VULKAN
+#define XR_USE_GRAPHICS_API_VULKAN
 #include <verus.h>
 
 #include "ThirdParty/imgui/imgui_impl_vulkan.h"

@@ -39,6 +39,9 @@ namespace verus
 
 		public:
 			virtual void Update();
+			virtual void UpdateUsingViewDesc(CGI::RcViewDesc viewDesc);
+			virtual void UpdateUsingHeadPose(Math::RcPose pose);
+			void UpdateZNearFar();
 			void UpdateView();
 			void UpdateVP();
 
@@ -118,6 +121,8 @@ namespace verus
 			void operator=(const MainCamera& that);
 
 			virtual void Update() override;
+			virtual void UpdateUsingViewDesc(CGI::RcViewDesc viewDesc) override;
+			virtual void UpdateUsingHeadPose(Math::RcPose pose);
 			void UpdateVP();
 
 			// Motion blur:

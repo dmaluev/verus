@@ -29,6 +29,10 @@ void State::Draw()
 {
 }
 
+void State::DrawView(CGI::RcViewDesc viewDesc)
+{
+}
+
 void State::OnExit(PState pNext)
 {
 }

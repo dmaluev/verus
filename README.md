@@ -43,6 +43,7 @@ These features should be implemented in version **1.x**:
 - [x] glTF file format support
 - [x] Materials v2.0: PBR/GGX with Metallic-Roughness workflow
 - [x] Direct3D 11
+- [x] OpenXR
 - [ ] Shadow maps for all lights
 - [ ] Triggers
 - [ ] Quest system, dialogue system
@@ -51,7 +52,6 @@ These features should be implemented in version **1.x**:
 - [ ] Waypoints and A-Star navigation
 - [ ] Lua scripting
 - [ ] Linux support
-- [ ] OpenXR
 
 These features should be implemented in version **2.x**:
 

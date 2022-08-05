@@ -46,6 +46,7 @@ namespace verus
 			virtual void BaseGame_UnloadContent() override;
 			virtual void BaseGame_Update() override;
 			virtual void BaseGame_Draw() override;
+			virtual void BaseGame_DrawView(CGI::RcViewDesc viewDesc) override;
 		};
 		VERUS_TYPEDEFS(HelloTriangleGame);
 	}

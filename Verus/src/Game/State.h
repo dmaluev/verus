@@ -21,6 +21,7 @@ namespace verus
 			virtual void HandleActions();
 			virtual void Update();
 			virtual void Draw();
+			virtual void DrawView(CGI::RcViewDesc viewDesc);
 			virtual void OnExit(State* pNext);
 		};
 		VERUS_TYPEDEFS(State);

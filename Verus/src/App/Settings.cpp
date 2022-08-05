@@ -141,6 +141,8 @@ void Settings::ParseCommandLineArgs(int argc, char* argv[])
 	{
 		if (IsArg(i, "--gapi") && i + 1 < argc)
 			_commandLine._gapi = atoi(argv[i + 1]);
+		if (IsArg(i, "--openxr") && i + 1 < argc)
+			_commandLine._openXR = atoi(argv[i + 1]);
 		if (IsArg(i, "--efs") || IsArg(i, "--fullscreen"))
 			_commandLine._exclusiveFullscreen = true;
 		if (IsArg(i, "--wnd") || IsArg(i, "--windowed"))
@@ -199,6 +201,7 @@ void Settings::Load()
 	_gpuTextureLodLevel = GetI("gpuTextureLodLevel", _gpuTextureLodLevel);
 	_gpuTrilinearFilter = GetB("gpuTrilinearFilter", _gpuTrilinearFilter);
 	_inputMouseSensitivity = GetF("inputMouseSensitivity", _inputMouseSensitivity);
+	_openXR = GetB("openXR", _openXR);
 	_postProcessBloom = GetB("postProcessBloom", _postProcessBloom);
 	_postProcessCinema = GetB("postProcessCinema", _postProcessCinema);
 	_postProcessLightShafts = GetB("postProcessLightShafts", _postProcessLightShafts);
@@ -229,6 +232,12 @@ void Settings::HandleCommandLineArgs()
 	case 0:  _gapi = 0; break;
 	case 11: _gapi = 11; break;
 	case 12: _gapi = 12; break;
+	}
+
+	switch (_commandLine._openXR)
+	{
+	case 0: _openXR = false; break;
+	case 1: _openXR = true; break;
 	}
 
 	if (_commandLine._exclusiveFullscreen)
@@ -287,6 +296,7 @@ void Settings::Save()
 	Set("gpuTextureLodLevel", _gpuTextureLodLevel);
 	Set("gpuTrilinearFilter", _gpuTrilinearFilter);
 	Set("inputMouseSensitivity", _inputMouseSensitivity);
+	Set("openXR", _openXR);
 	Set("postProcessBloom", _postProcessBloom);
 	Set("postProcessCinema", _postProcessCinema);
 	Set("postProcessLightShafts", _postProcessLightShafts);
@@ -364,7 +374,12 @@ int Settings::GetFontSize() const
 	return 15;
 }
 
-int Settings::Scale(int size) const
+int Settings::Scale(int size, float extraScale) const
 {
-	return _displayOffscreenDraw ? static_cast<int>(size * _displayOffscreenScale + 0.5f) : size;
+	return _displayOffscreenDraw ? static_cast<int>(size * _displayOffscreenScale * extraScale + 0.5f) : size;
+}
+
+float Settings::GetScale() const
+{
+	return _displayOffscreenDraw ? _displayOffscreenScale : 1;
 }

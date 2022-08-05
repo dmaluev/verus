@@ -31,8 +31,8 @@ void Ssao::Init()
 	_rph = renderer->CreateSimpleRenderPass(CGI::Format::unormR8G8B8A8); // >> GBuffer3.r
 
 	_shader.Init("[Shaders]:Ssao.hlsl");
-	_shader->CreateDescriptorSet(0, &s_ubSsaoVS, sizeof(s_ubSsaoVS), 2, {}, CGI::ShaderStageFlags::vs);
-	_shader->CreateDescriptorSet(1, &s_ubSsaoFS, sizeof(s_ubSsaoFS), 2,
+	_shader->CreateDescriptorSet(0, &s_ubSsaoVS, sizeof(s_ubSsaoVS), 16, {}, CGI::ShaderStageFlags::vs);
+	_shader->CreateDescriptorSet(1, &s_ubSsaoFS, sizeof(s_ubSsaoFS), 16,
 		{
 			CGI::Sampler::nearestMipN, // RandNormals
 			CGI::Sampler::nearestClampMipN, // GBuffer1
@@ -87,15 +87,15 @@ void Ssao::OnSwapChainResized()
 	if (!settings._postProcessSSAO)
 		return;
 
-	const int scaledSwapChainWidth = settings.Scale(renderer.GetSwapChainWidth());
-	const int scaledSwapChainHeight = settings.Scale(renderer.GetSwapChainHeight());
+	const int scaledCombinedSwapChainWidth = settings.Scale(renderer.GetCombinedSwapChainWidth());
+	const int scaledCombinedSwapChainHeight = settings.Scale(renderer.GetCombinedSwapChainHeight());
 
 	{
 		_shader->FreeDescriptorSet(_csh);
 		renderer->DeleteFramebuffer(_fbh);
 	}
 	{
-		_fbh = renderer->CreateFramebuffer(_rph, { renderer.GetDS().GetGBuffer(3) }, scaledSwapChainWidth, scaledSwapChainHeight);
+		_fbh = renderer->CreateFramebuffer(_rph, { renderer.GetDS().GetGBuffer(3) }, scaledCombinedSwapChainWidth, scaledCombinedSwapChainHeight);
 		_csh = _shader->BindDescriptorSetTextures(1,
 			{
 				_texRandNormals,
@@ -127,9 +127,13 @@ void Ssao::Generate()
 
 	auto cb = renderer.GetCommandBuffer();
 
+	cb->BeginRenderPass(_rph, _fbh, { renderer.GetDS().GetGBuffer(3)->GetClearValue() });
+
 	s_ubSsaoVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubSsaoVS._matV = Math::ToUVMatrix().UniformBufferFormat();
-	s_ubSsaoVS._matP = Math::ToUVMatrix(0, renderer.GetDS().GetGBuffer(3)->GetSize(), &_texRandNormals->GetSize()).UniformBufferFormat();
+	s_ubSsaoVS._matP = Math::ToUVMatrix(0, cb->GetViewportSize(), &_texRandNormals->GetSize()).UniformBufferFormat();
+	s_ubSsaoVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+	s_ubSsaoFS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 	s_ubSsaoFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
 	s_ubSsaoFS._camScale.x = cam.GetFovScale() / cam.GetAspectRatio();
 	s_ubSsaoFS._camScale.y = -cam.GetFovScale();
@@ -137,8 +141,6 @@ void Ssao::Generate()
 	s_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.y = _largeRad;
 	s_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.z = _weightScale;
 	s_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.w = _weightBias;
-
-	cb->BeginRenderPass(_rph, _fbh, { renderer.GetDS().GetGBuffer(3)->GetClearValue() });
 
 	cb->BindPipeline(_pipe);
 	_shader->BeginBindDescriptors();

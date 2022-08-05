@@ -24,7 +24,7 @@ struct VSI
 struct VSO
 {
 	float4 pos : SV_Position;
-	float2 tc0 : TEXCOORD0;
+	float4 tc0 : TEXCOORD0;
 };
 
 struct FSO
@@ -39,7 +39,8 @@ VSO mainVS(VSI si)
 
 	// Standard quad:
 	so.pos = float4(mul(si.pos, g_ubBloomVS._matW), 1);
-	so.tc0 = mul(si.pos, g_ubBloomVS._matV).xy;
+	so.tc0.xy = mul(si.pos, g_ubBloomVS._matV).xy;
+	so.tc0.zw = so.tc0.xy * g_ubBloomVS._tcViewScaleBias.xy + g_ubBloomVS._tcViewScaleBias.zw;
 
 	return so;
 }
@@ -51,14 +52,14 @@ FSO mainFS(VSO si)
 	FSO so;
 
 #ifdef DEF_LIGHT_SHAFTS
-	const float2 ndcPos = ToNdcPos(si.tc0);
+	const float2 ndcPos = ToNdcPos(si.tc0.xy);
 
 	const float maxDist = g_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.x;
 	const float sunGloss = g_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.y;
 	const float wideStrength = g_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.z;
 	const float sunStrength = g_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.w;
 
-	const float depthSam = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
+	const float depthSam = g_texDepth.SampleLevel(g_samDepth, si.tc0.zw, 0.0).r;
 	const float3 posW = DS_GetPosition(depthSam, g_ubBloomLightShaftsFS._matInvVP, ndcPos);
 
 	const float3 eyePos = g_ubBloomLightShaftsFS._eyePos.xyz;
@@ -113,7 +114,7 @@ FSO mainFS(VSO si)
 	const float colorScale = g_ubBloomFS._colorScale_colorBias_exposure.x;
 	const float colorBias = g_ubBloomFS._colorScale_colorBias_exposure.y;
 
-	const float4 colorSam = g_texColor.SampleLevel(g_samColor, si.tc0, 0.0);
+	const float4 colorSam = g_texColor.SampleLevel(g_samColor, si.tc0.zw, 0.0);
 	const float3 color = colorSam.rgb * g_ubBloomFS._colorScale_colorBias_exposure.z;
 	const float3 bloom = saturate((color - colorBias) * colorScale);
 

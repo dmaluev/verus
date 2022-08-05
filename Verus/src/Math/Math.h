@@ -89,6 +89,16 @@ namespace verus
 {
 	namespace Math
 	{
+		struct Pose
+		{
+			Quat   _orientation = Quat(0);
+			Point3 _position = Point3(0);
+
+			Pose() {}
+			Pose(const XrPosef& that) : _orientation(that.orientation), _position(that.position) {}
+		};
+		VERUS_TYPEDEFS(Pose);
+
 		// Bits:
 		bool IsPowerOfTwo(int x);
 		UINT32 NextPowerOfTwo(UINT32 x);

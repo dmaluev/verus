@@ -27,7 +27,7 @@ struct VSI
 struct VSO
 {
 	float4 pos : SV_Position;
-	float2 tc0 : TEXCOORD0;
+	float4 tc0 : TEXCOORD0;
 };
 
 #ifdef _VS
@@ -37,7 +37,8 @@ VSO mainVS(VSI si)
 
 	// Standard quad:
 	so.pos = float4(mul(si.pos, g_ubAmbientVS._matW), 1);
-	so.tc0 = mul(si.pos, g_ubAmbientVS._matV).xy;
+	so.tc0.xy = mul(si.pos, g_ubAmbientVS._matV).xy;
+	so.tc0.zw = so.tc0.xy * g_ubAmbientVS._tcViewScaleBias.xy + g_ubAmbientVS._tcViewScaleBias.zw;
 
 	return so;
 }
@@ -49,27 +50,27 @@ DS_ACC_FSO mainFS(VSO si)
 	DS_ACC_FSO so;
 	DS_Reset(so);
 
-	const float2 ndcPos = ToNdcPos(si.tc0);
+	const float2 ndcPos = ToNdcPos(si.tc0.xy);
 
 	// <SampleSurfaceData>
 	// GBuffer0:
-	const float4 gBuffer0Sam = VK_SUBPASS_LOAD(g_texGBuffer0, g_samGBuffer0, si.tc0);
+	const float4 gBuffer0Sam = VK_SUBPASS_LOAD(g_texGBuffer0, g_samGBuffer0, si.tc0.zw);
 
 	// GBuffer1:
-	const float4 gBuffer1Sam = VK_SUBPASS_LOAD(g_texGBuffer1, g_samGBuffer1, si.tc0);
+	const float4 gBuffer1Sam = VK_SUBPASS_LOAD(g_texGBuffer1, g_samGBuffer1, si.tc0.zw);
 	const float3 normalWV = DS_GetNormal(gBuffer1Sam);
 	const float3 normal = mul(float4(normalWV, 0), g_ubAmbientFS._matInvV);
 
 	// GBuffer2:
-	const float4 gBuffer2Sam = VK_SUBPASS_LOAD(g_texGBuffer2, g_samGBuffer2, si.tc0);
+	const float4 gBuffer2Sam = VK_SUBPASS_LOAD(g_texGBuffer2, g_samGBuffer2, si.tc0.zw);
 	const float roughness = gBuffer2Sam.g;
 	const float metallic = gBuffer2Sam.b;
 
 	// GBuffer3:
-	const float4 gBuffer3Sam = VK_SUBPASS_LOAD(g_texGBuffer3, g_samGBuffer3, si.tc0);
+	const float4 gBuffer3Sam = VK_SUBPASS_LOAD(g_texGBuffer3, g_samGBuffer3, si.tc0.zw);
 
 	// Depth:
-	const float depthSam = VK_SUBPASS_LOAD(g_texDepth, g_samDepth, si.tc0).r;
+	const float depthSam = VK_SUBPASS_LOAD(g_texDepth, g_samDepth, si.tc0.zw).r;
 	const float3 posWV = DS_GetPosition(depthSam, g_ubAmbientFS._matInvP, ndcPos);
 	const float3 posW = mul(float4(posWV, 1), g_ubAmbientFS._matInvV);
 	// </SampleSurfaceData>

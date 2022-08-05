@@ -13,10 +13,6 @@ InputManager::InputManager()
 	VERUS_ZERO_MEM(_mouseStateDownEvent);
 	VERUS_ZERO_MEM(_mouseStateUpEvent);
 	VERUS_ZERO_MEM(_mouseStateDoubleClick);
-	VERUS_ZERO_MEM(_joyStateAxis);
-	VERUS_ZERO_MEM(_joyStatePressed);
-	VERUS_ZERO_MEM(_joyStateDownEvent);
-	VERUS_ZERO_MEM(_joyStateUpEvent);
 }
 
 InputManager::~InputManager()
@@ -29,22 +25,15 @@ void InputManager::Init()
 	VERUS_INIT();
 
 	_vInputFocusStack.reserve(16);
-
-	const int count = SDL_NumJoysticks();
-	_vJoysticks.reserve(count);
-	VERUS_FOR(i, count)
-	{
-		SDL_Joystick* pJoystick = SDL_JoystickOpen(i);
-		if (pJoystick)
-			_vJoysticks.push_back(pJoystick);
-	}
+	_vActionSets.reserve(8);
+	_vActions.reserve(32);
+	_vActionIndex.reserve(64);
 }
 
 void InputManager::Done()
 {
-	VERUS_FOREACH_CONST(Vector<SDL_Joystick*>, _vJoysticks, it)
-		SDL_JoystickClose(*it);
-	_vJoysticks.clear();
+	for (auto& x : _gamepads)
+		x.Close();
 
 	VERUS_DONE(InputManager);
 }
@@ -133,20 +122,71 @@ bool InputManager::HandleEvent(SDL_Event& event)
 	}
 	break;
 
-	// JOYSTICK:
-	case SDL_JOYAXISMOTION:
+	// CONTROLLER:
+	case SDL_CONTROLLERAXISMOTION:
 	{
-		OnJoyAxis(event.jaxis.axis, event.jaxis.value);
+		const int player = 1 + GetGamepadIndex(event.caxis.which);
+		PathIdentifier identifier = PathIdentifier::undefined;
+		PathLocation location = PathLocation::undefined;
+		PathComponent component = PathComponent::undefined;
+		switch (event.caxis.axis)
+		{
+		case SDL_CONTROLLER_AXIS_LEFTX:        identifier = PathIdentifier::thumbstick; location = PathLocation::left; component = PathComponent::scalarX; break;
+		case SDL_CONTROLLER_AXIS_LEFTY:        identifier = PathIdentifier::thumbstick; location = PathLocation::left; component = PathComponent::scalarY; break;
+		case SDL_CONTROLLER_AXIS_RIGHTX:       identifier = PathIdentifier::thumbstick; location = PathLocation::right; component = PathComponent::scalarX; break;
+		case SDL_CONTROLLER_AXIS_RIGHTY:       identifier = PathIdentifier::thumbstick; location = PathLocation::right; component = PathComponent::scalarY; break;
+		case SDL_CONTROLLER_AXIS_TRIGGERLEFT:  identifier = PathIdentifier::trigger; location = PathLocation::left; component = PathComponent::value; break;
+		case SDL_CONTROLLER_AXIS_TRIGGERRIGHT: identifier = PathIdentifier::trigger; location = PathLocation::right; component = PathComponent::value; break;
+		}
+		const UINT32 atom = ToAtom(player, PathEntity::gamepad, 1, identifier, location, component);
+		const int value = (abs(event.caxis.value) >= _axisThreshold) ? event.caxis.value : 0;
+		if (value > 0)
+			UpdateActionStateFloat(atom, Math::Min(1.f, (value - _axisThreshold) / static_cast<float>(SHRT_MAX - _axisThreshold)));
+		else if (value < 0)
+			UpdateActionStateFloat(atom, Math::Max(-1.f, (value + _axisThreshold) / static_cast<float>(SHRT_MAX - _axisThreshold)));
+		else
+			UpdateActionStateFloat(atom, 0);
 	}
 	break;
-	case SDL_JOYBUTTONDOWN:
+	case SDL_CONTROLLERBUTTONDOWN:
+	case SDL_CONTROLLERBUTTONUP:
 	{
-		OnJoyDown(event.jbutton.button);
+		const int player = 1 + GetGamepadIndex(event.cbutton.which);
+		PathIdentifier identifier = PathIdentifier::undefined;
+		PathLocation location = PathLocation::undefined;
+		switch (event.cbutton.button)
+		{
+		case SDL_CONTROLLER_BUTTON_A:             identifier = PathIdentifier::buttonA; break;
+		case SDL_CONTROLLER_BUTTON_B:             identifier = PathIdentifier::buttonB; break;
+		case SDL_CONTROLLER_BUTTON_X:             identifier = PathIdentifier::buttonX; break;
+		case SDL_CONTROLLER_BUTTON_Y:             identifier = PathIdentifier::buttonY; break;
+		case SDL_CONTROLLER_BUTTON_BACK:          identifier = PathIdentifier::miscView; break;
+		case SDL_CONTROLLER_BUTTON_START:         identifier = PathIdentifier::miscMenu; break;
+		case SDL_CONTROLLER_BUTTON_LEFTSTICK:     identifier = PathIdentifier::thumbstick; location = PathLocation::left; break;
+		case SDL_CONTROLLER_BUTTON_RIGHTSTICK:    identifier = PathIdentifier::thumbstick; location = PathLocation::right; break;
+		case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:  identifier = PathIdentifier::shoulder; location = PathLocation::left; break;
+		case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: identifier = PathIdentifier::shoulder; location = PathLocation::right; break;
+		case SDL_CONTROLLER_BUTTON_DPAD_UP:       identifier = PathIdentifier::dpadUp; break;
+		case SDL_CONTROLLER_BUTTON_DPAD_DOWN:     identifier = PathIdentifier::dpadDown; break;
+		case SDL_CONTROLLER_BUTTON_DPAD_LEFT:     identifier = PathIdentifier::dpadLeft; break;
+		case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:    identifier = PathIdentifier::dpadRight; break;
+		}
+		const UINT32 atom = ToAtom(player, PathEntity::gamepad, 1, identifier, location, PathComponent::click);
+		const bool value = (SDL_PRESSED == event.cbutton.state);
+		UpdateActionStateBoolean(atom, value);
 	}
 	break;
-	case SDL_JOYBUTTONUP:
+	case SDL_CONTROLLERDEVICEADDED:
 	{
-		OnJoyUp(event.jbutton.button);
+		if (event.cdevice.which < s_maxGamepads && SDL_IsGameController(event.cdevice.which))
+			_gamepads[event.cdevice.which].Open(event.cdevice.which);
+	}
+	break;
+	case SDL_CONTROLLERDEVICEREMOVED:
+	{
+		const int gamepadIndex = GetGamepadIndex(event.cdevice.which);
+		if (gamepadIndex >= 0)
+			_gamepads[gamepadIndex].Close();
 	}
 	break;
 
@@ -158,6 +198,42 @@ bool InputManager::HandleEvent(SDL_Event& event)
 
 void InputManager::HandleInput()
 {
+	const int actionCount = static_cast<int>(_vActions.size());
+	VERUS_FOR(i, actionCount)
+	{
+		RAction action = _vActions[i];
+		switch (action._type)
+		{
+		case ActionType::inBoolean:
+		{
+			const bool prevValue = action._booleanValue;
+			action._booleanValue = false;
+			for (const auto& x : _vActionIndex)
+			{
+				if (x._actionIndex == i)
+					action._booleanValue = action._booleanValue || x._booleanValue;
+			}
+			action._changedState = prevValue != action._booleanValue;
+		}
+		break;
+		case ActionType::inFloat:
+		{
+			const float prevValue = action._floatValue;
+			action._floatValue = 0;
+			for (const auto& x : _vActionIndex)
+			{
+				if (x._actionIndex == i)
+				{
+					if (abs(x._floatValue) > abs(action._floatValue))
+						action._floatValue = x._floatValue;
+				}
+			}
+			action._changedState = prevValue != action._floatValue;
+		}
+		break;
+		}
+	}
+
 	VERUS_FOREACH_REVERSE(Vector<PInputFocus>, _vInputFocusStack, it)
 	{
 		(*it)->InputFocus_HandleInput();
@@ -188,17 +264,19 @@ int InputManager::LoseFocus(PInputFocus p)
 	return -1;
 }
 
-void InputManager::Load(Action* pAction)
+void InputManager::ResetInputState()
 {
-	StringStream ss;
-	ss << _C(Utils::I().GetWritablePath()) << "Keys.xml";
-	IO::Xml xml(_C(ss.str()));
+	VERUS_ZERO_MEM(_kbStateDownEvent);
+	VERUS_ZERO_MEM(_kbStateUpEvent);
+	VERUS_ZERO_MEM(_mouseStateDownEvent);
+	VERUS_ZERO_MEM(_mouseStateUpEvent);
+	VERUS_ZERO_MEM(_mouseStateDoubleClick);
 }
 
 bool InputManager::IsKeyPressed(int scancode) const
 {
 	scancode = Math::Clamp(scancode, 0, VERUS_INPUT_MAX_KB - 1);
-	return _kbStatePressed[scancode] || TranslateJoyPress(scancode, false);
+	return _kbStatePressed[scancode];
 }
 
 bool InputManager::IsKeyDownEvent(int scancode) const
@@ -216,7 +294,7 @@ bool InputManager::IsKeyUpEvent(int scancode) const
 bool InputManager::IsMousePressed(int button) const
 {
 	button = Math::Clamp(button, 0, VERUS_INPUT_MAX_MOUSE - 1);
-	return _mouseStatePressed[button] || TranslateJoyPress(button, true);
+	return _mouseStatePressed[button];
 }
 
 bool InputManager::IsMouseDownEvent(int button) const
@@ -237,47 +315,352 @@ bool InputManager::IsMouseDoubleClick(int button) const
 	return _mouseStateDoubleClick[button];
 }
 
-bool InputManager::IsActionPressed(int actionID) const
-{
-	return false;
-}
-
-bool InputManager::IsActionDownEvent(int actionID) const
-{
-	return false;
-}
-
-bool InputManager::IsActionUpEvent(int actionID) const
-{
-	return false;
-}
-
-float InputManager::GetJoyAxisState(int button) const
-{
-	button = Math::Clamp(button, 0, JOY_AXIS_MAX - 1);
-	return _joyStateAxis[button];
-}
-
-void InputManager::BuildLookup()
-{
-}
-
-void InputManager::ResetInputState()
-{
-	VERUS_ZERO_MEM(_kbStateDownEvent);
-	VERUS_ZERO_MEM(_kbStateUpEvent);
-	VERUS_ZERO_MEM(_mouseStateDownEvent);
-	VERUS_ZERO_MEM(_mouseStateUpEvent);
-	VERUS_ZERO_MEM(_mouseStateDoubleClick);
-	VERUS_ZERO_MEM(_joyStateDownEvent);
-	VERUS_ZERO_MEM(_joyStateUpEvent);
-}
-
 float InputManager::GetMouseScale()
 {
 	VERUS_QREF_CONST_SETTINGS;
 	const float rad = (VERUS_2PI / 360.f) / 3.f; // 3 pixels = 1 degree.
 	return rad * settings._inputMouseSensitivity;
+}
+
+int InputManager::CreateActionSet(CSZ name, CSZ localizedName, int priority)
+{
+	const int index = Utils::Cast32(_vActionSets.size());
+	_vActionSets.resize(index + 1);
+	_vActionSets[index]._name = name;
+	_vActionSets[index]._localizedName = localizedName;
+	_vActionSets[index]._priority = priority;
+	return index;
+}
+
+int InputManager::CreateAction(int setIndex, CSZ name, CSZ localizedName, ActionType type,
+	std::initializer_list<CSZ> ilSubactionPaths, std::initializer_list<CSZ> ilBindingPaths)
+{
+	if (setIndex < 0 || setIndex >= _vActionSets.size())
+	{
+		VERUS_RT_FAIL("Invalid set index.");
+		return -1;
+	}
+	const int index = Utils::Cast32(_vActions.size());
+	_vActions.resize(index + 1);
+	RAction action = _vActions[index];
+	action._vSubactionPaths.reserve(ilSubactionPaths.size());
+	for (CSZ path : ilSubactionPaths)
+		action._vSubactionPaths.push_back(path);
+	action._vBindingPaths.reserve(ilBindingPaths.size());
+	for (CSZ path : ilBindingPaths)
+		action._vBindingPaths.push_back(path);
+	action._name = name;
+	action._localizedName = localizedName;
+	action._type = type;
+	action._setIndex = setIndex;
+
+	for (CSZ bindingPath : ilBindingPaths)
+	{
+		ActionIndex actionIndex;
+		actionIndex._atom = ToAtom(bindingPath);
+		actionIndex._actionIndex = index;
+		_vActionIndex.push_back(actionIndex);
+	}
+
+	return index;
+}
+
+UINT32 InputManager::ToAtom(CSZ path)
+{
+	if (!path || !(*path) || path[0] != '/')
+		return 0;
+
+	// Bits 31-28: User.
+	// Bits 27-20: Entity.
+	// Bits 19-16: In/Out.
+	// Bits 15- 8: Identifier.
+	// Bits  7- 4: Location.
+	// Bits  3- 0: Component.
+
+	auto Compare = [](CSZ s, size_t len, CSZ begin, PathLocation* pLoc = nullptr)
+	{
+		const size_t beginLen = strlen(begin);
+		const bool fuzzy = (len > beginLen) && ((s[beginLen] >= '0' && s[beginLen] <= '9') || s[beginLen] == '_');
+		const size_t compareLen = fuzzy ? beginLen : len;
+		if (!strncmp(s, begin, compareLen))
+		{
+			if (pLoc)
+			{
+				const CSZ locations[] =
+				{
+					"",
+					"_left",
+					"_left_lower",
+					"_left_upper",
+					"_lower",
+					"_right",
+					"_right_lower",
+					"_right_upper",
+					"_upper"
+				};
+				for (int i = 1; i < VERUS_COUNT_OF(locations); ++i)
+				{
+					const size_t locLen = strlen(locations[i]);
+					if (len >= locLen)
+					{
+						if (!strncmp(s + len - locLen, locations[i], locLen))
+						{
+							*pLoc = static_cast<PathLocation>(i);
+							break;
+						}
+					}
+				}
+			}
+			return true;
+		}
+		return false;
+	};
+
+	UINT32 ret = 0;
+
+	if (*path) // User:
+	{
+		path++;
+
+		CSZ pEnd = strchr(path, '/');
+		const size_t len = pEnd ? pEnd - path : strlen(path);
+		if (Compare(path, len, "player"))
+			ret |= atoi(path + 6) << 28;
+		else if (Compare(path, len, "user"))
+			ret |= 1 << 28;
+
+		path += len;
+	}
+
+	if (*path) // Entity:
+	{
+		path++;
+
+		CSZ pEnd = strchr(path, '/');
+		const size_t len = pEnd ? pEnd - path : strlen(path);
+		PathEntity entity = PathEntity::undefined;
+		if (Compare(path, len, "gamepad"))
+			entity = PathEntity::gamepad;
+		else if (Compare(path, len, "hand") && Str::StartsWith(path, "hand/left"))
+			entity = PathEntity::handLeft;
+		else if (Compare(path, len, "hand") && Str::StartsWith(path, "hand/right"))
+			entity = PathEntity::handRight;
+		else if (Compare(path, len, "head"))
+			entity = PathEntity::head;
+		else if (Compare(path, len, "keyboard"))
+			entity = PathEntity::keyboard;
+		else if (Compare(path, len, "mouse"))
+			entity = PathEntity::mouse;
+		else if (Compare(path, len, "treadmill"))
+			entity = PathEntity::treadmill;
+		ret |= +entity << 20;
+
+		path += len;
+		if (PathEntity::handLeft == entity || PathEntity::handRight == entity)
+			path = strchr(path + 1, '/');
+	}
+
+	if (*path)
+	{
+		path++;
+
+		CSZ pEnd = strchr(path, '/');
+		const size_t len = pEnd ? pEnd - path : strlen(path);
+		if (Compare(path, len, "input"))
+			ret |= 1 << 16;
+		else if (Compare(path, len, "output"))
+			ret |= 2 << 16;
+
+		path += len;
+	}
+
+	if (*path) // Identifier:
+	{
+		path++;
+
+		CSZ pEnd = strchr(path, '/');
+		const size_t len = pEnd ? pEnd - path : strlen(path);
+		PathIdentifier identifier = PathIdentifier::undefined;
+		PathLocation location = PathLocation::undefined;
+		if (Compare(path, len, "aim", &location))
+			identifier = PathIdentifier::aim;
+		else if (Compare(path, len, "a", &location))
+			identifier = PathIdentifier::buttonA;
+		else if (Compare(path, len, "b", &location))
+			identifier = PathIdentifier::buttonB;
+		else if (Compare(path, len, "end", &location))
+			identifier = PathIdentifier::buttonEnd;
+		else if (Compare(path, len, "home", &location))
+			identifier = PathIdentifier::buttonHome;
+		else if (Compare(path, len, "select", &location))
+			identifier = PathIdentifier::buttonSelect;
+		else if (Compare(path, len, "start", &location))
+			identifier = PathIdentifier::buttonStart;
+		else if (Compare(path, len, "x", &location))
+			identifier = PathIdentifier::buttonX;
+		else if (Compare(path, len, "y", &location))
+			identifier = PathIdentifier::buttonY;
+		else if (Compare(path, len, "diamond_down"))
+			identifier = PathIdentifier::diamondDown;
+		else if (Compare(path, len, "diamond_left"))
+			identifier = PathIdentifier::diamondLeft;
+		else if (Compare(path, len, "diamond_right"))
+			identifier = PathIdentifier::diamondRight;
+		else if (Compare(path, len, "diamond_up"))
+			identifier = PathIdentifier::diamondUp;
+		else if (Compare(path, len, "dpad_down"))
+			identifier = PathIdentifier::dpadDown;
+		else if (Compare(path, len, "dpad_left"))
+			identifier = PathIdentifier::dpadLeft;
+		else if (Compare(path, len, "dpad_right"))
+			identifier = PathIdentifier::dpadRight;
+		else if (Compare(path, len, "dpad_up"))
+			identifier = PathIdentifier::dpadUp;
+		else if (Compare(path, len, "grip", &location))
+			identifier = PathIdentifier::grip;
+		else if (Compare(path, len, "haptic", &location))
+			identifier = PathIdentifier::haptic;
+		else if (Compare(path, len, "joystick", &location))
+			identifier = PathIdentifier::joystick;
+		else if (Compare(path, len, "back", &location))
+			identifier = PathIdentifier::miscBack;
+		else if (Compare(path, len, "menu", &location))
+			identifier = PathIdentifier::miscMenu;
+		else if (Compare(path, len, "mute_mic", &location))
+			identifier = PathIdentifier::miscMuteMic;
+		else if (Compare(path, len, "play_pause", &location))
+			identifier = PathIdentifier::miscPlayPause;
+		else if (Compare(path, len, "view", &location))
+			identifier = PathIdentifier::miscView;
+		else if (Compare(path, len, "volume_down"))
+			identifier = PathIdentifier::miscVolumeDown;
+		else if (Compare(path, len, "volume_up"))
+			identifier = PathIdentifier::miscVolumeUp;
+		else if (Compare(path, len, "pedal", &location))
+			identifier = PathIdentifier::pedal;
+		else if (Compare(path, len, "shoulder", &location))
+			identifier = PathIdentifier::shoulder;
+		else if (Compare(path, len, "squeeze", &location))
+			identifier = PathIdentifier::squeeze;
+		else if (Compare(path, len, "system", &location))
+			identifier = PathIdentifier::system;
+		else if (Compare(path, len, "throttle", &location))
+			identifier = PathIdentifier::throttle;
+		else if (Compare(path, len, "thumbrest", &location))
+			identifier = PathIdentifier::thumbrest;
+		else if (Compare(path, len, "thumbstick", &location))
+			identifier = PathIdentifier::thumbstick;
+		else if (Compare(path, len, "trackball", &location))
+			identifier = PathIdentifier::trackball;
+		else if (Compare(path, len, "trackpad", &location))
+			identifier = PathIdentifier::trackpad;
+		else if (Compare(path, len, "trigger", &location))
+			identifier = PathIdentifier::trigger;
+		else if (Compare(path, len, "wheel", &location))
+			identifier = PathIdentifier::wheel;
+		ret |= +identifier << 8;
+		ret |= +location << 4;
+
+		path += len;
+	}
+
+	if (*path) // Component:
+	{
+		path++;
+
+		CSZ pEnd = strchr(path, '/');
+		const size_t len = pEnd ? pEnd - path : strlen(path);
+		PathComponent component = PathComponent::undefined;
+		if (Compare(path, len, "click"))
+			component = PathComponent::click;
+		else if (Compare(path, len, "force"))
+			component = PathComponent::force;
+		else if (Compare(path, len, "pose"))
+			component = PathComponent::pose;
+		else if (Compare(path, len, "x"))
+			component = PathComponent::scalarX;
+		else if (Compare(path, len, "y"))
+			component = PathComponent::scalarY;
+		else if (Compare(path, len, "touch"))
+			component = PathComponent::touch;
+		else if (Compare(path, len, "twist"))
+			component = PathComponent::twist;
+		else if (Compare(path, len, "value"))
+			component = PathComponent::value;
+		ret |= +component;
+
+		path += len;
+	}
+
+	return ret;
+}
+
+UINT32 InputManager::ToAtom(int user, PathEntity entity, int inOut,
+	PathIdentifier identifier, PathLocation location, PathComponent component)
+{
+	UINT32 ret = 0;
+
+	ret |= user << 28;
+	ret |= +entity << 20;
+	ret |= inOut << 16;
+	ret |= +identifier << 8;
+	ret |= +location << 4;
+	ret |= +component;
+
+	return ret;
+}
+
+int InputManager::GetGamepadIndex(SDL_JoystickID joystickID) const
+{
+	VERUS_FOR(i, s_maxGamepads)
+	{
+		if (_gamepads[i].IsConnected() && _gamepads[i].GetJoystickID() == joystickID)
+			return i;
+	}
+	return -1;
+}
+
+bool InputManager::GetActionStateBoolean(int actionIndex, bool* pChangedState, int subaction) const
+{
+	RcAction action = _vActions[actionIndex];
+	VERUS_RT_ASSERT(ActionType::inBoolean == action._type);
+
+	bool currentState = false;
+	auto pExtReality = CGI::Renderer::I()->GetExtReality();
+	if (pExtReality->IsInitialized() && pExtReality->GetActionStateBoolean(actionIndex, currentState, pChangedState, subaction))
+		return currentState;
+
+	if (pChangedState)
+		*pChangedState = action._changedState;
+	return action._booleanValue;
+}
+
+float InputManager::GetActionStateFloat(int actionIndex, bool* pChangedState, int subaction) const
+{
+	RcAction action = _vActions[actionIndex];
+	VERUS_RT_ASSERT(ActionType::inFloat == action._type);
+
+	float currentState = false;
+	auto pExtReality = CGI::Renderer::I()->GetExtReality();
+	if (pExtReality->IsInitialized() && pExtReality->GetActionStateFloat(actionIndex, currentState, pChangedState, subaction))
+		return currentState;
+
+	if (pChangedState)
+		*pChangedState = action._changedState;
+	return action._floatValue;
+}
+
+bool InputManager::GetActionStatePose(int actionIndex, Math::RPose pose, int subaction) const
+{
+	RcAction action = _vActions[actionIndex];
+	VERUS_RT_ASSERT(ActionType::inPose == action._type);
+
+	bool active = false;
+	auto pExtReality = CGI::Renderer::I()->GetExtReality();
+	if (pExtReality->IsInitialized() && pExtReality->GetActionStatePose(actionIndex, active, pose, subaction))
+		return active;
+
+	return false;
 }
 
 void InputManager::SwitchRelativeMouseMode(int scancode)
@@ -361,157 +744,20 @@ void InputManager::OnMouseDoubleClick(int button)
 	_mouseStateDoubleClick[button] = true;
 }
 
-void InputManager::OnJoyAxis(int button, int value)
+void InputManager::UpdateActionStateBoolean(UINT32 atom, bool value)
 {
-	button = Math::Clamp(button, 0, JOY_AXIS_MAX - 1);
-	const float amount = value * (1.f / SHRT_MAX);
-	const bool oneWay = (JOY_AXIS_TRIGGERLEFT == button || JOY_AXIS_TRIGGERRIGHT == button);
-	float fixedAmount = amount;
-	if (oneWay)
+	for (auto& x : _vActionIndex)
 	{
-		fixedAmount = fixedAmount * 0.5f + 0.5f;
-		fixedAmount = Math::Clamp<float>((fixedAmount - VERUS_INPUT_JOYAXIS_THRESHOLD) / (1 - VERUS_INPUT_JOYAXIS_THRESHOLD), 0, 1);
-	}
-	else
-	{
-		fixedAmount = Math::Clamp<float>((abs(fixedAmount) - VERUS_INPUT_JOYAXIS_THRESHOLD) / (1 - VERUS_INPUT_JOYAXIS_THRESHOLD), 0, 1);
-		fixedAmount *= glm::sign(amount);
-	}
-	_joyStateAxis[button] = fixedAmount;
-}
-
-void InputManager::OnJoyDown(int button)
-{
-	button = Math::Clamp(button, 0, JOY_BUTTON_MAX - 1);
-	_joyStatePressed[button] = true;
-	_joyStateDownEvent[button] = true;
-	TranslateJoy(button, false);
-}
-
-void InputManager::OnJoyUp(int button)
-{
-	button = Math::Clamp(button, 0, JOY_BUTTON_MAX - 1);
-	_joyStatePressed[button] = false;
-	_joyStateUpEvent[button] = true;
-	TranslateJoy(button, true);
-}
-
-void InputManager::TranslateJoy(int button, bool up)
-{
-	switch (button)
-	{
-	case JOY_BUTTON_DPAD_UP:
-		break;
-	case JOY_BUTTON_DPAD_DOWN:
-		break;
-	case JOY_BUTTON_DPAD_LEFT:
-		break;
-	case JOY_BUTTON_DPAD_RIGHT:
-		break;
-	case JOY_BUTTON_START:
-		break;
-	case JOY_BUTTON_BACK:
-		break;
-	case JOY_BUTTON_LEFTSTICK:
-		break;
-	case JOY_BUTTON_RIGHTSTICK:
-		break;
-	case JOY_BUTTON_LEFTSHOULDER:
-		up ? OnMouseUp(VERUS_BUTTON_WHEELDOWN) : OnMouseDown(VERUS_BUTTON_WHEELDOWN);
-		break;
-	case JOY_BUTTON_RIGHTSHOULDER:
-		up ? OnMouseUp(VERUS_BUTTON_WHEELUP) : OnMouseDown(VERUS_BUTTON_WHEELUP);
-		break;
-	case JOY_BUTTON_A:
-		up ? OnKeyUp(SDL_SCANCODE_SPACE) : OnKeyDown(SDL_SCANCODE_SPACE);
-		break;
-	case JOY_BUTTON_B:
-		up ? OnKeyUp(SDL_SCANCODE_LCTRL) : OnKeyDown(SDL_SCANCODE_LCTRL);
-		break;
-	case JOY_BUTTON_X:
-		up ? OnMouseUp(SDL_BUTTON_LEFT) : OnMouseDown(SDL_BUTTON_LEFT);
-		break;
-	case JOY_BUTTON_Y:
-		break;
-	case JOY_BUTTON_GUIDE:
-		break;
+		if (atom == x._atom)
+			x._booleanValue = value;
 	}
 }
 
-bool InputManager::TranslateJoyPress(int button, bool mouse) const
+void InputManager::UpdateActionStateFloat(UINT32 atom, float value)
 {
-	if (mouse)
+	for (auto& x : _vActionIndex)
 	{
-		switch (button)
-		{
-		case SDL_BUTTON_LEFT:
-			return _joyStateAxis[JOY_AXIS_TRIGGERRIGHT] >= 0.25f;
-		}
+		if (atom == x._atom)
+			x._floatValue = value;
 	}
-	else
-	{
-		const float forward = 0.1f;
-		const float walk = 0.25f;
-		const float run = 0.6f;
-		switch (button)
-		{
-		case SDL_SCANCODE_A: // Strafe left when attacking?
-		{
-			if (IsMousePressed(SDL_BUTTON_LEFT))
-				return _joyStateAxis[JOY_AXIS_LEFTX] < -walk;
-		}
-		break;
-		case SDL_SCANCODE_D: // Strafe right when attacking?
-		{
-			if (IsMousePressed(SDL_BUTTON_LEFT))
-				return _joyStateAxis[JOY_AXIS_LEFTX] >= walk;
-		}
-		break;
-		case SDL_SCANCODE_S:
-		{
-			if (IsMousePressed(SDL_BUTTON_LEFT))
-			{
-				return _joyStateAxis[JOY_AXIS_LEFTY] >= walk;
-			}
-			else
-			{
-				if (_joyStateAxis[JOY_AXIS_LEFTY] < forward)
-					return false;
-				const glm::vec2 v(_joyStateAxis[JOY_AXIS_LEFTX], _joyStateAxis[JOY_AXIS_LEFTY]);
-				const float len = glm::length(v);
-				return len >= walk;
-			}
-		}
-		break;
-		case SDL_SCANCODE_W:
-		{
-			if (IsMousePressed(SDL_BUTTON_LEFT))
-			{
-				return _joyStateAxis[JOY_AXIS_LEFTY] < -walk;
-			}
-			else
-			{
-				if (_joyStateAxis[JOY_AXIS_LEFTY] >= forward)
-					return false;
-				const glm::vec2 v(_joyStateAxis[JOY_AXIS_LEFTX], _joyStateAxis[JOY_AXIS_LEFTY]);
-				const float len = glm::length(v);
-				return len >= walk;
-			}
-		}
-		break;
-		case SDL_SCANCODE_SPACE:
-		{
-			return _joyStateAxis[JOY_AXIS_TRIGGERLEFT] >= 0.25f;
-		}
-		break;
-		case SDL_SCANCODE_LSHIFT:
-		{
-			const glm::vec2 v(_joyStateAxis[JOY_AXIS_LEFTX], _joyStateAxis[JOY_AXIS_LEFTY]);
-			const float len = glm::length(v);
-			return len >= walk && len < run;
-		}
-		break;
-		}
-	}
-	return false;
 }

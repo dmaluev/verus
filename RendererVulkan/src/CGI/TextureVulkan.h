@@ -55,6 +55,8 @@ namespace verus
 			VkSampler GetVkSampler() const { return _sampler; }
 			ImageLayout GetSubresourceMainLayout(int mipLevel, int arrayLayer) const;
 			void MarkSubresourceDefined(int mipLevel, int arrayLayer);
+
+			static VkFormat RemoveSRGB(VkFormat format);
 		};
 		VERUS_TYPEDEFS(TextureVulkan);
 	}

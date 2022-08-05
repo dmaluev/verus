@@ -22,16 +22,25 @@ void RendererD3D12::ReleaseMe()
 void RendererD3D12::Init()
 {
 	VERUS_INIT();
+	VERUS_QREF_CONST_SETTINGS;
 
 	_vRenderPasses.reserve(20);
 	_vFramebuffers.reserve(40);
 
+	if (settings._openXR)
+		_extReality.Init();
+
 	InitD3D();
+
+	if (_extReality.IsInitialized())
+		_extReality.InitByRenderer(this);
 }
 
 void RendererD3D12::Done()
 {
 	WaitIdle();
+
+	_extReality.Done();
 
 	if (ImGui::GetCurrentContext())
 	{
@@ -103,17 +112,28 @@ ComPtr<IDXGIFactory6> RendererD3D12::CreateFactory()
 	return pFactory;
 }
 
-ComPtr<IDXGIAdapter4> RendererD3D12::GetAdapter(ComPtr<IDXGIFactory6> pFactory, D3D_FEATURE_LEVEL featureLevel)
+ComPtr<IDXGIAdapter4> RendererD3D12::GetAdapter(ComPtr<IDXGIFactory6> pFactory, D3D_FEATURE_LEVEL featureLevel) const
 {
 	ComPtr<IDXGIAdapter4> pAdapter;
 	for (UINT index = 0; SUCCEEDED(pFactory->EnumAdapterByGpuPreference(index, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&pAdapter))); ++index)
 	{
 		DXGI_ADAPTER_DESC3 adapterDesc = {};
 		pAdapter->GetDesc3(&adapterDesc);
-		if (adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-			continue;
-		if (SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), featureLevel, _uuidof(ID3D12Device), nullptr)))
-			break;
+
+		if (_extReality.IsInitialized())
+		{
+			const LUID adapterLuid = _extReality.GetAdapterLuid();
+			if (!memcmp(&adapterDesc.AdapterLuid, &adapterLuid, sizeof(adapterLuid)))
+				break;
+		}
+		else
+		{
+			if (adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+				continue;
+			if (SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), featureLevel, _uuidof(ID3D12Device), nullptr)))
+				break;
+		}
+
 		pAdapter.Reset();
 	}
 
@@ -146,7 +166,7 @@ void RendererD3D12::CreateSwapChainBuffersRTVs()
 		if (FAILED(hr = _pSwapChain->GetBuffer(i, IID_PPV_ARGS(&pBuffer))))
 			throw VERUS_RUNTIME_ERROR << "GetBuffer(); hr=" << VERUS_HR(hr);
 		D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-		rtvDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+		rtvDesc.Format = ToNativeFormat(Renderer::GetSwapChainFormat(), false);
 		rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 		_pDevice->CreateRenderTargetView(pBuffer.Get(), &rtvDesc, _dhSwapChainBuffersRTVs.AtCPU(i));
 		_vSwapChainBuffers[i] = pBuffer;
@@ -173,6 +193,8 @@ void RendererD3D12::InitD3D()
 #endif
 
 	_featureLevel = D3D_FEATURE_LEVEL_11_0;
+	if (_extReality.IsInitialized())
+		_featureLevel = Math::Max(_featureLevel, _extReality.GetMinFeatureLevel());
 
 	ComPtr<IDXGIFactory6> pFactory = CreateFactory();
 	ComPtr<IDXGIAdapter4> pAdapter = GetAdapter(pFactory, _featureLevel);
@@ -189,8 +211,8 @@ void RendererD3D12::InitD3D()
 	if (FAILED(hr))
 		throw VERUS_RUNTIME_ERROR << "D3D12CreateDevice(); hr=" << VERUS_HR(hr);
 
-	VERUS_RT_ASSERT(D3D_FEATURE_LEVEL_11_0 == _featureLevel);
-	VERUS_LOG_INFO("Using feature level: 11_0");
+	//VERUS_RT_ASSERT(D3D_FEATURE_LEVEL_11_0 == _featureLevel);
+	//VERUS_LOG_INFO("Using feature level: 11_0");
 
 	D3D12MA::ALLOCATOR_DESC allocatorDesc = {};
 	allocatorDesc.pDevice = _pDevice.Get();
@@ -212,11 +234,11 @@ void RendererD3D12::InitD3D()
 
 	const bool allowTearing = CheckFeatureSupportAllowTearing(pFactory);
 
-	_swapChainBufferCount = settings._displayVSync ? 3 : 2;
+	_swapChainBufferCount = (settings._displayVSync && !settings._openXR) ? 3 : 2;
 
-	_swapChainDesc.Width = renderer.GetSwapChainWidth();
-	_swapChainDesc.Height = renderer.GetSwapChainHeight();
-	_swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	_swapChainDesc.Width = renderer.GetScreenSwapChainWidth();
+	_swapChainDesc.Height = renderer.GetScreenSwapChainHeight();
+	_swapChainDesc.Format = TextureD3D12::RemoveSRGB(ToNativeFormat(Renderer::GetSwapChainFormat(), false));
 	_swapChainDesc.SampleDesc.Count = 1;
 	_swapChainDesc.SampleDesc.Quality = 0;
 	_swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -470,7 +492,7 @@ void RendererD3D12::ImGuiInit(RPHandle renderPassHandle)
 	ImGui_ImplDX12_Init(
 		_pDevice.Get(),
 		s_ringBufferSize,
-		DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
+		ToNativeFormat(Renderer::GetSwapChainFormat(), false),
 		_dhViews.GetD3DDescriptorHeap(),
 		hp._hCPU,
 		hp._hGPU);
@@ -496,8 +518,8 @@ void RendererD3D12::ResizeSwapChain()
 
 	if (FAILED(hr = _pSwapChain->ResizeBuffers(
 		_swapChainDesc.BufferCount,
-		renderer.GetSwapChainWidth(),
-		renderer.GetSwapChainHeight(),
+		renderer.GetScreenSwapChainWidth(),
+		renderer.GetScreenSwapChainHeight(),
 		_swapChainDesc.Format,
 		_swapChainDesc.Flags)))
 		throw VERUS_RUNTIME_ERROR << "ResizeBuffers(); hr=" << VERUS_HR(hr);
@@ -505,6 +527,11 @@ void RendererD3D12::ResizeSwapChain()
 	_swapChainBufferIndex = _pSwapChain->GetCurrentBackBufferIndex();
 
 	CreateSwapChainBuffersRTVs();
+}
+
+PBaseExtReality RendererD3D12::GetExtReality()
+{
+	return &_extReality;
 }
 
 void RendererD3D12::BeginFrame()
@@ -560,7 +587,7 @@ void RendererD3D12::EndFrame()
 	// <Present>
 	if (_swapChainBufferIndex >= 0)
 	{
-		UINT syncInterval = settings._displayVSync ? 1 : 0;
+		UINT syncInterval = (settings._displayVSync && !settings._openXR) ? 1 : 0;
 		const bool allowTearing = !!(_swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING);
 		UINT flags = 0;
 		if (!syncInterval && allowTearing && App::DisplayMode::exclusiveFullscreen != settings._displayMode)
@@ -727,7 +754,7 @@ FBHandle RendererD3D12::CreateFramebuffer(RPHandle renderPassHandle, std::initia
 	framebuffer._cubeMapFace = cubeMapFace;
 
 	const Vector<TexturePtr> vTex(il);
-	auto GetResource = [this, &vTex, swapChainBufferIndex](int index)
+	auto GetResource = [this, &vTex, swapChainBufferIndex](int index) -> ID3D12Resource*
 	{
 		if (swapChainBufferIndex >= 0)
 		{
@@ -738,7 +765,27 @@ FBHandle RendererD3D12::CreateFramebuffer(RPHandle renderPassHandle, std::initia
 			}
 			else
 			{
-				return _vSwapChainBuffers[swapChainBufferIndex].Get();
+				const ViewType viewType = static_cast<ViewType>(swapChainBufferIndex >> 16);
+				switch (viewType)
+				{
+				case ViewType::none:
+				case ViewType::screen:
+				{
+					return _vSwapChainBuffers[swapChainBufferIndex].Get();
+				}
+				break;
+				case ViewType::openXR:
+				{
+					const int viewIndex = (swapChainBufferIndex >> 8) & 0xFF;
+					const int imageIndex = swapChainBufferIndex & 0xFF;
+					if (_extReality.IsInitialized())
+						return _extReality.GetD3DResource(viewIndex, imageIndex);
+					else
+						return nullptr;
+				}
+				break;
+				}
+				return nullptr;
 			}
 		}
 		else
@@ -747,7 +794,7 @@ FBHandle RendererD3D12::CreateFramebuffer(RPHandle renderPassHandle, std::initia
 			return texD3D12.GetD3DResource();
 		}
 	};
-	auto GetRTV = [this, &vTex, swapChainBufferIndex, cubeMapFace](int index)
+	auto GetRTV = [this, &vTex, swapChainBufferIndex, cubeMapFace](int index) -> D3D12_CPU_DESCRIPTOR_HANDLE
 	{
 		if (swapChainBufferIndex >= 0)
 		{
@@ -758,7 +805,27 @@ FBHandle RendererD3D12::CreateFramebuffer(RPHandle renderPassHandle, std::initia
 			}
 			else
 			{
-				return _dhSwapChainBuffersRTVs.AtCPU(swapChainBufferIndex);
+				const ViewType viewType = static_cast<ViewType>(swapChainBufferIndex >> 16);
+				switch (viewType)
+				{
+				case ViewType::none:
+				case ViewType::screen:
+				{
+					return _dhSwapChainBuffersRTVs.AtCPU(swapChainBufferIndex);
+				}
+				break;
+				case ViewType::openXR:
+				{
+					const int viewIndex = (swapChainBufferIndex >> 8) & 0xFF;
+					const int imageIndex = swapChainBufferIndex & 0xFF;
+					if (_extReality.IsInitialized())
+						return _extReality.GetRTV(viewIndex, imageIndex);
+					else
+						return CD3DX12_CPU_DESCRIPTOR_HANDLE(D3D12_DEFAULT);
+				}
+				break;
+				}
+				return CD3DX12_CPU_DESCRIPTOR_HANDLE(D3D12_DEFAULT);
 			}
 		}
 		else
@@ -772,7 +839,7 @@ FBHandle RendererD3D12::CreateFramebuffer(RPHandle renderPassHandle, std::initia
 			}
 		}
 	};
-	auto GetDSV = [this, &vTex, swapChainBufferIndex](int index)
+	auto GetDSV = [this, &vTex, swapChainBufferIndex](int index) -> D3D12_CPU_DESCRIPTOR_HANDLE
 	{
 		if (swapChainBufferIndex >= 0)
 		{

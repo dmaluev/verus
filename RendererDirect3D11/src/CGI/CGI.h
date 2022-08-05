@@ -24,4 +24,5 @@ namespace verus
 #include "ShaderD3D11.h"
 #include "PipelineD3D11.h"
 #include "CommandBufferD3D11.h"
+#include "ExtRealityD3D11.h"
 #include "RendererD3D11.h"

@@ -123,6 +123,11 @@ void HelloTexturedCubeGame::BaseGame_Update()
 
 void HelloTexturedCubeGame::BaseGame_Draw()
 {
+	// Draw stuff common for all views.
+}
+
+void HelloTexturedCubeGame::BaseGame_DrawView(CGI::RcViewDesc viewDesc)
+{
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_TIMER;
 
@@ -135,19 +140,21 @@ void HelloTexturedCubeGame::BaseGame_Draw()
 	ImGui::Text("HelloTexturedCube");
 	ImGui::Text("Use Mouse and WASD keys");
 
-	Scene::RCamera camera = GetCamera();
-	Transform3 matW = Transform3::rotationZYX(_rotation);
-
 	auto cb = renderer.GetCommandBuffer(); // Default command buffer for this frame.
-
-	_ubShaderVS._matW = matW.UniformBufferFormat();
-	_ubShaderVS._matVP = camera.GetMatrixVP().UniformBufferFormat();
-	_ubShaderFS._phase = pow(abs(0.5f - glm::fract(timer.GetTime() * 0.25f)) * 2, 4.f); // Blink.
 
 	cb->BeginRenderPass(
 		renderer.GetRenderPassHandle_AutoWithDepth(),
 		renderer.GetFramebufferHandle_AutoWithDepth(renderer->GetSwapChainBufferIndex()),
 		{ Vector4(0), Vector4(1) });
+
+	Scene::RCamera camera = GetCamera();
+	camera.SetAspectRatio(renderer.GetCurrentViewAspectRatio());
+	camera.Update();
+	Transform3 matW = Transform3::rotationZYX(_rotation);
+
+	_ubShaderVS._matW = matW.UniformBufferFormat();
+	_ubShaderVS._matVP = camera.GetMatrixVP().UniformBufferFormat();
+	_ubShaderFS._phase = pow(abs(0.5f - glm::fract(timer.GetTime() * 0.25f)) * 2, 4.f); // Blink.
 
 	if (_csh.IsSet()) // Texture is loaded asynchronously. Don't draw the cube, while the texture is loading.
 	{
@@ -161,7 +168,16 @@ void HelloTexturedCubeGame::BaseGame_Draw()
 		cb->DrawIndexed(_indexCount);
 	}
 
-	renderer->ImGuiRenderDrawData(); // Also draw Dear ImGui, please.
+	cb->EndRenderPass();
+
+	// Render pass without depth buffer:
+
+	cb->BeginRenderPass(
+		renderer.GetRenderPassHandle_Auto(),
+		renderer.GetFramebufferHandle_Auto(renderer->GetSwapChainBufferIndex()),
+		{ Vector4(0) });
+
+	renderer->ImGuiRenderDrawData(); // Draw Dear ImGui, please.
 
 	cb->EndRenderPass();
 }

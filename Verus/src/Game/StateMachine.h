@@ -17,6 +17,7 @@ namespace verus
 			void HandleActions();
 			void Update();
 			void Draw();
+			void DrawView(CGI::RcViewDesc viewDesc);
 
 			PState GetCurrentState() const;
 			PState GetRequestedState() const;

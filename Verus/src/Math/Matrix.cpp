@@ -166,8 +166,8 @@ Matrix4 Matrix4::MakePerspective(float fovY, float aspectRatio, float zNear, flo
 		m.setElem(0, 0, xScale);
 		m.setElem(1, 1, yScale);
 		m.setElem(2, 2, zScale);
-		m.setElem(3, 2, zNear * zScale);
 		m.setElem(2, 3, -1);
+		m.setElem(3, 2, zNear * zScale);
 	}
 	else
 	{
@@ -175,9 +175,27 @@ Matrix4 Matrix4::MakePerspective(float fovY, float aspectRatio, float zNear, flo
 		m.setElem(0, 0, xScale);
 		m.setElem(1, 1, yScale);
 		m.setElem(2, 2, zScale);
-		m.setElem(3, 2, -zNear * zScale);
 		m.setElem(2, 3, 1);
+		m.setElem(3, 2, -zNear * zScale);
 	}
+	return m;
+}
+
+Matrix4 Matrix4::MakePerspectiveOffCenter(float l, float r, float b, float t, float zNear, float zFar)
+{
+	VERUS_RT_ASSERT(zNear < zFar);
+	Matrix4 m;
+	memset(&m, 0, sizeof(m));
+	const float xScale = 1 / (r - l);
+	const float yScale = 1 / (t - b);
+	const float zScale = zFar / (zNear - zFar);
+	m.setElem(0, 0, 2 * zNear * xScale);
+	m.setElem(1, 1, 2 * zNear * yScale);
+	m.setElem(2, 0, (l + r) * xScale);
+	m.setElem(2, 1, (t + b) * yScale);
+	m.setElem(2, 2, zScale);
+	m.setElem(2, 3, -1);
+	m.setElem(3, 2, zNear * zScale);
 	return m;
 }
 
@@ -192,9 +210,17 @@ Matrix4 Matrix4::MakeOrtho(float w, float h, float zNear, float zFar)
 	m.setElem(0, 0, 2 / w);
 	m.setElem(1, 1, 2 / h);
 	m.setElem(2, 2, zScale);
-	m.setElem(3, 3, 1);
 	m.setElem(3, 2, zNear * zScale);
+	m.setElem(3, 3, 1);
 	return m;
+}
+
+void Matrix4::UpdateZNearFar(float zNear, float zFar)
+{
+	VERUS_RT_ASSERT(zNear < zFar);
+	const float zScale = zFar / (zNear - zFar);
+	setElem(2, 2, zScale);
+	setElem(3, 2, zNear * zScale);
 }
 
 // Transform3:

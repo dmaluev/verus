@@ -60,6 +60,9 @@
     <ClInclude Include="src\CGI\RenderPass.h">
       <Filter>src\CGI</Filter>
     </ClInclude>
+    <ClInclude Include="src\CGI\ExtRealityD3D11.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -93,6 +96,9 @@
       <Filter>src\ThirdParty\imgui</Filter>
     </ClCompile>
     <ClCompile Include="src\CGI\RenderPass.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\ExtRealityD3D11.cpp">
       <Filter>src\CGI</Filter>
     </ClCompile>
   </ItemGroup>

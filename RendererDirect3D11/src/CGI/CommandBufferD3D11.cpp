@@ -52,7 +52,7 @@ void CommandBufferD3D11::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout 
 {
 }
 
-void CommandBufferD3D11::BeginRenderPass(RPHandle renderPassHandle, FBHandle framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
+void CommandBufferD3D11::BeginRenderPass(RPHandle renderPassHandle, FBHandle framebufferHandle, std::initializer_list<Vector4> ilClearValues, ViewportScissorFlags vsf)
 {
 	VERUS_QREF_RENDERER_D3D11;
 
@@ -74,12 +74,7 @@ void CommandBufferD3D11::BeginRenderPass(RPHandle renderPassHandle, FBHandle fra
 	_subpassIndex = 0;
 	PrepareSubpass();
 
-	if (setViewportAndScissor)
-	{
-		const Vector4 rc(0, 0, static_cast<float>(_pFramebuffer->_width), static_cast<float>(_pFramebuffer->_height));
-		SetViewport({ rc }, 0, 1);
-		SetScissor({ rc });
-	}
+	SetViewportAndScissor(vsf, _pFramebuffer->_width, _pFramebuffer->_height);
 }
 
 void CommandBufferD3D11::NextSubpass()
@@ -152,10 +147,10 @@ void CommandBufferD3D11::SetScissor(std::initializer_list<Vector4> il)
 	UINT count = 0;
 	for (const auto& rc : il)
 		rcD3D11[count++] = CD3D11_RECT(
-			static_cast<LONG>(rc.getX()),
-			static_cast<LONG>(rc.getY()),
-			static_cast<LONG>(rc.getZ()),
-			static_cast<LONG>(rc.getW()));
+			static_cast<LONG>(rc.Left()),
+			static_cast<LONG>(rc.Top()),
+			static_cast<LONG>(rc.Right()),
+			static_cast<LONG>(rc.Bottom()));
 	_pDeviceContext->RSSetScissorRects(count, rcD3D11);
 }
 

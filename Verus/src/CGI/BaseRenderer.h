@@ -57,6 +57,8 @@ namespace verus
 
 			virtual void ResizeSwapChain() = 0;
 
+			virtual PBaseExtReality GetExtReality() { return nullptr; }
+
 			// Which graphics API?
 			virtual Gapi GetGapi() = 0;
 

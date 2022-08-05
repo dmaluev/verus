@@ -123,7 +123,8 @@ DS_ACC_FSO mainFS(VSO si)
 #else
 	const float3 ndcPos = si.clipSpacePos.xyz / si.clipSpacePos.w;
 #endif
-	const float2 tc0 = mul(float4(ndcPos.xy, 0, 1), g_ubPerFrame._matToUV).xy;
+	const float2 tc0 = mul(float4(ndcPos.xy, 0, 1), g_ubPerFrame._matToUV).xy *
+		g_ubPerFrame._tcViewScaleBias.xy + g_ubPerFrame._tcViewScaleBias.zw;
 
 	// Direction and cone shape for spot:
 #ifdef DEF_DIR

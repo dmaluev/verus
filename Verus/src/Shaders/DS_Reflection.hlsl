@@ -19,7 +19,7 @@ struct VSI
 struct VSO
 {
 	float4 pos : SV_Position;
-	float2 tc0 : TEXCOORD0;
+	float4 tc0 : TEXCOORD0;
 };
 
 struct FSO
@@ -34,7 +34,8 @@ VSO mainVS(VSI si)
 
 	// Standard quad:
 	so.pos = float4(mul(si.pos, g_ubReflectionVS._matW), 1);
-	so.tc0 = mul(si.pos, g_ubReflectionVS._matV).xy;
+	so.tc0.xy = mul(si.pos, g_ubReflectionVS._matV).xy;
+	so.tc0.zw = so.tc0.xy * g_ubReflectionVS._tcViewScaleBias.xy + g_ubReflectionVS._tcViewScaleBias.zw;
 
 	return so;
 }
@@ -45,8 +46,8 @@ FSO mainFS(VSO si)
 {
 	FSO so;
 
-	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
-	const float4 reflectSam = g_texReflect.SampleLevel(g_samReflect, si.tc0, 0.0);
+	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0.zw, 0.0);
+	const float4 reflectSam = g_texReflect.SampleLevel(g_samReflect, si.tc0.zw, 0.0);
 
 	// <BackgroundColor>
 	const float2 normalWasSet = ceil(gBuffer1Sam.rg);

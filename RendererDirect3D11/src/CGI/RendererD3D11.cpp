@@ -22,16 +22,25 @@ void RendererD3D11::ReleaseMe()
 void RendererD3D11::Init()
 {
 	VERUS_INIT();
+	VERUS_QREF_CONST_SETTINGS;
 
 	_vRenderPasses.reserve(20);
 	_vFramebuffers.reserve(40);
 
+	if (settings._openXR)
+		_extReality.Init();
+
 	InitD3D();
+
+	if (_extReality.IsInitialized())
+		_extReality.InitByRenderer(this);
 }
 
 void RendererD3D11::Done()
 {
 	WaitIdle();
+
+	_extReality.Done();
 
 	if (ImGui::GetCurrentContext())
 	{
@@ -67,14 +76,25 @@ ComPtr<IDXGIFactory1> RendererD3D11::CreateFactory()
 	return pFactory;
 }
 
-ComPtr<IDXGIAdapter1> RendererD3D11::GetAdapter(ComPtr<IDXGIFactory1> pFactory)
+ComPtr<IDXGIAdapter1> RendererD3D11::GetAdapter(ComPtr<IDXGIFactory1> pFactory) const
 {
 	ComPtr<IDXGIAdapter1> pAdapter;
 	for (UINT index = 0; SUCCEEDED(pFactory->EnumAdapters1(index, &pAdapter)); ++index)
 	{
 		DXGI_ADAPTER_DESC1 adapterDesc = {};
-		if (SUCCEEDED(pAdapter->GetDesc1(&adapterDesc)))
+		pAdapter->GetDesc1(&adapterDesc);
+
+		if (_extReality.IsInitialized())
+		{
+			const LUID adapterLuid = _extReality.GetAdapterLuid();
+			if (!memcmp(&adapterDesc.AdapterLuid, &adapterLuid, sizeof(adapterLuid)))
+				break;
+		}
+		else
+		{
 			break;
+		}
+
 		pAdapter.Reset();
 	}
 
@@ -94,7 +114,7 @@ void RendererD3D11::CreateSwapChainBufferRTV()
 	if (FAILED(hr = _pSwapChain->GetBuffer(0, IID_PPV_ARGS(&_pSwapChainBuffer))))
 		throw VERUS_RUNTIME_ERROR << "GetBuffer(); hr=" << VERUS_HR(hr);
 	D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-	rtvDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+	rtvDesc.Format = ToNativeFormat(Renderer::GetSwapChainFormat(), false);
 	rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 	if (FAILED(hr = _pDevice->CreateRenderTargetView(_pSwapChainBuffer.Get(), &rtvDesc, &_pSwapChainBufferRTV)))
 		throw VERUS_RUNTIME_ERROR << "CreateRenderTargetView(); hr=" << VERUS_HR(hr);
@@ -116,17 +136,19 @@ void RendererD3D11::InitD3D()
 	// </SDL>
 
 	_featureLevel = D3D_FEATURE_LEVEL_11_0;
+	if (_extReality.IsInitialized())
+		_featureLevel = Math::Max(_featureLevel, _extReality.GetMinFeatureLevel());
 
 	ComPtr<IDXGIFactory1> pFactory = CreateFactory();
 	ComPtr<IDXGIAdapter1> pAdapter = GetAdapter(pFactory);
 
 	VERUS_LOG_INFO("Using feature level: 11_0");
 
-	_swapChainBufferCount = settings._displayVSync ? 3 : 2;
+	_swapChainBufferCount = (settings._displayVSync && !settings._openXR) ? 3 : 2;
 
-	_swapChainDesc.BufferDesc.Width = renderer.GetSwapChainWidth();
-	_swapChainDesc.BufferDesc.Height = renderer.GetSwapChainHeight();
-	_swapChainDesc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	_swapChainDesc.BufferDesc.Width = renderer.GetScreenSwapChainWidth();
+	_swapChainDesc.BufferDesc.Height = renderer.GetScreenSwapChainHeight();
+	_swapChainDesc.BufferDesc.Format = TextureD3D11::RemoveSRGB(ToNativeFormat(Renderer::GetSwapChainFormat(), false));
 	_swapChainDesc.SampleDesc.Count = 1;
 	_swapChainDesc.SampleDesc.Quality = 0;
 	_swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -343,13 +365,18 @@ void RendererD3D11::ResizeSwapChain()
 
 	if (FAILED(hr = _pSwapChain->ResizeBuffers(
 		_swapChainDesc.BufferCount,
-		renderer.GetSwapChainWidth(),
-		renderer.GetSwapChainHeight(),
+		renderer.GetScreenSwapChainWidth(),
+		renderer.GetScreenSwapChainHeight(),
 		_swapChainDesc.BufferDesc.Format,
 		_swapChainDesc.Flags)))
 		throw VERUS_RUNTIME_ERROR << "ResizeBuffers(); hr=" << VERUS_HR(hr);
 
 	CreateSwapChainBufferRTV();
+}
+
+PBaseExtReality RendererD3D11::GetExtReality()
+{
+	return &_extReality;
 }
 
 void RendererD3D11::BeginFrame()
@@ -380,7 +407,7 @@ void RendererD3D11::EndFrame()
 	// <Present>
 	if (_swapChainBufferIndex >= 0)
 	{
-		UINT syncInterval = settings._displayVSync ? 1 : 0;
+		UINT syncInterval = (settings._displayVSync && !settings._openXR) ? 1 : 0;
 		UINT flags = 0;
 		if (FAILED(hr = _pSwapChain->Present(syncInterval, flags)))
 			throw VERUS_RUNTIME_ERROR << "Present(); hr=" << VERUS_HR(hr);
@@ -552,7 +579,27 @@ FBHandle RendererD3D11::CreateFramebuffer(RPHandle renderPassHandle, std::initia
 			}
 			else
 			{
-				return _pSwapChainBufferRTV.Get();
+				const ViewType viewType = static_cast<ViewType>(swapChainBufferIndex >> 16);
+				switch (viewType)
+				{
+				case ViewType::none:
+				case ViewType::screen:
+				{
+					return _pSwapChainBufferRTV.Get();
+				}
+				break;
+				case ViewType::openXR:
+				{
+					const int viewIndex = (swapChainBufferIndex >> 8) & 0xFF;
+					const int imageIndex = swapChainBufferIndex & 0xFF;
+					if (_extReality.IsInitialized())
+						return _extReality.GetRTV(viewIndex, imageIndex);
+					else
+						return nullptr;
+				}
+				break;
+				}
+				return nullptr;
 			}
 		}
 		else

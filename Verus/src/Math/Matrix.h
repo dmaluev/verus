@@ -53,7 +53,10 @@ namespace verus
 		const float* ToPointer() const { return reinterpret_cast<const float*>(this); }
 
 		static Matrix4 MakePerspective(float fovY, float aspectRatio, float zNear, float zFar, bool rightHanded = true);
+		static Matrix4 MakePerspectiveOffCenter(float l, float r, float b, float t, float zNear, float zFar);
 		static Matrix4 MakeOrtho(float w, float h, float zNear, float zFar);
+
+		void UpdateZNearFar(float zNear, float zFar);
 	};
 	VERUS_TYPEDEFS(Matrix4);
 

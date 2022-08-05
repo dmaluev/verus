@@ -71,6 +71,15 @@ using namespace Microsoft::WRL;
 #	include "ThirdParty/D3D12MemAlloc.h" // See: https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator
 #endif
 
+// OpenXR:
+#include <openxr/openxr.h>
+#include <openxr/openxr_platform.h>
+#ifdef _DEBUG
+#	pragma comment(lib, "openxr_loaderd.lib")
+#else
+#	pragma comment(lib, "openxr_loader.lib")
+#endif
+
 // Bullet Physics:
 #include <btBulletDynamicsCommon.h>
 #include <BulletCollision/CollisionDispatch/btGhostObject.h>

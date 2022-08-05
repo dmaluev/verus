@@ -16,6 +16,7 @@ namespace verus
 			typedef Map<std::thread::id, ComPtr<ID3D12CommandAllocator>> TMapCommandAllocators;
 
 			D3D12MA::Allocator* _pMaAllocator = nullptr;
+			ExtRealityD3D12                   _extReality;
 			ComPtr<ID3D12Device3>             _pDevice;
 			ComPtr<ID3D12CommandQueue>        _pCommandQueue;
 			ComPtr<IDXGISwapChain4>           _pSwapChain;
@@ -49,7 +50,7 @@ namespace verus
 		private:
 			static void EnableDebugLayer();
 			static ComPtr<IDXGIFactory6> CreateFactory();
-			static ComPtr<IDXGIAdapter4> GetAdapter(ComPtr<IDXGIFactory6> pFactory, D3D_FEATURE_LEVEL featureLevel);
+			ComPtr<IDXGIAdapter4> GetAdapter(ComPtr<IDXGIFactory6> pFactory, D3D_FEATURE_LEVEL featureLevel) const;
 			static bool CheckFeatureSupportAllowTearing(ComPtr<IDXGIFactory6> pFactory);
 			void CreateSwapChainBuffersRTVs();
 			void InitD3D();
@@ -77,6 +78,8 @@ namespace verus
 			virtual void ImGuiRenderDrawData() override;
 
 			virtual void ResizeSwapChain() override;
+
+			virtual PBaseExtReality GetExtReality() override;
 
 			// Which graphics API?
 			virtual Gapi GetGapi() override { return Gapi::direct3D12; }

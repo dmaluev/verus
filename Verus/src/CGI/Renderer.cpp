@@ -29,8 +29,9 @@ void Renderer::Init(PRendererDelegate pDelegate, bool allowInitShaders)
 	VERUS_INIT();
 	VERUS_QREF_CONST_SETTINGS;
 
-	_swapChainWidth = settings._displaySizeWidth;
-	_swapChainHeight = settings._displaySizeHeight;
+	// Screen swap chain is the swap chain of the main window:
+	_screenSwapChainWidth = settings._displaySizeWidth;
+	_screenSwapChainHeight = settings._displaySizeHeight;
 
 	_pRendererDelegate = pDelegate;
 
@@ -63,30 +64,56 @@ void Renderer::Init(PRendererDelegate pDelegate, bool allowInitShaders)
 
 	_commandBuffer.Init();
 
-	// Draw directly to swap chain buffer:
-	const RP::Attachment::LoadOp colorLoadOp = settings._displayOffscreenDraw ? RP::Attachment::LoadOp::dontCare : RP::Attachment::LoadOp::clear;
-	const RP::Attachment::LoadOp depthLoadOp = settings._displayOffscreenDraw ? RP::Attachment::LoadOp::load : RP::Attachment::LoadOp::clear;
-	_rphSwapChain = _pBaseRenderer->CreateRenderPass(
-		{
-			RP::Attachment("Color", Format::srgbB8G8R8A8).SetLoadOp(colorLoadOp).Layout(ImageLayout::undefined, ImageLayout::presentSrc)
-		},
-		{
-			RP::Subpass("Sp0").Color({RP::Ref("Color", ImageLayout::colorAttachment)})
-		},
-		{});
-	_rphSwapChainWithDepth = _pBaseRenderer->CreateRenderPass(
-		{
-			RP::Attachment("Color", Format::srgbB8G8R8A8).SetLoadOp(colorLoadOp).Layout(ImageLayout::undefined, ImageLayout::presentSrc),
-			RP::Attachment("Depth", Format::unormD24uintS8).SetLoadOp(depthLoadOp).Layout(ImageLayout::depthStencilAttachment),
-		},
-		{
-			RP::Subpass("Sp0").Color(
+	// Render passes for drawing directly to swap chain buffer:
+	if (settings._displayOffscreenDraw) // This mode is recommended for most games:
+	{
+		_rphScreenSwapChain = _pBaseRenderer->CreateRenderPass(
 			{
-				RP::Ref("Color", ImageLayout::colorAttachment)
-			}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachment)),
-		},
-		{});
-	// Draw to offscreen buffer, then later to swap chain buffer:
+				RP::Attachment("Color", GetSwapChainFormat()).SetLoadOp(RP::Attachment::LoadOp::dontCare).Layout(ImageLayout::undefined, ImageLayout::presentSrc)
+			},
+			{
+				RP::Subpass("Sp0").Color({RP::Ref("Color", ImageLayout::colorAttachment)})
+			},
+			{});
+		// This render pass is likely not used in this mode:
+		_rphScreenSwapChainWithDepth = _pBaseRenderer->CreateRenderPass(
+			{
+				RP::Attachment("Color", GetSwapChainFormat()).SetLoadOp(RP::Attachment::LoadOp::dontCare).Layout(ImageLayout::undefined, ImageLayout::presentSrc),
+				RP::Attachment("Depth", Format::unormD24uintS8).SetLoadOp(RP::Attachment::LoadOp::load).Layout(ImageLayout::depthStencilAttachment),
+			},
+			{
+				RP::Subpass("Sp0").Color(
+				{
+					RP::Ref("Color", ImageLayout::colorAttachment)
+				}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachment)),
+			},
+			{});
+	}
+	else // Offscreen buffer not used? This mode is recommended for small examples with custom shaders:
+	{
+		_rphScreenSwapChain = _pBaseRenderer->CreateRenderPass(
+			{
+				RP::Attachment("Color", GetSwapChainFormat()).SetLoadOp(RP::Attachment::LoadOp::load).Layout(ImageLayout::presentSrc)
+			},
+			{
+				RP::Subpass("Sp0").Color({RP::Ref("Color", ImageLayout::colorAttachment)})
+			},
+			{});
+		// This render pass is used a lot in this mode:
+		_rphScreenSwapChainWithDepth = _pBaseRenderer->CreateRenderPass(
+			{
+				RP::Attachment("Color", GetSwapChainFormat()).SetLoadOp(RP::Attachment::LoadOp::clear).Layout(ImageLayout::undefined, ImageLayout::presentSrc),
+				RP::Attachment("Depth", Format::unormD24uintS8).SetLoadOp(RP::Attachment::LoadOp::clear).Layout(ImageLayout::depthStencilAttachment),
+			},
+			{
+				RP::Subpass("Sp0").Color(
+				{
+					RP::Ref("Color", ImageLayout::colorAttachment)
+				}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachment)),
+			},
+			{});
+	}
+	// Render passes for drawing to offscreen buffer, then later to swap chain buffer:
 	_rphOffscreen = _pBaseRenderer->CreateRenderPass(
 		{
 			RP::Attachment("Color", Format::srgbR8G8B8A8).LoadOpClear().Layout(ImageLayout::fsReadOnly, ImageLayout::fsReadOnly)
@@ -171,21 +198,20 @@ void Renderer::Init(PRendererDelegate pDelegate, bool allowInitShaders)
 	}
 	if (settings._displayOffscreenDraw)
 	{
-		PipelineDesc pipeDesc(_geoQuad, _shader[SHADER_QUAD], "#", _rphSwapChainWithDepth);
+		PipelineDesc pipeDesc(_geoQuad, _shader[SHADER_QUAD], "#", _rphScreenSwapChain);
 		pipeDesc._topology = PrimitiveTopology::triangleStrip;
 		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_OFFSCREEN_COLOR].Init(pipeDesc);
 	}
 
-	OnSwapChainResized(true, false);
+	UpdateCombinedSwapChainSize();
+	OnScreenSwapChainResized(true, false);
 
-	_pBaseRenderer->ImGuiInit(_rphSwapChainWithDepth);
+	_pBaseRenderer->ImGuiInit(_rphScreenSwapChain);
 	ImGuiUpdateStyle();
 
 	if (_allowInitShaders)
-	{
 		_ds.Init();
-	}
 
 	SetExposureValue(15);
 }
@@ -271,24 +297,82 @@ void Renderer::Update()
 void Renderer::Draw()
 {
 	if (_pRendererDelegate)
+	{
+		_currentViewType = ViewType::none;
+		_currentViewWidth = 0;
+		_currentViewHeight = 0;
+		_currentViewX = 0;
+		_currentViewY = 0;
 		_pRendererDelegate->Renderer_OnDraw();
+
+		{
+			ViewDesc viewDesc;
+			viewDesc._type = ViewType::screen;
+			_currentViewType = viewDesc._type;
+			_currentViewWidth = _screenSwapChainWidth;
+			_currentViewHeight = _screenSwapChainHeight;
+			_currentViewX = 0;
+			_currentViewY = 0;
+			_pRendererDelegate->Renderer_OnDrawView(viewDesc);
+		}
+
+		auto pExtReality = _pBaseRenderer->GetExtReality();
+		if (pExtReality->IsInitialized())
+		{
+			const int viewCount = pExtReality->LocateViews();
+			VERUS_FOR(i, viewCount)
+			{
+				ViewDesc viewDesc;
+				pExtReality->BeginView(i, viewDesc);
+				_currentViewType = viewDesc._type;
+				_currentViewWidth = viewDesc._vpWidth;
+				_currentViewHeight = viewDesc._vpHeight;
+				_currentViewX = viewDesc._vpX;
+				_currentViewY = viewDesc._vpY;
+				_pRendererDelegate->Renderer_OnDrawView(viewDesc);
+				pExtReality->EndView(i);
+			}
+		}
+	}
 }
 
 void Renderer::BeginFrame()
 {
+	auto pExtReality = _pBaseRenderer->GetExtReality();
+	if (pExtReality->IsInitialized())
+		pExtReality->BeginFrame();
+
 	_pBaseRenderer->BeginFrame();
 }
 
 void Renderer::AcquireSwapChainImage()
 {
-	_pBaseRenderer->AcquireSwapChainImage();
+	switch (_currentViewType)
+	{
+	case ViewType::screen:
+	{
+		_pBaseRenderer->AcquireSwapChainImage();
+	}
+	break;
+	case ViewType::openXR:
+	{
+		auto pExtReality = _pBaseRenderer->GetExtReality();
+		if (pExtReality->IsInitialized())
+			pExtReality->AcquireSwapChainImage();
+	}
+	break;
+	}
 }
 
 void Renderer::EndFrame()
 {
 	_pBaseRenderer->EndFrame();
 
-	if (_pBaseRenderer->GetSwapChainBufferIndex() >= 0)
+	auto pExtReality = _pBaseRenderer->GetExtReality();
+	if (pExtReality->IsInitialized())
+		pExtReality->EndFrame();
+
+	if (_pBaseRenderer->GetSwapChainBufferIndex() >= 0) // AcquireSwapChainImage() was called?
 	{
 		_frameCount++;
 
@@ -299,16 +383,17 @@ void Renderer::EndFrame()
 
 bool Renderer::OnWindowSizeChanged(int w, int h)
 {
-	if (_swapChainWidth == w && _swapChainHeight == h)
+	if (_screenSwapChainWidth == w && _screenSwapChainHeight == h)
 		return false;
 
 	_pBaseRenderer->WaitIdle();
 
-	_swapChainWidth = w;
-	_swapChainHeight = h;
+	_screenSwapChainWidth = w;
+	_screenSwapChainHeight = h;
 	_pBaseRenderer->ResizeSwapChain();
 
-	OnSwapChainResized(true, true);
+	UpdateCombinedSwapChainSize();
+	OnScreenSwapChainResized(true, true);
 	if (_ds.IsInitialized())
 		_ds.OnSwapChainResized(true, true);
 	if (Scene::Water::IsValidSingleton())
@@ -325,7 +410,25 @@ bool Renderer::OnWindowSizeChanged(int w, int h)
 	return true;
 }
 
-void Renderer::OnSwapChainResized(bool init, bool done)
+void Renderer::UpdateCombinedSwapChainSize()
+{
+	_combinedSwapChainWidth = 0;
+	_combinedSwapChainHeight = 0;
+
+	{
+		_combinedSwapChainWidth = Math::Max(_combinedSwapChainWidth, _screenSwapChainWidth);
+		_combinedSwapChainHeight = Math::Max(_combinedSwapChainHeight, _screenSwapChainHeight);
+	}
+
+	auto pExtReality = _pBaseRenderer->GetExtReality();
+	if (pExtReality->IsInitialized())
+	{
+		_combinedSwapChainWidth = Math::Max(_combinedSwapChainWidth, pExtReality->GetCombinedSwapChainWidth());
+		_combinedSwapChainHeight = Math::Max(_combinedSwapChainHeight, pExtReality->GetCombinedSwapChainHeight());
+	}
+}
+
+void Renderer::OnScreenSwapChainResized(bool init, bool done)
 {
 	if (done)
 	{
@@ -335,10 +438,10 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 		_pBaseRenderer->DeleteFramebuffer(_fbhOffscreenWithDepth);
 		_pBaseRenderer->DeleteFramebuffer(_fbhOffscreen);
 
-		VERUS_FOR(i, _fbhSwapChainWithDepth.size())
-			_pBaseRenderer->DeleteFramebuffer(_fbhSwapChainWithDepth[i]);
-		VERUS_FOR(i, _fbhSwapChain.size())
-			_pBaseRenderer->DeleteFramebuffer(_fbhSwapChain[i]);
+		VERUS_FOR(i, _fbhScreenSwapChainWithDepth.size())
+			_pBaseRenderer->DeleteFramebuffer(_fbhScreenSwapChainWithDepth[i]);
+		VERUS_FOR(i, _fbhScreenSwapChain.size())
+			_pBaseRenderer->DeleteFramebuffer(_fbhScreenSwapChain[i]);
 
 		_tex.Done();
 	}
@@ -347,16 +450,16 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 	{
 		VERUS_QREF_CONST_SETTINGS;
 
-		const int scaledSwapChainWidth = settings.Scale(_swapChainWidth);
-		const int scaledSwapChainHeight = settings.Scale(_swapChainHeight);
+		const int scaledCombinedSwapChainWidth = settings.Scale(_combinedSwapChainWidth);
+		const int scaledCombinedSwapChainHeight = settings.Scale(_combinedSwapChainHeight);
 
 		TextureDesc texDesc;
 		if (settings._displayOffscreenDraw)
 		{
 			texDesc._name = "Renderer.OffscreenColor";
 			texDesc._format = Format::srgbR8G8B8A8;
-			texDesc._width = _swapChainWidth;
-			texDesc._height = _swapChainHeight;
+			texDesc._width = scaledCombinedSwapChainWidth;
+			texDesc._height = scaledCombinedSwapChainHeight;
 			texDesc._mipLevels = 0;
 			texDesc._flags = TextureDesc::Flags::colorAttachment | TextureDesc::Flags::generateMips | TextureDesc::Flags::exposureMips;
 			texDesc._readbackMip = -1;
@@ -366,44 +469,39 @@ void Renderer::OnSwapChainResized(bool init, bool done)
 		texDesc._clearValue = Vector4(1);
 		texDesc._name = "Renderer.DepthStencil";
 		texDesc._format = Format::unormD24uintS8;
-		texDesc._width = _swapChainWidth;
-		texDesc._height = _swapChainHeight;
+		texDesc._width = scaledCombinedSwapChainWidth;
+		texDesc._height = scaledCombinedSwapChainHeight;
 		texDesc._flags = TextureDesc::Flags::inputAttachment | TextureDesc::Flags::depthSampledW;
 		_tex[TEX_DEPTH_STENCIL].Init(texDesc);
 
-		if (_swapChainWidth != scaledSwapChainWidth || _swapChainHeight != scaledSwapChainHeight)
+		_fbhScreenSwapChain.resize(_pBaseRenderer->GetSwapChainBufferCount());
+		VERUS_FOR(i, _fbhScreenSwapChain.size())
 		{
-			texDesc.Reset();
-			texDesc._clearValue = Vector4(1);
-			texDesc._name = "Renderer.DepthStencilScaled";
-			texDesc._format = Format::unormD24uintS8;
-			texDesc._width = scaledSwapChainWidth;
-			texDesc._height = scaledSwapChainHeight;
-			texDesc._flags = TextureDesc::Flags::inputAttachment | TextureDesc::Flags::depthSampledW;
-			_tex[TEX_DEPTH_STENCIL_SCALED].Init(texDesc);
+			_fbhScreenSwapChain[i] = _pBaseRenderer->CreateFramebuffer(_rphScreenSwapChain, {},
+				_screenSwapChainWidth, _screenSwapChainHeight, i);
 		}
-		else
+		_fbhScreenSwapChainWithDepth.resize(_pBaseRenderer->GetSwapChainBufferCount());
+		VERUS_FOR(i, _fbhScreenSwapChainWithDepth.size())
 		{
-			_tex[TEX_DEPTH_STENCIL_SCALED] = _tex[TEX_DEPTH_STENCIL];
+			_fbhScreenSwapChainWithDepth[i] = _pBaseRenderer->CreateFramebuffer(_rphScreenSwapChainWithDepth, { _tex[TEX_DEPTH_STENCIL] },
+				_screenSwapChainWidth, _screenSwapChainHeight, i);
 		}
-
-		_fbhSwapChain.resize(_pBaseRenderer->GetSwapChainBufferCount());
-		VERUS_FOR(i, _fbhSwapChain.size())
-			_fbhSwapChain[i] = _pBaseRenderer->CreateFramebuffer(_rphSwapChain, {}, _swapChainWidth, _swapChainHeight, i);
-		_fbhSwapChainWithDepth.resize(_pBaseRenderer->GetSwapChainBufferCount());
-		VERUS_FOR(i, _fbhSwapChainWithDepth.size())
-			_fbhSwapChainWithDepth[i] = _pBaseRenderer->CreateFramebuffer(_rphSwapChainWithDepth, { _tex[TEX_DEPTH_STENCIL] }, _swapChainWidth, _swapChainHeight, i);
 
 		if (settings._displayOffscreenDraw)
 		{
 			_fbhOffscreen = _pBaseRenderer->CreateFramebuffer(_rphOffscreen, { _tex[TEX_OFFSCREEN_COLOR] },
-				_swapChainWidth, _swapChainHeight);
+				scaledCombinedSwapChainWidth, scaledCombinedSwapChainHeight);
 			_fbhOffscreenWithDepth = _pBaseRenderer->CreateFramebuffer(_rphOffscreenWithDepth, { _tex[TEX_OFFSCREEN_COLOR], _tex[TEX_DEPTH_STENCIL] },
-				_swapChainWidth, _swapChainHeight);
+				scaledCombinedSwapChainWidth, scaledCombinedSwapChainHeight);
 
 			_cshOffscreenColor = _shader[SHADER_QUAD]->BindDescriptorSetTextures(1, { _tex[TEX_OFFSCREEN_COLOR] });
 		}
 	}
+}
+
+float Renderer::GetCurrentViewAspectRatio() const
+{
+	return static_cast<float>(_currentViewWidth) / static_cast<float>(_currentViewHeight);
 }
 
 void Renderer::DrawQuad(PBaseCommandBuffer pCB)
@@ -424,11 +522,41 @@ void Renderer::DrawOffscreenColor(PBaseCommandBuffer pCB, bool endRenderPass)
 
 	_tex[TEX_OFFSCREEN_COLOR]->GenerateMips();
 
+	switch (_currentViewType)
+	{
+	case ViewType::screen:
+	{
+		pCB->BeginRenderPass(_rphScreenSwapChain, _fbhScreenSwapChain[_pBaseRenderer->GetSwapChainBufferIndex()], { Vector4(0) },
+			ViewportScissorFlags::setScissorForFramebuffer);
+		// Align view and swap chain:
+		const Vector4 rc(
+			static_cast<float>(-_currentViewX),
+			static_cast<float>(-_currentViewY),
+			static_cast<float>(_combinedSwapChainWidth),
+			static_cast<float>(_combinedSwapChainHeight));
+		pCB->SetViewport({ rc }, 0, 1);
+	}
+	break;
+	case ViewType::openXR:
+	{
+		auto pExtReality = _pBaseRenderer->GetExtReality();
+		VERUS_RT_ASSERT(pExtReality->IsInitialized());
+		pCB->BeginRenderPass(pExtReality->GetRenderPassHandle(), pExtReality->GetFramebufferHandle(), { Vector4(0) },
+			ViewportScissorFlags::setScissorForFramebuffer);
+		// Align view and swap chain:
+		const Vector4 rc(
+			static_cast<float>(-_currentViewX),
+			static_cast<float>(-_currentViewY),
+			static_cast<float>(_combinedSwapChainWidth),
+			static_cast<float>(_combinedSwapChainHeight));
+		pCB->SetViewport({ rc }, 0, 1);
+	}
+	break;
+	}
+
 	_ubQuadVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	_ubQuadVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 	ResetQuadMultiplexer();
-
-	pCB->BeginRenderPass(_rphSwapChainWithDepth, _fbhSwapChainWithDepth[_pBaseRenderer->GetSwapChainBufferIndex()], { Vector4(0), Vector4(1) });
 
 	pCB->BindPipeline(_pipe[PIPE_OFFSCREEN_COLOR]);
 	pCB->BindVertexBuffers(_geoQuad);
@@ -460,9 +588,9 @@ TexturePtr Renderer::GetTexOffscreenColor() const
 	return _tex[TEX_OFFSCREEN_COLOR];
 }
 
-TexturePtr Renderer::GetTexDepthStencil(bool scaled) const
+TexturePtr Renderer::GetTexDepthStencil() const
 {
-	return _tex[scaled ? TEX_DEPTH_STENCIL_SCALED : TEX_DEPTH_STENCIL];
+	return _tex[TEX_DEPTH_STENCIL];
 }
 
 void Renderer::OnShaderError(CSZ s)
@@ -473,12 +601,6 @@ void Renderer::OnShaderError(CSZ s)
 void Renderer::OnShaderWarning(CSZ s)
 {
 	VERUS_LOG_WARN("Shader Warning:\n" << s);
-}
-
-float Renderer::GetSwapChainAspectRatio() const
-{
-	VERUS_QREF_CONST_SETTINGS;
-	return static_cast<float>(_swapChainWidth) / static_cast<float>(_swapChainHeight);
 }
 
 void Renderer::ImGuiSetCurrentContext(ImGuiContext* pContext)
@@ -578,14 +700,14 @@ void Renderer::ImGuiUpdateStyle()
 		style.ScaleAllSizes(settings._highDpiScale);
 }
 
-RPHandle Renderer::GetRenderPassHandle_SwapChain() const
+RPHandle Renderer::GetRenderPassHandle_ScreenSwapChain() const
 {
-	return _rphSwapChain;
+	return _rphScreenSwapChain;
 }
 
-RPHandle Renderer::GetRenderPassHandle_SwapChainWithDepth() const
+RPHandle Renderer::GetRenderPassHandle_ScreenSwapChainWithDepth() const
 {
-	return _rphSwapChainWithDepth;
+	return _rphScreenSwapChainWithDepth;
 }
 
 RPHandle Renderer::GetRenderPassHandle_Offscreen() const
@@ -600,42 +722,42 @@ RPHandle Renderer::GetRenderPassHandle_OffscreenWithDepth() const
 
 RPHandle Renderer::GetRenderPassHandle_Auto() const
 {
-	return App::Settings::I()._displayOffscreenDraw ? _rphOffscreen : _rphSwapChain;
+	return App::Settings::I()._displayOffscreenDraw ? _rphOffscreen : _rphScreenSwapChain;
 }
 
 RPHandle Renderer::GetRenderPassHandle_AutoWithDepth() const
 {
-	return App::Settings::I()._displayOffscreenDraw ? _rphOffscreenWithDepth : _rphSwapChainWithDepth;
+	return App::Settings::I()._displayOffscreenDraw ? _rphOffscreenWithDepth : _rphScreenSwapChainWithDepth;
 }
 
-FBHandle Renderer::GetFramebufferHandle_SwapChain(int index) const
+FBHandle Renderer::GetFramebufferHandle_ScreenSwapChain(int index) const
 {
-	return _fbhSwapChain[index];
+	return _fbhScreenSwapChain[index];
 }
 
-FBHandle Renderer::GetFramebufferHandle_SwapChainWithDepth(int index) const
+FBHandle Renderer::GetFramebufferHandle_ScreenSwapChainWithDepth(int index) const
 {
-	return _fbhSwapChainWithDepth[index];
+	return _fbhScreenSwapChainWithDepth[index];
 }
 
-FBHandle Renderer::GetFramebufferHandle_Offscreen(int index) const
+FBHandle Renderer::GetFramebufferHandle_Offscreen() const
 {
 	return _fbhOffscreen;
 }
 
-FBHandle Renderer::GetFramebufferHandle_OffscreenWithDepth(int index) const
+FBHandle Renderer::GetFramebufferHandle_OffscreenWithDepth() const
 {
 	return _fbhOffscreenWithDepth;
 }
 
 FBHandle Renderer::GetFramebufferHandle_Auto(int index) const
 {
-	return App::Settings::I()._displayOffscreenDraw ? _fbhOffscreen : _fbhSwapChain[index];
+	return App::Settings::I()._displayOffscreenDraw ? _fbhOffscreen : _fbhScreenSwapChain[index];
 }
 
 FBHandle Renderer::GetFramebufferHandle_AutoWithDepth(int index) const
 {
-	return App::Settings::I()._displayOffscreenDraw ? _fbhOffscreenWithDepth : _fbhSwapChainWithDepth[index];
+	return App::Settings::I()._displayOffscreenDraw ? _fbhOffscreenWithDepth : _fbhScreenSwapChainWithDepth[index];
 }
 
 ShaderPtr Renderer::GetShaderGenerateMips() const

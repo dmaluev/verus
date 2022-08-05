@@ -45,7 +45,7 @@ void DebugDraw::Init()
 	_offset = 0;
 
 	{
-		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPassHandle_SwapChainWithDepth());
+		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPassHandle_AutoWithDepth());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		pipeDesc._topology = PrimitiveTopology::pointList;
 		_pipe[PIPE_POINTS].Init(pipeDesc);
@@ -53,7 +53,7 @@ void DebugDraw::Init()
 		_pipe[PIPE_POINTS_NO_Z].Init(pipeDesc);
 	}
 	{
-		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPassHandle_SwapChainWithDepth());
+		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPassHandle_AutoWithDepth());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		pipeDesc._topology = PrimitiveTopology::lineList;
 		_pipe[PIPE_LINES].Init(pipeDesc);
@@ -61,7 +61,7 @@ void DebugDraw::Init()
 		_pipe[PIPE_LINES_NO_Z].Init(pipeDesc);
 	}
 	{
-		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPassHandle_SwapChainWithDepth());
+		PipelineDesc pipeDesc(_geo, _shader, "#", renderer.GetRenderPassHandle_AutoWithDepth());
 		pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ALPHA;
 		pipeDesc._rasterizationState._polygonMode = PolygonMode::line;
 		pipeDesc._topology = PrimitiveTopology::triangleList;

@@ -200,5 +200,36 @@ namespace verus
 		public:
 			static CSHandle Make(int value) { return BaseHandle::Make(value); }
 		};
+
+		enum class ViewType : int
+		{
+			none, // Undefined or common (layout) view.
+			screen, // View for main window.
+			splitScreen2H,
+			splitScreen2V,
+			splitScreen2X,
+			splitScreen4,
+			openXR // Per eye view of OpenXR.
+		};
+
+		struct ViewDesc
+		{
+			Transform3 _matV = Transform3::identity();
+			Matrix4    _matP = Matrix4::identity();
+			Math::Pose _pose;
+			float      _fovLeft = 0;
+			float      _fovRight = 0;
+			float      _fovUp = 0;
+			float      _fovDown = 0;
+			float      _zNear = 0;
+			float      _zFar = 0;
+			int        _vpX = 0;
+			int        _vpY = 0;
+			int        _vpWidth = 0;
+			int        _vpHeight = 0;
+			ViewType   _type = ViewType::none;
+			int        _index = 0; // To distinguish between left and right eye or player index in split screen mode.
+		};
+		VERUS_TYPEDEFS(ViewDesc);
 	}
 }

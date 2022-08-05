@@ -4,10 +4,12 @@ VERUS_UBUFFER UB_BlurVS
 {
 	mataff _matW;
 	mataff _matV;
+	float4 _tcViewScaleBias;
 };
 
 VERUS_UBUFFER UB_BlurFS
 {
+	float4 _tcViewScaleBias;
 	float3 _radius_invRadius_stride;
 	int    _sampleCount;
 };

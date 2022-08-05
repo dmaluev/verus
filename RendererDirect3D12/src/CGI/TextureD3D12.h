@@ -54,6 +54,8 @@ namespace verus
 			RcDescriptorHeap GetDescriptorHeapRTV() const { return _dhRTV; }
 			RcDescriptorHeap GetDescriptorHeapDSV() const { return _dhDSV; }
 			RcDescriptorHeap GetDescriptorHeapSampler() const { return _dhSampler; };
+
+			static DXGI_FORMAT RemoveSRGB(DXGI_FORMAT format);
 		};
 		VERUS_TYPEDEFS(TextureD3D12);
 	}

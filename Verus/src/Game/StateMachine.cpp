@@ -38,6 +38,14 @@ void StateMachine::Draw()
 	_changed = (_pCurrentState != pCheck);
 }
 
+void StateMachine::DrawView(CGI::RcViewDesc viewDesc)
+{
+	PcState pCheck = _pCurrentState;
+	_pCurrentState->SetStateMachine(this);
+	_pCurrentState->DrawView(viewDesc);
+	_changed = (_pCurrentState != pCheck);
+}
+
 PState StateMachine::GetCurrentState() const
 {
 	return _pCurrentState;

@@ -5,10 +5,28 @@ namespace verus
 {
 	namespace CGI
 	{
+		// View can be a smaller portion of framebuffer with an offset.
+		enum class ViewportScissorFlags : UINT32
+		{
+			none = 0,
+			setViewportForFramebuffer = (1 << 0),
+			setViewportForCurrentView = (1 << 1),
+			setScissorForFramebuffer = (1 << 2),
+			setScissorForCurrentView = (1 << 3),
+			applyOffscreenScale = (1 << 4),
+			applyHalfScale = (1 << 5),
+			setAllForFramebuffer = setViewportForFramebuffer | setScissorForFramebuffer,
+			setAllForCurrentView = setViewportForCurrentView | setScissorForCurrentView,
+			setAllForCurrentViewScaled = setAllForCurrentView | applyOffscreenScale
+		};
+
 		class BaseCommandBuffer : public Object, public Scheduled
 		{
 		protected:
 			Vector4 _viewportSize = Vector4(0);
+			Vector4 _viewScaleBias = Vector4(0);
+
+			void SetViewportAndScissor(ViewportScissorFlags vsf, int width, int height);
 
 			BaseCommandBuffer() = default;
 			virtual ~BaseCommandBuffer() = default;
@@ -28,7 +46,7 @@ namespace verus
 
 			// <RenderPass>
 			virtual void BeginRenderPass(RPHandle renderPassHandle, FBHandle framebufferHandle,
-				std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor = true) = 0;
+				std::initializer_list<Vector4> ilClearValues, ViewportScissorFlags vsf = ViewportScissorFlags::setAllForCurrentViewScaled) = 0;
 			virtual void NextSubpass() = 0;
 			virtual void EndRenderPass() = 0;
 			// </RenderPass>
@@ -60,6 +78,7 @@ namespace verus
 			// </Draw>
 
 			RcVector4 GetViewportSize() const { return _viewportSize; }
+			RcVector4 GetViewScaleBias() const { return _viewScaleBias; }
 		};
 		VERUS_TYPEDEFS(BaseCommandBuffer);
 

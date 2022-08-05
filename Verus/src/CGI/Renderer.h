@@ -5,35 +5,10 @@ namespace verus
 {
 	namespace CGI
 	{
-		enum class ViewType : int
-		{
-			screen,
-			splitScreen2H,
-			splitScreen2V,
-			splitScreen2X,
-			splitScreen4,
-			openXR
-		};
-
-		struct ViewDesc
-		{
-			Transform3 _matV = Transform3::identity();
-			Matrix4    _matP = Matrix4::identity();
-			Quat       _orientation = Quat(0);
-			Point3     _position = Point3(0);
-			float      _fovLeft = 0;
-			float      _fovRight = 0;
-			float      _fovUp = 0;
-			float      _fovDown = 0;
-			ViewType   _type = ViewType::screen;
-			int        _index = 0;
-		};
-		VERUS_TYPEDEFS(ViewDesc);
-
 		struct RendererDelegate
 		{
 			virtual void Renderer_OnDraw() = 0;
-			virtual void Renderer_OnDrawView(RcViewDesc viewDesc) {}
+			virtual void Renderer_OnDrawView(RcViewDesc viewDesc) = 0;
 		};
 		VERUS_TYPEDEFS(RendererDelegate);
 
@@ -64,7 +39,6 @@ namespace verus
 			{
 				TEX_OFFSCREEN_COLOR,
 				TEX_DEPTH_STENCIL,
-				TEX_DEPTH_STENCIL_SCALED,
 				TEX_COUNT
 			};
 
@@ -94,14 +68,21 @@ namespace verus
 			DeferredShading          _ds;
 			UINT64                   _frameCount = 0;
 			Gapi                     _gapi = Gapi::unknown;
-			int                      _swapChainWidth = 0;
-			int                      _swapChainHeight = 0;
+			int                      _screenSwapChainWidth = 0;
+			int                      _screenSwapChainHeight = 0;
+			int                      _combinedSwapChainWidth = 0;
+			int                      _combinedSwapChainHeight = 0;
+			ViewType                 _currentViewType = ViewType::none;
+			int                      _currentViewWidth = 0;
+			int                      _currentViewHeight = 0;
+			int                      _currentViewX = 0;
+			int                      _currentViewY = 0;
 			float                    _fps = 30;
 			float                    _exposure[2] = {}; // Linear and EV.
-			RPHandle                 _rphSwapChain;
-			RPHandle                 _rphSwapChainWithDepth;
-			Vector<FBHandle>         _fbhSwapChain;
-			Vector<FBHandle>         _fbhSwapChainWithDepth;
+			RPHandle                 _rphScreenSwapChain;
+			RPHandle                 _rphScreenSwapChainWithDepth;
+			Vector<FBHandle>         _fbhScreenSwapChain;
+			Vector<FBHandle>         _fbhScreenSwapChainWithDepth;
 			RPHandle                 _rphOffscreen;
 			RPHandle                 _rphOffscreenWithDepth;
 			FBHandle                 _fbhOffscreen;
@@ -134,28 +115,38 @@ namespace verus
 			void AcquireSwapChainImage();
 			void EndFrame();
 
+			// Window:
+			App::PWindow GetMainWindow() const { return _pMainWindow; }
+			App::PWindow SetMainWindow(App::PWindow p) { return Utils::Swap(_pMainWindow, p); }
 			bool OnWindowSizeChanged(int w, int h);
-			VERUS_P(void OnSwapChainResized(bool init, bool done));
-			int GetSwapChainWidth() const { return _swapChainWidth; }
-			int GetSwapChainHeight() const { return _swapChainHeight; }
+
+			// Swap chain & view:
+			void UpdateCombinedSwapChainSize();
+			VERUS_P(void OnScreenSwapChainResized(bool init, bool done));
+			int GetScreenSwapChainWidth() const { return _screenSwapChainWidth; }
+			int GetScreenSwapChainHeight() const { return _screenSwapChainHeight; }
+			int GetCombinedSwapChainWidth() const { return _combinedSwapChainWidth; }
+			int GetCombinedSwapChainHeight() const { return _combinedSwapChainHeight; }
+			ViewType GetCurrentViewType() const { return _currentViewType; }
+			int GetCurrentViewWidth() const { return _currentViewWidth; }
+			int GetCurrentViewHeight() const { return _currentViewHeight; }
+			int GetCurrentViewX() const { return _currentViewX; }
+			int GetCurrentViewY() const { return _currentViewY; }
+			float GetCurrentViewAspectRatio() const;
+			static Format GetSwapChainFormat() { return Format::srgbB8G8R8A8; }
 
 			// Simple (fullscreen) quad:
 			void DrawQuad(PBaseCommandBuffer pCB = nullptr);
 			void DrawOffscreenColor(PBaseCommandBuffer pCB = nullptr, bool endRenderPass = true);
 			void DrawOffscreenColorSwitchRenderPass(PBaseCommandBuffer pCB = nullptr);
 
-			RDeferredShading GetDS() { return _ds; }
 			CommandBufferPtr GetCommandBuffer() const { return _commandBuffer; }
 			TexturePtr GetTexOffscreenColor() const;
-			TexturePtr GetTexDepthStencil(bool scaled = true) const;
+			TexturePtr GetTexDepthStencil() const;
+			RDeferredShading GetDS() { return _ds; }
 
 			void OnShaderError(CSZ s);
 			void OnShaderWarning(CSZ s);
-
-			// Window:
-			App::PWindow GetMainWindow() const { return _pMainWindow; }
-			App::PWindow SetMainWindow(App::PWindow p) { return Utils::Swap(_pMainWindow, p); }
-			float GetSwapChainAspectRatio() const;
 
 			// ImGui:
 			virtual void ImGuiSetCurrentContext(ImGuiContext* pContext);
@@ -166,16 +157,16 @@ namespace verus
 			UINT64 GetFrameCount() const { return _frameCount; }
 
 			// RenderPass & Framebuffer:
-			RPHandle GetRenderPassHandle_SwapChain() const;
-			RPHandle GetRenderPassHandle_SwapChainWithDepth() const;
+			RPHandle GetRenderPassHandle_ScreenSwapChain() const;
+			RPHandle GetRenderPassHandle_ScreenSwapChainWithDepth() const;
 			RPHandle GetRenderPassHandle_Offscreen() const;
 			RPHandle GetRenderPassHandle_OffscreenWithDepth() const;
 			RPHandle GetRenderPassHandle_Auto() const;
 			RPHandle GetRenderPassHandle_AutoWithDepth() const;
-			FBHandle GetFramebufferHandle_SwapChain(int index) const;
-			FBHandle GetFramebufferHandle_SwapChainWithDepth(int index) const;
-			FBHandle GetFramebufferHandle_Offscreen(int index) const;
-			FBHandle GetFramebufferHandle_OffscreenWithDepth(int index) const;
+			FBHandle GetFramebufferHandle_ScreenSwapChain(int index) const;
+			FBHandle GetFramebufferHandle_ScreenSwapChainWithDepth(int index) const;
+			FBHandle GetFramebufferHandle_Offscreen() const;
+			FBHandle GetFramebufferHandle_OffscreenWithDepth() const;
 			FBHandle GetFramebufferHandle_Auto(int index) const;
 			FBHandle GetFramebufferHandle_AutoWithDepth(int index) const;
 

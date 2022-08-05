@@ -64,6 +64,7 @@ namespace verus
 			static CSZ s_requiredValidationLayers[];
 			static CSZ s_requiredDeviceExtensions[];
 
+			ExtRealityVulkan         _extReality;
 			VkInstance               _instance = VK_NULL_HANDLE;
 			VkDebugUtilsMessengerEXT _debugUtilsMessenger = VK_NULL_HANDLE;
 			VkSurfaceKHR             _surface = VK_NULL_HANDLE;
@@ -104,8 +105,8 @@ namespace verus
 
 		private:
 			static VKAPI_ATTR VkBool32 VKAPI_CALL DebugUtilsMessengerCallback(
-				VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-				VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+				VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverityFlagBits,
+				VkDebugUtilsMessageTypeFlagsEXT messageTypeFlags,
 				const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
 				void* pUserData);
 			bool CheckRequiredValidationLayers();
@@ -114,8 +115,8 @@ namespace verus
 			void FillDebugUtilsMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& vkdumci);
 			void CreateDebugUtilsMessenger();
 			void CreateSurface();
-			bool CheckRequiredDeviceExtensions(VkPhysicalDevice device);
 			QueueFamilyIndices FindQueueFamilyIndices(VkPhysicalDevice device);
+			bool CheckRequiredDeviceExtensions(VkPhysicalDevice device);
 			bool IsDeviceSuitable(VkPhysicalDevice device);
 			void PickPhysicalDevice();
 			void CreateDevice();
@@ -130,7 +131,10 @@ namespace verus
 			// <CreateAndGet>
 			VkCommandBuffer CreateVkCommandBuffer(VkCommandPool commandPool);
 
+			VkInstance GetVkInstance() const { return _instance; }
+			VkPhysicalDevice GetVkPhysicalDevice() const { return _physicalDevice; }
 			VkDevice GetVkDevice() const { return _device; }
+			int GetGraphicsQueueFamilyIndex() const { return _queueFamilyIndices._graphicsFamilyIndex; }
 			VkQueue GetVkGraphicsQueue() const { return _graphicsQueue; }
 			const VkAllocationCallbacks* GetAllocator() const { return nullptr; }
 			VmaAllocator GetVmaAllocator() const { return _vmaAllocator; }
@@ -143,6 +147,8 @@ namespace verus
 			virtual void ImGuiRenderDrawData() override;
 
 			virtual void ResizeSwapChain() override;
+
+			virtual PBaseExtReality GetExtReality() override;
 
 			// Which graphics API?
 			virtual Gapi GetGapi() override { return Gapi::vulkan; }

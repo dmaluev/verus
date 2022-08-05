@@ -9,4 +9,5 @@
 #include "ShaderVulkan.h"
 #include "PipelineVulkan.h"
 #include "CommandBufferVulkan.h"
+#include "ExtRealityVulkan.h"
 #include "RendererVulkan.h"

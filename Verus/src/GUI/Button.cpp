@@ -37,7 +37,7 @@ void Button::Update()
 		VERUS_QREF_RENDERER;
 
 		_icon.Update();
-		const float iconW = GetH() / renderer.GetSwapChainAspectRatio();
+		const float iconW = GetH() / renderer.GetCurrentViewAspectRatio();
 		_icon.SetX(x);
 		_icon.SetY(y);
 		_icon.SetW(iconW);

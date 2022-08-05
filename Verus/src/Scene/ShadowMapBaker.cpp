@@ -49,6 +49,12 @@ void ShadowMapBaker::Done()
 	VERUS_DONE(ShadowMapBaker);
 }
 
+void ShadowMapBaker::UpdateMatrixForCurrentView()
+{
+	VERUS_QREF_SM;
+	_matShadowDS = _matShadow * sm.GetCamera()->GetMatrixInvV();
+}
+
 void ShadowMapBaker::Begin(RcVector3 dirToSun)
 {
 	VERUS_QREF_RENDERER;
@@ -89,10 +95,8 @@ void ShadowMapBaker::Begin(RcVector3 dirToSun)
 
 	_config._penumbraScale = depth * 2;
 
-	renderer.GetCommandBuffer()->BeginRenderPass(_rph, _fbh,
-		{
-			_tex->GetClearValue()
-		});
+	renderer.GetCommandBuffer()->BeginRenderPass(_rph, _fbh, { _tex->GetClearValue() },
+		CGI::ViewportScissorFlags::setAllForFramebuffer);
 }
 
 void ShadowMapBaker::End()
@@ -187,6 +191,17 @@ void CascadedShadowMapBaker::Init(int side)
 
 void CascadedShadowMapBaker::Done()
 {
+}
+
+void CascadedShadowMapBaker::UpdateMatrixForCurrentView()
+{
+	VERUS_QREF_CONST_SETTINGS;
+	if (settings._sceneShadowQuality < App::Settings::Quality::high)
+		return ShadowMapBaker::UpdateMatrixForCurrentView();
+
+	VERUS_QREF_SM;
+	VERUS_FOR(i, 4)
+		_matShadowCSM_DS[i] = _matShadowCSM[i] * sm.GetCamera()->GetMatrixInvV();
 }
 
 void CascadedShadowMapBaker::Begin(RcVector3 dirToSun, int split)
@@ -327,10 +342,8 @@ void CascadedShadowMapBaker::Begin(RcVector3 dirToSun, int split)
 
 	if (0 == _currentSplit)
 	{
-		renderer.GetCommandBuffer()->BeginRenderPass(_rph, _fbh,
-			{
-				_tex->GetClearValue()
-			});
+		renderer.GetCommandBuffer()->BeginRenderPass(_rph, _fbh, { _tex->GetClearValue() },
+			CGI::ViewportScissorFlags::setAllForFramebuffer);
 	}
 
 	const float s = static_cast<float>(_side / 2);

@@ -32,7 +32,7 @@ struct VSI
 struct VSO
 {
 	float4 pos : SV_Position;
-	float2 tc0 : TEXCOORD0;
+	float4 tc0 : TEXCOORD0;
 };
 
 struct FSO
@@ -54,7 +54,8 @@ VSO mainVS(VSI si)
 
 	// Standard quad:
 	so.pos = float4(mul(si.pos, g_ubComposeVS._matW), 1);
-	so.tc0 = mul(si.pos, g_ubComposeVS._matV).xy;
+	so.tc0.xy = mul(si.pos, g_ubComposeVS._matV).xy;
+	so.tc0.zw = so.tc0.xy * g_ubComposeVS._tcViewScaleBias.xy + g_ubComposeVS._tcViewScaleBias.zw;
 
 	return so;
 }
@@ -69,25 +70,25 @@ FSO3 mainFS(VSO si)
 	so.target1 = 0.0;
 	so.target2 = 0.0;
 
-	const float2 ndcPos = ToNdcPos(si.tc0);
+	const float2 ndcPos = ToNdcPos(si.tc0.xy);
 
 	// <Sample>
-	const float4 gBuffer0Sam = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.0);
+	const float4 gBuffer0Sam = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0.zw, 0.0);
 	const float3 albedo = gBuffer0Sam.rgb;
 
-	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
+	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0.zw, 0.0);
 	const float emission = DS_GetEmission(gBuffer1Sam);
 
-	const float4 gBuffer2Sam = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.0);
+	const float4 gBuffer2Sam = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0.zw, 0.0);
 	const float occlusion = gBuffer2Sam.r;
 
-	const float depthSam = g_texDepth.SampleLevel(g_samDepth, si.tc0, 0.0).r;
+	const float depthSam = g_texDepth.SampleLevel(g_samDepth, si.tc0.zw, 0.0).r;
 	const float3 posW = DS_GetPosition(depthSam, g_ubComposeFS._matInvVP, ndcPos);
 	const float depth = ToLinearDepth(depthSam, g_ubComposeFS._zNearFarEx);
 
-	const float4 accAmbSam = g_texAccAmb.SampleLevel(g_samAccAmb, si.tc0, 0.0);
-	const float4 accDiffSam = g_texAccDiff.SampleLevel(g_samAccDiff, si.tc0, 0.0);
-	const float4 accSpecSam = g_texAccSpec.SampleLevel(g_samAccSpec, si.tc0, 0.0);
+	const float4 accAmbSam = g_texAccAmb.SampleLevel(g_samAccAmb, si.tc0.zw, 0.0);
+	const float4 accDiffSam = g_texAccDiff.SampleLevel(g_samAccDiff, si.tc0.zw, 0.0);
+	const float4 accSpecSam = g_texAccSpec.SampleLevel(g_samAccSpec, si.tc0.zw, 0.0);
 	const float3 ambientColor = accAmbSam.rgb * occlusion;
 	// </Sample>
 
@@ -139,25 +140,25 @@ FSO mainFS(VSO si)
 	FSO so;
 
 	// <Sample>
-	const float4 gBuffer0Sam = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0, 0.0);
-	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0, 0.0);
+	const float4 gBuffer0Sam = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0.zw, 0.0);
+	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0.zw, 0.0);
 	float3 composed;
 	{
 #ifdef DEF_CINEMA
 		// Chromatic aberration:
-		const float2 offset = (0.5 - si.tc0) * 0.0015;
-		const float2 tcR = si.tc0 + offset;
-		const float2 tcG = si.tc0;
-		const float2 tcB = si.tc0 - offset;
+		const float2 offset = (0.5 - si.tc0.zw) * 0.0015;
+		const float2 tcR = si.tc0.zw + offset;
+		const float2 tcG = si.tc0.zw;
+		const float2 tcB = si.tc0.zw - offset;
 		composed.r = g_texGBuffer2.SampleLevel(g_samGBuffer2, tcR, 0.0).r;
 		composed.g = g_texGBuffer2.SampleLevel(g_samGBuffer2, tcG, 0.0).g;
 		composed.b = g_texGBuffer2.SampleLevel(g_samGBuffer2, tcB, 0.0).b;
 #else
-		composed = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0, 0.0).rgb;
+		composed = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0.zw, 0.0).rgb;
 #endif
 	}
 #ifdef DEF_BLOOM
-	const float4 gBuffer2Sam = g_texAccSpec.SampleLevel(g_samAccSpec, si.tc0, 0.0);
+	const float4 gBuffer2Sam = g_texAccSpec.SampleLevel(g_samAccSpec, si.tc0.zw, 0.0);
 #endif
 	// </Sample>
 

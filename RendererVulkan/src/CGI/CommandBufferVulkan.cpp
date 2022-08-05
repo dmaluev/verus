@@ -182,7 +182,7 @@ void CommandBufferVulkan::PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout
 		1, &vkimb);
 }
 
-void CommandBufferVulkan::BeginRenderPass(RPHandle renderPassHandle, FBHandle framebufferHandle, std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor)
+void CommandBufferVulkan::BeginRenderPass(RPHandle renderPassHandle, FBHandle framebufferHandle, std::initializer_list<Vector4> ilClearValues, ViewportScissorFlags vsf)
 {
 	VERUS_QREF_RENDERER_VULKAN;
 
@@ -205,12 +205,8 @@ void CommandBufferVulkan::BeginRenderPass(RPHandle renderPassHandle, FBHandle fr
 	vkrpbi.pClearValues = clearValues;
 	// There may be a performance cost for using a render area smaller than the framebuffer, unless it matches the render area granularity for the render pass.
 	vkCmdBeginRenderPass(GetVkCommandBuffer(), &vkrpbi, VK_SUBPASS_CONTENTS_INLINE);
-	if (setViewportAndScissor)
-	{
-		const Vector4 rc(0, 0, static_cast<float>(framebuffer._width), static_cast<float>(framebuffer._height));
-		SetViewport({ rc }, 0, 1);
-		SetScissor({ rc });
-	}
+
+	SetViewportAndScissor(vsf, framebuffer._width, framebuffer._height);
 }
 
 void CommandBufferVulkan::NextSubpass()

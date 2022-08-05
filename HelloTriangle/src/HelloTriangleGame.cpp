@@ -92,6 +92,11 @@ void HelloTriangleGame::BaseGame_Update()
 
 void HelloTriangleGame::BaseGame_Draw()
 {
+	// Draw stuff common for all views.
+}
+
+void HelloTriangleGame::BaseGame_DrawView(CGI::RcViewDesc viewDesc)
+{
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_TIMER;
 
@@ -102,6 +107,11 @@ void HelloTriangleGame::BaseGame_Draw()
 
 	auto cb = renderer.GetCommandBuffer(); // Default command buffer for this frame.
 
+	cb->BeginRenderPass(
+		renderer.GetRenderPassHandle_AutoWithDepth(),
+		renderer.GetFramebufferHandle_AutoWithDepth(renderer->GetSwapChainBufferIndex()),
+		{ Vector4(0), Vector4(1) });
+
 	const Matrix4 matWVP = Matrix4::scale(
 		Vector3(
 			0.9f + 0.2f * sin(timer.GetTime() * VERUS_PI * 0.41f), // Wobble.
@@ -109,11 +119,6 @@ void HelloTriangleGame::BaseGame_Draw()
 			1));
 	_ubShaderVS._matWVP = matWVP.UniformBufferFormat();
 	_ubShaderFS._phase = pow(abs(0.5f - glm::fract(timer.GetTime())) * 2, 4.f); // Blink.
-
-	cb->BeginRenderPass(
-		renderer.GetRenderPassHandle_AutoWithDepth(),
-		renderer.GetFramebufferHandle_AutoWithDepth(renderer->GetSwapChainBufferIndex()),
-		{ Vector4(0), Vector4(1) });
 
 	cb->BindPipeline(_pipe);
 	cb->BindVertexBuffers(_geo);
@@ -123,7 +128,16 @@ void HelloTriangleGame::BaseGame_Draw()
 	_shader->EndBindDescriptors(); // Unmap.
 	cb->Draw(_vertCount);
 
-	renderer->ImGuiRenderDrawData(); // Also draw Dear ImGui, please.
+	cb->EndRenderPass();
+
+	// Render pass without depth buffer:
+
+	cb->BeginRenderPass(
+		renderer.GetRenderPassHandle_Auto(),
+		renderer.GetFramebufferHandle_Auto(renderer->GetSwapChainBufferIndex()),
+		{ Vector4(0) });
+
+	renderer->ImGuiRenderDrawData(); // Draw Dear ImGui, please.
 
 	cb->EndRenderPass();
 }

@@ -110,6 +110,7 @@
     <ClInclude Include="src\Audio\Source.h" />
     <ClInclude Include="src\Audio\StreamPlayer.h" />
     <ClInclude Include="src\CGI\BaseCommandBuffer.h" />
+    <ClInclude Include="src\CGI\BaseExtReality.h" />
     <ClInclude Include="src\CGI\BaseGeometry.h" />
     <ClInclude Include="src\CGI\BasePipeline.h" />
     <ClInclude Include="src\CGI\BaseRenderer.h" />
@@ -202,6 +203,7 @@
     <ClInclude Include="src\GUI\ViewController.h" />
     <ClInclude Include="src\GUI\ViewManager.h" />
     <ClInclude Include="src\GUI\Widget.h" />
+    <ClInclude Include="src\Input\Gamepad.h" />
     <ClInclude Include="src\Input\Input.h" />
     <ClInclude Include="src\Input\InputManager.h" />
     <ClInclude Include="src\Input\DragController.h" />
@@ -337,6 +339,7 @@
     <ClCompile Include="src\Audio\Source.cpp" />
     <ClCompile Include="src\Audio\StreamPlayer.cpp" />
     <ClCompile Include="src\CGI\BaseCommandBuffer.cpp" />
+    <ClCompile Include="src\CGI\BaseExtReality.cpp" />
     <ClCompile Include="src\CGI\BaseGeometry.cpp" />
     <ClCompile Include="src\CGI\BasePipeline.cpp" />
     <ClCompile Include="src\CGI\BaseRenderer.cpp" />
@@ -408,6 +411,7 @@
     <ClCompile Include="src\GUI\ViewController.cpp" />
     <ClCompile Include="src\GUI\ViewManager.cpp" />
     <ClCompile Include="src\GUI\Widget.cpp" />
+    <ClCompile Include="src\Input\Gamepad.cpp" />
     <ClCompile Include="src\Input\Input.cpp" />
     <ClCompile Include="src\Input\InputManager.cpp" />
     <ClCompile Include="src\Input\DragController.cpp" />

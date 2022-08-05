@@ -559,7 +559,7 @@ Scene::PMainCamera Cutscene::GetMainCamera()
 void Cutscene::OnWindowSizeChanged()
 {
 	VERUS_QREF_RENDERER;
-	_camera.SetAspectRatio(renderer.GetSwapChainAspectRatio());
+	_camera.SetAspectRatio(renderer.GetCurrentViewAspectRatio());
 	_camera.Update();
 }
 

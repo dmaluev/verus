@@ -28,8 +28,8 @@ void Ssr::Init()
 	if (settings._postProcessSSR)
 		shaderDesc._userDefines = "SSR";
 	_shader.Init(shaderDesc);
-	_shader->CreateDescriptorSet(0, &s_ubSsrVS, sizeof(s_ubSsrVS), 2, {}, CGI::ShaderStageFlags::vs);
-	_shader->CreateDescriptorSet(1, &s_ubSsrFS, sizeof(s_ubSsrFS), 2,
+	_shader->CreateDescriptorSet(0, &s_ubSsrVS, sizeof(s_ubSsrVS), 16, {}, CGI::ShaderStageFlags::vs);
+	_shader->CreateDescriptorSet(1, &s_ubSsrFS, sizeof(s_ubSsrFS), 16,
 		{
 			CGI::Sampler::nearestClampMipN, // GBuffer0
 			CGI::Sampler::nearestClampMipN, // GBuffer1
@@ -78,14 +78,14 @@ void Ssr::OnSwapChainResized()
 		renderer->DeleteFramebuffer(_fbh);
 	}
 	{
-		const int scaledSwapChainWidth = settings.Scale(renderer.GetSwapChainWidth());
-		const int scaledSwapChainHeight = settings.Scale(renderer.GetSwapChainHeight());
+		const int scaledCombinedSwapChainWidth = settings.Scale(renderer.GetCombinedSwapChainWidth());
+		const int scaledCombinedSwapChainHeight = settings.Scale(renderer.GetCombinedSwapChainHeight());
 
 		_fbh = renderer->CreateFramebuffer(_rph,
 			{
 				renderer.GetDS().GetLightAccSpecularTexture()
 			},
-			scaledSwapChainWidth, scaledSwapChainHeight);
+			scaledCombinedSwapChainWidth, scaledCombinedSwapChainHeight);
 		BindDescriptorSetTextures();
 	}
 }
@@ -134,24 +134,26 @@ void Ssr::Generate()
 
 	Scene::RCamera cam = *sm.GetCamera();
 
-	const Matrix4 matPTex = Matrix4(Math::ToUVMatrix()) * cam.GetMatrixP();
-
 	auto cb = renderer.GetCommandBuffer();
+
+	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
+	cb->BeginRenderPass(_rph, _fbh, { renderer.GetDS().GetLightAccSpecularTexture()->GetClearValue() });
+
+	const Matrix4 matPTex = Matrix4(Math::ToUVMatrix()) * cam.GetMatrixP();
 
 	s_ubSsrVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubSsrVS._matV = Math::ToUVMatrix().UniformBufferFormat();
+	s_ubSsrVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 	s_ubSsrFS._matInvV = cam.GetMatrixInvV().UniformBufferFormat();
 	s_ubSsrFS._matPTex = matPTex.UniformBufferFormat();
 	s_ubSsrFS._matInvP = cam.GetMatrixInvP().UniformBufferFormat();
+	s_ubSsrFS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 	s_ubSsrFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubSsrFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
 	s_ubSsrFS._radius_depthBias_thickness_equalizeDist.x = _radius;
 	s_ubSsrFS._radius_depthBias_thickness_equalizeDist.y = _depthBias;
 	s_ubSsrFS._radius_depthBias_thickness_equalizeDist.z = _thickness;
 	s_ubSsrFS._radius_depthBias_thickness_equalizeDist.w = _equalizeDist;
-
-	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
-	cb->BeginRenderPass(_rph, _fbh, { renderer.GetDS().GetLightAccSpecularTexture()->GetClearValue() });
 
 	cb->BindPipeline(_cubeMapDebugMode ? _pipe[PIPE_DEBUG_CUBE_MAP] : _pipe[PIPE_MAIN]);
 	_shader->BeginBindDescriptors();

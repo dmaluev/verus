@@ -27,6 +27,7 @@ namespace verus
 			virtual void BaseGame_UnloadContent() = 0;
 			virtual void BaseGame_Update() = 0;
 			virtual void BaseGame_Draw() = 0;
+			virtual void BaseGame_DrawView(CGI::RcViewDesc viewDesc) = 0;
 			virtual void BaseGame_OnWindowMoved() {}
 			virtual void BaseGame_OnWindowSizeChanged() {}
 			virtual void BaseGame_OnActivated() {}

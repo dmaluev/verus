@@ -29,6 +29,10 @@ namespace verus
 		glm::vec3 GLM() const { return glm::vec3(getX(), getY(), getZ()); }
 		glm::vec2 GLM2() const { return glm::vec2(getX(), getY()); }
 
+		// XR:
+		Vector3(const XrVector3f& that) : VMath::Vector3(that.x, that.y, that.z) {}
+		XrVector3f XR() const { return { getX(), getY(), getZ() }; }
+
 		static Vector3 Replicate(float x) { return VMath::Vector3(x); }
 
 		// Pointer:
@@ -152,6 +156,10 @@ namespace verus
 		Point3(const glm::vec3& that) : VMath::Point3(that.x, that.y, that.z) {}
 		glm::vec3 GLM() const { return glm::vec3(getX(), getY(), getZ()); }
 		glm::vec2 GLM2() const { return glm::vec2(getX(), getY()); }
+
+		// XR:
+		Point3(const XrVector3f& that) : VMath::Point3(that.x, that.y, that.z) {}
+		XrVector3f XR() const { return { getX(), getY(), getZ() }; }
 
 		static Point3 Replicate(float x) { return VMath::Point3(x); }
 

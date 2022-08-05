@@ -239,9 +239,9 @@ void Water::Draw()
 	s_ubWaterVS._eyePos_invMapSide = float4(cam.GetEyePosition().GLM(), 1.f / _pTerrain->GetMapSide());
 	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.x = 1 / _patchSide;
 	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.y =
-		Math::ComputeDistToMipScale(static_cast<float>(_genSide << 6), static_cast<float>(renderer.GetSwapChainHeight()), _patchSide, cam.GetYFov());
+		Math::ComputeDistToMipScale(static_cast<float>(_genSide << 6), static_cast<float>(renderer.GetCurrentViewWidth()), _patchSide, cam.GetYFov());
 	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.z =
-		Math::ComputeDistToMipScale(static_cast<float>(_pTerrain->GetMapSide()), static_cast<float>(renderer.GetSwapChainHeight()), static_cast<float>(_pTerrain->GetMapSide()), cam.GetYFov());
+		Math::ComputeDistToMipScale(static_cast<float>(_pTerrain->GetMapSide()), static_cast<float>(renderer.GetCurrentViewHeight()), static_cast<float>(_pTerrain->GetMapSide()), cam.GetYFov());
 	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.w = _wavePhase;
 
 	s_ubWaterFS._matV = cam.GetMatrixV().UniformBufferFormat();
@@ -320,7 +320,8 @@ void Water::BeginPlanarReflection(CGI::PBaseCommandBuffer pCB)
 		{
 			_tex[TEX_REFLECTION]->GetClearValue(),
 			_tex[TEX_REFLECTION_DEPTH]->GetClearValue()
-		});
+		},
+		CGI::ViewportScissorFlags::setAllForFramebuffer);
 }
 
 void Water::EndPlanarReflection(CGI::PBaseCommandBuffer pCB)
@@ -366,7 +367,8 @@ void Water::GenerateHeightmapTexture()
 	s_ubGenHeightmapFS._phase.x = _phase;
 	memcpy(&s_ubGenHeightmapFS._amplitudes, _amplitudes, sizeof(_amplitudes));
 
-	cb->BeginRenderPass(_rphGenHeightmap, _fbhGenHeightmap, { _tex[TEX_GEN_HEIGHTMAP]->GetClearValue(), });
+	cb->BeginRenderPass(_rphGenHeightmap, _fbhGenHeightmap, { _tex[TEX_GEN_HEIGHTMAP]->GetClearValue(), },
+		CGI::ViewportScissorFlags::setAllForFramebuffer);
 
 	cb->BindPipeline(_pipe[PIPE_GEN_HEIGHTMAP]);
 	_shader[SHADER_GEN]->BeginBindDescriptors();
@@ -391,7 +393,8 @@ void Water::GenerateNormalsTexture()
 	s_ubGenNormalsFS._textureSize = _tex[TEX_GEN_HEIGHTMAP]->GetSize().GLM();
 	s_ubGenNormalsFS._waterScale.x = 1 / _patchSide;
 
-	cb->BeginRenderPass(_rphGenNormals, _fbhGenNormals, { _tex[TEX_GEN_NORMALS]->GetClearValue(), });
+	cb->BeginRenderPass(_rphGenNormals, _fbhGenNormals, { _tex[TEX_GEN_NORMALS]->GetClearValue(), },
+		CGI::ViewportScissorFlags::setAllForFramebuffer);
 
 	cb->BindPipeline(_pipe[PIPE_GEN_NORMALS]);
 	_shader[SHADER_GEN]->BeginBindDescriptors();

@@ -26,7 +26,7 @@ namespace verus
 			virtual void PipelineImageMemoryBarrier(TexturePtr tex, ImageLayout oldLayout, ImageLayout newLayout, Range mipLevels, Range arrayLayers) override;
 
 			virtual void BeginRenderPass(RPHandle renderPassHandle, FBHandle framebufferHandle,
-				std::initializer_list<Vector4> ilClearValues, bool setViewportAndScissor) override;
+				std::initializer_list<Vector4> ilClearValues, ViewportScissorFlags vsf) override;
 			virtual void NextSubpass() override;
 			virtual void EndRenderPass() override;
 

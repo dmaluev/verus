@@ -44,6 +44,57 @@ void Camera::Update()
 	_update = Update::none;
 }
 
+void Camera::UpdateUsingViewDesc(CGI::RcViewDesc viewDesc)
+{
+	// Per eye data from head-mounted display with desired FOV and Z range.
+
+	_matV = viewDesc._matV;
+	_matP = viewDesc._matP;
+	_matInvV = VMath::orthoInverse(_matV);
+	_matInvP = VMath::inverse(_matP);
+
+	const Matrix3 matR(viewDesc._pose._orientation);
+	_frontDir = matR.getCol2();
+	_upDir = matR.getCol1();
+
+	_eyePos = viewDesc._pose._position;
+	_atPos = _eyePos + _frontDir;
+
+	_yFov = VERUS_PI * 0.5f;
+	_aspectRatio = 1;
+	_zNear = viewDesc._zNear;
+	_zFar = viewDesc._zFar;
+
+	UpdateVP();
+	_update = Update::none;
+}
+
+void Camera::UpdateUsingHeadPose(Math::RcPose pose)
+{
+	// Head data from head-mounted display without FOV.
+
+	_matV = VMath::orthoInverse(Transform3(pose._orientation, Vector3(pose._position)));
+	_matInvV = VMath::orthoInverse(_matV);
+
+	const Matrix3 matR(pose._orientation);
+	_frontDir = matR.getCol2();
+	_upDir = matR.getCol1();
+
+	_eyePos = pose._position;
+	_atPos = _eyePos + _frontDir;
+
+	Update();
+}
+
+void Camera::UpdateZNearFar()
+{
+	_matP.UpdateZNearFar(_zNear, _zFar);
+	_matInvP = VMath::inverse(_matP);
+
+	UpdateVP();
+	_update = Update::none;
+}
+
 void Camera::UpdateView()
 {
 	_frontDir = VMath::normalizeApprox(_atPos - _eyePos);
@@ -205,6 +256,18 @@ void MainCamera::Update()
 	_update = Update::none;
 }
 
+void MainCamera::UpdateUsingViewDesc(CGI::RcViewDesc viewDesc)
+{
+	Camera::UpdateUsingViewDesc(viewDesc);
+	_matPrevVP = GetMatrixVP();
+}
+
+void MainCamera::UpdateUsingHeadPose(Math::RcPose pose)
+{
+	Camera::UpdateUsingHeadPose(pose);
+	_matPrevVP = GetMatrixVP();
+}
+
 void MainCamera::UpdateVP()
 {
 	VERUS_QREF_RENDERER;
@@ -244,8 +307,8 @@ void MainCamera::GetPickingRay(RPoint3 pos, RVector3 dir) const
 
 	int x, y;
 	_pCpp->GetPos(x, y);
-	const float ndcX = (float(x + x + 1) / renderer.GetSwapChainWidth()) - 1;
-	const float ndcY = 1 - (float(y + y + 1) / renderer.GetSwapChainHeight());
+	const float ndcX = (float(x + x + 1) / renderer.GetCurrentViewWidth()) - 1;
+	const float ndcY = 1 - (float(y + y + 1) / renderer.GetCurrentViewHeight());
 	const Vector3 v(
 		ndcX / GetMatrixP().getElem(0, 0),
 		ndcY / GetMatrixP().getElem(1, 1),

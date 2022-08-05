@@ -4,6 +4,7 @@ VERUS_UBUFFER UB_ReflectionVS
 {
 	mataff _matW;
 	mataff _matV;
+	float4 _tcViewScaleBias;
 };
 
 VERUS_UBUFFER UB_ReflectionFS

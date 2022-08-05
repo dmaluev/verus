@@ -12,6 +12,7 @@ void GlobalVarsClipboard::Copy()
 	_vPairs.push_back(Pair(2, App::Settings::P()));
 	_vPairs.push_back(Pair(3, CGI::Renderer::P()));
 	_vPairs.push_back(Pair(4, IO::Async::P()));
+	_vPairs.push_back(Pair(5, Input::InputManager::P()));
 }
 
 void GlobalVarsClipboard::Paste()
@@ -21,4 +22,5 @@ void GlobalVarsClipboard::Paste()
 	App::Settings::Assign(static_cast<App::Settings*>(_vPairs[2]._p));
 	CGI::Renderer::Assign(static_cast<CGI::Renderer*>(_vPairs[3]._p));
 	IO::Async::Assign(static_cast<IO::Async*>(_vPairs[4]._p));
+	Input::InputManager::Assign(static_cast<Input::InputManager*>(_vPairs[5]._p));
 }
