@@ -47,6 +47,7 @@ namespace verus
 
 		private:
 			static CGI::ShaderPwn s_shader;
+			static UB_FontVS      s_ubFontVS;
 			static UB_FontFS      s_ubFontFS;
 
 			CGI::DynamicBuffer<Vertex> _dynBuffer;
@@ -70,6 +71,7 @@ namespace verus
 				int    _skippedLineCount = 0;
 				float  _scale = 1;
 				bool   _center = false;
+				bool   _preserveAspectRatio = false;
 				UINT32 _colorFont = VERUS_COLOR_WHITE;
 			};
 			VERUS_TYPEDEFS(DrawDesc);
@@ -88,7 +90,7 @@ namespace verus
 			int GetLineHeight() const { return _lineHeight; }
 
 			void Draw(RcDrawDesc dd);
-			float DrawWord(CWSZ word, int wordLen, float xoffset, float yoffset, bool onlyCalcWidth, UINT32 color, float scale);
+			float DrawWord(CWSZ word, int wordLen, float xoffset, float yoffset, bool onlyCalcWidth, UINT32 color, float xScale, float yScale);
 			int GetTextWidth(CWSZ text, int textLen = -1);
 
 			static float ToFloatX(int size, float scale);

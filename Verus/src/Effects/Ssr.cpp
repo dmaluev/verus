@@ -132,24 +132,24 @@ void Ssr::Generate()
 		ImGui::DragFloat("SSR equalizeDist", &_equalizeDist, 0.01f);
 	}
 
-	Scene::RCamera cam = *sm.GetCamera();
-
 	auto cb = renderer.GetCommandBuffer();
 
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
 	cb->BeginRenderPass(_rph, _fbh, { renderer.GetDS().GetLightAccSpecularTexture()->GetClearValue() });
 
-	const Matrix4 matPTex = Matrix4(Math::ToUVMatrix()) * cam.GetMatrixP();
+	Scene::RCamera passCamera = *sm.GetPassCamera();
+
+	const Matrix4 matPTex = Matrix4(Math::ToUVMatrix()) * passCamera.GetMatrixP();
 
 	s_ubSsrVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubSsrVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 	s_ubSsrVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
-	s_ubSsrFS._matInvV = cam.GetMatrixInvV().UniformBufferFormat();
+	s_ubSsrFS._matInvV = passCamera.GetMatrixInvV().UniformBufferFormat();
 	s_ubSsrFS._matPTex = matPTex.UniformBufferFormat();
-	s_ubSsrFS._matInvP = cam.GetMatrixInvP().UniformBufferFormat();
+	s_ubSsrFS._matInvP = passCamera.GetMatrixInvP().UniformBufferFormat();
 	s_ubSsrFS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 	s_ubSsrFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
-	s_ubSsrFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
+	s_ubSsrFS._zNearFarEx = passCamera.GetZNearFarEx().GLM();
 	s_ubSsrFS._radius_depthBias_thickness_equalizeDist.x = _radius;
 	s_ubSsrFS._radius_depthBias_thickness_equalizeDist.y = _depthBias;
 	s_ubSsrFS._radius_depthBias_thickness_equalizeDist.z = _thickness;

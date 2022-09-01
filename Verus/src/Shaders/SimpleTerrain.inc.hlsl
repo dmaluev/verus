@@ -4,6 +4,7 @@ VERUS_UBUFFER UB_SimpleTerrainVS
 {
 	mataff _matW;
 	matrix _matVP;
+	float4 _headPos;
 	float4 _eyePos;
 	float4 _invMapSide_clipDistanceOffset;
 };

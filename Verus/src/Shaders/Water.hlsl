@@ -69,14 +69,14 @@ float2 GetWaterHeightAt(
 	Texture2D texTerrainHeightmap, SamplerState samTerrainHeightmap,
 	Texture2D texGenHeightmap, SamplerState samGenHeightmap,
 	float2 pos, float waterScale, float invMapSide,
-	float distToEye, float distToMipScale, float landDistToMipScale)
+	float distToHead, float distToMipScale, float landDistToMipScale)
 {
 	const float2 tc = pos * waterScale;
 	const float2 tcLand = pos * invMapSide + 0.5;
 
 	float landHeight;
 	{
-		const float mip = log2(max(1.0, distToEye * landDistToMipScale));
+		const float mip = log2(max(1.0, distToHead * landDistToMipScale));
 		const float texelCenter = 0.5 * invMapSide * exp2(mip);
 		landHeight = UnpackTerrainHeight(texTerrainHeightmap.SampleLevel(samTerrainHeightmap, tcLand + texelCenter, mip).r);
 	}
@@ -84,7 +84,7 @@ float2 GetWaterHeightAt(
 
 	float seaWaterHeight;
 	{
-		const float mip = log2(max(1.0, distToEye * distToMipScale));
+		const float mip = log2(max(1.0, distToHead * distToMipScale));
 		const float texelCenter = g_waterPatchTexelCenter * exp2(mip);
 		seaWaterHeight = texGenHeightmap.SampleLevel(samGenHeightmap, tc + texelCenter, mip).r;
 	}
@@ -93,7 +93,7 @@ float2 GetWaterHeightAt(
 
 	const float height = lerp(seaWaterHeight, beachWaterHeight, landMask);
 
-	const float scale = saturate(distToEye); // Too close -> wave can get clipped.
+	const float scale = saturate(distToHead); // Too close -> wave can get clipped.
 
 	return float2((height + g_adjustHeightBy) * scale * scale, landHeight);
 }
@@ -103,6 +103,7 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
+	const float3 headPos = g_ubWaterVS._headPos.xyz;
 	const float3 eyePos = g_ubWaterVS._eyePos_invMapSide.xyz;
 	const float invMapSide = g_ubWaterVS._eyePos_invMapSide.w;
 	const float waterScale = g_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.x;
@@ -112,14 +113,14 @@ VSO mainVS(VSI si)
 
 	float3 posW = mul(float4(si.pos.xyz, 1), g_ubWaterVS._matW).xyz;
 
+	const float distToHead = distance(posW, headPos);
 	const float3 dirToEye = eyePos - posW;
-	const float distToEye = length(dirToEye);
 
 	const float2 height_landHeight = GetWaterHeightAt(
 		g_texTerrainHeightmapVS, g_samTerrainHeightmapVS,
 		g_texGenHeightmapVS, g_samGenHeightmapVS,
 		posW.xz, waterScale, invMapSide,
-		distToEye, distToMipScale, landDistToMipScale);
+		distToHead, distToMipScale, landDistToMipScale);
 
 	const float2 tc0 = posW.xz * waterScale;
 
@@ -135,7 +136,7 @@ VSO mainVS(VSI si)
 	}
 	// </Waves>
 
-	posW.y = height_landHeight.x + wave * 2.0 * saturate(1.0 / (distToEye * 0.01));
+	posW.y = height_landHeight.x + wave * 2.0 * saturate(1.0 / (distToHead * 0.01));
 
 	so.pos = mul(float4(posW, 1), g_ubWaterVS._matVP);
 	so.tc0 = tc0;

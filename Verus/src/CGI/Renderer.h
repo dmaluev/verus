@@ -73,10 +73,13 @@ namespace verus
 			int                      _combinedSwapChainWidth = 0;
 			int                      _combinedSwapChainHeight = 0;
 			ViewType                 _currentViewType = ViewType::none;
+			int                      _currentViewIndex = 0;
 			int                      _currentViewWidth = 0;
 			int                      _currentViewHeight = 0;
 			int                      _currentViewX = 0;
 			int                      _currentViewY = 0;
+			float                    _preferredZNear = 0.1f;
+			float                    _preferredZFar = 10000;
 			float                    _fps = 30;
 			float                    _exposure[2] = {}; // Linear and EV.
 			RPHandle                 _rphScreenSwapChain;
@@ -134,6 +137,8 @@ namespace verus
 			int GetCurrentViewY() const { return _currentViewY; }
 			float GetCurrentViewAspectRatio() const;
 			static Format GetSwapChainFormat() { return Format::srgbB8G8R8A8; }
+			float GetPreferredZNear() const { return _preferredZNear; }
+			float GetPreferredZFar() const { return _preferredZFar; }
 
 			// Simple (fullscreen) quad:
 			void DrawQuad(PBaseCommandBuffer pCB = nullptr);

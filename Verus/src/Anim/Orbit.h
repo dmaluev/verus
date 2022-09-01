@@ -32,6 +32,9 @@ namespace verus
 			void AddPitchFree(float a);
 			void AddYawFree(float a);
 
+			float GetPitch() const { return _pitch; }
+			float GetYaw() const { return _yaw; }
+
 			RcMatrix3 GetMatrix() const { return _matrix; }
 
 			float GetOffsetStrength() const { return _offsetStrength; }

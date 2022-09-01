@@ -45,11 +45,12 @@ namespace verus
 			bool         _displayOffscreenDraw = true;
 			float        _displayOffscreenScale = 1;
 			int          _gpuAnisotropyLevel = 4;
-			int          _gpuAntialiasingLevel = 0;
+			int          _gpuAntiAliasingLevel = 0;
 			Quality      _gpuShaderQuality = Quality::medium;
 			bool         _gpuTessellation = false;
 			int	         _gpuTextureLodLevel = 0;
 			bool         _gpuTrilinearFilter = true;
+			bool         _postProcessAntiAliasing = false;
 			bool         _postProcessBloom = true;
 			bool         _postProcessCinema = false;
 			bool         _postProcessLightShafts = true;
@@ -65,6 +66,7 @@ namespace verus
 			bool operator!=(const QualitySettings& that) const;
 
 			void SetQuality(OverallQuality q);
+			void SetXrQuality();
 			OverallQuality DetectQuality() const;
 		};
 		VERUS_TYPEDEFS(QualitySettings);
@@ -75,13 +77,10 @@ namespace verus
 		public:
 			int _d3d12_dhViewsCapacity = 10000; // D3D limit is one million.
 			int _d3d12_dhSamplersCapacity = 500; // D3D limit is 2048.
-			int _ds_ubPerFrameCapacity = 4;
-			int _ds_ubTexturesFSCapacity = 4;
-			int _ds_ubPerMeshVSCapacity = 4;
-			int _ds_ubShadowFSCapacity = 4;
-			int _ds_ubAOPerFrameCapacity = 2;
-			int _ds_ubAOTexturesFSCapacity = 2;
-			int _ds_ubAOPerMeshVSCapacity = 10;
+			int _ds_ubPerFrameCapacity = 16;
+			int _ds_ubTexturesFSCapacity = 16;
+			int _ds_ubPerMeshVSCapacity = 16;
+			int _ds_ubShadowFSCapacity = 16;
 			int _generateMips_ubCapacity = 50;
 			int _generateCubeMapMips_ubCapacity = 50;
 			int _grass_ubVSCapacity = 16;

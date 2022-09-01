@@ -191,8 +191,8 @@ void SceneNode::LoadXML(pugi::xml_node node)
 	_tr.FromString(node.attribute("tr").value());
 }
 
-float SceneNode::GetDistToEyeSq() const
+float SceneNode::GetDistToHeadSq() const
 {
 	VERUS_QREF_SM;
-	return VMath::distSqr(sm.GetCamera()->GetEyePosition(), GetPosition());
+	return VMath::distSqr(sm.GetHeadCamera()->GetEyePosition(), GetPosition());
 }

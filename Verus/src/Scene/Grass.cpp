@@ -47,7 +47,7 @@ void Grass::InitStatic()
 			CGI::Sampler::linearMipL, // Height
 			CGI::Sampler::nearestMipN, // Normal
 			CGI::Sampler::nearestMipN, // MLayer
-		}, CGI::ShaderStageFlags::vs);
+		}, CGI::ShaderStageFlags::vs | CGI::ShaderStageFlags::gs);
 	s_shader->CreateDescriptorSet(1, &s_ubGrassFS, sizeof(s_ubGrassFS), settings.GetLimits()._grass_ubFSCapacity,
 		{
 			CGI::Sampler::linearMipL
@@ -207,18 +207,21 @@ void Grass::Layout()
 {
 	VERUS_QREF_SM;
 
-	const float zFar = sm.GetCamera()->GetZFar();
-	sm.GetCamera()->SetZFar(128);
-	sm.GetCamera()->UpdateZNearFar();
+	// <Traverse>
+	const float zFar = sm.GetPassCamera()->GetZFar();
+	sm.GetPassCamera()->SetZFar(128);
+	sm.GetPassCamera()->UpdateZNearFar();
 
+	// Reuse terrain's quadtree:
 	Math::RQuadtreeIntegral quadtree = _pTerrain->GetQuadtree();
 	_visiblePatchCount = 0;
 	quadtree.SetDelegate(this);
 	quadtree.TraverseVisible();
 	quadtree.SetDelegate(_pTerrain);
 
-	sm.GetCamera()->SetZFar(zFar);
-	sm.GetCamera()->UpdateZNearFar();
+	sm.GetPassCamera()->SetZFar(zFar);
+	sm.GetPassCamera()->UpdateZNearFar();
+	// </Traverse>
 }
 
 void Grass::Draw()
@@ -234,22 +237,23 @@ void Grass::Draw()
 
 	const bool drawingDepth = Scene::SceneManager::IsDrawingDepth(Scene::DrawDepth::automatic);
 
+	auto cb = renderer.GetCommandBuffer();
+
 	const UINT32 bushMask = _bushMask & 0xFF; // Use only first 8 bushes, next 8 are reserved.
 	const int half = _mapSide >> 1;
 	const int offset = _instanceCount;
 
-	auto cb = renderer.GetCommandBuffer();
-
 	s_ubGrassVS._matW = Transform3::UniformBufferFormatIdentity();
-	s_ubGrassVS._matWV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
-	s_ubGrassVS._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubGrassVS._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
+	s_ubGrassVS._matWV = sm.GetPassCamera()->GetMatrixV().UniformBufferFormat();
+	s_ubGrassVS._matVP = sm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubGrassVS._matP = sm.GetPassCamera()->GetMatrixP().UniformBufferFormat();
 	s_ubGrassVS._phase_invMapSide_bushMask.x = _phase;
 	s_ubGrassVS._phase_invMapSide_bushMask.y = 1.f / _mapSide;
 	s_ubGrassVS._phase_invMapSide_bushMask.z = *(float*)&bushMask;
-	s_ubGrassVS._posEye = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
+	s_ubGrassVS._headPos = float4(sm.GetHeadCamera()->GetEyePosition().GLM(), 0);
 	s_ubGrassVS._viewportSize = cb->GetViewportSize().GLM();
 	s_ubGrassVS._warp_turb = Vector4(_warpSpring.GetOffset(), _turbulence).GLM();
+	s_ubGrassVS._spriteMat = sm.GetPassCamera()->GetMatrixV().ToSpriteMat();
 
 	cb->BindVertexBuffers(_geo);
 	cb->BindIndexBuffer(_geo);
@@ -298,15 +302,15 @@ void Grass::Draw()
 
 	s_shader->EndBindDescriptors();
 
-	_geo->UpdateVertexBuffer(_vInstanceBuffer.data(), 1, cb.Get(), _instanceCount - offset, offset);
+	_geo->UpdateVertexBuffer(&_vInstanceBuffer[offset], 1, cb.Get(), _instanceCount - offset, offset);
 }
 
 void Grass::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center)
 {
 	VERUS_QREF_SM;
 
-	const RcPoint3 eyePos = sm.GetMainCamera()->GetEyePosition();
-	const float distSq = VMath::distSqr(eyePos, center);
+	const RcPoint3 headPos = sm.GetHeadCamera()->GetEyePosition();
+	const float distSq = VMath::distSqr(headPos, center);
 	if (distSq >= 128 * 128.f)
 		return;
 

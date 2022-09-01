@@ -176,10 +176,10 @@ void Bloom::Generate()
 		cb->BeginRenderPass(_rphLightShafts, _fbh, { _tex[TEX_PING]->GetClearValue() },
 			CGI::ViewportScissorFlags::setAllForCurrentViewScaled | CGI::ViewportScissorFlags::applyHalfScale);
 
-		s_ubBloomLightShaftsFS._matInvVP = Matrix4(VMath::inverse(sm.GetMainCamera()->GetMatrixVP())).UniformBufferFormat();
+		s_ubBloomLightShaftsFS._matInvVP = Matrix4(VMath::inverse(sm.GetPassCamera()->GetMatrixVP())).UniformBufferFormat();
 		s_ubBloomLightShaftsFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
 		s_ubBloomLightShaftsFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-		s_ubBloomLightShaftsFS._eyePos = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
+		s_ubBloomLightShaftsFS._eyePos = float4(sm.GetPassCamera()->GetEyePosition().GLM(), 0);
 		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.x = _maxDist;
 		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.y = _sunGloss;
 		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.z = _wideStrength;

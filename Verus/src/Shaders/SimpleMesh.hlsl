@@ -140,6 +140,17 @@ FSO mainFS(VSO si)
 	so.color.rgb = albedo.rgb * si.color0.rgb;
 	so.color.rgb = SaturateHDR(so.color.rgb);
 	so.color.a = 1.0;
+#elif defined(DEF_PLASMA_FX)
+	const float2 tc0 = si.posW_depth.xz;
+	const float3 normal = normalize(si.nrmW);
+	const float3 dirToEye = normalize(si.dirToEye.xyz);
+
+	const float4 albedo = g_texA.Sample(g_samA, tc0);
+
+	const float alpha = max(saturate(dot(normal, dirToEye)), g_ubSimplePerFrame._fogColor.a);
+
+	so.color.rgb = albedo.rgb * (alpha * alpha) * si.color0.rgb;
+	so.color.a = 1.0;
 #elif defined(DEF_BAKE_AO)
 	// <Material>
 	const float4 mm_tc0ScaleBias = g_ubSimplePerMaterialFS._tc0ScaleBias;
@@ -272,6 +283,8 @@ FSO mainFS(VSO si)
 //@main:#TextureInstanced TEXTURE INSTANCED
 //@main:#TextureRobotic   TEXTURE ROBOTIC
 //@main:#TextureSkinned   TEXTURE SKINNED
+
+//@main:#PlasmaFX PLASMA_FX
 
 //@main:#BakeAO          BAKE_AO
 //@main:#BakeAOInstanced BAKE_AO INSTANCED

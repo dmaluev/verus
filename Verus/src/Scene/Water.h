@@ -68,8 +68,9 @@ namespace verus
 			CGI::CSHandle                 _cshGenNormals;
 			CGI::RPHandle                 _rphReflection;
 			CGI::FBHandle                 _fbhReflection;
-			MainCamera                    _camera;
-			PMainCamera                   _pPrevCamera = nullptr;
+			MainCamera                    _headCamera;
+			PCamera                       _pPrevPassCamera = nullptr;
+			PMainCamera                   _pPrevHeadCamera = nullptr;
 			const int                     _genSide = 1024;
 			int                           _gridWidth = 128;
 			int                           _gridHeight = 512;

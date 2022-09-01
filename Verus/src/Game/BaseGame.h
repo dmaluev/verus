@@ -25,6 +25,7 @@ namespace verus
 			virtual void BaseGame_UpdateSettings(App::Window::RDesc windowDesc) {}
 			virtual void BaseGame_LoadContent() = 0;
 			virtual void BaseGame_UnloadContent() = 0;
+			virtual void BaseGame_EnterRequestedState() {}
 			virtual void BaseGame_Update() = 0;
 			virtual void BaseGame_Draw() = 0;
 			virtual void BaseGame_DrawView(CGI::RcViewDesc viewDesc) = 0;
@@ -51,7 +52,7 @@ namespace verus
 			void ToggleFullscreen();
 
 			// Camera:
-			Scene::RCamera GetCamera();
+			Scene::RCamera GetDefaultCamera();
 			RSpirit GetCameraSpirit();
 
 			// Configuration:

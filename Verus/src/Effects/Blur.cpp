@@ -152,6 +152,8 @@ void Blur::Init()
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_AA].Init(pipeDesc);
+		pipeDesc._shaderBranch = "#AntiAliasingOff";
+		_pipe[PIPE_AA_OFF].Init(pipeDesc);
 	}
 	{
 		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#Motion", _rphMotionBlur);
@@ -159,6 +161,8 @@ void Blur::Init()
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
 		pipeDesc.DisableDepthTest();
 		_pipe[PIPE_MOTION_BLUR].Init(pipeDesc);
+		pipeDesc._shaderBranch = "#MotionOff";
+		_pipe[PIPE_MOTION_BLUR_OFF].Init(pipeDesc);
 	}
 
 	OnSwapChainResized();
@@ -390,7 +394,7 @@ void Blur::GenerateForDepthOfField()
 		s_ubBlurVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 		s_ubBlurFS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 		UpdateUniformBuffer(radius, 0, renderer.GetCurrentViewWidth(), samplesPerPixel, maxSamples);
-		s_ubExtraBlurFS._zNearFarEx = sm.GetMainCamera()->GetZNearFarEx().GLM();
+		s_ubExtraBlurFS._zNearFarEx = sm.GetPassCamera()->GetZNearFarEx().GLM();
 		s_ubExtraBlurFS._textureSize = cb->GetViewportSize().GLM();
 		s_ubExtraBlurFS._focusDist_blurStrength.x = _dofFocusDist;
 		s_ubExtraBlurFS._focusDist_blurStrength.y = _dofBlurStrength;
@@ -499,6 +503,7 @@ void Blur::GenerateForBloom(bool forLightShafts)
 
 void Blur::GenerateForAntiAliasing()
 {
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
 
@@ -511,10 +516,10 @@ void Blur::GenerateForAntiAliasing()
 	s_ubBlurVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 	s_ubBlurVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 	s_ubBlurFS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
-	s_ubExtraBlurFS._zNearFarEx = sm.GetMainCamera()->GetZNearFarEx().GLM();
+	s_ubExtraBlurFS._zNearFarEx = sm.GetPassCamera()->GetZNearFarEx().GLM();
 	s_ubExtraBlurFS._textureSize = cb->GetViewportSize().GLM();
 
-	cb->BindPipeline(_pipe[PIPE_AA]);
+	cb->BindPipeline(_pipe[settings._postProcessAntiAliasing ? PIPE_AA : PIPE_AA_OFF]);
 	_shader->BeginBindDescriptors();
 	cb->BindDescriptors(_shader, 0);
 	cb->BindDescriptors(_shader, 1, _cshAntiAliasing);
@@ -528,23 +533,24 @@ void Blur::GenerateForAntiAliasing()
 
 void Blur::GenerateForMotionBlur()
 {
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
 
 	auto cb = renderer.GetCommandBuffer();
 
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
-	cb->BeginRenderPass(_rphMotionBlur, _fbhMotionBlur, { renderer.GetDS().GetComposedTextureB()->GetClearValue() });
+	cb->BeginRenderPass(_rphMotionBlur, _fbhMotionBlur, { renderer.GetDS().GetComposedTextureA()->GetClearValue() });
 
 	s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubBlurVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 	s_ubBlurVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 	s_ubBlurFS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
-	s_ubExtraBlurFS._matInvVP = Matrix4(VMath::inverse(sm.GetMainCamera()->GetMatrixVP())).UniformBufferFormat();
-	s_ubExtraBlurFS._matPrevVP = sm.GetMainCamera()->GetMatrixPrevVP().UniformBufferFormat();
-	s_ubExtraBlurFS._zNearFarEx = sm.GetMainCamera()->GetZNearFarEx().GLM();
+	s_ubExtraBlurFS._matInvVP = Matrix4(VMath::inverse(sm.GetViewCamera()->GetMatrixVP())).UniformBufferFormat();
+	s_ubExtraBlurFS._matPrevVP = sm.GetViewCamera()->GetMatrixPrevVP().UniformBufferFormat();
+	s_ubExtraBlurFS._zNearFarEx = sm.GetViewCamera()->GetZNearFarEx().GLM();
 
-	cb->BindPipeline(_pipe[PIPE_MOTION_BLUR]);
+	cb->BindPipeline(_pipe[settings._postProcessMotionBlur ? PIPE_MOTION_BLUR : PIPE_MOTION_BLUR_OFF]);
 	_shader->BeginBindDescriptors();
 	cb->BindDescriptors(_shader, 0);
 	cb->BindDescriptors(_shader, 1, _cshMotionBlur);

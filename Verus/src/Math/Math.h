@@ -113,6 +113,7 @@ namespace verus
 
 		// Interpolation, splines:
 		float Lerp(float a, float b, float t);
+		float LerpAngles(float a, float b, float t);
 		float SmoothStep(float a, float b, float t);
 		float ApplyEasing(Easing easing, float x);
 		Easing EasingFromString(CSZ s);

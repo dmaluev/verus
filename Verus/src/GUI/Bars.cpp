@@ -27,6 +27,10 @@ void Bars::Draw()
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_VM;
 
+	auto pExtReality = renderer->GetExtReality();
+	if (pExtReality->IsInitialized())
+		return; // No bars in XR.
+
 	const float currentAspectRatio = renderer.GetCurrentViewAspectRatio();
 	const float barsRatio = Math::Max(0.f, 1 - (1 / _aspectRatio * currentAspectRatio));
 	if (!barsRatio)
@@ -46,12 +50,12 @@ void Bars::Draw()
 	vm.BindPipeline(ViewManager::PIPE_SOLID_COLOR, cb);
 	shader->BeginBindDescriptors();
 
-	ubGui._matW = Math::QuadMatrix(x, y, GetW(), GetH() * barRatio).UniformBufferFormat();
+	ubGui._matWVP = Math::QuadMatrix(x, y, GetW(), GetH() * barRatio).UniformBufferFormat();
 	cb->BindDescriptors(shader, 0);
 	cb->BindDescriptors(shader, 1, vm.GetDefaultComplexSetHandle());
 	renderer.DrawQuad(cb.Get());
 
-	ubGui._matW = Math::QuadMatrix(x, y + GetH() * (1 - barRatio), GetW(), GetH() * barRatio).UniformBufferFormat();
+	ubGui._matWVP = Math::QuadMatrix(x, y + GetH() * (1 - barRatio), GetW(), GetH() * barRatio).UniformBufferFormat();
 	cb->BindDescriptors(shader, 0);
 	cb->BindDescriptors(shader, 1, vm.GetDefaultComplexSetHandle());
 	renderer.DrawQuad(cb.Get());

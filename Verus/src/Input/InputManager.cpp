@@ -52,6 +52,8 @@ bool InputManager::HandleEvent(SDL_Event& event)
 			return false;
 		SwitchRelativeMouseMode(event.key.keysym.scancode);
 		OnKeyDown(event.key.keysym.scancode);
+		const UINT32 atom = ToAtom(1, PathEntity::keyboard, 1, event.key.keysym.scancode);
+		UpdateActionStateBoolean(atom, true);
 	}
 	break;
 	case SDL_KEYUP:
@@ -59,6 +61,8 @@ bool InputManager::HandleEvent(SDL_Event& event)
 		if (ImGui::GetIO().WantCaptureKeyboard)
 			return false;
 		OnKeyUp(event.key.keysym.scancode);
+		const UINT32 atom = ToAtom(1, PathEntity::keyboard, 1, event.key.keysym.scancode);
+		UpdateActionStateBoolean(atom, false);
 	}
 	break;
 	case SDL_TEXTINPUT:
@@ -95,6 +99,8 @@ bool InputManager::HandleEvent(SDL_Event& event)
 			if (event.button.button < VERUS_BUTTON_WHEELUP)
 				OnMouseDown(event.button.button);
 		}
+		const UINT32 atom = ToAtom(1, PathEntity::mouse, 1, event.button.button);
+		UpdateActionStateBoolean(atom, true);
 	}
 	break;
 	case SDL_MOUSEBUTTONUP:
@@ -103,22 +109,20 @@ bool InputManager::HandleEvent(SDL_Event& event)
 			return false;
 		if (event.button.button < VERUS_BUTTON_WHEELUP)
 			OnMouseUp(event.button.button);
+		const UINT32 atom = ToAtom(1, PathEntity::mouse, 1, event.button.button);
+		UpdateActionStateBoolean(atom, false);
 	}
 	break;
 	case SDL_MOUSEWHEEL:
 	{
 		if (ImGui::GetIO().WantCaptureMouse)
 			return false;
-		if (event.wheel.y >= 0)
-		{
-			OnMouseDown(VERUS_BUTTON_WHEELUP);
-			OnMouseUp(VERUS_BUTTON_WHEELUP);
-		}
-		else
-		{
-			OnMouseDown(VERUS_BUTTON_WHEELDOWN);
-			OnMouseUp(VERUS_BUTTON_WHEELDOWN);
-		}
+		const int button = (event.wheel.y >= 0) ? VERUS_BUTTON_WHEELUP : VERUS_BUTTON_WHEELDOWN;
+		OnMouseDown(button);
+		OnMouseUp(button);
+		const UINT32 atom = ToAtom(1, PathEntity::mouse, 1, button);
+		UpdateActionStateBoolean(atom, true);
+		UpdateActionStateBoolean(atom, false);
 	}
 	break;
 
@@ -129,17 +133,18 @@ bool InputManager::HandleEvent(SDL_Event& event)
 		PathIdentifier identifier = PathIdentifier::undefined;
 		PathLocation location = PathLocation::undefined;
 		PathComponent component = PathComponent::undefined;
+		int sign = 1; // To match OpenXR.
 		switch (event.caxis.axis)
 		{
 		case SDL_CONTROLLER_AXIS_LEFTX:        identifier = PathIdentifier::thumbstick; location = PathLocation::left; component = PathComponent::scalarX; break;
-		case SDL_CONTROLLER_AXIS_LEFTY:        identifier = PathIdentifier::thumbstick; location = PathLocation::left; component = PathComponent::scalarY; break;
+		case SDL_CONTROLLER_AXIS_LEFTY:        identifier = PathIdentifier::thumbstick; location = PathLocation::left; component = PathComponent::scalarY; sign = -1; break;
 		case SDL_CONTROLLER_AXIS_RIGHTX:       identifier = PathIdentifier::thumbstick; location = PathLocation::right; component = PathComponent::scalarX; break;
-		case SDL_CONTROLLER_AXIS_RIGHTY:       identifier = PathIdentifier::thumbstick; location = PathLocation::right; component = PathComponent::scalarY; break;
+		case SDL_CONTROLLER_AXIS_RIGHTY:       identifier = PathIdentifier::thumbstick; location = PathLocation::right; component = PathComponent::scalarY; sign = -1; break;
 		case SDL_CONTROLLER_AXIS_TRIGGERLEFT:  identifier = PathIdentifier::trigger; location = PathLocation::left; component = PathComponent::value; break;
 		case SDL_CONTROLLER_AXIS_TRIGGERRIGHT: identifier = PathIdentifier::trigger; location = PathLocation::right; component = PathComponent::value; break;
 		}
 		const UINT32 atom = ToAtom(player, PathEntity::gamepad, 1, identifier, location, component);
-		const int value = (abs(event.caxis.value) >= _axisThreshold) ? event.caxis.value : 0;
+		const int value = (abs(event.caxis.value) >= _axisThreshold) ? event.caxis.value * sign : 0;
 		if (value > 0)
 			UpdateActionStateFloat(atom, Math::Min(1.f, (value - _axisThreshold) / static_cast<float>(SHRT_MAX - _axisThreshold)));
 		else if (value < 0)
@@ -208,12 +213,16 @@ void InputManager::HandleInput()
 		{
 			const bool prevValue = action._booleanValue;
 			action._booleanValue = false;
+			bool forceChangedState = false;
 			for (const auto& x : _vActionIndex)
 			{
 				if (x._actionIndex == i)
+				{
+					forceChangedState = forceChangedState || x._changedState;
 					action._booleanValue = action._booleanValue || x._booleanValue;
+				}
 			}
-			action._changedState = prevValue != action._booleanValue;
+			action._changedState = (prevValue != action._booleanValue) || forceChangedState;
 		}
 		break;
 		case ActionType::inFloat:
@@ -233,6 +242,9 @@ void InputManager::HandleInput()
 		break;
 		}
 	}
+
+	for (auto& x : _vActionIndex)
+		x._changedState = false;
 
 	VERUS_FOREACH_REVERSE(Vector<PInputFocus>, _vInputFocusStack, it)
 	{
@@ -322,13 +334,24 @@ float InputManager::GetMouseScale()
 	return rad * settings._inputMouseSensitivity;
 }
 
-int InputManager::CreateActionSet(CSZ name, CSZ localizedName, int priority)
+int InputManager::GetGamepadIndex(SDL_JoystickID joystickID) const
+{
+	VERUS_FOR(i, s_maxGamepads)
+	{
+		if (_gamepads[i].IsConnected() && _gamepads[i].GetJoystickID() == joystickID)
+			return i;
+	}
+	return -1;
+}
+
+int InputManager::CreateActionSet(CSZ name, CSZ localizedName, bool xrCompatible, int priority)
 {
 	const int index = Utils::Cast32(_vActionSets.size());
 	_vActionSets.resize(index + 1);
 	_vActionSets[index]._name = name;
 	_vActionSets[index]._localizedName = localizedName;
 	_vActionSets[index]._priority = priority;
+	_vActionSets[index]._xrCompatible = xrCompatible;
 	return index;
 }
 
@@ -358,8 +381,13 @@ int InputManager::CreateAction(int setIndex, CSZ name, CSZ localizedName, Action
 	{
 		ActionIndex actionIndex;
 		actionIndex._atom = ToAtom(bindingPath);
-		actionIndex._actionIndex = index;
-		_vActionIndex.push_back(actionIndex);
+		if (actionIndex._atom)
+		{
+			actionIndex._actionIndex = index;
+			if (IsKeyboardAtom(actionIndex._atom) || IsMouseAtom(actionIndex._atom))
+				actionIndex._negativeBoolean = Str::EndsWith(bindingPath, "/-");
+			_vActionIndex.push_back(actionIndex);
+		}
 	}
 
 	return index;
@@ -370,7 +398,7 @@ UINT32 InputManager::ToAtom(CSZ path)
 	if (!path || !(*path) || path[0] != '/')
 		return 0;
 
-	// Bits 31-28: User.
+	// Bits 31-28: Player.
 	// Bits 27-20: Entity.
 	// Bits 19-16: In/Out.
 	// Bits 15- 8: Identifier.
@@ -380,6 +408,8 @@ UINT32 InputManager::ToAtom(CSZ path)
 	auto Compare = [](CSZ s, size_t len, CSZ begin, PathLocation* pLoc = nullptr)
 	{
 		const size_t beginLen = strlen(begin);
+		if (beginLen > len)
+			return false;
 		const bool fuzzy = (len > beginLen) && ((s[beginLen] >= '0' && s[beginLen] <= '9') || s[beginLen] == '_');
 		const size_t compareLen = fuzzy ? beginLen : len;
 		if (!strncmp(s, begin, compareLen))
@@ -472,6 +502,17 @@ UINT32 InputManager::ToAtom(CSZ path)
 			ret |= 2 << 16;
 
 		path += len;
+	}
+
+	if (IsKeyboardAtom(ret) || IsMouseAtom(ret))
+	{
+		if (*path)
+		{
+			path++;
+
+			ret |= atoi(path);
+		}
+		return ret;
 	}
 
 	if (*path) // Identifier:
@@ -595,12 +636,12 @@ UINT32 InputManager::ToAtom(CSZ path)
 	return ret;
 }
 
-UINT32 InputManager::ToAtom(int user, PathEntity entity, int inOut,
+UINT32 InputManager::ToAtom(int player, PathEntity entity, int inOut,
 	PathIdentifier identifier, PathLocation location, PathComponent component)
 {
 	UINT32 ret = 0;
 
-	ret |= user << 28;
+	ret |= player << 28;
 	ret |= +entity << 20;
 	ret |= inOut << 16;
 	ret |= +identifier << 8;
@@ -610,20 +651,34 @@ UINT32 InputManager::ToAtom(int user, PathEntity entity, int inOut,
 	return ret;
 }
 
-int InputManager::GetGamepadIndex(SDL_JoystickID joystickID) const
+UINT32 InputManager::ToAtom(int player, PathEntity entity, int inOut, int scancode)
 {
-	VERUS_FOR(i, s_maxGamepads)
-	{
-		if (_gamepads[i].IsConnected() && _gamepads[i].GetJoystickID() == joystickID)
-			return i;
-	}
-	return -1;
+	UINT32 ret = 0;
+
+	ret |= player << 28;
+	ret |= +entity << 20;
+	ret |= inOut << 16;
+	ret |= scancode & 0xFFFF;
+
+	return ret;
+}
+
+bool InputManager::IsKeyboardAtom(UINT32 atom)
+{
+	return +PathEntity::keyboard == ((atom >> 20) & 0xFF);
+}
+
+bool InputManager::IsMouseAtom(UINT32 atom)
+{
+	return +PathEntity::mouse == ((atom >> 20) & 0xFF);
 }
 
 bool InputManager::GetActionStateBoolean(int actionIndex, bool* pChangedState, int subaction) const
 {
 	RcAction action = _vActions[actionIndex];
 	VERUS_RT_ASSERT(ActionType::inBoolean == action._type);
+	if (pChangedState)
+		*pChangedState = false;
 
 	bool currentState = false;
 	auto pExtReality = CGI::Renderer::I()->GetExtReality();
@@ -639,8 +694,10 @@ float InputManager::GetActionStateFloat(int actionIndex, bool* pChangedState, in
 {
 	RcAction action = _vActions[actionIndex];
 	VERUS_RT_ASSERT(ActionType::inFloat == action._type);
+	if (pChangedState)
+		*pChangedState = false;
 
-	float currentState = false;
+	float currentState = 0;
 	auto pExtReality = CGI::Renderer::I()->GetExtReality();
 	if (pExtReality->IsInitialized() && pExtReality->GetActionStateFloat(actionIndex, currentState, pChangedState, subaction))
 		return currentState;
@@ -749,7 +806,14 @@ void InputManager::UpdateActionStateBoolean(UINT32 atom, bool value)
 	for (auto& x : _vActionIndex)
 	{
 		if (atom == x._atom)
+		{
+			x._changedState = x._changedState || (x._booleanValue != value);
 			x._booleanValue = value;
+			if (x._negativeBoolean)
+				x._floatValue = value ? -1.f : 0.f;
+			else
+				x._floatValue = value ? 1.f : 0.f;
+		}
 	}
 }
 
@@ -758,6 +822,9 @@ void InputManager::UpdateActionStateFloat(UINT32 atom, float value)
 	for (auto& x : _vActionIndex)
 	{
 		if (atom == x._atom)
+		{
+			x._booleanValue = value >= 0.5f;
 			x._floatValue = value;
+		}
 	}
 }

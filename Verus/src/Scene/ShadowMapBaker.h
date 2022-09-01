@@ -22,11 +22,12 @@ namespace verus
 			Matrix4         _matShadowDS; // For WV positions in Deferred Shading.
 			Config          _config;
 			CGI::TexturePwn _tex;
-			Camera          _camera;
-			PCamera         _pPrevCamera = nullptr;
+			Camera          _passCamera;
+			PCamera         _pPrevPassCamera = nullptr;
 			int             _side = 0;
 			CGI::RPHandle   _rph;
 			CGI::FBHandle   _fbh;
+			bool            _baking = false;
 			bool            _snapToTexels = true;
 
 		public:
@@ -39,7 +40,7 @@ namespace verus
 			void UpdateMatrixForCurrentView();
 
 			void SetSnapToTexels(bool b) { _snapToTexels = b; }
-			bool IsBaking() const { return !!_pPrevCamera; }
+			bool IsBaking() const { return _baking; }
 
 			CGI::RPHandle GetRenderPassHandle() const { return _rph; }
 
@@ -63,7 +64,7 @@ namespace verus
 			Matrix4 _matScreenVP;
 			Matrix4 _matScreenP;
 			Vector4 _splitRanges = Vector4(0);
-			Camera  _cameraCSM;
+			Camera  _passCameraCSM;
 			int     _currentSplit = -1;
 			float   _depth = 0;
 
@@ -88,7 +89,7 @@ namespace verus
 			int GetCurrentSplit() const { return _currentSplit; }
 			RcVector4 GetSplitRanges() const { return _splitRanges; }
 
-			PCamera GetCameraCSM();
+			PCamera GetPassCameraCSM();
 		};
 		VERUS_TYPEDEFS(CascadedShadowMapBaker);
 	}

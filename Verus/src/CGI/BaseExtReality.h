@@ -18,6 +18,12 @@ namespace verus
 			VERUS_TYPEDEFS(ActionEx);
 
 		protected:
+			Math::Pose                               _areaSpaceHeadPose;
+			Math::Pose                               _worldSpaceHeadPose;
+			Math::Pose                               _areaPose; // In world space.
+			Transform3                               _trAreaToWorld = Transform3::identity();
+			Point3                                   _areaOrigin = Point3(0);
+			Vector4                                  _areaSpaceUserOffset = Vector4(0); // W is yaw.
 			XrInstance                               _instance = XR_NULL_HANDLE;
 			XrDebugUtilsMessengerEXT                 _debugUtilsMessenger = XR_NULL_HANDLE;
 			XrSystemId                               _systemId = XR_NULL_SYSTEM_ID;
@@ -36,7 +42,8 @@ namespace verus
 			XrEnvironmentBlendMode                   _envBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
 			XrSessionState                           _sessionState = XR_SESSION_STATE_UNKNOWN;
 			XrPosef                                  _identityPose;
-			XrPosef                                  _headPose;
+			float                                    _userHeight = 1.5f;
+			float                                    _areaYaw = 0;
 			int                                      _combinedSwapChainWidth = 0;
 			int                                      _combinedSwapChainHeight = 0;
 			int                                      _currentViewIndex = 0;
@@ -44,8 +51,9 @@ namespace verus
 			int                                      _swapChainBufferIndex = 0;
 			RPHandle                                 _rph;
 			Vector<FBHandle>                         _fbh;
-			bool                                     _sessionRunning = false;
+			bool                                     _runningSession = false;
 			bool                                     _shouldRender = false;
+			bool                                     _areaUpdated = false;
 
 			BaseExtReality();
 			virtual ~BaseExtReality();
@@ -90,7 +98,25 @@ namespace verus
 			RPHandle GetRenderPassHandle() const;
 			FBHandle GetFramebufferHandle() const;
 
-			const XrPosef& GetHeadPose() const { return _headPose; }
+			Math::RcPose GetAreaSpaceHeadPose() const { return _areaSpaceHeadPose; }
+			Math::RcPose GetWorldSpaceHeadPose() const { return _worldSpaceHeadPose; }
+
+			// <AreaAndUser>
+			virtual void BeginAreaUpdate();
+			virtual void EndAreaUpdate(PcVector4 pUserOffset = nullptr);
+			float GetUserHeight() const { return _userHeight; }
+			void SetUserHeight(float height);
+			float GetAreaYaw() const { return _areaYaw; }
+			void SetAreaYaw(float yaw);
+			RcPoint3 GetAreaOrigin() const { return _areaOrigin; }
+			void SetAreaOrigin(RcPoint3 origin);
+			void MoveAreaBy(RcVector3 offset);
+			void TurnAreaBy(float angle);
+			RcVector4 GetAreaSpaceUserOffset() const { return _areaSpaceUserOffset; }
+			void TeleportUserTo(RcPoint3 pos, float yaw);
+			void UpdateAreaTransform();
+			void AreaSpacePoseToWorldSpacePose(Math::RPose pose);
+			// </AreaAndUser>
 		};
 		VERUS_TYPEDEFS(BaseExtReality);
 	}

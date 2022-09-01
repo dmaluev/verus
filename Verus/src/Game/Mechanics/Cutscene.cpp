@@ -113,7 +113,7 @@ bool Cutscene::CameraCommand::Update()
 
 	_motion.ProcessTriggers(time, this);
 
-	_pCutscene->_camera.ApplyMotion(_C(_cameraName), _motion, time);
+	_pCutscene->_screenCamera.ApplyMotion(_C(_cameraName), _motion, time);
 
 	if (!_pCutscene->_pCurrentCameraCommand)
 		_pCutscene->_pCurrentCameraCommand = this;
@@ -154,7 +154,7 @@ void Cutscene::CameraCommand::Motion_OnTrigger(CSZ name, int state)
 	if (state & 0x1)
 	{
 		_cameraName = name;
-		_pCutscene->_camera.CutMotionBlur();
+		_pCutscene->_screenCamera.CutMotionBlur();
 	}
 }
 
@@ -208,13 +208,13 @@ bool Cutscene::FadeCommand::DrawOverlay()
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_VM;
 
-	const float ratio = Math::Clamp<float>(GetTime() / _duration, 0, 1);
-	const Vector4 color = VMath::lerp(Math::ApplyEasing(_easing, ratio), _from, _to);
-
 	auto cb = renderer.GetCommandBuffer();
 	auto shader = vm.GetShader();
 
-	vm.GetUbGui()._matW = Transform3::UniformBufferFormatIdentity();
+	const float ratio = Math::Clamp<float>(GetTime() / _duration, 0, 1);
+	const Vector4 color = VMath::lerp(Math::ApplyEasing(_easing, ratio), _from, _to);
+
+	vm.GetUbGui()._matWVP = Transform3::UniformBufferFormatIdentity();
 	vm.GetUbGuiFS()._color = color.GLM();
 
 	vm.BindPipeline(GUI::ViewManager::PIPE_SOLID_COLOR, cb);
@@ -320,8 +320,6 @@ void Cutscene::Init()
 	RegisterCommand("fade", &FadeCommand::Make);
 	RegisterCommand("motion", &MotionCommand::Make);
 	RegisterCommand("sound", &SoundCommand::Make);
-
-	OnWindowSizeChanged();
 }
 
 void Cutscene::Done()
@@ -551,16 +549,31 @@ Continue Cutscene::OnMouseMove(float x, float y)
 	return _interactive ? Continue::yes : Continue::no;
 }
 
-Scene::PMainCamera Cutscene::GetMainCamera()
+void Cutscene::OnViewChanged(CGI::RcViewDesc viewDesc)
 {
-	return _pCurrentCameraCommand ? &_camera : nullptr;
+	if (_pCurrentCameraCommand)
+	{
+		VERUS_QREF_RENDERER;
+		VERUS_QREF_CONST_SETTINGS;
+
+		switch (viewDesc._type)
+		{
+		case CGI::ViewType::screen:
+		{
+			_screenCamera.SetAspectRatio(renderer.GetCurrentViewAspectRatio());
+			_screenCamera.SetXFov(Math::ToRadians(settings._displayFOV));
+			_screenCamera.SetZNear(renderer.GetPreferredZNear());
+			_screenCamera.SetZFar(renderer.GetPreferredZFar());
+			_screenCamera.Update();
+		}
+		break;
+		}
+	}
 }
 
-void Cutscene::OnWindowSizeChanged()
+Scene::PMainCamera Cutscene::GetScreenCamera()
 {
-	VERUS_QREF_RENDERER;
-	_camera.SetAspectRatio(renderer.GetCurrentViewAspectRatio());
-	_camera.Update();
+	return _pCurrentCameraCommand ? &_screenCamera : nullptr;
 }
 
 void Cutscene::OnNewActiveDuration(float newActiveDuration)

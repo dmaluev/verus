@@ -29,8 +29,8 @@ void Cinema::Init()
 	}
 
 	_shader.Init("[Shaders]:Cinema.hlsl");
-	_shader->CreateDescriptorSet(0, &s_ubCinemaVS, sizeof(s_ubCinemaVS), 2, {}, CGI::ShaderStageFlags::vs);
-	_shader->CreateDescriptorSet(1, &s_ubCinemaFS, sizeof(s_ubCinemaFS), 2, { CGI::Sampler::linearMipL }, CGI::ShaderStageFlags::fs);
+	_shader->CreateDescriptorSet(0, &s_ubCinemaVS, sizeof(s_ubCinemaVS), 16, {}, CGI::ShaderStageFlags::vs);
+	_shader->CreateDescriptorSet(1, &s_ubCinemaFS, sizeof(s_ubCinemaFS), 16, { CGI::Sampler::linearMipL }, CGI::ShaderStageFlags::fs);
 	_shader->CreatePipelineLayout();
 
 	{

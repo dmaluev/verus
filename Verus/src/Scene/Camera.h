@@ -60,6 +60,7 @@ namespace verus
 			RcVector3 GetFrontDirection() const { return _frontDir; }
 			RcVector3 GetUpDirection() const { return _upDir; }
 			void SetUpDirection(RcVector3 dir) { _update |= Update::v; _upDir = dir; }
+			float ComputeYaw() const;
 
 			// Matrices:
 			RcTransform3 GetMatrixV() const { return _matV; }

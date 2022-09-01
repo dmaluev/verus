@@ -6,7 +6,8 @@ VERUS_UBUFFER UB_ForestVS
 	matrix _matWVP;
 	float4 _viewportSize;
 	float4 _eyePos;
-	float4 _mainCameraEyePos;
+	float4 _headPos;
+	float4 _spriteMat;
 };
 
 VERUS_UBUFFER UB_ForestFS

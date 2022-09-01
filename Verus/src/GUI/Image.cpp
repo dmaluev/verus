@@ -62,12 +62,12 @@ void Image::Draw()
 	auto& ubGui = vm.GetUbGui();
 	auto& ubGuiFS = vm.GetUbGuiFS();
 
-	ubGui._matW = matW.UniformBufferFormat();
+	ubGui._matWVP = Matrix4(vm.GetXrMatrix() * matW).UniformBufferFormat();
 	ubGuiFS._color = GetColor().GLM();
 	if (!_solidColor)
 	{
 		const Transform3 matV = Math::ToUVMatrix(0, 0);
-		ubGui._matV = matV.UniformBufferFormat();
+		ubGui._matTex = matV.UniformBufferFormat();
 		ubGui._tcScaleBias.x = _tcScale.getX();
 		ubGui._tcScaleBias.y = _tcScale.getY();
 		RcVector4 bias = _tcBias.GetValue();

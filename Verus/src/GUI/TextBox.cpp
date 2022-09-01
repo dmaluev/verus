@@ -48,8 +48,8 @@ void TextBox::Draw()
 		auto cb = renderer.GetCommandBuffer();
 		auto shader = vm.GetShader();
 
-		vm.GetUbGui()._matW = Math::QuadMatrix(x + caretX, y, 0.0015f, GetH()).UniformBufferFormat();
-		vm.GetUbGui()._matV = Math::ToUVMatrix(0, 0).UniformBufferFormat();
+		vm.GetUbGui()._matWVP = Matrix4(vm.GetXrMatrix() * Math::QuadMatrix(x + caretX, y, 0.0015f, GetH())).UniformBufferFormat();
+		vm.GetUbGui()._matTex = Math::ToUVMatrix(0, 0).UniformBufferFormat();
 		vm.GetUbGuiFS()._color = Vector4(1, 1, 1, 1).GLM();
 
 		vm.BindPipeline(ViewManager::PIPE_SOLID_COLOR, cb);

@@ -7,7 +7,7 @@ VERUS_UBUFFER UB_TerrainVS
 	mataff _matV; // For tess.
 	matrix _matVP;
 	matrix _matP; // For tess.
-	float4 _eyePos_invMapSide;
+	float4 _headPos_invMapSide;
 	float4 _viewportSize;
 };
 

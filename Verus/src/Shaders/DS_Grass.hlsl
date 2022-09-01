@@ -71,8 +71,8 @@ VSO mainVS(VSI si)
 		pos = float3(center.x, 0.45 * pointSpriteSize.y, center.y);
 #endif
 
-		const float distToEye = distance(pos + float3(0, UnpackTerrainHeight(si.patchPos.y), 0), g_ubGrassVS._posEye.xyz);
-		const float geomipsLod = log2(clamp(distToEye * (2.0 / 100.0), 1.0, 18.0));
+		const float distToHead = distance(pos + float3(0, UnpackTerrainHeight(si.patchPos.y), 0), g_ubGrassVS._headPos.xyz);
+		const float geomipsLod = log2(clamp(distToHead * (2.0 / 100.0), 1.0, 18.0));
 		const float texelCenter = 0.5 * invMapSide;
 		const float mipTexelCenter = texelCenter * exp2(geomipsLod);
 		const float2 tcMap = pos.xz * invMapSide + 0.5;
@@ -182,7 +182,11 @@ void mainGS(point VSO si[1], inout TriangleStream<VSO> stream)
 	const float2 center = so.pos.xy;
 	for (int i = 0; i < 4; ++i)
 	{
-		so.pos.xy = center + _POINT_SPRITE_POS_OFFSETS[i] * so.psize;
+		const float2 posOffset = _POINT_SPRITE_POS_OFFSETS[i] * so.psize;
+		const float2 offset = float2(
+			dot(posOffset, g_ubGrassVS._spriteMat.xy),
+			dot(posOffset, g_ubGrassVS._spriteMat.zw));
+		so.pos.xy = center + offset;
 		so.tc0 = _POINT_SPRITE_TEX_COORDS[i];
 		stream.Append(so);
 	}
@@ -205,7 +209,10 @@ DS_FSO mainFS(VSO si)
 	const float top = si.normal_top.w;
 	const float bottom = 1.0 - top;
 
-	const float4 albedoSam = g_texAlbedo.Sample(g_samAlbedo, tc);
+	const float4 albedoSam = float4(
+		g_texAlbedo.Sample(g_samAlbedo, tc).rgb,
+		g_texAlbedo.SampleBias(g_samAlbedo, tc, 1.4).a);
+
 	const float3 normal = normalize(lerp(si.normal_top.xyz, float3(0, 0, 1), top * 0.35));
 	const float gray = Grayscale(albedoSam.rgb);
 	const float mask = saturate((gray - 0.25) * 2.0 + 0.2);

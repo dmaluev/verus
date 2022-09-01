@@ -268,7 +268,7 @@ void Atmosphere::DrawSky(bool reflection)
 	if (water.IsUnderwater())
 		reflection = false;
 
-	RcCamera cam = *sm.GetCamera();
+	RcCamera cam = *sm.GetPassCamera();
 	Matrix3 matS = Matrix3::scale(Vector3(4, 1, 4)); // Stretch sky dome.
 	const Matrix4 matSkyDome = cam.GetMatrixVP() * Transform3(matS, Vector3(cam.GetEyePosition()));
 

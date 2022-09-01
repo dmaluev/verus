@@ -131,7 +131,7 @@ namespace verus
 			Vector<PCommand>         _vCommands;
 			std::function<void(int)> _fnOnEnd;
 			PCameraCommand           _pCurrentCameraCommand = nullptr;
-			Scene::MainCamera        _camera;
+			Scene::MainCamera        _screenCamera;
 			int                      _beginIndex = 0;
 			int                      _endIndex = 0;
 			float                    _timeSinceBarrier = 0;
@@ -165,9 +165,8 @@ namespace verus
 			virtual Continue DrawOverlay() override;
 			virtual bool IsDefaultInputEnabled() override;
 			virtual Continue OnMouseMove(float x, float y) override;
-			virtual Scene::PMainCamera GetMainCamera() override;
-
-			void OnWindowSizeChanged();
+			virtual void OnViewChanged(CGI::RcViewDesc viewDesc) override;
+			virtual Scene::PMainCamera GetScreenCamera() override;
 
 			void SetOnEndCallback(std::function<void(int)> fn) { _fnOnEnd = fn; }
 

@@ -50,8 +50,8 @@ void Cursor::Draw()
 	auto& ubGui = vm.GetUbGui();
 	auto& ubGuiFS = vm.GetUbGuiFS();
 
-	ubGui._matW = Math::QuadMatrix(_x - _hotspotX, _y - _hotspotY, scale.getX(), scale.getY()).UniformBufferFormat();
-	ubGui._matV = Math::ToUVMatrix(0, 0).UniformBufferFormat();
+	ubGui._matWVP = Math::QuadMatrix(_x - _hotspotX, _y - _hotspotY, scale.getX(), scale.getY()).UniformBufferFormat();
+	ubGui._matTex = Math::ToUVMatrix(0, 0).UniformBufferFormat();
 	ubGui._tcScaleBias = Vector4(1, 1, 0, 0).GLM();
 	ubGui._tcMaskScaleBias = Vector4(1, 1, 0, 0).GLM();
 	ubGuiFS._color = Vector4::Replicate(1).GLM();

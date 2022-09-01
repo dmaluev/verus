@@ -24,7 +24,6 @@ BaseExtReality::BaseExtReality()
 {
 	VERUS_ZERO_MEM(_identityPose);
 	_identityPose.orientation.w = 1;
-	_headPose = _identityPose;
 }
 
 BaseExtReality::~BaseExtReality()
@@ -51,6 +50,7 @@ BaseExtReality::~BaseExtReality()
 
 void BaseExtReality::Init()
 {
+	UpdateAreaTransform();
 }
 
 void BaseExtReality::Done()
@@ -128,7 +128,6 @@ void BaseExtReality::CreateReferenceSpace()
 	XrReferenceSpaceCreateInfo xrrsci = { XR_TYPE_REFERENCE_SPACE_CREATE_INFO };
 	xrrsci.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
 	xrrsci.poseInReferenceSpace = _identityPose;
-	xrrsci.poseInReferenceSpace.position.y = -1.7f;
 	if (XR_SUCCESS != (res = xrCreateReferenceSpace(_session, &xrrsci, &_referenceSpace)))
 		throw VERUS_RUNTIME_ERROR << "xrCreateReferenceSpace(); res=" << res;
 }
@@ -159,11 +158,11 @@ void BaseExtReality::CreateActions()
 	VERUS_FOR(actionSetIndex, actionSetCount)
 	{
 		const auto& actionSet = im.GetActionSet(actionSetIndex);
-		if (!Str::StartsWith(_C(actionSet._name), "xr_"))
+		if (!actionSet._xrCompatible)
 			continue;
 
 		XrActionSetCreateInfo xrasci = { XR_TYPE_ACTION_SET_CREATE_INFO };
-		strcpy_s(xrasci.actionSetName, _C(actionSet._name) + 3);
+		strcpy_s(xrasci.actionSetName, _C(actionSet._name));
 		strcpy_s(xrasci.localizedActionSetName, _C(actionSet._localizedName));
 		xrasci.priority = actionSet._priority;
 		if (XR_SUCCESS != (res = xrCreateActionSet(_instance, &xrasci, &_vActionSets[actionSetIndex])))
@@ -175,19 +174,39 @@ void BaseExtReality::CreateActions()
 	VERUS_FOR(actionIndex, actionCount)
 	{
 		const auto& action = im.GetAction(actionIndex);
-		if (!Str::StartsWith(_C(action._name), "xr_"))
+
+		// Create XrAction only if there are OpenXR binding paths:
+		int bindingPathCount = 0;
+		for (const auto& pathString : action._vBindingPaths)
+		{
+			if (Str::StartsWith(_C(pathString), "/user/"))
+				bindingPathCount++;
+		}
+		if (!bindingPathCount)
 			continue;
 
-		RActionEx actionEx = _vActions[actionIndex];
-		actionEx._vSubactionPaths.reserve(action._vSubactionPaths.size());
+		// Filter OpenXR subaction paths:
+		int subactionPathCount = 0;
 		for (const auto& pathString : action._vSubactionPaths)
 		{
-			XrPath path = XR_NULL_PATH;
-			xrStringToPath(_instance, _C(pathString), &path);
-			actionEx._vSubactionPaths.push_back(path);
+			if (Str::StartsWith(_C(pathString), "/user/"))
+				subactionPathCount++;
+		}
+
+		RActionEx actionEx = _vActions[actionIndex];
+		actionEx._vSubactionPaths.reserve(subactionPathCount);
+		for (const auto& pathString : action._vSubactionPaths)
+		{
+			if (Str::StartsWith(_C(pathString), "/user/"))
+			{
+				XrPath path = XR_NULL_PATH;
+				if (XR_SUCCESS != (res = xrStringToPath(_instance, _C(pathString), &path)))
+					throw VERUS_RUNTIME_ERROR << "xrStringToPath(); res=" << res;
+				actionEx._vSubactionPaths.push_back(path);
+			}
 		}
 		XrActionCreateInfo xraci = { XR_TYPE_ACTION_CREATE_INFO };
-		strcpy_s(xraci.actionName, _C(action._name) + 3);
+		strcpy_s(xraci.actionName, _C(action._name));
 		strcpy_s(xraci.localizedActionName, _C(action._localizedName));
 		switch (action._type)
 		{
@@ -249,7 +268,8 @@ void BaseExtReality::CreateActions()
 				if (found)
 				{
 					XrPath bindingPath = XR_NULL_PATH;
-					xrStringToPath(_instance, _C(pathString), &bindingPath);
+					if (XR_SUCCESS != (res = xrStringToPath(_instance, _C(pathString), &bindingPath)))
+						throw VERUS_RUNTIME_ERROR << "xrStringToPath(); res=" << res;
 					XrActionSuggestedBinding xrasb;
 					xrasb.action = _vActions[actionIndex]._handle;
 					xrasb.binding = bindingPath;
@@ -270,28 +290,73 @@ void BaseExtReality::CreateActions()
 
 	{
 		XrPath profilePath = XR_NULL_PATH;
-		xrStringToPath(_instance, "/interaction_profiles/khr/simple_controller", &profilePath);
+		if (XR_SUCCESS != (res = xrStringToPath(_instance, "/interaction_profiles/khr/simple_controller", &profilePath)))
+			throw VERUS_RUNTIME_ERROR << "xrStringToPath(); res=" << res;
 		CSZ supportedBindingPaths[] =
 		{
-			"/user/hand/left/input/select/click",
-			"/user/hand/left/input/menu/click",
-			"/user/hand/left/input/grip/pose",
 			"/user/hand/left/input/aim/pose",
+			"/user/hand/left/input/grip/pose",
+			"/user/hand/left/input/menu/click",
+			"/user/hand/left/input/select/click",
 			"/user/hand/left/output/haptic",
-			"/user/hand/right/input/select/click",
-			"/user/hand/right/input/menu/click",
-			"/user/hand/right/input/grip/pose",
 			"/user/hand/right/input/aim/pose",
+			"/user/hand/right/input/grip/pose",
+			"/user/hand/right/input/menu/click",
+			"/user/hand/right/input/select/click",
+			"/user/hand/right/output/haptic"
+		};
+		SuggestInteractionProfileBindings(profilePath, supportedBindingPaths, VERUS_COUNT_OF(supportedBindingPaths));
+	}
+	{
+		XrPath profilePath = XR_NULL_PATH;
+		if (XR_SUCCESS != (res = xrStringToPath(_instance, "/interaction_profiles/oculus/touch_controller", &profilePath)))
+			throw VERUS_RUNTIME_ERROR << "xrStringToPath(); res=" << res;
+		CSZ supportedBindingPaths[] =
+		{
+			"/user/hand/left/input/aim/pose",
+			"/user/hand/left/input/grip/pose",
+			"/user/hand/left/input/menu/click",
+			"/user/hand/left/input/squeeze/value",
+			"/user/hand/left/input/thumbrest/touch",
+			"/user/hand/left/input/thumbstick/click",
+			"/user/hand/left/input/thumbstick/touch",
+			"/user/hand/left/input/thumbstick/x",
+			"/user/hand/left/input/thumbstick/y",
+			"/user/hand/left/input/trigger/touch",
+			"/user/hand/left/input/trigger/value",
+			"/user/hand/left/input/x/click",
+			"/user/hand/left/input/x/touch",
+			"/user/hand/left/input/y/click",
+			"/user/hand/left/input/y/touch",
+			"/user/hand/left/output/haptic",
+			"/user/hand/right/input/a/click",
+			"/user/hand/right/input/a/touch",
+			"/user/hand/right/input/aim/pose",
+			"/user/hand/right/input/b/click",
+			"/user/hand/right/input/b/touch",
+			"/user/hand/right/input/grip/pose",
+			"/user/hand/right/input/squeeze/value",
+			"/user/hand/right/input/system/click",
+			"/user/hand/right/input/thumbrest/touch",
+			"/user/hand/right/input/thumbstick/click",
+			"/user/hand/right/input/thumbstick/touch",
+			"/user/hand/right/input/thumbstick/x",
+			"/user/hand/right/input/thumbstick/y",
+			"/user/hand/right/input/trigger/touch",
+			"/user/hand/right/input/trigger/value",
 			"/user/hand/right/output/haptic"
 		};
 		SuggestInteractionProfileBindings(profilePath, supportedBindingPaths, VERUS_COUNT_OF(supportedBindingPaths));
 	}
 
-	XrSessionActionSetsAttachInfo xrsasai = { XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO };
-	xrsasai.countActionSets = Utils::Cast32(vAttachActionSets.size());
-	xrsasai.actionSets = vAttachActionSets.data();
-	if (XR_SUCCESS != (res = xrAttachSessionActionSets(_session, &xrsasai)))
-		throw VERUS_RUNTIME_ERROR << "xrAttachSessionActionSets(); res=" << res;
+	if (!vAttachActionSets.empty())
+	{
+		XrSessionActionSetsAttachInfo xrsasai = { XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO };
+		xrsasai.countActionSets = Utils::Cast32(vAttachActionSets.size());
+		xrsasai.actionSets = vAttachActionSets.data();
+		if (XR_SUCCESS != (res = xrAttachSessionActionSets(_session, &xrsasai)))
+			throw VERUS_RUNTIME_ERROR << "xrAttachSessionActionSets(); res=" << res;
+	}
 
 	_vActiveActionSets.reserve(8);
 }
@@ -316,14 +381,14 @@ void BaseExtReality::PollEvents()
 				xrsbi.primaryViewConfigurationType = _viewConfigurationType;
 				if (XR_SUCCESS != (res = xrBeginSession(_session, &xrsbi)))
 					throw VERUS_RUNTIME_ERROR << "xrBeginSession(); res=" << res;
-				_sessionRunning = true;
+				_runningSession = true; // A session is considered running after a successful call to xrBeginSession.
 			}
 			break;
 			case XR_SESSION_STATE_STOPPING:
 			{
-				_sessionRunning = false;
 				if (XR_SUCCESS != (res = xrEndSession(_session)))
 					throw VERUS_RUNTIME_ERROR << "xrEndSession(); res=" << res;
+				_runningSession = false; // A session becomes not running after any call is made to xrEndSession.
 			}
 			break;
 			}
@@ -355,14 +420,14 @@ void BaseExtReality::SyncActions(UINT32 activeActionSetsMask)
 		}
 	}
 
-	XrActionsSyncInfo xrasi = { XR_TYPE_ACTIONS_SYNC_INFO };
 	if (!_vActiveActionSets.empty())
 	{
+		XrActionsSyncInfo xrasi = { XR_TYPE_ACTIONS_SYNC_INFO };
 		xrasi.countActiveActionSets = Utils::Cast32(_vActiveActionSets.size());
 		xrasi.activeActionSets = _vActiveActionSets.data();
+		if (XR_SUCCESS != (res = xrSyncActions(_session, &xrasi)))
+			throw VERUS_RUNTIME_ERROR << "xrSyncActions(); res=" << res;
 	}
-	if (XR_SUCCESS != (res = xrSyncActions(_session, &xrasi)))
-		throw VERUS_RUNTIME_ERROR << "xrSyncActions(); res=" << res;
 }
 
 bool BaseExtReality::GetActionStateBoolean(int actionIndex, bool& currentState, bool* pChangedState, int subaction)
@@ -403,8 +468,10 @@ bool BaseExtReality::GetActionStateFloat(int actionIndex, float& currentState, b
 
 bool BaseExtReality::GetActionStatePose(int actionIndex, bool& currentState, Math::RPose pose, int subaction)
 {
+	VERUS_RT_ASSERT(_areaUpdated);
 	if (XR_NULL_HANDLE == _vActions[actionIndex]._handle)
 		return false;
+
 	XrActionStateGetInfo xrasgi = { XR_TYPE_ACTION_STATE_GET_INFO };
 	xrasgi.action = _vActions[actionIndex]._handle;
 	if (subaction >= 0)
@@ -418,7 +485,10 @@ bool BaseExtReality::GetActionStatePose(int actionIndex, bool& currentState, Mat
 	const XrResult res = xrLocateSpace(_vActions[actionIndex]._vActionSpaces[(subaction >= 0) ? subaction : 0],
 		_referenceSpace, _predictedDisplayTime, &xrsl);
 	if (XR_UNQUALIFIED_SUCCESS(res) && (xrsl.locationFlags & (XR_SPACE_LOCATION_ORIENTATION_VALID_BIT | XR_SPACE_LOCATION_POSITION_VALID_BIT)))
+	{
 		pose = xrsl.pose;
+		AreaSpacePoseToWorldSpacePose(pose);
+	}
 	else
 		currentState = false;
 	return true;
@@ -426,7 +496,10 @@ bool BaseExtReality::GetActionStatePose(int actionIndex, bool& currentState, Mat
 
 void BaseExtReality::BeginFrame()
 {
-	if (!_sessionRunning)
+	_shouldRender = false;
+	_areaUpdated = false;
+
+	if (!_runningSession)
 		return;
 
 	XrResult res = XR_SUCCESS;
@@ -440,14 +513,6 @@ void BaseExtReality::BeginFrame()
 
 	_predictedDisplayTime = xrfs.predictedDisplayTime;
 	_shouldRender = !!xrfs.shouldRender;
-
-	if (_shouldRender)
-	{
-		XrSpaceLocation xrsl = { XR_TYPE_SPACE_LOCATION };
-		res = xrLocateSpace(_headSpace, _referenceSpace, _predictedDisplayTime, &xrsl);
-		if (XR_UNQUALIFIED_SUCCESS(res) && (xrsl.locationFlags & (XR_SPACE_LOCATION_ORIENTATION_VALID_BIT | XR_SPACE_LOCATION_POSITION_VALID_BIT)))
-			_headPose = xrsl.pose;
-	}
 }
 
 int BaseExtReality::LocateViews()
@@ -480,6 +545,9 @@ int BaseExtReality::LocateViews()
 
 void BaseExtReality::BeginView(int viewIndex, RViewDesc viewDesc)
 {
+	VERUS_QREF_RENDERER;
+	VERUS_RT_ASSERT(_areaUpdated);
+
 	_currentViewIndex = viewIndex;
 	_swapChainBufferIndex = -1;
 
@@ -495,14 +563,15 @@ void BaseExtReality::BeginView(int viewIndex, RViewDesc viewDesc)
 		xrclpv.subImage.imageRect.extent.height);
 
 	viewDesc._pose = xrclpv.pose;
+	AreaSpacePoseToWorldSpacePose(viewDesc._pose);
 
 	viewDesc._fovLeft = xrclpv.fov.angleLeft;
 	viewDesc._fovRight = xrclpv.fov.angleRight;
 	viewDesc._fovUp = xrclpv.fov.angleUp;
 	viewDesc._fovDown = xrclpv.fov.angleDown;
 
-	viewDesc._zNear = 0.05f;
-	viewDesc._zFar = 100;
+	viewDesc._zNear = renderer.GetPreferredZNear();
+	viewDesc._zFar = renderer.GetPreferredZFar();
 
 	viewDesc._vpX = xrclpv.subImage.imageRect.offset.x;
 	viewDesc._vpY = xrclpv.subImage.imageRect.offset.y;
@@ -553,7 +622,7 @@ void BaseExtReality::EndView(int viewIndex)
 
 void BaseExtReality::EndFrame()
 {
-	if (!_sessionRunning)
+	if (!_runningSession)
 		return;
 
 	XrResult res = XR_SUCCESS;
@@ -592,4 +661,98 @@ RPHandle BaseExtReality::GetRenderPassHandle() const
 FBHandle BaseExtReality::GetFramebufferHandle() const
 {
 	return _fbh[_currentViewIndex * _swapChainBufferCount + _swapChainBufferIndex];
+}
+
+void BaseExtReality::BeginAreaUpdate()
+{
+	XrSpaceLocation xrsl = { XR_TYPE_SPACE_LOCATION };
+	const XrResult res = xrLocateSpace(_headSpace, _referenceSpace, _predictedDisplayTime, &xrsl);
+	if (XR_UNQUALIFIED_SUCCESS(res) && (xrsl.locationFlags & (XR_SPACE_LOCATION_ORIENTATION_VALID_BIT | XR_SPACE_LOCATION_POSITION_VALID_BIT)))
+	{
+		_areaSpaceHeadPose = xrsl.pose;
+
+		const Vector3 frontDir = VMath::rotate(_areaSpaceHeadPose._orientation, Vector3(0, 0, 1));
+		_areaSpaceUserOffset = Vector4(Vector3(_areaSpaceHeadPose._position), atan2(frontDir.getX(), frontDir.getZ()));
+		_areaSpaceUserOffset.setY(0);
+	}
+}
+
+void BaseExtReality::EndAreaUpdate(PcVector4 pUserOffset)
+{
+	UpdateAreaTransform();
+
+	if (pUserOffset)
+	{
+		_areaOrigin = _trAreaToWorld * Point3(-pUserOffset->getXYZ()) - Vector3(0, _userHeight, 0);
+		_areaYaw -= pUserOffset->getW();
+		UpdateAreaTransform();
+	}
+
+	_worldSpaceHeadPose = _areaSpaceHeadPose;
+	AreaSpacePoseToWorldSpacePose(_worldSpaceHeadPose);
+
+	_areaUpdated = true;
+}
+
+void BaseExtReality::SetUserHeight(float height)
+{
+	_userHeight = height;
+}
+
+void BaseExtReality::SetAreaYaw(float yaw)
+{
+	_areaYaw = yaw;
+}
+
+void BaseExtReality::SetAreaOrigin(RcPoint3 origin)
+{
+	_areaOrigin = origin;
+}
+
+void BaseExtReality::MoveAreaBy(RcVector3 offset)
+{
+	_areaOrigin += offset;
+}
+
+void BaseExtReality::TurnAreaBy(float angle)
+{
+	_areaYaw = Math::WrapAngle(_areaYaw + angle);
+}
+
+void BaseExtReality::TeleportUserTo(RcPoint3 pos, float yaw)
+{
+	Quat headYaw(_worldSpaceHeadPose._orientation);
+	headYaw.setX(0);
+	headYaw.setZ(0);
+	const float headYawLen = VMath::length(headYaw);
+	headYaw = (headYawLen >= VERUS_FLOAT_THRESHOLD) ? headYaw / headYawLen : Quat(0);
+
+	const Vector3 userPos(
+		_worldSpaceHeadPose._position.getX(),
+		_areaOrigin.getY(),
+		_worldSpaceHeadPose._position.getZ());
+
+	const Transform3 trFromUserSpace = Transform3(headYaw, userPos);
+	const Transform3 trToUserSpace = VMath::orthoInverse(trFromUserSpace);
+	const Transform3 trNewUser = Transform3(Matrix3::rotationY(yaw), Vector3(pos));
+	const Transform3 tr = trNewUser * trToUserSpace;
+
+	_areaOrigin = tr * _areaOrigin;
+	const Vector3 frontDir = tr * VMath::rotate(_areaPose._orientation, Vector3(0, 0, 1));
+	_areaYaw = atan2(frontDir.getX(), frontDir.getZ());
+
+	UpdateAreaTransform();
+}
+
+void BaseExtReality::UpdateAreaTransform()
+{
+	_areaPose._orientation = Quat::rotationY(_areaYaw);
+	_areaPose._position = _areaOrigin + Vector3(0, _userHeight, 0);
+	_trAreaToWorld = Transform3(_areaPose._orientation, Vector3(_areaPose._position));
+}
+
+void BaseExtReality::AreaSpacePoseToWorldSpacePose(Math::RPose pose)
+{
+	pose._orientation = _areaPose._orientation * pose._orientation;
+	pose._position = _trAreaToWorld * pose._position;
 }

@@ -6,6 +6,7 @@ using namespace verus::GUI;
 
 CGI::ShaderPwn Font::s_shader;
 
+Font::UB_FontVS Font::s_ubFontVS;
 Font::UB_FontFS Font::s_ubFontFS;
 
 Font::Font()
@@ -21,7 +22,8 @@ Font::~Font()
 void Font::InitStatic()
 {
 	s_shader.Init("[Shaders]:Font.hlsl");
-	s_shader->CreateDescriptorSet(0, &s_ubFontFS, sizeof(s_ubFontFS), 100,
+	s_shader->CreateDescriptorSet(0, &s_ubFontVS, sizeof(s_ubFontVS), 100, {}, CGI::ShaderStageFlags::vs);
+	s_shader->CreateDescriptorSet(1, &s_ubFontFS, sizeof(s_ubFontFS), 100,
 		{
 			CGI::Sampler::anisoSharp
 		}, CGI::ShaderStageFlags::fs);
@@ -134,7 +136,7 @@ void Font::Draw(RcDrawDesc dd)
 	if (!_csh.IsSet())
 	{
 		if (_tex->IsLoaded())
-			_csh = s_shader->BindDescriptorSetTextures(0, { _tex });
+			_csh = s_shader->BindDescriptorSetTextures(1, { _tex });
 		else
 			return;
 	}
@@ -154,14 +156,18 @@ void Font::Draw(RcDrawDesc dd)
 		xoffset = xoffset + (dd._w - textWidth) * 0.5f;
 	}
 	const float xoffsetInit = xoffset;
+	const float yScale = dd._scale * (dd._preserveAspectRatio ? (1080.f / 1920.f) * renderer.GetCurrentViewAspectRatio() : 1.f);
 
 	auto cb = renderer.GetCommandBuffer();
+
+	s_ubFontVS._matWVP = vm.GetXrMatrix().UniformBufferFormat();
 
 	cb->BindPipeline(_pipe);
 	cb->BindVertexBuffers(_dynBuffer);
 
 	s_shader->BeginBindDescriptors();
-	cb->BindDescriptors(s_shader, 0, _csh);
+	cb->BindDescriptors(s_shader, 0);
+	cb->BindDescriptors(s_shader, 1, _csh);
 	_dynBuffer.Begin();
 
 	// Draw chars:
@@ -219,12 +225,12 @@ void Font::Draw(RcDrawDesc dd)
 					break; // No more vertical space.
 
 				// 2) draw the word:
-				xoffset += DrawWord(text, wordLen, xoffset, yoffset, lineCount < 0, _overrideColor ? _overrideColor : dd._colorFont, dd._scale);
+				xoffset += DrawWord(text, wordLen, xoffset, yoffset, lineCount < 0, _overrideColor ? _overrideColor : dd._colorFont, dd._scale, yScale);
 			}
 			else // Word fits in:
 			{
 				// Draw the word:
-				xoffset += DrawWord(text, wordLen, xoffset, yoffset, lineCount < 0, _overrideColor ? _overrideColor : dd._colorFont, dd._scale);
+				xoffset += DrawWord(text, wordLen, xoffset, yoffset, lineCount < 0, _overrideColor ? _overrideColor : dd._colorFont, dd._scale, yScale);
 			}
 
 			text += wordLen; // Next char.
@@ -253,7 +259,7 @@ void Font::Draw(RcDrawDesc dd)
 	s_shader->EndBindDescriptors();
 }
 
-float Font::DrawWord(CWSZ word, int wordLen, float xoffset, float yoffset, bool onlyCalcWidth, UINT32 color, float scale)
+float Font::DrawWord(CWSZ word, int wordLen, float xoffset, float yoffset, bool onlyCalcWidth, UINT32 color, float xScale, float yScale)
 {
 	const float xbegin = xoffset;
 
@@ -276,10 +282,10 @@ float Font::DrawWord(CWSZ word, int wordLen, float xoffset, float yoffset, bool 
 
 			if (!onlyCalcWidth)
 			{
-				const float xFloat = xoffset + ToFloatX(ci._xoffset + kerning, scale);
-				const float yFloat = yoffset + ToFloatY(ci._yoffset, scale);
-				const float xFloatEnd = xFloat + ToFloatX(ci._w, scale);
-				const float yFloatEnd = yFloat + ToFloatY(ci._h, scale);
+				const float xFloat = xoffset + ToFloatX(ci._xoffset + kerning, xScale);
+				const float yFloat = yoffset + ToFloatY(ci._yoffset, yScale);
+				const float xFloatEnd = xFloat + ToFloatX(ci._w, xScale);
+				const float yFloatEnd = yFloat + ToFloatY(ci._h, yScale);
 
 				const float xScreen = xFloat * 2 - 1;
 				const float yScreen = yFloat * -2 + 1;
@@ -316,7 +322,7 @@ float Font::DrawWord(CWSZ word, int wordLen, float xoffset, float yoffset, bool 
 				_dynBuffer.AddQuad(a0, a1, b0, b1);
 			}
 
-			xoffset += ToFloatX(ci._xadvance + kerning, scale);
+			xoffset += ToFloatX(ci._xadvance + kerning, xScale);
 		}
 	}
 	return xoffset - xbegin;

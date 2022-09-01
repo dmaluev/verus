@@ -18,8 +18,8 @@ namespace verus
 			CGI::RPHandle    _rph;
 			CGI::FBHandle    _fbh;
 			CGI::CSHandle    _csh;
-			float            _smallRad = 0.03f;
-			float            _largeRad = 0.07f;
+			float            _smallRad = 0.02f;
+			float            _largeRad = 0.05f;
 			float            _weightScale = 10;
 			float            _weightBias = 2.5f;
 			bool             _blur = true;

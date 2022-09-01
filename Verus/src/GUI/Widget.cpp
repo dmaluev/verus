@@ -50,8 +50,8 @@ void Widget::DrawDebug()
 	auto& ubGui = vm.GetUbGui();
 	auto& ubGuiFS = vm.GetUbGuiFS();
 
-	ubGui._matW = Math::QuadMatrix(x, y, GetW(), GetH()).UniformBufferFormat();
-	ubGui._matV = Math::ToUVMatrix(0, 0).UniformBufferFormat();
+	ubGui._matWVP = Matrix4(vm.GetXrMatrix() * Math::QuadMatrix(x, y, GetW(), GetH())).UniformBufferFormat();
+	ubGui._matTex = Math::ToUVMatrix(0, 0).UniformBufferFormat();
 	ubGui._tcScaleBias = Vector4(1, 1, 0, 0).GLM();
 	ubGui._tcMaskScaleBias = Vector4(1, 1, 0, 0).GLM();
 	ubGuiFS._color = Vector4::Replicate(1).GLM();
@@ -75,7 +75,7 @@ void Widget::DrawInputStyle()
 	auto cb = renderer.GetCommandBuffer();
 	auto shader = vm.GetShader();
 
-	vm.GetUbGui()._matW = Math::QuadMatrix(x, y, GetW(), GetH()).UniformBufferFormat();
+	vm.GetUbGui()._matWVP = Matrix4(vm.GetXrMatrix() * Math::QuadMatrix(x, y, GetW(), GetH())).UniformBufferFormat();
 	vm.GetUbGuiFS()._color = Vector4(0, 0, 0, 0.75f * GetColor().getW()).GLM();
 
 	vm.BindPipeline(ViewManager::PIPE_SOLID_COLOR, cb);
@@ -166,16 +166,6 @@ void Widget::Parse(pugi::xml_node node)
 
 	_hidden = node.attribute("hidden").as_bool();
 	_disabled = node.attribute("disabled").as_bool();
-
-	_useAspect = node.attribute("useAspect").as_bool();
-	if (_useAspect)
-	{
-		VERUS_QREF_RENDERER;
-		const float newW = _w / renderer.GetCurrentViewAspectRatio();
-		_aspectOffset = (_w - newW) * 0.5f;
-		_w = newW;
-		_x += _aspectOffset;
-	}
 
 	_animator.Parse(node, this);
 }

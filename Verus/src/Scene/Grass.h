@@ -54,9 +54,9 @@ namespace verus
 			static const int s_maxBushTypes = 16;
 
 		private:
-			static CGI::ShaderPwn       s_shader;
-			static UB_GrassVS           s_ubGrassVS;
-			static UB_GrassFS           s_ubGrassFS;
+			static CGI::ShaderPwn s_shader;
+			static UB_GrassVS     s_ubGrassVS;
+			static UB_GrassFS     s_ubGrassFS;
 
 			CGI::GeometryPwn              _geo;
 			CGI::PipelinePwns<PIPE_COUNT> _pipe;

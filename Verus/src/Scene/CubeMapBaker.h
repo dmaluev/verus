@@ -20,8 +20,8 @@ namespace verus
 			CGI::TexturePwns<TEX_COUNT> _tex;
 			CGI::RPHandle               _rph;
 			CGI::FBHandle               _fbh[+CGI::CubeMapFace::count];
-			MainCamera                  _camera;
-			PMainCamera                 _pPrevCamera = nullptr;
+			MainCamera                  _passCamera;
+			PCamera                     _pPrevPassCamera = nullptr;
 			int                         _side = 0;
 
 		public:

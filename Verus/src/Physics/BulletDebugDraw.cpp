@@ -9,9 +9,9 @@ void BulletDebugDraw::drawLine(const btVector3& from, const btVector3& to,
 {
 	VERUS_QREF_SM;
 	const float maxDistSq = s_maxDrawDist * s_maxDrawDist;
-	const Point3 eyePos = sm.GetCamera()->GetEyePosition();
-	if (VMath::distSqr(eyePos, Point3(from)) >= maxDistSq &&
-		VMath::distSqr(eyePos, Point3(to)) >= maxDistSq)
+	const Point3 headPos = sm.GetHeadCamera()->GetEyePosition();
+	if (VMath::distSqr(headPos, Point3(from)) >= maxDistSq &&
+		VMath::distSqr(headPos, Point3(to)) >= maxDistSq)
 		return;
 
 	VERUS_QREF_DD;
@@ -23,9 +23,9 @@ void BulletDebugDraw::drawLine(const btVector3& from, const btVector3& to,
 {
 	VERUS_QREF_SM;
 	const float maxDistSq = s_maxDrawDist * s_maxDrawDist;
-	const Point3 eyePos = sm.GetCamera()->GetEyePosition();
-	if (VMath::distSqr(eyePos, Point3(from)) >= maxDistSq &&
-		VMath::distSqr(eyePos, Point3(to)) >= maxDistSq)
+	const Point3 headPos = sm.GetHeadCamera()->GetEyePosition();
+	if (VMath::distSqr(headPos, Point3(from)) >= maxDistSq &&
+		VMath::distSqr(headPos, Point3(to)) >= maxDistSq)
 		return;
 
 	VERUS_QREF_DD;

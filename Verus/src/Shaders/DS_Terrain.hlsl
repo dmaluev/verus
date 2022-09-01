@@ -61,8 +61,8 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
-	const float3 eyePos = g_ubTerrainVS._eyePos_invMapSide.xyz;
-	const float invMapSide = g_ubTerrainVS._eyePos_invMapSide.w;
+	const float3 headPos = g_ubTerrainVS._headPos_invMapSide.xyz;
+	const float invMapSide = g_ubTerrainVS._headPos_invMapSide.w;
 
 	const float2 edgeCorrection = si.pos.yw;
 	si.pos.yw = 0.0;
@@ -74,8 +74,8 @@ VSO mainVS(VSI si)
 	float3 inNrm;
 	{
 		pos.y = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + (8.0 * invMapSide), 4.0).r);
-		const float distToEye = distance(pos, eyePos);
-		const float geomipsLod = log2(clamp(distToEye * (2.0 / 100.0), 1.0, 18.0));
+		const float distToHead = distance(pos, headPos);
+		const float geomipsLod = log2(clamp(distToHead * (2.0 / 100.0), 1.0, 18.0));
 		const float geomipsLodFrac = frac(geomipsLod);
 		const float geomipsLodBase = floor(geomipsLod);
 		const float geomipsLodNext = geomipsLodBase + 1.0;
@@ -277,7 +277,7 @@ DS_FSO mainFS(VSO si)
 
 		accNormal.rg = saturate(accNormal.rg * lerp(0.5, detailNSam.rg, detailStrength) * 2.0);
 
-		const float3 normalTBN = NormalMapFromBC5(accNormal, -3.0);
+		const float3 normalTBN = NormalMapFromBC5(accNormal);
 		normalWV = normalize(mul(normalTBN, matFromTBN));
 		tangentWV = normalize(mul(cross(normalTBN, cross(float3(0, 1, 0), normalTBN)), matFromTBN));
 	}

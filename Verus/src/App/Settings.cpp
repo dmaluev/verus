@@ -12,11 +12,12 @@ bool QualitySettings::operator==(RcQualitySettings that) const
 		_displayOffscreenDraw == that._displayOffscreenDraw &&
 		_displayOffscreenScale == that._displayOffscreenScale &&
 		_gpuAnisotropyLevel == that._gpuAnisotropyLevel &&
-		_gpuAntialiasingLevel == that._gpuAntialiasingLevel &&
+		_gpuAntiAliasingLevel == that._gpuAntiAliasingLevel &&
 		_gpuShaderQuality == that._gpuShaderQuality &&
 		_gpuTessellation == that._gpuTessellation &&
 		_gpuTextureLodLevel == that._gpuTextureLodLevel &&
 		_gpuTrilinearFilter == that._gpuTrilinearFilter &&
+		_postProcessAntiAliasing == that._postProcessAntiAliasing &&
 		_postProcessBloom == that._postProcessBloom &&
 		_postProcessCinema == that._postProcessCinema &&
 		_postProcessLightShafts == that._postProcessLightShafts &&
@@ -68,6 +69,7 @@ void QualitySettings::SetQuality(OverallQuality q)
 	case OverallQuality::ultra:
 		_gpuAnisotropyLevel = 16;
 		_gpuShaderQuality = Quality::ultra;
+		_postProcessAntiAliasing = true;
 		_postProcessCinema = true;
 		_postProcessMotionBlur = true;
 		_postProcessSSR = true;
@@ -77,6 +79,15 @@ void QualitySettings::SetQuality(OverallQuality q)
 		_sceneWaterQuality = WaterQuality::trueWavesRefraction;
 		break;
 	}
+}
+
+void QualitySettings::SetXrQuality()
+{
+	SetQuality(OverallQuality::high);
+
+	_gpuAnisotropyLevel = 16;
+	_postProcessAntiAliasing = true;
+	_postProcessCinema = false;
 }
 
 QualitySettings::OverallQuality QualitySettings::DetectQuality() const
@@ -178,6 +189,14 @@ void Settings::ParseCommandLineArgs(int argc, char* argv[])
 			const bool ret = IO::FileSystem::Delete(_C(pathname));
 			SetQuality(OverallQuality::ultra);
 		}
+
+		if (IsArg(i, "--q-xr"))
+		{
+			const bool ret = IO::FileSystem::Delete(_C(pathname));
+			_commandLine._gapi = 12;
+			_commandLine._windowed = true;
+			SetXrQuality();
+		}
 	}
 }
 
@@ -195,13 +214,14 @@ void Settings::Load()
 	_displayVSync = GetB("displayVSync", _displayVSync);
 	_gapi = GetI("gapi", _gapi);
 	_gpuAnisotropyLevel = GetI("gpuAnisotropyLevel", _gpuAnisotropyLevel);
-	_gpuAntialiasingLevel = GetI("gpuAntialiasingLevel", _gpuAntialiasingLevel);
+	_gpuAntiAliasingLevel = GetI("gpuAntiAliasingLevel", _gpuAntiAliasingLevel);
 	_gpuShaderQuality = static_cast<Quality>(GetI("gpuShaderQuality", +_gpuShaderQuality));
 	_gpuTessellation = GetB("gpuTessellation", _gpuTessellation);
 	_gpuTextureLodLevel = GetI("gpuTextureLodLevel", _gpuTextureLodLevel);
 	_gpuTrilinearFilter = GetB("gpuTrilinearFilter", _gpuTrilinearFilter);
 	_inputMouseSensitivity = GetF("inputMouseSensitivity", _inputMouseSensitivity);
 	_openXR = GetB("openXR", _openXR);
+	_postProcessAntiAliasing = GetB("postProcessAntiAliasing", _postProcessAntiAliasing);
 	_postProcessBloom = GetB("postProcessBloom", _postProcessBloom);
 	_postProcessCinema = GetB("postProcessCinema", _postProcessCinema);
 	_postProcessLightShafts = GetB("postProcessLightShafts", _postProcessLightShafts);
@@ -265,7 +285,7 @@ void Settings::Validate()
 	_displaySizeWidth = Math::Clamp(_displaySizeWidth, 480, 0x2000);
 	_displaySizeHeight = Math::Clamp(_displaySizeHeight, 270, 0x2000);
 	_gpuAnisotropyLevel = Math::Clamp(_gpuAnisotropyLevel, 0, 16);
-	_gpuAntialiasingLevel = Math::Clamp(_gpuAntialiasingLevel, 0, 16);
+	_gpuAntiAliasingLevel = Math::Clamp(_gpuAntiAliasingLevel, 0, 16);
 	_gpuShaderQuality = Math::Clamp(_gpuShaderQuality, Quality::low, Quality::ultra);
 	_gpuTextureLodLevel = Math::Clamp(_gpuTextureLodLevel, 0, 4);
 	_sceneGrassDensity = Math::Clamp(_sceneGrassDensity, 100, 1000);
@@ -290,13 +310,14 @@ void Settings::Save()
 	Set("displayVSync", _displayVSync);
 	Set("gapi", _gapi);
 	Set("gpuAnisotropyLevel", _gpuAnisotropyLevel);
-	Set("gpuAntialiasingLevel", _gpuAntialiasingLevel);
+	Set("gpuAntiAliasingLevel", _gpuAntiAliasingLevel);
 	Set("gpuShaderQuality", +_gpuShaderQuality);
 	Set("gpuTessellation", _gpuTessellation);
 	Set("gpuTextureLodLevel", _gpuTextureLodLevel);
 	Set("gpuTrilinearFilter", _gpuTrilinearFilter);
 	Set("inputMouseSensitivity", _inputMouseSensitivity);
 	Set("openXR", _openXR);
+	Set("postProcessAntiAliasing", _postProcessAntiAliasing);
 	Set("postProcessBloom", _postProcessBloom);
 	Set("postProcessCinema", _postProcessCinema);
 	Set("postProcessLightShafts", _postProcessLightShafts);

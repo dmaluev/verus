@@ -7,9 +7,10 @@ VERUS_UBUFFER UB_GrassVS
 	matrix _matVP;
 	matrix _matP;
 	float4 _phase_invMapSide_bushMask;
-	float4 _posEye;
+	float4 _headPos;
 	float4 _viewportSize;
 	float4 _warp_turb;
+	float4 _spriteMat;
 };
 
 VERUS_UBUFFER UB_GrassFS

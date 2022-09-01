@@ -18,7 +18,7 @@ void SceneManager::Init(RcDesc desc)
 {
 	VERUS_INIT();
 
-	SetCamera(desc._pMainCamera);
+	SetAllCameras(desc._pCamera);
 
 	_mapSide = desc._mapSide;
 	const float sideHalf = desc._mapSide * 0.5f;
@@ -76,10 +76,10 @@ void SceneManager::Update()
 
 void SceneManager::UpdateParts()
 {
-	const RcPoint3 eyePos = _pMainCamera->GetEyePosition();
+	const RcPoint3 headPos = _pHeadCamera->GetEyePosition();
 	for (auto& block : TStoreBlocks::_list)
 	{
-		const float distSq = VMath::distSqr(block.GetPosition(), eyePos);
+		const float distSq = VMath::distSqr(block.GetPosition(), headPos);
 		const float part = MaterialManager::ComputePart(distSq, block.GetBounds().GetAverageSize() * 0.5f);
 		block.GetMaterial()->IncludePart(part);
 	}
@@ -103,18 +103,20 @@ void SceneManager::Layout()
 	_visibleCount = 0;
 	VERUS_ZERO_MEM(_visibleCountPerType);
 
-	PCamera pPrevCamera = nullptr;
+	// <Traverse>
+	PCamera pPrevPassCamera = nullptr;
 	// For CSM we need to create geometry beyond the view frustum (1st slice):
 	if (settings._sceneShadowQuality >= App::Settings::Quality::high && atmo.GetShadowMapBaker().IsBaking())
 	{
-		PCamera pCameraCSM = atmo.GetShadowMapBaker().GetCameraCSM();
-		if (pCameraCSM)
-			pPrevCamera = sm.SetCamera(pCameraCSM);
+		PCamera pPassCameraCSM = atmo.GetShadowMapBaker().GetPassCameraCSM();
+		if (pPassCameraCSM)
+			pPrevPassCamera = sm.SetPassCamera(pPassCameraCSM);
 	}
-	_octree.TraverseVisible(_pCamera->GetFrustum());
+	_octree.TraverseVisible(_pPassCamera->GetFrustum());
 	// Back to original camera:
-	if (pPrevCamera)
-		SetCamera(pPrevCamera);
+	if (pPrevPassCamera)
+		SetPassCamera(pPrevPassCamera);
+	// </Traverse>
 
 	VERUS_RT_ASSERT(!_visibleCountPerType[+NodeType::unknown]);
 	std::sort(_vVisibleNodes.begin(), _vVisibleNodes.begin() + _visibleCount, [](PSceneNode pA, PSceneNode pB)
@@ -168,7 +170,7 @@ void SceneManager::Layout()
 			}
 
 			// Draw same node types front-to-back:
-			return pA->GetDistToEyeSq() < pB->GetDistToEyeSq();
+			return pA->GetDistToHeadSq() < pB->GetDistToHeadSq();
 		});
 }
 
@@ -828,12 +830,14 @@ void SceneManager::Deserialize(IO::RStream stream)
 
 		Desc desc;
 		desc._mapSide = mapSide;
-		PCamera     pCamera = _pCamera;
-		PMainCamera pMainCamera = _pMainCamera;
+		PCamera     pPassCamera = _pPassCamera;
+		PMainCamera pHeadCamera = _pHeadCamera;
+		PMainCamera pViewCamera = _pViewCamera;
 		Done();
 		Init(desc);
-		_pCamera = pCamera;
-		_pMainCamera = pMainCamera;
+		_pPassCamera = pPassCamera;
+		_pHeadCamera = pHeadCamera;
+		_pViewCamera = pViewCamera;
 
 		stream.ReadString(buffer);
 		count = atoi(buffer);

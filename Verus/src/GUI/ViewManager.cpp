@@ -429,3 +429,15 @@ float ViewManager::ParseCoordY(CSZ coord, float def)
 		return static_cast<float>(atof(coord)) * 0.01f;
 	return static_cast<float>(atof(coord));
 }
+
+Matrix4 ViewManager::GetXrMatrix() const
+{
+	VERUS_QREF_RENDERER;
+	if (CGI::ViewType::openXR != renderer.GetCurrentViewType())
+		return Matrix4::identity();
+
+	VERUS_QREF_SM;
+	return (_xrMatrixEnabled && sm.GetHeadCamera() && sm.GetPassCamera()) ?
+		sm.GetPassCamera()->GetMatrixVP() * sm.GetHeadCamera()->GetMatrixInvV() *
+		Transform3(Matrix3::scale(Vector3(0.25f * (16 / 9.f), 0.25f)), Vector3(0, 0, -1)) : Matrix4::identity();
+}

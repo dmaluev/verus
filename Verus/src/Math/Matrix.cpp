@@ -305,6 +305,13 @@ void Transform3::InstFormat(VMath::Vector4* p) const
 	memcpy(p, &m, 3 * sizeof(Vector4));
 }
 
+float4 Transform3::ToSpriteMat() const
+{
+	const Vector3 up = getUpper3x3() * Vector3(0, 1);
+	const glm::vec2 upNorm(glm::normalize(up.GLM2()));
+	return float4(upNorm.y, upNorm.x, -upNorm.x, upNorm.y);
+}
+
 bool Transform3::IsIdentity()
 {
 	const Matrix4 x(*this);

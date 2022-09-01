@@ -294,15 +294,15 @@ void Particles::Update()
 	else // Billboards:
 	{
 		VERUS_QREF_SM;
-		Scene::PCamera pCam = sm.GetCamera();
-		Vector3 normal = pCam->GetFrontDirection();
+		Scene::PCamera pHeadCamera = sm.GetHeadCamera();
+		Vector3 normal = pHeadCamera->GetFrontDirection();
 		Vector3 up(0, 1, 0);
 		switch (_billboardType)
 		{
 		case BillboardType::screenViewplaneOriented:
 		case BillboardType::screenViewpointOriented:
 		{
-			up = pCam->GetUpDirection();
+			up = pHeadCamera->GetUpDirection();
 		}
 		break;
 		case BillboardType::worldViewplaneOriented:
@@ -377,6 +377,8 @@ void Particles::Draw()
 	if (!_drawCount || !_csh.IsSet())
 		return;
 
+	auto cb = renderer.GetCommandBuffer();
+
 	float brightness = _brightness;
 	if (brightness < 0)
 	{
@@ -384,10 +386,8 @@ void Particles::Draw()
 		brightness = gray.x * abs(brightness);
 	}
 
-	auto cb = renderer.GetCommandBuffer();
-
-	s_ubParticlesVS._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
-	s_ubParticlesVS._matWVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubParticlesVS._matP = sm.GetPassCamera()->GetMatrixP().UniformBufferFormat();
+	s_ubParticlesVS._matWVP = sm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubParticlesVS._viewportSize = cb->GetViewportSize().GLM();
 	s_ubParticlesVS._brightness.x = brightness;
 	s_ubParticlesFS._tilesetSize = _tilesetSize.GLM();

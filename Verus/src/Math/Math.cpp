@@ -120,6 +120,20 @@ float Math::Lerp(float a, float b, float t)
 	return a + t * (b - a);
 }
 
+float Math::LerpAngles(float a, float b, float t)
+{
+	a = WrapAngle(a);
+	b = WrapAngle(b);
+	if (abs(a - b) >= VERUS_PI)
+	{
+		if (a < b)
+			a += VERUS_2PI;
+		else
+			b += VERUS_2PI;
+	}
+	return WrapAngle(Lerp(a, b, t));
+}
+
 float Math::SmoothStep(float a, float b, float t)
 {
 	const float x = Clamp((t - a) / (b - a), 0.f, 1.f);
@@ -649,6 +663,17 @@ void Math::Test()
 	}
 
 	{
+		// Note that yaw is calculated like this: atan2(frontDir.x, frontDir.z). This way atan2(0, 1) will return 0.
+		StringStream ss;
+		for (float y = -2.f; y < 2.f; ++y)
+			for (float x = -2.f; x < 2.f; ++x)
+			{
+				ss << "atan2(" << y << ", " << x << ") == " << atan2(y, x) << VERUS_CRNL;
+			}
+		const String s = ss.str();
+	}
+
+	{
 		StringStream ss;
 		for (float i = -10.f; i < 10.f; ++i)
 		{
@@ -692,6 +717,15 @@ void Math::Test()
 		point = camera.GetMatrixVP() * Point3(-97, 0, -97);
 		point /= point.getW();
 		VERUS_RT_ASSERT(glm::epsilonEqual<float>(point.getZ(), 1.f, e));
+	}
+
+	{
+		const Quat q(0);
+		const Matrix3 matR(q);
+		const Vector3 upDir = matR.getCol1();
+		const Vector3 frontDir = matR.getCol2();
+		const Vector3 sideDir = VMath::cross(upDir, frontDir);
+		VERUS_RT_ASSERT(glm::all(glm::epsilonEqual(sideDir.GLM(), glm::vec3(1, 0, 0), eps)));
 	}
 
 	// Z VS W:

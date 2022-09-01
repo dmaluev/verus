@@ -147,7 +147,7 @@ void HelloTexturedCubeGame::BaseGame_DrawView(CGI::RcViewDesc viewDesc)
 		renderer.GetFramebufferHandle_AutoWithDepth(renderer->GetSwapChainBufferIndex()),
 		{ Vector4(0), Vector4(1) });
 
-	Scene::RCamera camera = GetCamera();
+	Scene::RCamera camera = GetDefaultCamera();
 	camera.SetAspectRatio(renderer.GetCurrentViewAspectRatio());
 	camera.Update();
 	Transform3 matW = Transform3::rotationZYX(_rotation);

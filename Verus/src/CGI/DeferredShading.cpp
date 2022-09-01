@@ -604,8 +604,8 @@ bool DeferredShading::BeginLightingPass(bool ambient, bool terrainOcclusion)
 		s_ubAmbientVS._matW = Math::QuadMatrix().UniformBufferFormat();
 		s_ubAmbientVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 		s_ubAmbientVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
-		s_ubAmbientFS._matInvV = sm.GetCamera()->GetMatrixInvV().UniformBufferFormat();
-		s_ubAmbientFS._matInvP = sm.GetCamera()->GetMatrixInvP().UniformBufferFormat();
+		s_ubAmbientFS._matInvV = sm.GetPassCamera()->GetMatrixInvV().UniformBufferFormat();
+		s_ubAmbientFS._matInvP = sm.GetPassCamera()->GetMatrixInvP().UniformBufferFormat();
 		s_ubAmbientFS._ambientColorY0 = float4(atmo.GetAmbientColorY0().GLM(), 0);
 		s_ubAmbientFS._ambientColorY1 = float4(atmo.GetAmbientColorY1().GLM(), 0);
 		s_ubAmbientFS._invMapSide_minOcclusion.x = 1.f / _terrainMapSide;
@@ -697,8 +697,6 @@ void DeferredShading::BeginComposeAndForwardRendering(bool underwaterMask)
 	VERUS_RT_ASSERT(!_activeGeometryPass && !_activeLightingPass && !_activeForwardRendering);
 	_activeForwardRendering = true;
 
-	const Matrix4 matInvVP = VMath::inverse(sm.GetCamera()->GetMatrixVP());
-
 	auto cb = renderer.GetCommandBuffer();
 
 	// Compose buffers, that is perform "final color = albedo * diffuse + specular" computation. Result is still HDR:
@@ -709,6 +707,8 @@ void DeferredShading::BeginComposeAndForwardRendering(bool underwaterMask)
 			_tex[TEX_GBUFFER_3]->GetClearValue()
 		});
 
+	const Matrix4 matInvVP = VMath::inverse(sm.GetPassCamera()->GetMatrixVP());
+
 	s_ubComposeVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubComposeVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 	s_ubComposeVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
@@ -717,7 +717,7 @@ void DeferredShading::BeginComposeAndForwardRendering(bool underwaterMask)
 	s_ubComposeFS._exposure_underwaterMask.y = underwaterMask ? 1.f : 0.f;
 	s_ubComposeFS._backgroundColor = _backgroundColor.GLM();
 	s_ubComposeFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
-	s_ubComposeFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
+	s_ubComposeFS._zNearFarEx = sm.GetPassCamera()->GetZNearFarEx().GLM();
 	s_ubComposeFS._waterDiffColorShallow = float4(water.GetDiffuseColorShallow().GLM(), water.GetFogDensity());
 	s_ubComposeFS._waterDiffColorDeep = float4(water.GetDiffuseColorDeep().GLM(), water.IsUnderwater() ? 1.f : 0.f);
 
@@ -805,10 +805,10 @@ void DeferredShading::OnNewLightType(CommandBufferPtr cb, LightType type, bool w
 	VERUS_QREF_SM;
 
 	s_ubPerFrame._matToUV = Math::ToUVMatrix().UniformBufferFormat();
-	s_ubPerFrame._matV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
-	s_ubPerFrame._matInvV = sm.GetCamera()->GetMatrixInvV().UniformBufferFormat();
-	s_ubPerFrame._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubPerFrame._matInvP = sm.GetCamera()->GetMatrixInvP().UniformBufferFormat();
+	s_ubPerFrame._matV = sm.GetPassCamera()->GetMatrixV().UniformBufferFormat();
+	s_ubPerFrame._matInvV = sm.GetPassCamera()->GetMatrixInvV().UniformBufferFormat();
+	s_ubPerFrame._matVP = sm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubPerFrame._matInvP = sm.GetPassCamera()->GetMatrixInvP().UniformBufferFormat();
 	s_ubPerFrame._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 
 	switch (type)

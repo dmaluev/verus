@@ -137,6 +137,16 @@ bool ActiveMechanics::OnDie(int id)
 	return false;
 }
 
+bool ActiveMechanics::OnHeadCameraDefined()
+{
+	for (auto p : _vStack)
+	{
+		if (Continue::no == p->OnHeadCameraDefined())
+			return true;
+	}
+	return false;
+}
+
 bool ActiveMechanics::OnMouseMove(float x, float y)
 {
 	for (auto p : _vStack)
@@ -157,6 +167,12 @@ bool ActiveMechanics::OnTakeDamage(int id, float amount)
 	return false;
 }
 
+void ActiveMechanics::OnViewChanged(CGI::RcViewDesc viewDesc)
+{
+	for (auto p : _vStack)
+		p->OnViewChanged(viewDesc);
+}
+
 bool ActiveMechanics::UpdateMultiplayer()
 {
 	for (auto p : _vStack)
@@ -167,11 +183,11 @@ bool ActiveMechanics::UpdateMultiplayer()
 	return false;
 }
 
-Scene::PMainCamera ActiveMechanics::GetMainCamera()
+Scene::PMainCamera ActiveMechanics::GetScreenCamera()
 {
 	for (auto p : _vStack)
 	{
-		Scene::PMainCamera pCamera = p->GetMainCamera();
+		Scene::PMainCamera pCamera = p->GetScreenCamera();
 		if (pCamera)
 			return pCamera;
 	}

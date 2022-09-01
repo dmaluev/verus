@@ -17,12 +17,7 @@ void AudioSystem::Init()
 {
 	VERUS_INIT();
 
-	const ALCchar* deviceName = nullptr;
-#ifdef _WIN32
-	deviceName = "DirectSound3D";
-#endif
-
-	if (!(_pDevice = alcOpenDevice(deviceName)))
+	if (!(_pDevice = alcOpenDevice(nullptr)))
 		throw VERUS_RUNTIME_ERROR << "alcOpenDevice()";
 
 	if (!(_pContext = alcCreateContext(_pDevice, nullptr)))

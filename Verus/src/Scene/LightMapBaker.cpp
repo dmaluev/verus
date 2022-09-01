@@ -450,12 +450,12 @@ void LightMapBaker::DrawLumel(RcPoint3 pos, RcVector3 nrm, int batchIndex)
 			cam.SetZNear(0.00001f);
 			cam.SetZFar(_desc._distance);
 			cam.Update();
-			PCamera pPrevCamera = sm.SetCamera(&cam);
+			PCamera pPrevCamera = sm.SetPassCamera(&cam);
 
 			drawLumelDesc._frontDir = cam.GetFrontDirection();
 			_pDelegate->LightMapBaker_Draw(cubeMapFace, drawLumelDesc);
 
-			sm.SetCamera(pPrevCamera);
+			sm.SetPassCamera(pPrevCamera);
 		}
 		_pDelegate->LightMapBaker_Draw(CGI::CubeMapFace::negZ, drawLumelDesc);
 

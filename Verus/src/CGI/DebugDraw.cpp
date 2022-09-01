@@ -92,8 +92,8 @@ void DebugDraw::Begin(Type type, PcTransform3 pMat, bool zEnable)
 	}
 
 	Matrix4 matWVP;
-	if (sm.GetCamera())
-		matWVP = sm.GetCamera()->GetMatrixVP();
+	if (sm.GetPassCamera())
+		matWVP = sm.GetPassCamera()->GetMatrixVP();
 	else
 		matWVP = Matrix4::identity();
 	s_ubDebugDraw._matWVP = pMat ? Matrix4(matWVP * *pMat).UniformBufferFormat() : matWVP.UniformBufferFormat();

@@ -62,7 +62,7 @@ void Table::Draw()
 			auto cb = renderer.GetCommandBuffer();
 			auto shader = vm.GetShader();
 
-			vm.GetUbGui()._matW = Math::QuadMatrix(x, yOffset, w, _rowHeight).UniformBufferFormat();
+			vm.GetUbGui()._matWVP = Matrix4(vm.GetXrMatrix() * Math::QuadMatrix(x, yOffset, w, _rowHeight)).UniformBufferFormat();
 			vm.GetUbGuiFS()._color = Vector4(1, 1, 1, 0.25f).GLM();
 
 			vm.BindPipeline(ViewManager::PIPE_SOLID_COLOR, cb);

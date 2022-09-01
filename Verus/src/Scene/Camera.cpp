@@ -16,6 +16,7 @@ void Camera::UpdateInternal()
 		if (0 == _yFov)
 		{
 			_matP = Matrix4::MakeOrtho(_xMag, _yMag, _zNear, _zFar);
+			_fovScale = 1;
 		}
 		else
 		{
@@ -28,7 +29,7 @@ void Camera::UpdateInternal()
 				_yFov = -_yFov;
 				_matP = Matrix4::MakePerspective(_yFov, _aspectRatio, _zNear, _zFar, false);
 			}
-			_fovScale = 0.5f / tan(_yFov * 0.5f);
+			_fovScale = 0.5f * _matP[1][1];
 		}
 		_matInvP = VMath::inverse(_matP);
 	}
@@ -53,17 +54,17 @@ void Camera::UpdateUsingViewDesc(CGI::RcViewDesc viewDesc)
 	_matInvV = VMath::orthoInverse(_matV);
 	_matInvP = VMath::inverse(_matP);
 
-	const Matrix3 matR(viewDesc._pose._orientation);
-	_frontDir = matR.getCol2();
-	_upDir = matR.getCol1();
+	_frontDir = VMath::rotate(viewDesc._pose._orientation, Vector3(0, 0, -1));
+	_upDir = VMath::rotate(viewDesc._pose._orientation, Vector3(0, 1, 0));
 
 	_eyePos = viewDesc._pose._position;
 	_atPos = _eyePos + _frontDir;
 
-	_yFov = VERUS_PI * 0.5f;
-	_aspectRatio = 1;
+	_yFov = 2 * atan(1.f / _matP[1][1]);
+	_aspectRatio = _matP[1][1] / _matP[0][0];
 	_zNear = viewDesc._zNear;
 	_zFar = viewDesc._zFar;
+	_fovScale = 0.5f * _matP[1][1];
 
 	UpdateVP();
 	_update = Update::none;
@@ -76,9 +77,8 @@ void Camera::UpdateUsingHeadPose(Math::RcPose pose)
 	_matV = VMath::orthoInverse(Transform3(pose._orientation, Vector3(pose._position)));
 	_matInvV = VMath::orthoInverse(_matV);
 
-	const Matrix3 matR(pose._orientation);
-	_frontDir = matR.getCol2();
-	_upDir = matR.getCol1();
+	_frontDir = VMath::rotate(pose._orientation, Vector3(0, 0, -1));
+	_upDir = VMath::rotate(pose._orientation, Vector3(0, 1, 0));
 
 	_eyePos = pose._position;
 	_atPos = _eyePos + _frontDir;
@@ -116,6 +116,11 @@ void Camera::SetFrustumNear(float zNear)
 void Camera::SetFrustumFar(float zFar)
 {
 	_frustum.SetFarPlane(_eyePos, _frontDir, zFar);
+}
+
+float Camera::ComputeYaw() const
+{
+	return atan2(_frontDir.getX(), _frontDir.getZ());
 }
 
 void Camera::SetXFov(float xFov)
@@ -307,8 +312,8 @@ void MainCamera::GetPickingRay(RPoint3 pos, RVector3 dir) const
 
 	int x, y;
 	_pCpp->GetPos(x, y);
-	const float ndcX = (float(x + x + 1) / renderer.GetCurrentViewWidth()) - 1;
-	const float ndcY = 1 - (float(y + y + 1) / renderer.GetCurrentViewHeight());
+	const float ndcX = (float(x + x + 1) / renderer.GetScreenSwapChainWidth()) - 1;
+	const float ndcY = 1 - (float(y + y + 1) / renderer.GetScreenSwapChainHeight());
 	const Vector3 v(
 		ndcX / GetMatrixP().getElem(0, 0),
 		ndcY / GetMatrixP().getElem(1, 1),

@@ -93,7 +93,7 @@ namespace verus
 			virtual void SaveXML(pugi::xml_node node);
 			virtual void LoadXML(pugi::xml_node node);
 
-			float GetDistToEyeSq() const;
+			float GetDistToHeadSq() const;
 		};
 		VERUS_TYPEDEFS(SceneNode);
 	}

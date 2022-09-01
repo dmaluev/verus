@@ -308,6 +308,7 @@ float BaseCharacter::ComputeThirdPersonCamera(Scene::RCamera camera, Anim::RcOrb
 
 	camera.MoveEyeTo(eye);
 	camera.MoveAtTo(at);
+	camera.Update();
 
 	return ret;
 }

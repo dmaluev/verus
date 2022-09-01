@@ -40,12 +40,12 @@ void Emitter::Done()
 void Emitter::Update()
 {
 	VERUS_QREF_SM;
-	const Point3 eyePos = sm.GetCamera()->GetEyePosition();
-	if (_particles && VMath::distSqr(GetPosition(), eyePos) < 50 * 50.f)
+	const Point3 headPos = sm.GetHeadCamera()->GetEyePosition();
+	if (_particles && VMath::distSqr(GetPosition(), headPos) < 50 * 50.f)
 		_particles->GetParticles().AddFlow(GetPosition(), _flowOffset, _flowScale, &_flowColor, &_flow);
 	if (_sound)
 	{
-		const bool inRange = VMath::distSqr(GetPosition(), eyePos) < 15 * 15.f;
+		const bool inRange = VMath::distSqr(GetPosition(), headPos) < 15 * 15.f;
 		if (inRange && !_src)
 		{
 			Audio::Source::Desc desc;

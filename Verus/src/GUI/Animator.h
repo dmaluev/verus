@@ -74,7 +74,9 @@ namespace verus
 			float             _pulseSpeed = 0;
 			float             _timeout = 0;
 			float             _maxTimeout = -1;
+			float             _originalW = 0;
 			bool              _reverse = false;
+			bool              _preserveAspectRatio = false;
 
 		public:
 			Animator();

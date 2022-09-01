@@ -325,7 +325,9 @@ DS_FSO mainFS(VSO si)
 	float4 albedo;
 	{
 		const float texEnabled = 1.0 - floor(mm_solidA.a);
-		float4 albedoSam = g_texA.Sample(g_samA, tc0 * texEnabled);
+		float4 albedoSam = float4(
+			g_texA.Sample(g_samA, tc0 * texEnabled).rgb,
+			g_texA.SampleBias(g_samA, tc0 * texEnabled, 1.4).a);
 		albedoSam.rgb = lerp(albedoSam.rgb, mm_solidA.rgb, mm_solidA.a);
 
 		albedo = albedoSam;

@@ -97,6 +97,7 @@ void Water::Init(RTerrain terrain)
 		//pipeDesc._rasterizationState._polygonMode = CGI::PolygonMode::line;
 		pipeDesc._rasterizationState._cullMode = CGI::CullMode::none;
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc._primitiveRestartEnable = true;
 		_pipe[PIPE_MAIN].Init(pipeDesc);
 	}
 	{
@@ -212,43 +213,44 @@ void Water::Draw()
 			return;
 	}
 
-	RCamera cam = *sm.GetCamera();
+	auto cb = renderer.GetCommandBuffer();
+
+	RCamera headCamera = *sm.GetHeadCamera();
+	RCamera passCamera = *sm.GetPassCamera();
 
 	Transform3 matW;
 
-	Point3 eyePosAtGroundLevel = cam.GetEyePosition();
-	eyePosAtGroundLevel.setY(0);
+	Point3 headPosAtGroundLevel = headCamera.GetEyePosition();
+	headPosAtGroundLevel.setY(0);
 
-	Vector3 flatDir = cam.GetFrontDirection();
+	Vector3 flatDir = headCamera.GetFrontDirection();
 	flatDir.setY(0);
 	flatDir = VMath::normalizeApprox(flatDir);
 	const float angle = atan2(
 		static_cast<float>(flatDir.getX()),
 		static_cast<float>(flatDir.getZ())); // Align with high density sector.
 	const Matrix3 matR = Matrix3::rotationY(angle);
-	matW = Transform3(matR, Vector3(eyePosAtGroundLevel - flatDir * 5 * abs(cam.GetFrontDirection().getY())));
+	matW = Transform3(matR, Vector3(headPosAtGroundLevel - flatDir * 5 * abs(headCamera.GetFrontDirection().getY())));
 
-	const Matrix4 matWVP = cam.GetMatrixVP() * matW;
-	const Matrix4 matScreen = Matrix4(Math::ToUVMatrix()) * cam.GetMatrixVP();
-
-	auto cb = renderer.GetCommandBuffer();
+	const Matrix4 matScreen = Matrix4(Math::ToUVMatrix()) * passCamera.GetMatrixVP();
 
 	s_ubWaterVS._matW = matW.UniformBufferFormat();
-	s_ubWaterVS._matVP = cam.GetMatrixVP().UniformBufferFormat();
+	s_ubWaterVS._matVP = passCamera.GetMatrixVP().UniformBufferFormat();
 	s_ubWaterVS._matScreen = matScreen.UniformBufferFormat();
-	s_ubWaterVS._eyePos_invMapSide = float4(cam.GetEyePosition().GLM(), 1.f / _pTerrain->GetMapSide());
+	s_ubWaterVS._headPos = float4(headCamera.GetEyePosition().GLM(), 0);
+	s_ubWaterVS._eyePos_invMapSide = float4(passCamera.GetEyePosition().GLM(), 1.f / _pTerrain->GetMapSide());
 	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.x = 1 / _patchSide;
 	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.y =
-		Math::ComputeDistToMipScale(static_cast<float>(_genSide << 6), static_cast<float>(renderer.GetCurrentViewWidth()), _patchSide, cam.GetYFov());
+		Math::ComputeDistToMipScale(static_cast<float>(_genSide << 6), static_cast<float>(renderer.GetCurrentViewWidth()), _patchSide, headCamera.GetYFov());
 	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.z =
-		Math::ComputeDistToMipScale(static_cast<float>(_pTerrain->GetMapSide()), static_cast<float>(renderer.GetCurrentViewHeight()), static_cast<float>(_pTerrain->GetMapSide()), cam.GetYFov());
+		Math::ComputeDistToMipScale(static_cast<float>(_pTerrain->GetMapSide()), static_cast<float>(renderer.GetCurrentViewHeight()), static_cast<float>(_pTerrain->GetMapSide()), headCamera.GetYFov());
 	s_ubWaterVS._waterScale_distToMipScale_landDistToMipScale_wavePhase.w = _wavePhase;
 
-	s_ubWaterFS._matV = cam.GetMatrixV().UniformBufferFormat();
+	s_ubWaterFS._matV = passCamera.GetMatrixV().UniformBufferFormat();
 	s_ubWaterFS._phase_wavePhase_camScale.x = _phase;
 	s_ubWaterFS._phase_wavePhase_camScale.y = _wavePhase;
-	s_ubWaterFS._phase_wavePhase_camScale.z = cam.GetFovScale() / cam.GetAspectRatio();
-	s_ubWaterFS._phase_wavePhase_camScale.w = -cam.GetFovScale();
+	s_ubWaterFS._phase_wavePhase_camScale.z = passCamera.GetFovScale() / passCamera.GetAspectRatio();
+	s_ubWaterFS._phase_wavePhase_camScale.w = -passCamera.GetFovScale();
 	s_ubWaterFS._diffuseColorShallow = float4(_diffuseColorShallow.GLM(), 0);
 	s_ubWaterFS._diffuseColorDeep = float4(_diffuseColorDeep.GLM(), 0);
 	s_ubWaterFS._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0);
@@ -311,17 +313,19 @@ void Water::BeginPlanarReflection(CGI::PBaseCommandBuffer pCB)
 	if (!pCB)
 		pCB = renderer.GetCommandBuffer().Get();
 
-	_camera = *sm.GetMainCamera();
-	if (!IsUnderwater(_camera.GetEyePosition()))
-		_camera.EnableReflectionMode();
-	_pPrevCamera = sm.SetCamera(&_camera);
-
 	pCB->BeginRenderPass(_rphReflection, _fbhReflection,
 		{
 			_tex[TEX_REFLECTION]->GetClearValue(),
 			_tex[TEX_REFLECTION_DEPTH]->GetClearValue()
 		},
 		CGI::ViewportScissorFlags::setAllForFramebuffer);
+
+	_headCamera = *sm.GetHeadCamera();
+	if (!IsUnderwater(_headCamera.GetEyePosition()))
+		_headCamera.EnableReflectionMode();
+
+	_pPrevPassCamera = sm.SetPassCamera(&_headCamera);
+	_pPrevHeadCamera = sm.SetHeadCamera(&_headCamera);
 }
 
 void Water::EndPlanarReflection(CGI::PBaseCommandBuffer pCB)
@@ -334,7 +338,8 @@ void Water::EndPlanarReflection(CGI::PBaseCommandBuffer pCB)
 
 	pCB->EndRenderPass();
 
-	sm.SetCamera(_pPrevCamera);
+	sm.SetPassCamera(_pPrevPassCamera);
+	sm.SetHeadCamera(_pPrevHeadCamera);
 
 	_tex[TEX_REFLECTION]->GenerateMips();
 }
@@ -421,7 +426,7 @@ void Water::CreateWaterPlane()
 {
 	VERUS_QREF_SM;
 
-	const float maxRadius = Math::Min(sm.GetCamera()->GetZFar(), 5000.f);
+	const float maxRadius = Math::Min(sm.GetHeadCamera()->GetZFar(), 5000.f);
 	const float stepW = 1.f / (_gridWidth - 1);
 	const float stepH = 1.f / (_gridHeight - 1);
 
@@ -467,9 +472,9 @@ float Water::PhillipsSpectrum(float k)
 
 bool Water::IsUnderwater() const
 {
-	return _pPrevCamera ?
-		IsUnderwater(_pPrevCamera->GetEyePosition()) :
-		IsUnderwater(SceneManager::I().GetCamera()->GetEyePosition());
+	return _pPrevHeadCamera ?
+		IsUnderwater(_pPrevHeadCamera->GetEyePosition()) :
+		IsUnderwater(SceneManager::I().GetHeadCamera()->GetEyePosition());
 }
 
 bool Water::IsUnderwater(RcPoint3 eyePos) const

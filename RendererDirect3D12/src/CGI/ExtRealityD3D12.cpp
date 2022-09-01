@@ -27,7 +27,9 @@ void ExtRealityD3D12::Init()
 {
 	VERUS_INIT();
 
-	_vRequiredExtensions.reserve(2);
+	BaseExtReality::Init();
+
+	_vRequiredExtensions.reserve(8);
 	_vRequiredExtensions.push_back(XR_KHR_D3D12_ENABLE_EXTENSION_NAME);
 #if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	_vRequiredExtensions.push_back(XR_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -268,4 +270,14 @@ void ExtRealityD3D12::EndView(int viewIndex)
 void ExtRealityD3D12::EndFrame()
 {
 	BaseExtReality::EndFrame();
+}
+
+void ExtRealityD3D12::BeginAreaUpdate()
+{
+	BaseExtReality::BeginAreaUpdate();
+}
+
+void ExtRealityD3D12::EndAreaUpdate(PcVector4 pUserOffset)
+{
+	BaseExtReality::EndAreaUpdate(pUserOffset);
 }

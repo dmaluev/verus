@@ -32,7 +32,7 @@ Forest::~Forest()
 void Forest::InitStatic()
 {
 	s_shader[SHADER_MAIN].Init("[Shaders]:DS_Forest.hlsl");
-	s_shader[SHADER_MAIN]->CreateDescriptorSet(0, &s_ubForestVS, sizeof(s_ubForestVS), 100, {}, CGI::ShaderStageFlags::vs);
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(0, &s_ubForestVS, sizeof(s_ubForestVS), 100, {}, CGI::ShaderStageFlags::vs | CGI::ShaderStageFlags::gs);
 	s_shader[SHADER_MAIN]->CreateDescriptorSet(1, &s_ubForestFS, sizeof(s_ubForestFS), 100,
 		{
 			CGI::Sampler::linearMipL,
@@ -343,21 +343,21 @@ void Forest::Layout(bool reflection)
 			bc._visible = false;
 
 	{
-		const float zFarWas = sm.GetMainCamera()->GetZFar();
+		const float zFarWas = sm.GetHeadCamera()->GetZFar();
 
 		if (!reflection)
 		{
-			sm.GetMainCamera()->SetFrustumFar(_maxDist);
+			sm.GetHeadCamera()->SetFrustumFar(_maxDist);
 			Math::RQuadtreeIntegral qt = _pTerrain->GetQuadtree();
 			qt.SetDelegate(&_scatter);
 			qt.TraverseVisible();
 			qt.SetDelegate(_pTerrain);
 		}
 
-		sm.GetMainCamera()->SetFrustumFar(1000);
-		_octree.TraverseVisible(sm.GetMainCamera()->GetFrustum());
+		sm.GetHeadCamera()->SetFrustumFar(1000);
+		_octree.TraverseVisible(sm.GetHeadCamera()->GetFrustum());
 
-		sm.GetMainCamera()->SetFrustumFar(zFarWas);
+		sm.GetHeadCamera()->SetFrustumFar(zFarWas);
 
 		if (reflection)
 			return;
@@ -494,11 +494,12 @@ void Forest::DrawSprites()
 
 	auto cb = renderer.GetCommandBuffer();
 
-	s_ubForestVS._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
-	s_ubForestVS._matWVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubForestVS._matP = sm.GetPassCamera()->GetMatrixP().UniformBufferFormat();
+	s_ubForestVS._matWVP = sm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubForestVS._viewportSize = cb->GetViewportSize().GLM();
-	s_ubForestVS._eyePos = float4(sm.GetCamera()->GetEyePosition().GLM(), 0);
-	s_ubForestVS._mainCameraEyePos = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
+	s_ubForestVS._eyePos = float4(sm.GetPassCamera()->GetEyePosition().GLM(), 0);
+	s_ubForestVS._headPos = float4(sm.GetHeadCamera()->GetEyePosition().GLM(), 0);
+	s_ubForestVS._spriteMat = sm.GetPassCamera()->GetMatrixV().ToSpriteMat();
 
 	cb->BindPipeline(_pipe[drawingDepth ? PIPE_DEPTH : PIPE_MAIN]);
 	cb->BindVertexBuffers(_geo);
@@ -567,12 +568,12 @@ void Forest::DrawSimple(DrawSimpleMode mode, CGI::CubeMapFace cubeMapFace)
 
 	auto cb = renderer.GetCommandBuffer();
 
-	s_ubSimpleForestVS._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
-	s_ubSimpleForestVS._matWVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubSimpleForestVS._matP = sm.GetPassCamera()->GetMatrixP().UniformBufferFormat();
+	s_ubSimpleForestVS._matWVP = sm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubSimpleForestVS._viewportSize = cb->GetViewportSize().GLM();
-	s_ubSimpleForestVS._eyePos_clipDistanceOffset = float4(sm.GetCamera()->GetEyePosition().GLM(), clipDistanceOffset);
-	s_ubSimpleForestVS._mainCameraEyePos_pointSpriteFlipY = float4(sm.GetMainCamera()->GetEyePosition().GLM(), pointSpriteFlipY);
-	s_ubSimpleForestFS._matInvV = sm.GetCamera()->GetMatrixInvV().UniformBufferFormat();
+	s_ubSimpleForestVS._eyePos_clipDistanceOffset = float4(sm.GetPassCamera()->GetEyePosition().GLM(), clipDistanceOffset);
+	s_ubSimpleForestVS._mainCameraEyePos_pointSpriteFlipY = float4(sm.GetHeadCamera()->GetEyePosition().GLM(), pointSpriteFlipY);
+	s_ubSimpleForestFS._matInvV = sm.GetPassCamera()->GetMatrixInvV().UniformBufferFormat();
 	s_ubSimpleForestFS._normalFlip = float4(normalFlip.GLM(), 0);
 	s_ubSimpleForestFS._tcFlip = float4(tcFlip.GLM(), 0);
 	s_ubSimpleForestFS._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0);
@@ -1085,13 +1086,13 @@ void Forest::BakeSprite(RPlant plant, CSZ url)
 			cam.SetXMag(size * _margin);
 			cam.SetYMag(size * _margin);
 			cam.Update();
-			PCamera pPrevCamera = sm.SetCamera(&cam);
+			PCamera pPrevCamera = sm.SetPassCamera(&cam);
 
 			plant._mesh.UpdateUniformBufferPerFrame();
 			cb->BindDescriptors(Scene::Mesh::GetShader(), 0);
 			cb->DrawIndexed(plant._mesh.GetIndexCount());
 
-			sm.SetCamera(pPrevCamera);
+			sm.SetPassCamera(pPrevCamera);
 		}
 	}
 	Mesh::GetShader()->EndBindDescriptors();
@@ -1182,8 +1183,8 @@ void Forest::Scatter_AddInstance(const int ij[2], int type, float x, float z, fl
 
 	const float h = _pTerrain->GetHeightAt(ij);
 	Point3 pos(x, h, z);
-	RcPoint3 eyePos = sm.GetMainCamera()->GetEyePosition();
-	const float distSq = VMath::distSqr(eyePos, pos);
+	RcPoint3 headPos = sm.GetHeadCamera()->GetEyePosition();
+	const float distSq = VMath::distSqr(headPos, pos);
 	const float maxDistSq = _maxDist * _maxDist;
 	if (distSq >= maxDistSq)
 		return;
@@ -1211,7 +1212,7 @@ void Forest::Scatter_AddInstance(const int ij[2], int type, float x, float z, fl
 		const float strength = Math::Clamp<float>((distFractionSq - 0.5f) * 2, 0, 1);
 		const float maxOffset = Math::Min(plant._maxSize, 5.f);
 		const Point3 center = pos + Vector3(0, maxOffset * 0.5f, 0);
-		pushBack = VMath::normalizeApprox(center - eyePos) * maxOffset * strength;
+		pushBack = VMath::normalizeApprox(center - headPos) * maxOffset * strength;
 	}
 
 	DrawPlant drawPlant;
@@ -1230,7 +1231,7 @@ Continue Forest::Octree_ProcessNode(void* pToken, void* pUser)
 {
 	VERUS_QREF_SM;
 	PBakedChunk pBakedChunk = static_cast<PBakedChunk>(pToken);
-	pBakedChunk->_visible = sm.GetMainCamera()->GetFrustum().ContainsAabb(pBakedChunk->_bounds) != Relation::outside;
+	pBakedChunk->_visible = sm.GetPassCamera()->GetFrustum().ContainsAabb(pBakedChunk->_bounds) != Relation::outside;
 	return Continue::yes;
 }
 

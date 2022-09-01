@@ -40,10 +40,10 @@ VSO mainVS(VSI si)
 	const float angle = si.tc0.y;
 
 	const float3 toEye = g_ubForestVS._eyePos.xyz - si.pos.xyz;
-	const float distToMainCamera = distance(g_ubForestVS._mainCameraEyePos.xyz, si.pos.xyz);
+	const float distToHead = distance(g_ubForestVS._headPos.xyz, si.pos.xyz);
 
-	const float nearAlpha = ComputeFade(distToMainCamera, 60.0, 90.0);
-	const float farAlpha = 1.0 - ComputeFade(distToMainCamera, 900.0, 1000.0);
+	const float nearAlpha = ComputeFade(distToHead, 60.0, 90.0);
+	const float farAlpha = 1.0 - ComputeFade(distToHead, 900.0, 1000.0);
 
 	so.pos = mul(si.pos, g_ubForestVS._matWVP);
 	so.tc0 = 0.0;
@@ -75,7 +75,11 @@ void mainGS(point VSO si[1], inout TriangleStream<VSO> stream)
 	const float2 center = so.pos.xy;
 	for (int i = 0; i < 4; ++i)
 	{
-		so.pos.xy = center + _POINT_SPRITE_POS_OFFSETS[i] * so.psize;
+		const float2 posOffset = _POINT_SPRITE_POS_OFFSETS[i] * so.psize;
+		const float2 offset = float2(
+			dot(posOffset, g_ubForestVS._spriteMat.xy),
+			dot(posOffset, g_ubForestVS._spriteMat.zw));
+		so.pos.xy = center + offset;
 		so.tc0 = _POINT_SPRITE_TEX_COORDS[i];
 		stream.Append(so);
 	}
@@ -123,7 +127,9 @@ DS_FSO mainFS(VSO si)
 	const float mask = ComputeMask(si.tc0, si.color.a);
 
 	const float4 gBuffer0Sam = g_texGBuffer0.Sample(g_samGBuffer0, tc);
-	const float4 gBuffer1Sam = g_texGBuffer1.Sample(g_samGBuffer1, tc);
+	const float4 gBuffer1Sam = float4(
+		g_texGBuffer1.Sample(g_samGBuffer1, tc).rgb,
+		g_texGBuffer1.SampleBias(g_samGBuffer1, tc, 1.0).a);
 	const float4 gBuffer2Sam = g_texGBuffer2.Sample(g_samGBuffer2, tc);
 	const float4 gBuffer3Sam = g_texGBuffer3.Sample(g_samGBuffer3, tc);
 

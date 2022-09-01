@@ -64,6 +64,8 @@ namespace verus
 				PIPE_SIMPLE_TEX_ADD_ROBOTIC,
 				PIPE_SIMPLE_TEX_ADD_SKINNED,
 
+				PIPE_SIMPLE_PLASMA_FX,
+
 				PIPE_COUNT
 			};
 

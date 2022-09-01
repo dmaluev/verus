@@ -27,10 +27,12 @@ namespace verus
 			bool GetSpawnPosition(int id, RPoint3 pos);
 			bool IsDefaultInputEnabled();
 			bool OnDie(int id);
+			bool OnHeadCameraDefined();
 			bool OnMouseMove(float x, float y);
 			bool OnTakeDamage(int id, float amount);
+			void OnViewChanged(CGI::RcViewDesc viewDesc);
 			bool UpdateMultiplayer();
-			Scene::PMainCamera GetMainCamera();
+			Scene::PMainCamera GetScreenCamera();
 
 			void Reset();
 			bool Push(RMechanics mech);

@@ -16,7 +16,7 @@ struct MyRendererDelegate : CGI::RendererDelegate
 		_p->BaseGame_Draw();
 	}
 
-	virtual void Renderer_OnDrawView(CGI::RcViewDesc viewDesc)
+	virtual void Renderer_OnDrawView(CGI::RcViewDesc viewDesc) override
 	{
 		_p->BaseGame_DrawView(viewDesc);
 	}
@@ -106,11 +106,9 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc windowDes
 
 	// Configure:
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_SM;
-	VERUS_QREF_MM;
 	_p->_camera.Update();
 	if (Scene::SceneManager::IsValidSingleton())
-		Scene::SceneManager::I().SetCamera(&_p->_camera);
+		Scene::SceneManager::I().SetAllCameras(&_p->_camera);
 
 	renderer.BeginFrame(); // Begin recording a command buffer.
 	renderer.InitCmd();
@@ -145,6 +143,8 @@ void BaseGame::Loop(bool relativeMouseMode)
 
 	do // The Game Loop.
 	{
+		im.ResetInputState(); // Prepare for event polling.
+
 		while (SDL_PollEvent(&event))
 		{
 			ImGui_ImplSDL2_ProcessEvent(&event);
@@ -153,6 +153,7 @@ void BaseGame::Loop(bool relativeMouseMode)
 			if ((SDL_KEYDOWN == event.type) && (SDLK_RETURN == event.key.keysym.sym) && (event.key.keysym.mod & KMOD_ALT))
 				ToggleFullscreen();
 
+			// <RawInput>
 			bool keyboardShortcut = false;
 			if (_p->_rawInputEvents && !ImGui::GetIO().WantCaptureMouse)
 			{
@@ -189,6 +190,7 @@ void BaseGame::Loop(bool relativeMouseMode)
 				break;
 				}
 			}
+			// </RawInput>
 
 			if (!keyboardShortcut && !im.HandleEvent(event))
 			{
@@ -212,15 +214,7 @@ void BaseGame::Loop(bool relativeMouseMode)
 					case SDL_WINDOWEVENT_SIZE_CHANGED:
 					{
 						if (renderer.OnWindowSizeChanged(event.window.data1, event.window.data2))
-						{
-							Scene::PCamera pCamera = Scene::SceneManager::IsValidSingleton() ? Scene::SceneManager::I().GetCamera() : nullptr;
-							if (pCamera)
-							{
-								pCamera->SetAspectRatio(renderer.GetCurrentViewAspectRatio());
-								pCamera->Update();
-							}
 							BaseGame_OnWindowSizeChanged();
-						}
 					}
 					break;
 					case SDL_WINDOWEVENT_MINIMIZED:
@@ -250,6 +244,7 @@ void BaseGame::Loop(bool relativeMouseMode)
 			}
 		}
 
+		// OpenXR:
 		auto pExtReality = renderer->GetExtReality();
 		if (pExtReality->IsInitialized())
 		{
@@ -275,6 +270,8 @@ void BaseGame::Loop(bool relativeMouseMode)
 		async.Update();
 
 		timer.Update();
+
+		BaseGame_EnterRequestedState();
 
 		if (_p->_defaultCameraMovement) // Handle input:
 		{
@@ -309,10 +306,15 @@ void BaseGame::Loop(bool relativeMouseMode)
 			}
 			_p->_camera.Update();
 			if (Scene::SceneManager::IsValidSingleton())
-				Scene::SceneManager::I().SetCamera(&_p->_camera);
+				Scene::SceneManager::I().SetAllCameras(&_p->_camera);
+		}
+		else
+		{
+			if (Scene::SceneManager::IsValidSingleton())
+				Scene::SceneManager::I().SetAllCameras(nullptr);
 		}
 
-		BaseGame_Update();
+		BaseGame_Update(); // Between physics and audio update.
 		if (_restartApp)
 			continue;
 
@@ -321,7 +323,6 @@ void BaseGame::Loop(bool relativeMouseMode)
 
 		// Draw current frame:
 		renderer.Draw();
-		im.ResetInputState();
 		renderer.EndFrame();
 
 		// Show FPS:
@@ -378,7 +379,7 @@ void BaseGame::ToggleFullscreen()
 		throw VERUS_RUNTIME_ERROR << "SDL_SetWindowFullscreen()";
 }
 
-Scene::RCamera BaseGame::GetCamera()
+Scene::RCamera BaseGame::GetDefaultCamera()
 {
 	return _p->_camera;
 }

@@ -57,6 +57,9 @@ namespace verus
 			virtual void AcquireSwapChainImage() override;
 			virtual void EndView(int viewIndex) override;
 			virtual void EndFrame() override;
+
+			virtual void BeginAreaUpdate() override;
+			virtual void EndAreaUpdate(PcVector4 pUserOffset) override;
 		};
 		VERUS_TYPEDEFS(ExtRealityD3D11);
 	}

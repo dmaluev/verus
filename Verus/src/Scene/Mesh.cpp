@@ -250,11 +250,21 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 			"#Texture",
 			"#TextureInstanced",
 			"#TextureRobotic",
-			"#TextureSkinned"
+			"#TextureSkinned",
+
+			"#PlasmaFX"
 		};
 		VERUS_CT_ASSERT(VERUS_COUNT_OF(branches) == PIPE_COUNT);
 
-		if (pipe >= PIPE_SIMPLE_TEX_ADD)
+		if (PIPE_SIMPLE_PLASMA_FX == pipe)
+		{
+			CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], branches[pipe], renderer.GetDS().GetRenderPassHandle_ForwardRendering());
+			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
+			pipeDesc._vertexInputBindingsFilter = _bindingsMask;
+			pipeDesc._depthWriteEnable = false;
+			s_pipe[pipe].Init(pipeDesc);
+		}
+		else if (pipe >= PIPE_SIMPLE_TEX_ADD)
 		{
 			CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_SIMPLE], branches[pipe], renderer.GetDS().GetRenderPassHandle_ForwardRendering());
 			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
@@ -428,14 +438,14 @@ void Mesh::UpdateUniformBufferPerFrame(float invTessDist)
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_SM;
 
-	RcPoint3 eyePos = sm.GetMainCamera()->GetEyePosition();
-	Point3 eyePosWV = sm.GetCamera()->GetMatrixV() * eyePos;
+	RcPoint3 headPos = sm.GetHeadCamera()->GetEyePosition();
+	Point3 headPosWV = sm.GetPassCamera()->GetMatrixV() * headPos;
 
-	s_ubPerFrame._matV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
-	s_ubPerFrame._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubPerFrame._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
+	s_ubPerFrame._matV = sm.GetPassCamera()->GetMatrixV().UniformBufferFormat();
+	s_ubPerFrame._matVP = sm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubPerFrame._matP = sm.GetPassCamera()->GetMatrixP().UniformBufferFormat();
 	s_ubPerFrame._viewportSize = renderer.GetCommandBuffer()->GetViewportSize().GLM();
-	s_ubPerFrame._eyePosWV_invTessDistSq = float4(eyePosWV.GLM(), invTessDist * invTessDist);
+	s_ubPerFrame._eyePosWV_invTessDistSq = float4(headPosWV.GLM(), invTessDist * invTessDist);
 }
 
 void Mesh::UpdateUniformBufferPerMeshVS()
@@ -481,11 +491,11 @@ void Mesh::UpdateUniformBufferSimplePerFrame(DrawSimpleMode mode)
 	VERUS_QREF_SM;
 	VERUS_QREF_WATER;
 
-	RcPoint3 eyePos = sm.GetMainCamera()->GetEyePosition();
+	RcPoint3 headPos = sm.GetHeadCamera()->GetEyePosition();
 	const float clipDistanceOffset = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? static_cast<float>(USHRT_MAX) : 0.f;
 
-	s_ubSimplePerFrame._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubSimplePerFrame._eyePos_clipDistanceOffset = float4(eyePos.GLM(), clipDistanceOffset);
+	s_ubSimplePerFrame._matVP = sm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubSimplePerFrame._eyePos_clipDistanceOffset = float4(headPos.GLM(), clipDistanceOffset);
 	s_ubSimplePerFrame._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0);
 	s_ubSimplePerFrame._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubSimplePerFrame._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);

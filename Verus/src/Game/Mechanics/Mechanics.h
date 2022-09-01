@@ -26,10 +26,12 @@ namespace verus
 			virtual Continue GetSpawnPosition(int id, RPoint3 pos) { return Continue::yes; };
 			virtual bool IsDefaultInputEnabled() { return true; }
 			virtual Continue OnDie(int id) { return Continue::yes; }
+			virtual Continue OnHeadCameraDefined() { return Continue::yes; }
 			virtual Continue OnMouseMove(float x, float y) { return Continue::yes; }
 			virtual Continue OnTakeDamage(int id, float amount) { return Continue::yes; }
+			virtual void OnViewChanged(CGI::RcViewDesc viewDesc) {}
 			virtual Continue UpdateMultiplayer() { return Continue::yes; }
-			virtual Scene::PMainCamera GetMainCamera() { return nullptr; }
+			virtual Scene::PMainCamera GetScreenCamera() { return nullptr; }
 		};
 		VERUS_TYPEDEFS(Mechanics);
 	}

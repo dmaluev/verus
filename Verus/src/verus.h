@@ -72,6 +72,7 @@ using namespace Microsoft::WRL;
 #endif
 
 // OpenXR:
+#define XR_USE_PLATFORM_WIN32
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 #ifdef _DEBUG

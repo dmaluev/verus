@@ -86,6 +86,7 @@ namespace verus
 		mataff UniformBufferFormat() const;
 		static mataff UniformBufferFormatIdentity();
 		void InstFormat(VMath::Vector4* p) const;
+		float4 ToSpriteMat() const;
 
 		const float* ToPointer() const { return reinterpret_cast<const float*>(this); }
 

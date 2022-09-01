@@ -2,8 +2,8 @@
 
 VERUS_UBUFFER UB_Gui
 {
-	mataff _matW;
-	mataff _matV;
+	matrix _matWVP;
+	mataff _matTex;
 	float4 _tcScaleBias;
 	float4 _tcMaskScaleBias;
 };

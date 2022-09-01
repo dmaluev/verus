@@ -39,6 +39,7 @@ namespace verus
 				String _name; // Must be lowercase.
 				String _localizedName;
 				UINT32 _priority = 0;
+				bool   _xrCompatible = false;
 			};
 			VERUS_TYPEDEFS(ActionSet);
 
@@ -62,7 +63,9 @@ namespace verus
 				UINT32 _atom = 0;
 				int    _actionIndex = 0;
 
+				bool   _changedState = false;
 				bool   _booleanValue = false;
+				bool   _negativeBoolean = false;
 				float  _floatValue = 0;
 			};
 			VERUS_TYPEDEFS(ActionIndex);
@@ -191,7 +194,9 @@ namespace verus
 
 			static float GetMouseScale();
 
-			int CreateActionSet(CSZ name, CSZ localizedName, int priority = 0);
+			int GetGamepadIndex(SDL_JoystickID joystickID) const;
+
+			int CreateActionSet(CSZ name, CSZ localizedName, bool xrCompatible = false, int priority = 0);
 			int CreateAction(int setIndex, CSZ name, CSZ localizedName, ActionType type,
 				std::initializer_list<CSZ> ilSubactionPaths, std::initializer_list<CSZ> ilBindingPaths);
 
@@ -202,10 +207,11 @@ namespace verus
 			RcAction GetAction(int index) { return _vActions[index]; }
 
 			static UINT32 ToAtom(CSZ path);
-			static UINT32 ToAtom(int user, PathEntity entity, int inOut,
+			static UINT32 ToAtom(int player, PathEntity entity, int inOut,
 				PathIdentifier identifier, PathLocation location, PathComponent component);
-
-			int GetGamepadIndex(SDL_JoystickID joystickID) const;
+			static UINT32 ToAtom(int player, PathEntity entity, int inOut, int scancode);
+			static bool IsKeyboardAtom(UINT32 atom);
+			static bool IsMouseAtom(UINT32 atom);
 
 			bool GetActionStateBoolean(int actionIndex, bool* pChangedState = nullptr, int subaction = -1) const;
 			float GetActionStateFloat(int actionIndex, bool* pChangedState = nullptr, int subaction = -1) const;

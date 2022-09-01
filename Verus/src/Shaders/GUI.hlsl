@@ -32,9 +32,9 @@ VSO mainVS(VSI si)
 	VSO so;
 
 	// Quad:
-	so.pos = float4(mul(si.pos, g_ubGui._matW), 1);
-	so.tc.xy = mul(si.pos, g_ubGui._matV).xy * g_ubGui._tcScaleBias.xy + g_ubGui._tcScaleBias.zw;
-	so.tcMask.xy = mul(si.pos, g_ubGui._matV).xy * g_ubGui._tcMaskScaleBias.xy + g_ubGui._tcMaskScaleBias.zw;
+	so.pos = mul(si.pos, g_ubGui._matWVP);
+	so.tc.xy = mul(si.pos, g_ubGui._matTex).xy * g_ubGui._tcScaleBias.xy + g_ubGui._tcScaleBias.zw;
+	so.tcMask.xy = mul(si.pos, g_ubGui._matTex).xy * g_ubGui._tcMaskScaleBias.xy + g_ubGui._tcMaskScaleBias.zw;
 
 	return so;
 }

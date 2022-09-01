@@ -88,16 +88,16 @@ void CubeMapBaker::BeginEnvMap(CGI::CubeMapFace cubeMapFace, RcPoint3 center)
 	case CGI::CubeMapFace::negZ: facePos = Vector3(0, 0, -1); break;
 	}
 
-	_camera.MoveEyeTo(center);
-	_camera.MoveAtTo(center - facePos); // Looking at center.
-	_camera.SetUpDirection(up);
-	_camera.SetYFov(VERUS_PI * -0.5f); // Using left-handed coordinate system!
-	_camera.SetAspectRatio(1);
-	_camera.SetZNear(1);
-	_camera.SetZFar(200);
-	_camera.Update();
+	_passCamera.MoveEyeTo(center);
+	_passCamera.MoveAtTo(center - facePos); // Looking at center.
+	_passCamera.SetUpDirection(up);
+	_passCamera.SetYFov(VERUS_PI * -0.5f); // Using left-handed coordinate system!
+	_passCamera.SetAspectRatio(1);
+	_passCamera.SetZNear(1);
+	_passCamera.SetZFar(200);
+	_passCamera.Update();
 
-	_pPrevCamera = sm.SetCamera(&_camera);
+	_pPrevPassCamera = sm.SetPassCamera(&_passCamera);
 
 	renderer.GetCommandBuffer()->BeginRenderPass(_rph, _fbh[+cubeMapFace],
 		{
@@ -114,7 +114,7 @@ void CubeMapBaker::EndEnvMap()
 
 	renderer.GetCommandBuffer()->EndRenderPass();
 
-	sm.SetCamera(_pPrevCamera);
+	sm.SetPassCamera(_pPrevPassCamera);
 }
 
 CGI::TexturePtr CubeMapBaker::GetColorTexture()

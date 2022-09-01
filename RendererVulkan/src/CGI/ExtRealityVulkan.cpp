@@ -47,7 +47,9 @@ void ExtRealityVulkan::Init()
 {
 	VERUS_INIT();
 
-	_vRequiredExtensions.reserve(2);
+	BaseExtReality::Init();
+
+	_vRequiredExtensions.reserve(8);
 	_vRequiredExtensions.push_back(XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME);
 #if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	_vRequiredExtensions.push_back(XR_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -338,4 +340,14 @@ void ExtRealityVulkan::EndView(int viewIndex)
 void ExtRealityVulkan::EndFrame()
 {
 	BaseExtReality::EndFrame();
+}
+
+void ExtRealityVulkan::BeginAreaUpdate()
+{
+	BaseExtReality::BeginAreaUpdate();
+}
+
+void ExtRealityVulkan::EndAreaUpdate(PcVector4 pUserOffset)
+{
+	BaseExtReality::EndAreaUpdate(pUserOffset);
 }

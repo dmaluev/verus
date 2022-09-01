@@ -402,6 +402,9 @@ FSO mainAntiAliasingFS(VSO si)
 {
 	FSO so;
 
+#ifdef DEF_OFF
+	so.color = g_tex.SampleLevel(g_sam, si.tc0.zw, 0.0);
+#else
 	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0.zw, 0.0);
 	const float3 normalWV = DS_GetNormal(gBuffer1Sam);
 
@@ -469,6 +472,7 @@ FSO mainAntiAliasingFS(VSO si)
 	};
 	so.color.rgb = (kernelColors[0] + kernelColors[1] + kernelColors[2] + kernelColors[3]) * 0.25;
 	so.color.a = 1.0;
+#endif
 
 	return so;
 }
@@ -493,6 +497,9 @@ FSO mainMotionFS(VSO si)
 {
 	FSO so;
 
+#ifdef DEF_OFF
+	so.color = g_tex.SampleLevel(g_sam, si.tc0.zw, 0.0);
+#else
 	const float3 rand = Rand(si.pos.xy);
 	const float2 ndcPos = ToNdcPos(si.tc0.xy);
 	const float offsetScale = 0.6 + 0.1 * rand.x; // Blur 60% - 70% of frame time.
@@ -544,6 +551,7 @@ FSO mainMotionFS(VSO si)
 	acc /= acc.a;
 
 	so.color = float4(acc.rgb, 1);
+#endif
 
 	return so;
 }
@@ -559,4 +567,6 @@ FSO mainMotionFS(VSO si)
 //@mainDof:#UDoF U
 //@mainDof:#VDoF V
 //@mainAntiAliasing:#AntiAliasing
+//@mainAntiAliasing:#AntiAliasingOff OFF
 //@mainMotion:#Motion
+//@mainMotion:#MotionOff OFF

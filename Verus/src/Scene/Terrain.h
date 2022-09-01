@@ -63,7 +63,7 @@ namespace verus
 			PTBN   _pTBN = nullptr;
 			UINT16 _ijCoord[2];
 			char   _layerForChannel[4];
-			int    _distToCameraSq = 0;
+			int    _distToHeadSq = 0;
 			short  _patchHeight = 0;
 			char   _quadtreeLOD = 0;
 			char   _usedChannelCount = 1;

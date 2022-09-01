@@ -18,8 +18,9 @@ namespace verus
 			private TStoreBlocks, private TStoreEmitters, private TStoreLights, private TStorePrefabs, private TStoreTriggers
 		{
 			Math::Octree       _octree;
-			PCamera            _pCamera = nullptr;
-			PMainCamera        _pMainCamera = nullptr;
+			PCamera            _pPassCamera = nullptr; // Render pass camera for getting view and projection matrices.
+			PMainCamera        _pHeadCamera = nullptr; // Head camera which is located between the eyes.
+			PMainCamera        _pViewCamera = nullptr; // Current view camera which is valid only inside DrawView method (eye camera).
 			Vector<PSceneNode> _vVisibleNodes;
 			int                _visibleCount = 0;
 			int                _visibleCountPerType[+NodeType::count];
@@ -28,7 +29,7 @@ namespace verus
 		public:
 			struct Desc
 			{
-				PMainCamera _pMainCamera = nullptr;
+				PMainCamera _pCamera = nullptr;
 				int         _mapSide = 256;
 
 				Desc() {}
@@ -64,11 +65,14 @@ namespace verus
 			void DrawLights();
 			void DrawBounds();
 
-			// Camera:
-			PCamera GetCamera() const { return _pCamera; }
-			PCamera SetCamera(PCamera p) { return Utils::Swap(_pCamera, p); }
-			PMainCamera GetMainCamera() const { return _pMainCamera; }
-			PMainCamera SetCamera(PMainCamera p) { _pCamera = p; return Utils::Swap(_pMainCamera, p); }
+			// Cameras:
+			PCamera GetPassCamera() const { return _pPassCamera; }
+			PMainCamera GetHeadCamera() const { return _pHeadCamera; }
+			PMainCamera GetViewCamera() const { return _pViewCamera; }
+			PCamera SetPassCamera(PCamera p) { return Utils::Swap(_pPassCamera, p); }
+			PMainCamera SetHeadCamera(PMainCamera p) { return Utils::Swap(_pHeadCamera, p); }
+			PMainCamera SetViewCamera(PMainCamera p) { return Utils::Swap(_pViewCamera, p); }
+			void SetAllCameras(PMainCamera p) { _pPassCamera = _pHeadCamera = _pViewCamera = p; }
 
 			static bool IsDrawingDepth(DrawDepth dd);
 

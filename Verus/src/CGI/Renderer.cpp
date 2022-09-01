@@ -299,6 +299,7 @@ void Renderer::Draw()
 	if (_pRendererDelegate)
 	{
 		_currentViewType = ViewType::none;
+		_currentViewIndex = 0;
 		_currentViewWidth = 0;
 		_currentViewHeight = 0;
 		_currentViewX = 0;
@@ -309,6 +310,7 @@ void Renderer::Draw()
 			ViewDesc viewDesc;
 			viewDesc._type = ViewType::screen;
 			_currentViewType = viewDesc._type;
+			_currentViewIndex = 0;
 			_currentViewWidth = _screenSwapChainWidth;
 			_currentViewHeight = _screenSwapChainHeight;
 			_currentViewX = 0;
@@ -325,6 +327,7 @@ void Renderer::Draw()
 				ViewDesc viewDesc;
 				pExtReality->BeginView(i, viewDesc);
 				_currentViewType = viewDesc._type;
+				_currentViewIndex = viewDesc._index;
 				_currentViewWidth = viewDesc._vpWidth;
 				_currentViewHeight = viewDesc._vpHeight;
 				_currentViewX = viewDesc._vpX;
@@ -333,6 +336,13 @@ void Renderer::Draw()
 				pExtReality->EndView(i);
 			}
 		}
+
+		_currentViewType = ViewType::none;
+		_currentViewIndex = 0;
+		_currentViewWidth = 0;
+		_currentViewHeight = 0;
+		_currentViewX = 0;
+		_currentViewY = 0;
 	}
 }
 
@@ -501,7 +511,7 @@ void Renderer::OnScreenSwapChainResized(bool init, bool done)
 
 float Renderer::GetCurrentViewAspectRatio() const
 {
-	return static_cast<float>(_currentViewWidth) / static_cast<float>(_currentViewHeight);
+	return (ViewType::none == _currentViewType) ? 1 : static_cast<float>(_currentViewWidth) / static_cast<float>(_currentViewHeight);
 }
 
 void Renderer::DrawQuad(PBaseCommandBuffer pCB)
@@ -520,12 +530,15 @@ void Renderer::DrawOffscreenColor(PBaseCommandBuffer pCB, bool endRenderPass)
 	if (!pCB)
 		pCB = _commandBuffer.Get();
 
-	_tex[TEX_OFFSCREEN_COLOR]->GenerateMips();
+	auto pExtReality = _pBaseRenderer->GetExtReality();
 
 	switch (_currentViewType)
 	{
 	case ViewType::screen:
 	{
+		if (!pExtReality->IsInitialized())
+			_tex[TEX_OFFSCREEN_COLOR]->GenerateMips();
+
 		pCB->BeginRenderPass(_rphScreenSwapChain, _fbhScreenSwapChain[_pBaseRenderer->GetSwapChainBufferIndex()], { Vector4(0) },
 			ViewportScissorFlags::setScissorForFramebuffer);
 		// Align view and swap chain:
@@ -539,8 +552,10 @@ void Renderer::DrawOffscreenColor(PBaseCommandBuffer pCB, bool endRenderPass)
 	break;
 	case ViewType::openXR:
 	{
-		auto pExtReality = _pBaseRenderer->GetExtReality();
 		VERUS_RT_ASSERT(pExtReality->IsInitialized());
+		if (!_currentViewIndex)
+			_tex[TEX_OFFSCREEN_COLOR]->GenerateMips();
+
 		pCB->BeginRenderPass(pExtReality->GetRenderPassHandle(), pExtReality->GetFramebufferHandle(), { Vector4(0) },
 			ViewportScissorFlags::setScissorForFramebuffer);
 		// Align view and swap chain:

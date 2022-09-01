@@ -85,6 +85,9 @@ void Animator::Parse(pugi::xml_node node, PcWidget pWidget)
 	_angle = Math::ToRadians(node.attribute("angle").as_float());
 	_postAngle = Math::ToRadians(node.attribute("postAngle").as_float());
 
+	_originalW = ViewManager::ParseCoordX(node.attribute("w").value(), 1);
+	_preserveAspectRatio = node.attribute("preserveAspectRatio").as_bool();
+
 	for (auto fxNode : node.children("fx"))
 	{
 		if (!strcmp(fxNode.attribute("mode").value(), "color"))
@@ -173,7 +176,15 @@ RcVector4 Animator::SetFromColor(RcVector4 color)
 
 float Animator::GetX(float original) const
 {
-	return (_animatedRect._invDuration > 0) ? _animatedRect._current.getX() : original;
+	const float ret = (_animatedRect._invDuration > 0) ? _animatedRect._current.getX() : original;
+	if (_preserveAspectRatio)
+	{
+		VERUS_QREF_RENDERER;
+		const float newW = _originalW / renderer.GetCurrentViewAspectRatio();
+		const float offset = (_originalW - newW) * 0.5f;
+		return ret + offset;
+	}
+	return ret;
 }
 
 float Animator::GetY(float original) const
@@ -183,7 +194,13 @@ float Animator::GetY(float original) const
 
 float Animator::GetW(float original) const
 {
-	return (_animatedRect._invDuration > 0) ? _animatedRect._current.getZ() : original;
+	const float ret = (_animatedRect._invDuration > 0) ? _animatedRect._current.getZ() : original;
+	if (_preserveAspectRatio)
+	{
+		VERUS_QREF_RENDERER;
+		return _originalW / renderer.GetCurrentViewAspectRatio();
+	}
+	return ret;
 }
 
 float Animator::GetH(float original) const
@@ -205,6 +222,7 @@ float Animator::SetY(float y)
 
 float Animator::SetW(float w)
 {
+	_originalW = w;
 	_animatedRect._to.setZ(w);
 	return w;
 }

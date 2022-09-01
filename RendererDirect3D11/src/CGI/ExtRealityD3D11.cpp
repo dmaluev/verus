@@ -27,7 +27,9 @@ void ExtRealityD3D11::Init()
 {
 	VERUS_INIT();
 
-	_vRequiredExtensions.reserve(2);
+	BaseExtReality::Init();
+
+	_vRequiredExtensions.reserve(8);
 	_vRequiredExtensions.push_back(XR_KHR_D3D11_ENABLE_EXTENSION_NAME);
 #if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
 	_vRequiredExtensions.push_back(XR_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -265,4 +267,14 @@ void ExtRealityD3D11::EndView(int viewIndex)
 void ExtRealityD3D11::EndFrame()
 {
 	BaseExtReality::EndFrame();
+}
+
+void ExtRealityD3D11::BeginAreaUpdate()
+{
+	BaseExtReality::BeginAreaUpdate();
+}
+
+void ExtRealityD3D11::EndAreaUpdate(PcVector4 pUserOffset)
+{
+	BaseExtReality::EndAreaUpdate(pUserOffset);
 }

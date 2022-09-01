@@ -43,6 +43,7 @@ namespace verus
 			String                        _fadeToView;
 			UB_Gui                        _ubGui;
 			UB_GuiFS                      _ubGuiFS;
+			bool                          _xrMatrixEnabled = true;
 
 		public:
 			ViewManager();
@@ -97,6 +98,9 @@ namespace verus
 
 			static float ParseCoordX(CSZ coord, float def = 0);
 			static float ParseCoordY(CSZ coord, float def = 0);
+
+			void SetXrMatrixEnabled(bool b) { _xrMatrixEnabled = b; }
+			Matrix4 GetXrMatrix() const;
 
 			static CSZ GetSingletonFailMessage() { return "Make_GUI(); // FAIL.\r\n"; }
 		};

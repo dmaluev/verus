@@ -24,14 +24,17 @@ namespace verus
 			virtual void DragController_SetParams(float x, float y) override;
 			virtual void DragController_GetRatio(float& x, float& y) override;
 
-			float GetRadius() const { return _radius; }
-			void SetRadius(float r) { _radius = r; _radius.ForceTarget(); }
-			void MulRadiusBy(float a);
-
 			float GetPitch() const { return _pitch; }
 			float GetYaw() const { return _yaw; }
-			void  SetPitch(float a) { _pitch = Math::WrapAngle(a); _pitch.ForceTarget(); }
-			void  SetYaw(float a) { _yaw = Math::WrapAngle(a); _yaw.ForceTarget(); }
+			float GetTargetPitch() const { return _pitch.GetTarget(); }
+			float GetTargetYaw() const { return _yaw.GetTarget(); }
+			void  SetPitch(float a);
+			void  SetYaw(float a);
+
+			float GetRadius() const { return _radius; }
+			float GetTargetRadius() const { return _radius.GetTarget(); }
+			void SetRadius(float r);
+			void MulRadiusBy(float x);
 
 			void EnableElastic(bool b = true) { _elastic = b; }
 		};

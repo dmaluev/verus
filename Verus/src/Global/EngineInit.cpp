@@ -63,6 +63,9 @@ void EngineInit::Init(CGI::RendererDelegate* pRendererDelegate)
 	if (_makeIO)
 		IO::Async::I().Init();
 
+	if (_makeCGI)
+		CGI::Renderer::I().Init(pRendererDelegate, _allowInitShaders);
+
 	// "A.P.I.":
 	if (_makeAudio)
 		Audio::AudioSystem::I().Init();
@@ -70,9 +73,6 @@ void EngineInit::Init(CGI::RendererDelegate* pRendererDelegate)
 		Physics::Bullet::I().Init();
 	if (_makeInput)
 		Input::InputManager::I().Init();
-
-	if (_makeCGI)
-		CGI::Renderer::I().Init(pRendererDelegate, _allowInitShaders);
 
 	// Static init:
 	if (_makeEffects)

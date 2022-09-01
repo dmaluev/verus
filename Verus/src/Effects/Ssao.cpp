@@ -123,20 +123,20 @@ void Ssao::Generate()
 		ImGui::Checkbox("SSAO blur", &_blur);
 	}
 
-	Scene::RCamera cam = *sm.GetCamera();
-
 	auto cb = renderer.GetCommandBuffer();
 
 	cb->BeginRenderPass(_rph, _fbh, { renderer.GetDS().GetGBuffer(3)->GetClearValue() });
+
+	Scene::RCamera passCamera = *sm.GetPassCamera();
 
 	s_ubSsaoVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubSsaoVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 	s_ubSsaoVS._matP = Math::ToUVMatrix(0, cb->GetViewportSize(), &_texRandNormals->GetSize()).UniformBufferFormat();
 	s_ubSsaoVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 	s_ubSsaoFS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
-	s_ubSsaoFS._zNearFarEx = sm.GetCamera()->GetZNearFarEx().GLM();
-	s_ubSsaoFS._camScale.x = cam.GetFovScale() / cam.GetAspectRatio();
-	s_ubSsaoFS._camScale.y = -cam.GetFovScale();
+	s_ubSsaoFS._zNearFarEx = passCamera.GetZNearFarEx().GLM();
+	s_ubSsaoFS._camScale.x = passCamera.GetFovScale() / passCamera.GetAspectRatio();
+	s_ubSsaoFS._camScale.y = -passCamera.GetFovScale();
 	s_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.x = _smallRad;
 	s_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.y = _largeRad;
 	s_ubSsaoFS._smallRad_largeRad_weightScale_weightBias.z = _weightScale;

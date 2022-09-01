@@ -54,6 +54,7 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
+	const float3 headPos = g_ubSimpleTerrainVS._headPos.xyz;
 	const float3 eyePos = g_ubSimpleTerrainVS._eyePos.xyz;
 	const float invMapSide = g_ubSimpleTerrainVS._invMapSide_clipDistanceOffset.x;
 	const float clipDistanceOffset = g_ubSimpleTerrainVS._invMapSide_clipDistanceOffset.y;
@@ -68,8 +69,8 @@ VSO mainVS(VSI si)
 	float3 inNrm;
 	{
 		pos.y = UnpackTerrainHeight(g_texHeightVS.SampleLevel(g_samHeightVS, tcMap + (8.0 * invMapSide), 4.0).r);
-		const float distToEye = distance(pos, eyePos);
-		const float geomipsLod = log2(clamp(distToEye * (2.0 / 100.0), 1.0, 18.0));
+		const float distToHead = distance(pos, headPos);
+		const float geomipsLod = log2(clamp(distToHead * (2.0 / 100.0), 1.0, 18.0));
 		const float geomipsLodFrac = frac(geomipsLod);
 		const float geomipsLodBase = floor(geomipsLod);
 		const float geomipsLodNext = geomipsLodBase + 1.0;

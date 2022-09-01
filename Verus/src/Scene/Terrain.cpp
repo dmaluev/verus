@@ -737,13 +737,14 @@ void Terrain::Layout()
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_SM;
 
-	PCamera pPrevCamera = nullptr;
+	// <Traverse>
+	PCamera pPrevPassCamera = nullptr;
 	// For CSM we need to create geometry beyond the view frustum (1st slice):
 	if (settings._sceneShadowQuality >= App::Settings::Quality::high && atmo.GetShadowMapBaker().IsBaking())
 	{
-		PCamera pCameraCSM = atmo.GetShadowMapBaker().GetCameraCSM();
-		if (pCameraCSM)
-			pPrevCamera = sm.SetCamera(pCameraCSM);
+		PCamera pPassCameraCSM = atmo.GetShadowMapBaker().GetPassCameraCSM();
+		if (pPassCameraCSM)
+			pPrevPassCamera = sm.SetPassCamera(pPassCameraCSM);
 	}
 
 	_visiblePatchCount = 0;
@@ -753,8 +754,9 @@ void Terrain::Layout()
 	SortVisiblePatches();
 
 	// Back to original camera:
-	if (pPrevCamera)
-		sm.SetCamera(pPrevCamera);
+	if (pPrevPassCamera)
+		sm.SetPassCamera(pPrevPassCamera);
+	// </Traverse>
 }
 
 void Terrain::Draw(RcDrawDesc dd)
@@ -773,12 +775,12 @@ void Terrain::Draw(RcDrawDesc dd)
 	auto cb = renderer.GetCommandBuffer();
 
 	s_ubTerrainVS._matW = matW.UniformBufferFormat();
-	s_ubTerrainVS._matWV = Transform3(sm.GetCamera()->GetMatrixV() * matW).UniformBufferFormat();
-	s_ubTerrainVS._matV = sm.GetCamera()->GetMatrixV().UniformBufferFormat();
-	s_ubTerrainVS._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubTerrainVS._matP = sm.GetCamera()->GetMatrixP().UniformBufferFormat();
-	s_ubTerrainVS._eyePos_invMapSide = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
-	s_ubTerrainVS._eyePos_invMapSide.w = 1.f / _mapSide;
+	s_ubTerrainVS._matWV = Transform3(sm.GetPassCamera()->GetMatrixV() * matW).UniformBufferFormat();
+	s_ubTerrainVS._matV = sm.GetPassCamera()->GetMatrixV().UniformBufferFormat();
+	s_ubTerrainVS._matVP = sm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubTerrainVS._matP = sm.GetPassCamera()->GetMatrixP().UniformBufferFormat();
+	s_ubTerrainVS._headPos_invMapSide = float4(sm.GetHeadCamera()->GetEyePosition().GLM(), 0);
+	s_ubTerrainVS._headPos_invMapSide.w = 1.f / _mapSide;
 	s_ubTerrainVS._viewportSize = cb->GetViewportSize().GLM();
 	s_ubTerrainFS._matWV = s_ubTerrainVS._matWV;
 	VERUS_FOR(i, VERUS_COUNT_OF(_layerData))
@@ -886,8 +888,9 @@ void Terrain::DrawSimple(DrawSimpleMode mode)
 	auto cb = renderer.GetCommandBuffer();
 
 	s_ubSimpleTerrainVS._matW = matW.UniformBufferFormat();
-	s_ubSimpleTerrainVS._matVP = sm.GetCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubSimpleTerrainVS._eyePos = float4(sm.GetMainCamera()->GetEyePosition().GLM(), 0);
+	s_ubSimpleTerrainVS._matVP = sm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubSimpleTerrainVS._headPos = float4(sm.GetHeadCamera()->GetEyePosition().GLM(), 0);
+	s_ubSimpleTerrainVS._eyePos = float4(sm.GetPassCamera()->GetEyePosition().GLM(), 0);
 	s_ubSimpleTerrainVS._invMapSide_clipDistanceOffset.x = 1.f / _mapSide;
 	s_ubSimpleTerrainVS._invMapSide_clipDistanceOffset.y = clipDistanceOffset;
 	s_ubSimpleTerrainFS._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0);
@@ -980,7 +983,7 @@ void Terrain::SortVisiblePatches()
 			if (patchA._quadtreeLOD != patchB._quadtreeLOD)
 				return patchA._quadtreeLOD < patchB._quadtreeLOD;
 
-			return patchA._distToCameraSq < patchB._distToCameraSq;
+			return patchA._distToHeadSq < patchB._distToHeadSq;
 		});
 	if (_visibleRandomPatchCount)
 		memcpy(&_vSortedPatchIndices[_visibleSortedPatchCount], _vRandomPatchIndices.data(), _visibleRandomPatchCount * sizeof(UINT16));
@@ -995,9 +998,9 @@ void Terrain::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 ce
 {
 	VERUS_QREF_SM;
 
-	const RcPoint3 posEye = sm.GetMainCamera()->GetEyePosition();
+	const RcPoint3 headPos = sm.GetHeadCamera()->GetEyePosition();
 
-	const Vector3 toCenter = center - posEye;
+	const Vector3 toCenter = center - headPos;
 	const float dist = VMath::length(toCenter);
 
 	const float lodF = log2(Math::Clamp((dist - 12) * (2 / 100.f), 1.f, 18.f));
@@ -1014,7 +1017,7 @@ void Terrain::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 ce
 
 	// Update this patch:
 	RTerrainPatch patch = _vPatches[offsetPatch];
-	patch._distToCameraSq = int(dist * dist);
+	patch._distToHeadSq = int(dist * dist);
 	patch._patchHeight = ConvertHeight(center.getY());
 	patch._quadtreeLOD = lod;
 

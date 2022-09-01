@@ -85,8 +85,8 @@ void View::Draw()
 			const float ps = GetAnimator().GetPulseScale() + GetAnimator().GetPulseScaleAdd();
 			const float pb = (1 - ps) * 0.5f;
 
-			ubGui._matW = Math::QuadMatrix(pb, pb, ps, ps).UniformBufferFormat();
-			ubGui._matV = Math::ToUVMatrix(0, 0).UniformBufferFormat();
+			ubGui._matWVP = Matrix4(vm.GetXrMatrix() * Math::QuadMatrix(pb, pb, ps, ps)).UniformBufferFormat();
+			ubGui._matTex = Math::ToUVMatrix(0, 0).UniformBufferFormat();
 			ubGui._tcScaleBias = Vector4(1, 1, 0, 0).GLM();
 			ubGui._tcMaskScaleBias = Vector4(1, 1, 0, 0).GLM();
 			ubGuiFS._color = Vector4::Replicate(1).GLM();
@@ -101,8 +101,8 @@ void View::Draw()
 	}
 	else if (!GetColor().IsZero())
 	{
-		ubGui._matW = Math::QuadMatrix().UniformBufferFormat();
-		ubGui._matV = Math::ToUVMatrix(0, 0).UniformBufferFormat();
+		ubGui._matWVP = Matrix4(vm.GetXrMatrix() * Math::QuadMatrix()).UniformBufferFormat();
+		ubGui._matTex = Math::ToUVMatrix(0, 0).UniformBufferFormat();
 		ubGui._tcScaleBias = Vector4(1, 1, 0, 0).GLM();
 		ubGui._tcMaskScaleBias = Vector4(1, 1, 0, 0).GLM();
 		ubGuiFS._color = GetColor().GLM();
@@ -119,7 +119,7 @@ void View::Draw()
 
 	if (_state == State::fadeIn || _state == State::fadeOut || _state == State::done)
 	{
-		vm.GetUbGui()._matW = Transform3::UniformBufferFormatIdentity();
+		vm.GetUbGui()._matWVP = Transform3::UniformBufferFormatIdentity();
 		vm.GetUbGuiFS()._color = Vector4(0, 0, 0, _fade.GetValue()).GLM();
 
 		vm.BindPipeline(ViewManager::PIPE_SOLID_COLOR, cb);

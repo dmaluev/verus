@@ -53,10 +53,8 @@ namespace verus
 			float           _h = 1;
 			float           _wScale = 1;
 			float           _hScale = 1;
-			float           _aspectOffset = 0;
 			bool            _disabled = false;
 			bool            _hidden = false;
-			bool            _useAspect = false;
 
 		public:
 			Widget();
@@ -91,7 +89,7 @@ namespace verus
 			float GetH() const { return _animator.GetH(_h); }
 
 			// Relative:
-			void SetX(float x) { _x = _animator.SetX(x + _aspectOffset); }
+			void SetX(float x) { _x = _animator.SetX(x); }
 			void SetY(float y) { _y = _animator.SetY(y); }
 			void SetW(float w) { _w = _animator.SetW(w); }
 			void SetH(float h) { _h = _animator.SetH(h); }

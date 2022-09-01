@@ -52,8 +52,8 @@ void CameraOrbit::UpdateElastic()
 
 void CameraOrbit::DragController_GetParams(float& x, float& y)
 {
-	x = _yaw;
-	y = _pitch;
+	x = _yaw.GetTarget();
+	y = _pitch.GetTarget();
 }
 
 void CameraOrbit::DragController_SetParams(float x, float y)
@@ -64,8 +64,8 @@ void CameraOrbit::DragController_SetParams(float x, float y)
 	{
 		_pitch.ForceTarget();
 		_yaw.ForceTarget();
+		Update();
 	}
-	Update();
 }
 
 void CameraOrbit::DragController_GetRatio(float& x, float& y)
@@ -74,10 +74,42 @@ void CameraOrbit::DragController_GetRatio(float& x, float& y)
 	y = -VERUS_2PI / 1440.f;
 }
 
-void CameraOrbit::MulRadiusBy(float a)
+void CameraOrbit::SetPitch(float a)
 {
-	_radius = _radius.GetTarget() * a;
+	_pitch = Math::WrapAngle(a);
 	if (!_elastic)
+	{
+		_pitch.ForceTarget();
+		Update();
+	}
+}
+
+void CameraOrbit::SetYaw(float a)
+{
+	_yaw = Math::WrapAngle(a);
+	if (!_elastic)
+	{
+		_yaw.ForceTarget();
+		Update();
+	}
+}
+
+void CameraOrbit::SetRadius(float r)
+{
+	_radius = r;
+	if (!_elastic)
+	{
 		_radius.ForceTarget();
-	Update();
+		Update();
+	}
+}
+
+void CameraOrbit::MulRadiusBy(float x)
+{
+	_radius = _radius.GetTarget() * x;
+	if (!_elastic)
+	{
+		_radius.ForceTarget();
+		Update();
+	}
 }

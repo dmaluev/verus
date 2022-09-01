@@ -4,10 +4,11 @@
 #include "LibColor.hlsl"
 #include "Font.inc.hlsl"
 
-CBUFFER(0, UB_FontFS, g_ubFontFS)
+CBUFFER(0, UB_FontVS, g_ubFontVS)
+CBUFFER(1, UB_FontFS, g_ubFontFS)
 
-Texture2D    g_tex : REG(t1, space0, t0);
-SamplerState g_sam : REG(s1, space0, s0);
+Texture2D    g_tex : REG(t1, space1, t0);
+SamplerState g_sam : REG(s1, space1, s0);
 
 struct VSI
 {
@@ -33,7 +34,7 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
-	so.pos = si.pos;
+	so.pos = mul(si.pos, g_ubFontVS._matWVP);
 	so.tc0 = si.tc0.xy / 32767.0;
 	so.color = ColorToLinear(si.color);
 

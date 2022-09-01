@@ -28,7 +28,9 @@ namespace verus
 				PIPE_BLOOM_LIGHT_SHAFTS_V,
 
 				PIPE_AA,
+				PIPE_AA_OFF,
 				PIPE_MOTION_BLUR,
+				PIPE_MOTION_BLUR_OFF,
 
 				PIPE_COUNT
 			};
