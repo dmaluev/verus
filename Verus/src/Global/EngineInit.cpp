@@ -23,8 +23,8 @@ void EngineInit::Make()
 		Make_Effects();
 	if (_makeExtra)
 		Make_Extra();
-	if (_makeScene)
-		Make_Scene();
+	if (_makeWorld)
+		Make_World();
 	if (_makeGUI)
 		Make_GUI();
 }
@@ -34,8 +34,8 @@ void EngineInit::Free()
 	// Some object must outlive others, so the order is important:
 	if (_makeGUI)
 		Free_GUI();
-	if (_makeScene)
-		Free_Scene();
+	if (_makeWorld)
+		Free_World();
 	if (_makeExtra)
 		Free_Extra();
 	if (_makeEffects)
@@ -79,19 +79,22 @@ void EngineInit::Init(CGI::RendererDelegate* pRendererDelegate)
 		Effects::Particles::InitStatic();
 	if (_makeGUI)
 		GUI::Font::InitStatic();
-	if (_makeScene)
+	if (_makeWorld)
 	{
-		Scene::Mesh::InitStatic();
-		Scene::Terrain::InitStatic();
-		Scene::Grass::InitStatic();
-		Scene::Forest::InitStatic();
+		World::Mesh::InitStatic();
+		World::Terrain::InitStatic();
+		World::Grass::InitStatic();
+		World::Forest::InitStatic();
 	}
 
 	// Helpers:
 	if (_makeCGI && _allowInitShaders)
 		CGI::DebugDraw::I().Init();
-	if (_makeScene)
-		Scene::Helpers::I().Init();
+	if (_makeWorld)
+	{
+		World::WorldUtils::I().Init();
+		World::EditorOverlays::I().Init();
+	}
 
 	// Effects:
 	if (_makeEffects)
@@ -104,8 +107,8 @@ void EngineInit::Init(CGI::RendererDelegate* pRendererDelegate)
 	}
 
 	// Materials & textures:
-	if (_makeScene)
-		Scene::MaterialManager::I().Init();
+	if (_makeWorld)
+		World::MaterialManager::I().Init();
 
 	if (_makeGUI)
 		GUI::ViewManager::I().Init();
@@ -125,6 +128,6 @@ void EngineInit::ReducedFeatureSet()
 	_makeGUI = false;
 	_makeNet = false;
 	_makePhysics = false;
-	_makeScene = false;
+	_makeWorld = false;
 	_allowInitShaders = false;
 }

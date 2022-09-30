@@ -222,8 +222,8 @@
     <ClInclude Include="src\Global\SyntaxHighlight.h" />
     <ClInclude Include="src\Global\Typedef.h" />
     <ClInclude Include="src\IO\StreamPtr.h" />
+    <ClInclude Include="src\IO\Vwx.h" />
     <ClInclude Include="src\IO\Xml.h" />
-    <ClInclude Include="src\IO\Xxx.h" />
     <ClInclude Include="src\Math\Bounds.h" />
     <ClInclude Include="src\Math\Frustum.h" />
     <ClInclude Include="src\Math\Math.h" />
@@ -250,40 +250,11 @@
     <ClInclude Include="src\Physics\Spring.h" />
     <ClInclude Include="src\Physics\UserPtr.h" />
     <ClInclude Include="src\Physics\Vehicle.h" />
-    <ClInclude Include="src\Scene\Atmosphere.h" />
-    <ClInclude Include="src\Scene\BaseMesh.h" />
-    <ClInclude Include="src\Scene\Camera.h" />
-    <ClInclude Include="src\Scene\CameraOrbit.h" />
-    <ClInclude Include="src\Scene\CubeMapBaker.h" />
-    <ClInclude Include="src\Scene\EditorTerrain.h" />
-    <ClInclude Include="src\Scene\Forest.h" />
-    <ClInclude Include="src\Scene\Grass.h" />
-    <ClInclude Include="src\Scene\Helpers.h" />
-    <ClInclude Include="src\Scene\LightMapBaker.h" />
-    <ClInclude Include="src\Scene\MaterialManager.h" />
-    <ClInclude Include="src\Scene\Mesh.h" />
-    <ClInclude Include="src\Scene\Scatter.h" />
-    <ClInclude Include="src\Scene\Scene.h" />
-    <ClInclude Include="src\Scene\SceneManager.h" />
-    <ClInclude Include="src\Scene\SceneNodes\Block.h" />
-    <ClInclude Include="src\Scene\SceneNodes\Emitter.h" />
-    <ClInclude Include="src\Scene\SceneNodes\Light.h" />
-    <ClInclude Include="src\Scene\SceneNodes\Model.h" />
-    <ClInclude Include="src\Scene\SceneNodes\Prefab.h" />
-    <ClInclude Include="src\Scene\SceneNodes\SceneNode.h" />
-    <ClInclude Include="src\Scene\SceneNodes\SceneNodes.h" />
-    <ClInclude Include="src\Scene\SceneNodes\SceneParticles.h" />
-    <ClInclude Include="src\Scene\SceneNodes\Site.h" />
-    <ClInclude Include="src\Scene\SceneNodes\Trigger.h" />
-    <ClInclude Include="src\Scene\SceneNodes\Types.h" />
-    <ClInclude Include="src\Scene\ShadowMapBaker.h" />
-    <ClInclude Include="src\Scene\Terrain.h" />
-    <ClInclude Include="src\Scene\Water.h" />
     <ClInclude Include="src\Security\CipherRC4.h" />
     <ClInclude Include="src\Security\Security.h" />
     <ClInclude Include="src\ThirdParty\imgui\imconfig.h" />
     <ClInclude Include="src\ThirdParty\imgui\imgui.h" />
-    <ClInclude Include="src\ThirdParty\imgui\imgui_impl_sdl.h" />
+    <ClInclude Include="src\ThirdParty\imgui\imgui_impl_sdl2.h" />
     <ClInclude Include="src\ThirdParty\imgui\imgui_internal.h" />
     <ClInclude Include="src\ThirdParty\imgui\imstb_rectpack.h" />
     <ClInclude Include="src\ThirdParty\imgui\imstb_textedit.h" />
@@ -316,6 +287,41 @@
     <ClInclude Include="src\ThirdParty\zlib-1.2.12\zlib.h" />
     <ClInclude Include="src\ThirdParty\zlib-1.2.12\zutil.h" />
     <ClInclude Include="src\verus.h" />
+    <ClInclude Include="src\World\Atmosphere.h" />
+    <ClInclude Include="src\World\CubeMapBaker.h" />
+    <ClInclude Include="src\World\EditorOverlays.h" />
+    <ClInclude Include="src\World\EditorTerrain.h" />
+    <ClInclude Include="src\World\Forest.h" />
+    <ClInclude Include="src\World\Grass.h" />
+    <ClInclude Include="src\World\LightMapBaker.h" />
+    <ClInclude Include="src\World\BaseMesh.h" />
+    <ClInclude Include="src\World\Camera.h" />
+    <ClInclude Include="src\World\Scatter.h" />
+    <ClInclude Include="src\World\ShadowMapBaker.h" />
+    <ClInclude Include="src\World\Terrain.h" />
+    <ClInclude Include="src\World\Water.h" />
+    <ClInclude Include="src\World\World.h" />
+    <ClInclude Include="src\World\WorldManager.h" />
+    <ClInclude Include="src\World\MaterialManager.h" />
+    <ClInclude Include="src\World\Mesh.h" />
+    <ClInclude Include="src\World\WorldNodes\BlockNode.h" />
+    <ClInclude Include="src\World\WorldNodes\ControlPointNode.h" />
+    <ClInclude Include="src\World\WorldNodes\EmitterNode.h" />
+    <ClInclude Include="src\World\WorldNodes\InstanceNode.h" />
+    <ClInclude Include="src\World\WorldNodes\LightNode.h" />
+    <ClInclude Include="src\World\WorldNodes\ModelNode.h" />
+    <ClInclude Include="src\World\WorldNodes\ParticlesNode.h" />
+    <ClInclude Include="src\World\WorldNodes\PathNode.h" />
+    <ClInclude Include="src\World\WorldNodes\PhysicsNode.h" />
+    <ClInclude Include="src\World\WorldNodes\PrefabNode.h" />
+    <ClInclude Include="src\World\WorldNodes\ShakerNode.h" />
+    <ClInclude Include="src\World\WorldNodes\SoundNode.h" />
+    <ClInclude Include="src\World\WorldNodes\TerrainNode.h" />
+    <ClInclude Include="src\World\WorldNodes\Types.h" />
+    <ClInclude Include="src\World\WorldNodes\BaseNode.h" />
+    <ClInclude Include="src\World\WorldNodes\WorldNodes.h" />
+    <ClInclude Include="src\World\OrbitingCamera.h" />
+    <ClInclude Include="src\World\WorldUtils.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\AI\AI.cpp" />
@@ -422,8 +428,8 @@
     <ClCompile Include="src\IO\IO.cpp" />
     <ClCompile Include="src\IO\Json.cpp" />
     <ClCompile Include="src\IO\Dictionary.cpp" />
+    <ClCompile Include="src\IO\Vwx.cpp" />
     <ClCompile Include="src\IO\Xml.cpp" />
-    <ClCompile Include="src\IO\Xxx.cpp" />
     <ClCompile Include="src\Math\Bounds.cpp" />
     <ClCompile Include="src\Math\Frustum.cpp" />
     <ClCompile Include="src\Math\Math.cpp" />
@@ -451,34 +457,6 @@
     <ClCompile Include="src\Physics\Physics.cpp" />
     <ClCompile Include="src\Physics\Spring.cpp" />
     <ClCompile Include="src\Physics\Vehicle.cpp" />
-    <ClCompile Include="src\Scene\Atmosphere.cpp" />
-    <ClCompile Include="src\Scene\BaseMesh.cpp" />
-    <ClCompile Include="src\Scene\Camera.cpp" />
-    <ClCompile Include="src\Scene\CameraOrbit.cpp" />
-    <ClCompile Include="src\Scene\CubeMapBaker.cpp" />
-    <ClCompile Include="src\Scene\EditorTerrain.cpp" />
-    <ClCompile Include="src\Scene\Forest.cpp" />
-    <ClCompile Include="src\Scene\Grass.cpp" />
-    <ClCompile Include="src\Scene\Helpers.cpp" />
-    <ClCompile Include="src\Scene\LightMapBaker.cpp" />
-    <ClCompile Include="src\Scene\MaterialManager.cpp" />
-    <ClCompile Include="src\Scene\Mesh.cpp" />
-    <ClCompile Include="src\Scene\Scatter.cpp" />
-    <ClCompile Include="src\Scene\Scene.cpp" />
-    <ClCompile Include="src\Scene\SceneManager.cpp" />
-    <ClCompile Include="src\Scene\SceneNodes\Block.cpp" />
-    <ClCompile Include="src\Scene\SceneNodes\Emitter.cpp" />
-    <ClCompile Include="src\Scene\SceneNodes\Light.cpp" />
-    <ClCompile Include="src\Scene\SceneNodes\Model.cpp" />
-    <ClCompile Include="src\Scene\SceneNodes\Prefab.cpp" />
-    <ClCompile Include="src\Scene\SceneNodes\SceneNode.cpp" />
-    <ClCompile Include="src\Scene\SceneNodes\SceneNodes.cpp" />
-    <ClCompile Include="src\Scene\SceneNodes\SceneParticles.cpp" />
-    <ClCompile Include="src\Scene\SceneNodes\Site.cpp" />
-    <ClCompile Include="src\Scene\SceneNodes\Trigger.cpp" />
-    <ClCompile Include="src\Scene\ShadowMapBaker.cpp" />
-    <ClCompile Include="src\Scene\Terrain.cpp" />
-    <ClCompile Include="src\Scene\Water.cpp" />
     <ClCompile Include="src\ThirdParty\fast_atof.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
@@ -495,7 +473,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="src\ThirdParty\imgui\imgui_impl_sdl.cpp">
+    <ClCompile Include="src\ThirdParty\imgui\imgui_impl_sdl2.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -641,6 +619,40 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="src\World\Atmosphere.cpp" />
+    <ClCompile Include="src\World\CubeMapBaker.cpp" />
+    <ClCompile Include="src\World\EditorOverlays.cpp" />
+    <ClCompile Include="src\World\EditorTerrain.cpp" />
+    <ClCompile Include="src\World\Forest.cpp" />
+    <ClCompile Include="src\World\Grass.cpp" />
+    <ClCompile Include="src\World\LightMapBaker.cpp" />
+    <ClCompile Include="src\World\BaseMesh.cpp" />
+    <ClCompile Include="src\World\Camera.cpp" />
+    <ClCompile Include="src\World\Scatter.cpp" />
+    <ClCompile Include="src\World\ShadowMapBaker.cpp" />
+    <ClCompile Include="src\World\Terrain.cpp" />
+    <ClCompile Include="src\World\Water.cpp" />
+    <ClCompile Include="src\World\World.cpp" />
+    <ClCompile Include="src\World\WorldManager.cpp" />
+    <ClCompile Include="src\World\MaterialManager.cpp" />
+    <ClCompile Include="src\World\Mesh.cpp" />
+    <ClCompile Include="src\World\WorldNodes\BlockNode.cpp" />
+    <ClCompile Include="src\World\WorldNodes\ControlPointNode.cpp" />
+    <ClCompile Include="src\World\WorldNodes\EmitterNode.cpp" />
+    <ClCompile Include="src\World\WorldNodes\InstanceNode.cpp" />
+    <ClCompile Include="src\World\WorldNodes\LightNode.cpp" />
+    <ClCompile Include="src\World\WorldNodes\ModelNode.cpp" />
+    <ClCompile Include="src\World\WorldNodes\ParticlesNode.cpp" />
+    <ClCompile Include="src\World\WorldNodes\PathNode.cpp" />
+    <ClCompile Include="src\World\WorldNodes\PhysicsNode.cpp" />
+    <ClCompile Include="src\World\WorldNodes\BaseNode.cpp" />
+    <ClCompile Include="src\World\WorldNodes\PrefabNode.cpp" />
+    <ClCompile Include="src\World\WorldNodes\ShakerNode.cpp" />
+    <ClCompile Include="src\World\WorldNodes\SoundNode.cpp" />
+    <ClCompile Include="src\World\WorldNodes\TerrainNode.cpp" />
+    <ClCompile Include="src\World\WorldNodes\WorldNodes.cpp" />
+    <ClCompile Include="src\World\OrbitingCamera.cpp" />
+    <ClCompile Include="src\World\WorldUtils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\Shaders\DS_Mesh.hlsl">

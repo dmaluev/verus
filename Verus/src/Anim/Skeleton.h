@@ -42,7 +42,7 @@ namespace verus
 				String             _name;
 				String             _parentName;
 				btCollisionShape* _pShape = nullptr;
-				btRigidBody* _pBody = nullptr;
+				btRigidBody* _pRigidBody = nullptr;
 				btTypedConstraint* _pConstraint = nullptr;
 				float              _width = 0;
 				float              _length = 0;

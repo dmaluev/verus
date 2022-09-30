@@ -130,27 +130,15 @@ void Frustum::Draw()
 	dd.End();
 }
 
-Vector4 Frustum::GetBounds(RcMatrix4 m, float& zNear, float& zFar) const
+Bounds Frustum::GetBounds(RcTransform3 tr, PPoint3 pFocusedCenterPos) const
 {
-	Vector4 ret(
-		+FLT_MAX,
-		+FLT_MAX,
-		-FLT_MAX,
-		-FLT_MAX);
-	zNear = -FLT_MAX;
-	zFar = FLT_MAX;
+	Bounds ret;
 	VERUS_FOR(i, 8)
+		ret.Include(tr * _corners[i]);
+	if (pFocusedCenterPos)
 	{
-		const Vector4 matSpace = m * _corners[i];
-		ret = Vector4(
-			Math::Min<float>(ret.getX(), matSpace.getX()),
-			Math::Min<float>(ret.getY(), matSpace.getY()),
-			Math::Max<float>(ret.getZ(), matSpace.getX()),
-			Math::Max<float>(ret.getW(), matSpace.getY()));
-
-		// In RH-system closer objects have larger z values!
-		zNear = Math::Max<float>(zNear, matSpace.getZ());
-		zFar = Math::Min<float>(zFar, matSpace.getZ());
+		*pFocusedCenterPos = ret.GetCenter();
+		pFocusedCenterPos->setZ((tr * _corners[8]).getZ());
 	}
 	return ret;
 }

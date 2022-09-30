@@ -48,6 +48,7 @@ namespace verus
 			Sphere GetSphere() const;
 			Matrix4 GetMatrix() const;
 			Transform3 GetDrawTransform() const;
+			Transform3 GetBoxTransform() const;
 
 			Bounds& MirrorY();
 			Bounds& Wrap();

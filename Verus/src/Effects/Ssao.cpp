@@ -109,7 +109,7 @@ void Ssao::Generate()
 {
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_SM;
+	VERUS_QREF_WM;
 
 	if (!settings._postProcessSSAO)
 		return;
@@ -127,7 +127,7 @@ void Ssao::Generate()
 
 	cb->BeginRenderPass(_rph, _fbh, { renderer.GetDS().GetGBuffer(3)->GetClearValue() });
 
-	Scene::RCamera passCamera = *sm.GetPassCamera();
+	World::RCamera passCamera = *wm.GetPassCamera();
 
 	s_ubSsaoVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubSsaoVS._matV = Math::ToUVMatrix().UniformBufferFormat();

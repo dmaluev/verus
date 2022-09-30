@@ -436,8 +436,8 @@ Matrix4 ViewManager::GetXrMatrix() const
 	if (CGI::ViewType::openXR != renderer.GetCurrentViewType())
 		return Matrix4::identity();
 
-	VERUS_QREF_SM;
-	return (_xrMatrixEnabled && sm.GetHeadCamera() && sm.GetPassCamera()) ?
-		sm.GetPassCamera()->GetMatrixVP() * sm.GetHeadCamera()->GetMatrixInvV() *
+	VERUS_QREF_WM;
+	return (_xrMatrixEnabled && wm.GetHeadCamera() && wm.GetPassCamera()) ?
+		wm.GetPassCamera()->GetMatrixVP() * wm.GetHeadCamera()->GetMatrixInvV() *
 		Transform3(Matrix3::scale(Vector3(0.25f * (16 / 9.f), 0.25f)), Vector3(0, 0, -1)) : Matrix4::identity();
 }

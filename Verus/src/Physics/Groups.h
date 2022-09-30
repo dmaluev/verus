@@ -5,7 +5,7 @@ namespace verus
 {
 	namespace Physics
 	{
-		enum class Group : short
+		enum class Group : UINT32
 		{
 			none = 0,
 			general = (1 << 0),
@@ -14,13 +14,16 @@ namespace verus
 			debris = (1 << 3),
 			sensor = (1 << 4),
 			character = (1 << 5),
-			terrain = (1 << 6),
-			sceneBounds = (1 << 7),
-			gizmo = (1 << 8),
-			pickable = (1 << 9),
-			particle = (1 << 10),
-			vehicle = (1 << 11),
-			all = -1
+			ragdoll = (1 << 6),
+			ray = (1 << 7), // rayTest
+			node = (1 << 8), // World::PBaseNode
+			dynamic = (1 << 9),
+			gizmo = (1 << 10), // Editor::PGizmoTool
+			particle = (1 << 11),
+			terrain = (1 << 12),
+			transport = (1 << 13),
+			wall = (1 << 14),
+			all = UINT32_MAX
 		};
 	}
 }

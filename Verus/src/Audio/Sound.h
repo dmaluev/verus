@@ -11,7 +11,7 @@ namespace verus
 			{
 				loaded = (ObjectFlags::user << 0),
 				is3D = (ObjectFlags::user << 1),
-				loop = (ObjectFlags::user << 2),
+				looping = (ObjectFlags::user << 2),
 				randOff = (ObjectFlags::user << 3),
 				keepPcmBuffer = (ObjectFlags::user << 4),
 				user = (ObjectFlags::user << 5)
@@ -24,14 +24,15 @@ namespace verus
 			String       _url;
 			Vector<BYTE> _vPcmBuffer;
 			ALuint       _buffer = 0;
-			int          _next = 0;
 			int          _refCount = 0;
+			int          _next = 0;
 			Interval     _gain = 1;
 			Interval     _pitch = 1;
-			float        _length = 0;
 			float        _referenceDistance = 4;
+			float        _length = 0;
 
 		public:
+			// Note that this structure contains some default values for new sources, which can be changed per source.
 			struct Desc
 			{
 				CSZ      _url = nullptr;
@@ -39,16 +40,16 @@ namespace verus
 				Interval _pitch = 1;
 				float    _referenceDistance = 4;
 				bool     _is3D = false;
-				bool     _loop = false;
+				bool     _looping = false;
 				bool     _randomOffset = false;
 				bool     _keepPcmBuffer = false;
 
 				Desc(CSZ url) : _url(url) {}
 				Desc& Set3D(bool b = true) { _is3D = b; return *this; }
-				Desc& SetLoop(bool b = true) { _loop = b; return *this; }
+				Desc& SetLooping(bool b = true) { _looping = b; return *this; }
+				Desc& SetRandomOffset(bool b = true) { _randomOffset = b; return *this; }
 				Desc& SetGain(Interval gain) { _gain = gain; return *this; }
 				Desc& SetPitch(Interval pitch) { _pitch = pitch; return *this; }
-				Desc& SetRandomOffset(bool b = true) { _randomOffset = b; return *this; }
 				Desc& SetReferenceDistance(float rd) { _referenceDistance = rd; return *this; }
 			};
 			VERUS_TYPEDEFS(Desc);
@@ -56,17 +57,20 @@ namespace verus
 			Sound();
 			~Sound();
 
+			void AddRef() { _refCount++; }
+			int GetRefCount() const { return _refCount; }
+
 			void Init(RcDesc desc);
 			bool Done();
 
-			virtual void Async_WhenLoaded(CSZ url, RcBlob blob) override;
-			bool IsLoaded() const { return IsFlagSet(SoundFlags::loaded); }
-			void AddRef() { _refCount++; }
-
-			Str GetUrl() const { return _C(_url); }
-
 			void Update();
 			void UpdateHRTF();
+
+			// <Resources>
+			virtual void Async_WhenLoaded(CSZ url, RcBlob blob) override;
+			bool IsLoaded() const { return IsFlagSet(SoundFlags::loaded); }
+			Str GetURL() const { return _C(_url); }
+			// </Resources>
 
 			SourcePtr NewSource(PSourcePtr pID = nullptr, Source::RcDesc desc = Source::Desc());
 

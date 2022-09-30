@@ -24,7 +24,7 @@ namespace verus
 		bool _makeIO = true;
 		bool _makeNet = true;
 		bool _makePhysics = true;
-		bool _makeScene = true;
+		bool _makeWorld = true;
 		bool _allowInitShaders = true;
 
 		void Make();

@@ -82,7 +82,7 @@ void Warp::DrawLines() const
 
 void Warp::DrawZones() const
 {
-	VERUS_QREF_HELPERS;
+	VERUS_QREF_EO;
 	VERUS_QREF_RENDERER;
 
 	for (const auto& zone : _vZones)
@@ -94,7 +94,7 @@ void Warp::DrawZones() const
 		case 'g': color = VERUS_COLOR_RGBA(0, 255, 0, 255); break;
 		case 'b': color = VERUS_COLOR_RGBA(0, 0, 255, 255); break;
 		}
-		helpers.DrawSphere(zone._pos, zone._radius, color, renderer.GetCommandBuffer());
+		eo.DrawSphere(zone._pos, zone._radius, color, renderer.GetCommandBuffer());
 	}
 }
 

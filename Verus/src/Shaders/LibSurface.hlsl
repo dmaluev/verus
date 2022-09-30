@@ -5,7 +5,7 @@ float ComputeNormalZ(float2 v)
 	return sqrt(saturate(1.0 - dot(v.xy, v.xy)));
 }
 
-float3 NormalMapFromBC5(float4 normalSam, float contrast = -2.0)
+float3 NormalMapFromBC5(float4 normalSam, float contrast = -1.0)
 {
 	float3 normal = (normalSam.rgb - 0.5) * contrast;
 	normal.z = ComputeNormalZ(normal.xy);

@@ -166,7 +166,7 @@ using namespace Microsoft::WRL;
 #include "CGI/CGI.h"               // Computer-generated imagery
 #include "Input/Input.h"
 #include "Effects/Effects.h"
-#include "Scene/Scene.h"
+#include "World/World.h"
 #include "Game/Game.h"
 #include "GUI/GUI.h"               // Graphical user interface
 #include "Net/Net.h"               // Networking

@@ -57,15 +57,20 @@ public:
 CMP_BOOL TextureTool::FeedbackProc(CMP_FLOAT progress, CMP_DWORD_PTR pUser1, CMP_DWORD_PTR pUser2)
 {
 	const int edge = static_cast<int>(progress * 0.5f + 0.5f);
-	std::wcout << _T("\rCompressing [");
+	wchar_t buffer[80];
+	wcscpy(buffer, _T("\rCompressing ["));
+	size_t offset = wcslen(buffer);
 	VERUS_FOR(i, 50)
 	{
 		if (i < edge)
-			std::wcout << _T("=");
+			buffer[i + offset] = _T('=');
 		else
-			std::wcout << _T(" ");
+			buffer[i + offset] = _T(' ');
 	}
-	std::wcout << _T("] ") << std::setw(3) << static_cast<int>(progress + 0.5f) << _T("%") << std::flush;
+	buffer[offset + 50] = 0;
+	wsprintf(buffer + wcslen(buffer), _T("] %3d%%"), static_cast<int>(progress + 0.5f));
+	wprintf(buffer);
+	fflush(stdout);
 	return false;
 }
 

@@ -52,9 +52,6 @@
     <Filter Include="src\ThirdParty\libb64">
       <UniqueIdentifier>{2c793d5f-0a67-4166-8490-3ef154bdb4fc}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\Scene">
-      <UniqueIdentifier>{28848bdf-d48d-40a2-92a2-6946c609e14e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="src\AI">
       <UniqueIdentifier>{6c75fda0-ca2a-4925-9260-1d069a48b1b7}</UniqueIdentifier>
     </Filter>
@@ -85,9 +82,6 @@
     <Filter Include="src\Effects">
       <UniqueIdentifier>{5ea015f8-8b97-4159-ad67-d71abdba3c91}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\Scene\SceneNodes">
-      <UniqueIdentifier>{07af1a9e-5cdc-4264-811b-d958ec70a709}</UniqueIdentifier>
-    </Filter>
     <Filter Include="src\ThirdParty\tinygltf-2.5.0">
       <UniqueIdentifier>{54a71e7f-5bcd-480d-990e-0d5e79d7ded9}</UniqueIdentifier>
     </Filter>
@@ -105,6 +99,12 @@
     </Filter>
     <Filter Include="src\ThirdParty\zlib-1.2.12">
       <UniqueIdentifier>{8b9c1325-e416-4e6f-8277-1d5e18f9122f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\World">
+      <UniqueIdentifier>{aa98d856-89ce-4d9d-af82-94b6f935fc27}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\World\WorldNodes">
+      <UniqueIdentifier>{3b005273-c21c-493a-a7e2-c5e41cbbc66a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -312,12 +312,6 @@
     <ClInclude Include="src\Global\Timer.h">
       <Filter>src\Global</Filter>
     </ClInclude>
-    <ClInclude Include="src\Scene\Camera.h">
-      <Filter>src\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\Scene.h">
-      <Filter>src\Scene</Filter>
-    </ClInclude>
     <ClInclude Include="src\Math\Frustum.h">
       <Filter>src\Math</Filter>
     </ClInclude>
@@ -338,12 +332,6 @@
     </ClInclude>
     <ClInclude Include="src\AI\Turret.h">
       <Filter>src\AI</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\BaseMesh.h">
-      <Filter>src\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\Mesh.h">
-      <Filter>src\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\IO\StreamPtr.h">
       <Filter>src\IO</Filter>
@@ -420,12 +408,6 @@
     <ClInclude Include="src\ThirdParty\json.hpp">
       <Filter>src\ThirdParty</Filter>
     </ClInclude>
-    <ClInclude Include="src\Scene\Terrain.h">
-      <Filter>src\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\Atmosphere.h">
-      <Filter>src\Scene</Filter>
-    </ClInclude>
     <ClInclude Include="src\Physics\Bullet.h">
       <Filter>src\Physics</Filter>
     </ClInclude>
@@ -444,20 +426,8 @@
     <ClInclude Include="src\Math\Quadtree.h">
       <Filter>src\Math</Filter>
     </ClInclude>
-    <ClInclude Include="src\Scene\MaterialManager.h">
-      <Filter>src\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\SceneManager.h">
-      <Filter>src\Scene</Filter>
-    </ClInclude>
     <ClInclude Include="src\Physics\UserPtr.h">
       <Filter>src\Physics</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\EditorTerrain.h">
-      <Filter>src\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\Helpers.h">
-      <Filter>src\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\CGI\DebugDraw.h">
       <Filter>src\CGI</Filter>
@@ -468,9 +438,6 @@
     <ClInclude Include="src\IO\Dictionary.h">
       <Filter>src\IO</Filter>
     </ClInclude>
-    <ClInclude Include="src\Scene\ShadowMapBaker.h">
-      <Filter>src\Scene</Filter>
-    </ClInclude>
     <ClInclude Include="src\Physics\BulletDebugDraw.h">
       <Filter>src\Physics</Filter>
     </ClInclude>
@@ -479,9 +446,6 @@
     </ClInclude>
     <ClInclude Include="src\Physics\KinematicCharacterController.h">
       <Filter>src\Physics</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\CameraOrbit.h">
-      <Filter>src\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\Input\DragController.h">
       <Filter>src\Input</Filter>
@@ -498,17 +462,8 @@
     <ClInclude Include="src\CGI\Scheduled.h">
       <Filter>src\CGI</Filter>
     </ClInclude>
-    <ClInclude Include="src\IO\Xxx.h">
-      <Filter>src\IO</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\Grass.h">
-      <Filter>src\Scene</Filter>
-    </ClInclude>
     <ClInclude Include="src\CGI\TextureRAM.h">
       <Filter>src\CGI</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\Water.h">
-      <Filter>src\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\Global\Cooldown.h">
       <Filter>src\Global</Filter>
@@ -585,30 +540,6 @@
     <ClInclude Include="src\Effects\Bloom.h">
       <Filter>src\Effects</Filter>
     </ClInclude>
-    <ClInclude Include="src\Scene\Forest.h">
-      <Filter>src\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\Scatter.h">
-      <Filter>src\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\SceneNodes\Block.h">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\SceneNodes\Light.h">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\SceneNodes\Model.h">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\SceneNodes\SceneNode.h">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\SceneNodes\SceneNodes.h">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\SceneNodes\Types.h">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClInclude>
     <ClInclude Include="src\Effects\Particles.h">
       <Filter>src\Effects</Filter>
     </ClInclude>
@@ -620,18 +551,6 @@
     </ClInclude>
     <ClInclude Include="src\Global\LocalPtr.h">
       <Filter>src\Global</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\SceneNodes\Site.h">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\SceneNodes\Prefab.h">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\SceneNodes\Emitter.h">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\SceneNodes\SceneParticles.h">
-      <Filter>src\Scene\SceneNodes</Filter>
     </ClInclude>
     <ClInclude Include="src\Anim\Shaker.h">
       <Filter>src\Anim</Filter>
@@ -672,9 +591,6 @@
     <ClInclude Include="src\Effects\Ssr.h">
       <Filter>src\Effects</Filter>
     </ClInclude>
-    <ClInclude Include="src\Scene\CubeMapBaker.h">
-      <Filter>src\Scene</Filter>
-    </ClInclude>
     <ClInclude Include="src\Game\QuestSystem.h">
       <Filter>src\Game</Filter>
     </ClInclude>
@@ -687,7 +603,7 @@
     <ClInclude Include="src\ThirdParty\imgui\imgui.h">
       <Filter>src\ThirdParty\imgui</Filter>
     </ClInclude>
-    <ClInclude Include="src\ThirdParty\imgui\imgui_impl_sdl.h">
+    <ClInclude Include="src\ThirdParty\imgui\imgui_impl_sdl2.h">
       <Filter>src\ThirdParty\imgui</Filter>
     </ClInclude>
     <ClInclude Include="src\ThirdParty\imgui\imgui_internal.h">
@@ -701,9 +617,6 @@
     </ClInclude>
     <ClInclude Include="src\ThirdParty\imgui\imstb_truetype.h">
       <Filter>src\ThirdParty\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\SceneNodes\Trigger.h">
-      <Filter>src\Scene\SceneNodes</Filter>
     </ClInclude>
     <ClInclude Include="src\App\UndoManager.h">
       <Filter>src\App</Filter>
@@ -740,9 +653,6 @@
     </ClInclude>
     <ClInclude Include="src\Global\Interval.h">
       <Filter>src\Global</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Scene\LightMapBaker.h">
-      <Filter>src\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\CGI\DeferredShading.h">
       <Filter>src\CGI</Filter>
@@ -791,6 +701,114 @@
     </ClInclude>
     <ClInclude Include="src\CGI\BaseExtReality.h">
       <Filter>src\CGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\World.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldManager.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\BlockNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\LightNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\ModelNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\BaseNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\WorldNodes.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\Types.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\Camera.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\BaseMesh.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\MaterialManager.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\Mesh.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\OrbitingCamera.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\PhysicsNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\EditorOverlays.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\EmitterNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\ParticlesNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\SoundNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\IO\Vwx.h">
+      <Filter>src\IO</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\TerrainNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\PrefabNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\InstanceNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\CubeMapBaker.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\LightMapBaker.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\ShadowMapBaker.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\Water.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\Atmosphere.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\Forest.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\Scatter.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\EditorTerrain.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\Terrain.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\Grass.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldUtils.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\ShakerNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\ControlPointNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\PathNode.h">
+      <Filter>src\World\WorldNodes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -905,12 +923,6 @@
     <ClCompile Include="src\Global\Timer.cpp">
       <Filter>src\Global</Filter>
     </ClCompile>
-    <ClCompile Include="src\Scene\Camera.cpp">
-      <Filter>src\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\Scene.cpp">
-      <Filter>src\Scene</Filter>
-    </ClCompile>
     <ClCompile Include="src\Math\Frustum.cpp">
       <Filter>src\Math</Filter>
     </ClCompile>
@@ -931,12 +943,6 @@
     </ClCompile>
     <ClCompile Include="src\AI\Turret.cpp">
       <Filter>src\AI</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\BaseMesh.cpp">
-      <Filter>src\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\Mesh.cpp">
-      <Filter>src\Scene</Filter>
     </ClCompile>
     <ClCompile Include="src\Math\TangentSpaceTools.cpp">
       <Filter>src\Math</Filter>
@@ -1004,12 +1010,6 @@
     <ClCompile Include="src\Game\Spirit.cpp">
       <Filter>src\Game</Filter>
     </ClCompile>
-    <ClCompile Include="src\Scene\Terrain.cpp">
-      <Filter>src\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\Atmosphere.cpp">
-      <Filter>src\Scene</Filter>
-    </ClCompile>
     <ClCompile Include="src\Physics\Bullet.cpp">
       <Filter>src\Physics</Filter>
     </ClCompile>
@@ -1025,18 +1025,6 @@
     <ClCompile Include="src\Math\Quadtree.cpp">
       <Filter>src\Math</Filter>
     </ClCompile>
-    <ClCompile Include="src\Scene\MaterialManager.cpp">
-      <Filter>src\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\SceneManager.cpp">
-      <Filter>src\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\EditorTerrain.cpp">
-      <Filter>src\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\Helpers.cpp">
-      <Filter>src\Scene</Filter>
-    </ClCompile>
     <ClCompile Include="src\CGI\DebugDraw.cpp">
       <Filter>src\CGI</Filter>
     </ClCompile>
@@ -1046,9 +1034,6 @@
     <ClCompile Include="src\IO\Dictionary.cpp">
       <Filter>src\IO</Filter>
     </ClCompile>
-    <ClCompile Include="src\Scene\ShadowMapBaker.cpp">
-      <Filter>src\Scene</Filter>
-    </ClCompile>
     <ClCompile Include="src\Physics\BulletDebugDraw.cpp">
       <Filter>src\Physics</Filter>
     </ClCompile>
@@ -1057,9 +1042,6 @@
     </ClCompile>
     <ClCompile Include="src\Physics\KinematicCharacterController.cpp">
       <Filter>src\Physics</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\CameraOrbit.cpp">
-      <Filter>src\Scene</Filter>
     </ClCompile>
     <ClCompile Include="src\Input\DragController.cpp">
       <Filter>src\Input</Filter>
@@ -1085,17 +1067,8 @@
     <ClCompile Include="src\CGI\Scheduled.cpp">
       <Filter>src\CGI</Filter>
     </ClCompile>
-    <ClCompile Include="src\IO\Xxx.cpp">
-      <Filter>src\IO</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\Grass.cpp">
-      <Filter>src\Scene</Filter>
-    </ClCompile>
     <ClCompile Include="src\CGI\TextureRAM.cpp">
       <Filter>src\CGI</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\Water.cpp">
-      <Filter>src\Scene</Filter>
     </ClCompile>
     <ClCompile Include="src\Global\Cooldown.cpp">
       <Filter>src\Global</Filter>
@@ -1166,41 +1139,8 @@
     <ClCompile Include="src\Effects\Bloom.cpp">
       <Filter>src\Effects</Filter>
     </ClCompile>
-    <ClCompile Include="src\Scene\Forest.cpp">
-      <Filter>src\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\Scatter.cpp">
-      <Filter>src\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\SceneNodes\Block.cpp">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\SceneNodes\Light.cpp">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\SceneNodes\Model.cpp">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\SceneNodes\SceneNode.cpp">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\SceneNodes\SceneNodes.cpp">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClCompile>
     <ClCompile Include="src\Effects\Particles.cpp">
       <Filter>src\Effects</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\SceneNodes\Site.cpp">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\SceneNodes\Prefab.cpp">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\SceneNodes\Emitter.cpp">
-      <Filter>src\Scene\SceneNodes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\SceneNodes\SceneParticles.cpp">
-      <Filter>src\Scene\SceneNodes</Filter>
     </ClCompile>
     <ClCompile Include="src\Anim\Shaker.cpp">
       <Filter>src\Anim</Filter>
@@ -1232,9 +1172,6 @@
     <ClCompile Include="src\Effects\Ssr.cpp">
       <Filter>src\Effects</Filter>
     </ClCompile>
-    <ClCompile Include="src\Scene\CubeMapBaker.cpp">
-      <Filter>src\Scene</Filter>
-    </ClCompile>
     <ClCompile Include="src\Game\QuestSystem.cpp">
       <Filter>src\Game</Filter>
     </ClCompile>
@@ -1250,7 +1187,7 @@
     <ClCompile Include="src\ThirdParty\imgui\imgui_draw.cpp">
       <Filter>src\ThirdParty\imgui</Filter>
     </ClCompile>
-    <ClCompile Include="src\ThirdParty\imgui\imgui_impl_sdl.cpp">
+    <ClCompile Include="src\ThirdParty\imgui\imgui_impl_sdl2.cpp">
       <Filter>src\ThirdParty\imgui</Filter>
     </ClCompile>
     <ClCompile Include="src\ThirdParty\imgui\imgui_tables.cpp">
@@ -1258,9 +1195,6 @@
     </ClCompile>
     <ClCompile Include="src\ThirdParty\imgui\imgui_widgets.cpp">
       <Filter>src\ThirdParty\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\SceneNodes\Trigger.cpp">
-      <Filter>src\Scene\SceneNodes</Filter>
     </ClCompile>
     <ClCompile Include="src\App\UndoManager.cpp">
       <Filter>src\App</Filter>
@@ -1300,9 +1234,6 @@
     </ClCompile>
     <ClCompile Include="src\Global\Range.cpp">
       <Filter>src\Global</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene\LightMapBaker.cpp">
-      <Filter>src\Scene</Filter>
     </ClCompile>
     <ClCompile Include="src\CGI\DeferredShading.cpp">
       <Filter>src\CGI</Filter>
@@ -1360,6 +1291,111 @@
     </ClCompile>
     <ClCompile Include="src\CGI\BaseExtReality.cpp">
       <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\World.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldManager.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\BlockNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\LightNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\ModelNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\BaseNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\WorldNodes.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\Camera.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\BaseMesh.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\MaterialManager.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\Mesh.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\OrbitingCamera.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\PhysicsNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\EditorOverlays.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\EmitterNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\ParticlesNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\SoundNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\IO\Vwx.cpp">
+      <Filter>src\IO</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\TerrainNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\PrefabNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\InstanceNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\CubeMapBaker.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\LightMapBaker.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\ShadowMapBaker.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\Water.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\Atmosphere.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\Forest.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\Scatter.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\EditorTerrain.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\Terrain.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\Grass.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldUtils.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\ShakerNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\ControlPointNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\PathNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

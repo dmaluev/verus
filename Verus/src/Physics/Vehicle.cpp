@@ -24,34 +24,42 @@ void Vehicle::Init(RcDesc desc)
 	_wheelCount = leftWheelCount + rightWheelCount;
 	_invWheelCount = 1.f / _wheelCount;
 
-	float maxHeight = -FLT_MAX;
+	// <Clearance>
+	float maxWheelY = -FLT_MAX;
 	Vector3 averageWheelPos(0);
 	VERUS_FOR(i, leftWheelCount)
 	{
 		averageWheelPos += Vector3(desc._vLeftWheels[i].GetCenter());
-		maxHeight = Math::Max<float>(maxHeight, desc._vLeftWheels[i].GetCenter().getY());
+		maxWheelY = Math::Max<float>(maxWheelY, desc._vLeftWheels[i].GetCenter().getY());
 	}
 	VERUS_FOR(i, rightWheelCount)
 	{
 		averageWheelPos += Vector3(desc._vRightWheels[i].GetCenter());
-		maxHeight = Math::Max<float>(maxHeight, desc._vRightWheels[i].GetCenter().getY());
+		maxWheelY = Math::Max<float>(maxWheelY, desc._vRightWheels[i].GetCenter().getY());
 	}
+	// </Clearance>
 	averageWheelPos *= _invWheelCount;
 
 	Math::Bounds chassis = desc._chassis;
-	chassis.Set(maxHeight - 0.05f, chassis.GetMax().getY(), 1);
+	chassis.Set(maxWheelY - 0.05f, chassis.GetMax().getY(), 1); // Adjust clearance.
+	chassis.Set(
+		chassis.GetMin().getZ() + chassis.GetExtents().getY(),
+		chassis.GetMax().getZ() - chassis.GetExtents().getY(),
+		2); // Make space for bumpers.
 
-	const Vector3 centerOfMassOffset = chassis.GetCenter() - Vector3(0, chassis.GetExtents().getY() * 0.7f, 0);
+	// Lower the center of gravity:
+	const Vector3 centerOfMassOffset = chassis.GetCenter() - Vector3(0, chassis.GetExtents().getY() * 0.8f, 0);
 	const Transform3 transformCoM = Transform3::translation(-centerOfMassOffset);
+	const btTransform trCoM = transformCoM.Bullet();
 	const float g = bullet.GetWorld()->getGravity().length();
-	const float forcePerWheel = (desc._mass * g) * _invWheelCount;
-	const float k = forcePerWheel / desc._suspensionRestLength; // Hooke's law.
+	const float forcePerWheel = (desc._mass * g) * _invWheelCount; // Newton's law (F = m * a).
+	const float k = forcePerWheel / desc._suspensionRestLength; // Hooke's law (F = k * x).
 
-	_vehicleTuning.m_suspensionStiffness = k / desc._mass;
+	_vehicleTuning.m_suspensionStiffness = k / desc._mass; // Per 1 kg.
 	_vehicleTuning.m_suspensionCompression = _vehicleTuning.m_suspensionStiffness * 0.15f;
-	_vehicleTuning.m_suspensionDamping = _vehicleTuning.m_suspensionStiffness * 0.3f;
+	_vehicleTuning.m_suspensionDamping = _vehicleTuning.m_suspensionStiffness * 0.2f;
 	_vehicleTuning.m_maxSuspensionTravelCm = 100 * 2 * desc._suspensionRestLength;
-	_vehicleTuning.m_frictionSlip = 1.75f;
+	_vehicleTuning.m_frictionSlip = 1.5f;
 	_vehicleTuning.m_maxSuspensionForce = forcePerWheel * 3;
 
 	averageWheelPos -= centerOfMassOffset;
@@ -59,20 +67,31 @@ void Vehicle::Init(RcDesc desc)
 	if (!desc._vRightWheels.empty())
 		_frontRightWheelIndex = leftWheelCount;
 
+	const float bumperR = chassis.GetExtents().getY();
+	const float bumperH = Math::Max(VERUS_FLOAT_THRESHOLD, chassis.GetDimensions().getX() - bumperR * 2);
+
 	_pChassisShape = new(_pChassisShape.GetData()) btBoxShape(chassis.GetExtents().Bullet());
+	_pBumperShape = new(_pBumperShape.GetData()) btCapsuleShape(bumperR, bumperH);
 	_pCompoundShape = new(_pCompoundShape.GetData()) btCompoundShape();
 	btTransform tr;
 	tr.setIdentity();
 	tr.setOrigin(chassis.GetCenter().Bullet() - centerOfMassOffset.Bullet());
-	const btTransform trCoM = transformCoM.Bullet();
 	_pCompoundShape->addChildShape(tr, _pChassisShape.Get());
+	tr.setIdentity();
+	tr.getBasis().setEulerZYX(0, 0, VERUS_PI * 0.5f);
+	tr.setOrigin(chassis.GetCenter().Bullet() - centerOfMassOffset.Bullet() + btVector3(0, 0, chassis.GetExtents().getZ()));
+	_pCompoundShape->addChildShape(tr, _pBumperShape.Get());
+	tr.setIdentity();
+	tr.getBasis().setEulerZYX(0, 0, VERUS_PI * 0.5f);
+	tr.setOrigin(chassis.GetCenter().Bullet() - centerOfMassOffset.Bullet() - btVector3(0, 0, chassis.GetExtents().getZ()));
+	_pCompoundShape->addChildShape(tr, _pBumperShape.Get());
+
 	_pChassis = bullet.AddNewRigidBody(_pChassis, desc._mass, desc._tr.Bullet(), _pCompoundShape.Get(),
-		Group::vehicle, Group::all, &trCoM);
-	_pChassis->setFriction(0);
-	_pChassis->setRestitution(0);
+		+Group::transport, +Group::all, &trCoM);
+	_pChassis->setFriction(Bullet::GetFriction(Material::metal));
+	_pChassis->setRestitution(Bullet::GetRestitution(Material::metal) * 0.25f); // Energy-absorbing deformation.
 	_pChassis->setUserPointer(this);
 	_pChassis->setActivationState(DISABLE_DEACTIVATION);
-	_pChassis->setAngularFactor(btVector3(0.5f, 1, 0.5f)); // For stability.
 	_pVehicleRaycaster = new(_pVehicleRaycaster.GetData()) btDefaultVehicleRaycaster(bullet.GetWorld());
 	_pRaycastVehicle = new(_pRaycastVehicle.GetData()) btRaycastVehicle(_vehicleTuning, _pChassis.Get(), _pVehicleRaycaster.Get());
 	_pRaycastVehicle->setCoordinateSystem(0, 1, 2);
@@ -90,7 +109,7 @@ void Vehicle::Init(RcDesc desc)
 			btRaycastVehicle::btVehicleTuning vehicleTuning(_vehicleTuning);
 			const Point3 pos = wheel.GetCenter() - centerOfMassOffset;
 			const float ratio = VMath::dist(pos, Point3(averageWheelPos)) / VMath::length(Vector3(pos));
-			const float scale = ratio * ratio;
+			const float scale = ratio * ratio; // Try to level out the car.
 			vehicleTuning.m_suspensionStiffness *= scale;
 			vehicleTuning.m_suspensionCompression *= scale;
 			vehicleTuning.m_suspensionDamping *= scale;
@@ -131,6 +150,7 @@ void Vehicle::Done()
 		_pChassis.Delete();
 	}
 	_pCompoundShape.Delete();
+	_pBumperShape.Delete();
 	_pChassisShape.Delete();
 
 	VERUS_DONE(Vehicle);
@@ -138,17 +158,6 @@ void Vehicle::Done()
 
 void Vehicle::Update()
 {
-	const Transform3 tr = GetTransform();
-	if (tr.getCol1().getY() > 0.25f)
-	{
-		_pChassis->setFriction(0);
-		_pChassis->setRestitution(0);
-	}
-	else // Rollover?
-	{
-		_pChassis->setFriction(Bullet::GetFriction(Material::metal) * 0.5f);
-		_pChassis->setRestitution(Bullet::GetRestitution(Material::metal) * 0.25f);
-	}
 }
 
 Transform3 Vehicle::GetTransform() const
@@ -160,11 +169,11 @@ void Vehicle::ApplyAirForce(float scale)
 {
 	btVector3 v = _pChassis->getLinearVelocity();
 	const float speedSq = v.length2();
-	if (speedSq >= 1e-4f)
+	if (speedSq >= VERUS_FLOAT_THRESHOLD)
 	{
 		const float speed = sqrt(speedSq);
 		v /= speed;
-		const float force = speed * speed * scale;
+		const float force = speed * speed * scale * 2;
 		_pChassis->applyCentralForce(-v * force); // Drag.
 		const Transform3 tr = GetTransform();
 		const Vector3 down = -tr.getCol1();
@@ -187,7 +196,7 @@ void Vehicle::SetBrake(float brake, float handBrake, int index)
 		if (_frontRightWheelIndex > 0)
 			_pRaycastVehicle->setBrake(perWheel, _frontRightWheelIndex);
 	}
-	else
+	else // All wheel drive?
 	{
 		const float perWheel = brake * _invWheelCount;
 		VERUS_FOR(i, _wheelCount)
@@ -218,7 +227,7 @@ void Vehicle::SetEngineForce(float force, int index)
 		if (_frontRightWheelIndex > 0)
 			_pRaycastVehicle->applyEngineForce(perWheel, _frontRightWheelIndex);
 	}
-	else
+	else // All wheel drive?
 	{
 		const float perWheel = force * _invWheelCount;
 		VERUS_FOR(i, _wheelCount)
@@ -235,7 +244,7 @@ void Vehicle::SetSteeringAngle(float angle)
 
 int Vehicle::UserPtr_GetType()
 {
-	return +Scene::NodeType::vehicle;
+	return +World::NodeType::vehicle;
 }
 
 float Vehicle::ComputeEnginePitch() const
@@ -250,12 +259,14 @@ float Vehicle::ComputeEnginePitch() const
 		}
 	}
 	if (!contact)
-		return 1.8f;
+		return 1.5f;
 
 	const float speedKmHourSigned = _pRaycastVehicle->getCurrentSpeedKmHour();
 	const float speedKmHour = abs(speedKmHourSigned);
-	const float base = 1.6f;
-	const float first = base * 10;
-	const float gear = (speedKmHourSigned < first) ? Math::Clamp<float>(speedKmHour / first, 0, 0.99f) : log(speedKmHour * 0.1f) / log(base);
+	const float power = 1 / 2.5f;
+	const float first = 15.588f; // 3^2.5
+	const float gear = (speedKmHourSigned < first) ?
+		Math::Clamp<float>(speedKmHour / first, 0, 0.99f) :
+		Math::Clamp<float>(pow(speedKmHour, power) - 1, 2, 5.99f);
 	return 0.8f + Math::Min(0.2f, speedKmHour * 0.004f) + 0.6f * fmod(gear, 1.f);
 }

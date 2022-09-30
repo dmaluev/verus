@@ -7,7 +7,7 @@ namespace verus
 	{
 		class Image : public Widget
 		{
-			Scene::TexturePwn _tex;
+			World::TexturePwn _tex;
 			CGI::CSHandle     _csh;
 			Vector4           _tcScale = Vector4(1, 1);
 			Linear<Vector4>   _tcBias;

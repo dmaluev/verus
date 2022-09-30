@@ -199,7 +199,7 @@ DS_ACC_FSO mainFS(VSO si)
 #ifdef DEF_DIR
 			float4 shadowConfig = g_ubShadowFS._shadowConfig;
 			shadowConfig.y = 1.0 - saturate(wrapDiffuse * shadowConfig.y);
-			const float3 posForShadow = AdjustPosForShadow(posWV, normalWV, dirToLightWV, -posWV.z);
+			const float3 posForShadow = AdjustPosForShadow(posWV, normalWV, dirToLightWV, -posWV.z, shadowConfig.z);
 			shadowMask = ShadowMapCSM(
 				g_texShadowCmp,
 				g_samShadowCmp,

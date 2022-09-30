@@ -78,7 +78,7 @@ void DebugDraw::Done()
 
 void DebugDraw::Begin(Type type, PcTransform3 pMat, bool zEnable)
 {
-	VERUS_QREF_SM;
+	VERUS_QREF_WM;
 	VERUS_QREF_RENDERER;
 
 	auto cb = renderer.GetCommandBuffer();
@@ -92,8 +92,8 @@ void DebugDraw::Begin(Type type, PcTransform3 pMat, bool zEnable)
 	}
 
 	Matrix4 matWVP;
-	if (sm.GetPassCamera())
-		matWVP = sm.GetPassCamera()->GetMatrixVP();
+	if (wm.GetPassCamera())
+		matWVP = wm.GetPassCamera()->GetMatrixVP();
 	else
 		matWVP = Matrix4::identity();
 	s_ubDebugDraw._matWVP = pMat ? Matrix4(matWVP * *pMat).UniformBufferFormat() : matWVP.UniformBufferFormat();

@@ -56,7 +56,8 @@ namespace verus
 			rubber,
 			sand,
 			stone,
-			wood
+			wood,
+			count
 		};
 
 		enum class DebugDrawMode : int
@@ -78,6 +79,7 @@ namespace verus
 			LocalRigidBody                                _pStaticPlaneRigidBody;
 			btGhostPairCallback                           _ghostPairCallback;
 			BulletDebugDraw                               _debugDraw;
+			Group                                         _mainMask = Group::immovable | Group::terrain;
 			bool                                          _pauseSimulation = false;
 
 		public:
@@ -93,8 +95,8 @@ namespace verus
 				float mass,
 				const btTransform& startTransform,
 				btCollisionShape* pShape,
-				Group group = Group::general,
-				Group mask = Group::all,
+				int group = +Group::general,
+				int mask = +Group::all,
 				const btTransform* pCenterOfMassOffset = nullptr,
 				void* pPlacementMotionState = nullptr,
 				void* pPlacementRigidBody = nullptr);
@@ -103,8 +105,8 @@ namespace verus
 				float mass,
 				const btTransform& startTransform,
 				btCollisionShape* pShape,
-				Group group = Group::general,
-				Group mask = Group::all,
+				int group = +Group::general,
+				int mask = +Group::all,
 				const btTransform* pCenterOfMassOffset = nullptr);
 
 			void DeleteAllCollisionObjects();
@@ -119,6 +121,11 @@ namespace verus
 
 			static float GetFriction(Material m);
 			static float GetRestitution(Material m);
+
+			static CSZ GroupToString(int index);
+
+			Group GetMainMask() const { return _mainMask; }
+			void SetMainMask(Group mask) { _mainMask = mask; }
 		};
 		VERUS_TYPEDEFS(Bullet);
 	}

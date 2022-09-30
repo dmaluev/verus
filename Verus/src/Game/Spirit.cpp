@@ -250,7 +250,7 @@ Transform3 Spirit::GetUprightWithLeanMatrix() const
 
 float Spirit::GetMotionBlur() const
 {
-	VERUS_QREF_SM;
-	Scene::PMainCamera pViewCamera = sm.GetViewCamera();
+	VERUS_QREF_WM;
+	World::PMainCamera pViewCamera = wm.GetViewCamera();
 	return pViewCamera ? pViewCamera->ComputeMotionBlur(_smoothPosition, _smoothPrevPosition) : 1;
 }

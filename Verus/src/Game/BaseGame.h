@@ -52,7 +52,7 @@ namespace verus
 			void ToggleFullscreen();
 
 			// Camera:
-			Scene::RCamera GetDefaultCamera();
+			World::RCamera GetDefaultCamera();
 			RSpirit GetCameraSpirit();
 
 			// Configuration:

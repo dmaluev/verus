@@ -4,8 +4,6 @@
 using namespace verus;
 using namespace verus::Anim;
 
-const float Motion::Bone::s_magicValueForCircle = 0.825f * 0.7071f * 4; // Octagon vertices will form a perfect circle.
-
 // Motion::Bone::Rotation:
 
 Motion::Bone::Rotation::Rotation()
@@ -23,6 +21,8 @@ Motion::Bone::Rotation::Rotation(RcVector3 euler)
 }
 
 // Motion::Bone:
+
+const float Motion::Bone::s_magicValueForCircle = 0.825f * 0.7071f * 4; // Octagon vertices will form a perfect circle.
 
 Motion::Bone::Bone(PMotion pMotion) :
 	_pMotion(pMotion)

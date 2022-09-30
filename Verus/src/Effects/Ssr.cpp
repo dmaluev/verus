@@ -116,7 +116,7 @@ void Ssr::Generate()
 {
 	VERUS_QREF_ATMO;
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_SM;
+	VERUS_QREF_WM;
 
 	if (!_csh.IsSet())
 	{
@@ -137,7 +137,7 @@ void Ssr::Generate()
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
 	cb->BeginRenderPass(_rph, _fbh, { renderer.GetDS().GetLightAccSpecularTexture()->GetClearValue() });
 
-	Scene::RCamera passCamera = *sm.GetPassCamera();
+	World::RCamera passCamera = *wm.GetPassCamera();
 
 	const Matrix4 matPTex = Matrix4(Math::ToUVMatrix()) * passCamera.GetMatrixP();
 

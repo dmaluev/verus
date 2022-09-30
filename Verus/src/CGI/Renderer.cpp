@@ -242,10 +242,10 @@ void Renderer::Done()
 		_commandBuffer.Done();
 
 		Effects::Particles::DoneStatic();
-		Scene::Forest::DoneStatic();
-		Scene::Grass::DoneStatic();
-		Scene::Terrain::DoneStatic();
-		Scene::Mesh::DoneStatic();
+		World::Forest::DoneStatic();
+		World::Grass::DoneStatic();
+		World::Terrain::DoneStatic();
+		World::Mesh::DoneStatic();
 		GUI::Font::DoneStatic();
 
 		_pBaseRenderer->ReleaseMe();
@@ -279,7 +279,7 @@ void Renderer::Update()
 		const float alpha = Math::Max(0.001f, floatColor[3]);
 		const float actual = gray.r;
 		const float expScale = Math::Clamp(_exposure[1] * (1 / 16.f), 0.f, 1.f);
-		const float target = -0.2f + 0.6f * expScale * expScale; // Dark scene exposure compensation.
+		const float target = -0.1f + 0.5f * expScale * expScale; // Dark scene exposure compensation.
 		const float important = (actual - 0.5f * (1 - alpha)) / alpha;
 		const float delta = target - important;
 		const float speed = (delta * delta) * ((delta > 0) ? 5.f : 15.f);
@@ -406,8 +406,8 @@ bool Renderer::OnWindowSizeChanged(int w, int h)
 	OnScreenSwapChainResized(true, true);
 	if (_ds.IsInitialized())
 		_ds.OnSwapChainResized(true, true);
-	if (Scene::Water::IsValidSingleton())
-		Scene::Water::I().OnSwapChainResized();
+	if (World::Water::IsValidSingleton())
+		World::Water::I().OnSwapChainResized();
 	if (Effects::Bloom::IsValidSingleton())
 		Effects::Bloom::I().OnSwapChainResized();
 	if (Effects::Ssao::IsValidSingleton())
@@ -703,6 +703,12 @@ void Renderer::ImGuiUpdateStyle()
 	colors[ImGuiCol_PlotLinesHovered] = satColorB;
 	colors[ImGuiCol_PlotHistogram] = disabledColor;
 	colors[ImGuiCol_PlotHistogramHovered] = satColorB;
+
+	colors[ImGuiCol_TableHeaderBg] = borderColor;
+	colors[ImGuiCol_TableBorderStrong] = borderColor;
+	colors[ImGuiCol_TableBorderLight] = borderColor;
+	colors[ImGuiCol_TableRowBg] = frameBgColor;
+	colors[ImGuiCol_TableRowBgAlt] = frameBgColor;
 
 	colors[ImGuiCol_TextSelectedBg] = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
 	colors[ImGuiCol_DragDropTarget] = satColorB;

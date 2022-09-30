@@ -25,12 +25,12 @@ void Sound::Init(RcDesc desc)
 	_url = desc._url;
 	_refCount = 1;
 	if (desc._is3D) SetFlag(SoundFlags::is3D);
-	if (desc._loop) SetFlag(SoundFlags::loop);
+	if (desc._looping) SetFlag(SoundFlags::looping);
+	if (desc._randomOffset) SetFlag(SoundFlags::randOff);
+	if (desc._keepPcmBuffer) SetFlag(SoundFlags::keepPcmBuffer);
 	_gain = desc._gain;
 	_pitch = desc._pitch;
 	_referenceDistance = desc._referenceDistance;
-	if (desc._randomOffset) SetFlag(SoundFlags::randOff);
-	if (desc._keepPcmBuffer) SetFlag(SoundFlags::keepPcmBuffer);
 
 	IO::Async::I().Load(desc._url, this);
 }
@@ -49,6 +49,25 @@ bool Sound::Done()
 		return true;
 	}
 	return false;
+}
+
+void Sound::Update()
+{
+	if (!IsLoaded())
+		return;
+	VERUS_UPDATE_ONCE_CHECK;
+
+	VERUS_FOR(i, VERUS_COUNT_OF(_sources))
+		_sources[i].Update();
+}
+
+void Sound::UpdateHRTF()
+{
+	if (!IsLoaded())
+		return;
+	const bool is3D = IsFlagSet(SoundFlags::is3D);
+	VERUS_FOR(i, VERUS_COUNT_OF(_sources))
+		_sources[i].UpdateHRTF(is3D);
 }
 
 void Sound::Async_WhenLoaded(CSZ url, RcBlob blob)
@@ -94,25 +113,6 @@ void Sound::Async_WhenLoaded(CSZ url, RcBlob blob)
 	SetFlag(SoundFlags::loaded);
 }
 
-void Sound::Update()
-{
-	if (!IsLoaded())
-		return;
-	VERUS_UPDATE_ONCE_CHECK;
-
-	VERUS_FOR(i, VERUS_COUNT_OF(_sources))
-		_sources[i].Update();
-}
-
-void Sound::UpdateHRTF()
-{
-	if (!IsLoaded())
-		return;
-	const bool is3D = IsFlagSet(SoundFlags::is3D);
-	VERUS_FOR(i, VERUS_COUNT_OF(_sources))
-		_sources[i].UpdateHRTF(is3D);
-}
-
 SourcePtr Sound::NewSource(PSourcePtr pID, Source::RcDesc desc)
 {
 	SourcePtr source;
@@ -138,10 +138,10 @@ SourcePtr Sound::NewSource(PSourcePtr pID, Source::RcDesc desc)
 			alSource3f(sid, AL_VELOCITY, 0, 0, 0);
 			alSourcef(sid, AL_ROLLOFF_FACTOR, 0);
 		}
-		alSourcef(sid, AL_PITCH, _pitch.GetRandomValue() * desc._pitch);
-		alSourcei(sid, AL_LOOPING, IsFlagSet(SoundFlags::loop) ? 1 : 0);
+		alSourcef(sid, AL_PITCH, Math::Clamp<float>(_pitch.GetRandomValue() * desc._pitch, 0.5f, 2));
+		alSourcei(sid, AL_LOOPING, IsFlagSet(SoundFlags::looping) ? 1 : 0);
 		alSourcei(sid, AL_BUFFER, _buffer);
-		alSourcef(sid, AL_GAIN, _gain.GetRandomValue() * desc._gain);
+		alSourcef(sid, AL_GAIN, Math::Clamp<float>(_gain.GetRandomValue() * desc._gain, 0, 1));
 
 		if (desc._secOffset < 0)
 		{
@@ -189,7 +189,7 @@ void SoundPwn::Done()
 {
 	if (_p)
 	{
-		AudioSystem::I().DeleteSound(_C(_p->GetUrl()));
+		AudioSystem::I().DeleteSound(_C(_p->GetURL()));
 		_p = nullptr;
 	}
 }

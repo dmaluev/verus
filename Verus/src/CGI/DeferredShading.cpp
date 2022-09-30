@@ -469,8 +469,8 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 
 bool DeferredShading::IsLoaded()
 {
-	VERUS_QREF_HELPERS;
-	Scene::RDeferredLights dl = helpers.GetDeferredLights();
+	VERUS_QREF_WU;
+	World::RDeferredLights dl = wu.GetDeferredLights();
 	return
 		dl.Get(LightType::dir).IsLoaded() &&
 		dl.Get(LightType::omni).IsLoaded() &&
@@ -479,8 +479,8 @@ bool DeferredShading::IsLoaded()
 
 void DeferredShading::ResetInstanceCount()
 {
-	VERUS_QREF_HELPERS;
-	Scene::RDeferredLights dl = helpers.GetDeferredLights();
+	VERUS_QREF_WU;
+	World::RDeferredLights dl = wu.GetDeferredLights();
 	dl.Get(LightType::dir).ResetInstanceCount();
 	dl.Get(LightType::omni).ResetInstanceCount();
 	dl.Get(LightType::spot).ResetInstanceCount();
@@ -599,13 +599,13 @@ bool DeferredShading::BeginLightingPass(bool ambient, bool terrainOcclusion)
 	if (ambient)
 	{
 		VERUS_QREF_ATMO;
-		VERUS_QREF_SM;
+		VERUS_QREF_WM;
 
 		s_ubAmbientVS._matW = Math::QuadMatrix().UniformBufferFormat();
 		s_ubAmbientVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 		s_ubAmbientVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
-		s_ubAmbientFS._matInvV = sm.GetPassCamera()->GetMatrixInvV().UniformBufferFormat();
-		s_ubAmbientFS._matInvP = sm.GetPassCamera()->GetMatrixInvP().UniformBufferFormat();
+		s_ubAmbientFS._matInvV = wm.GetPassCamera()->GetMatrixInvV().UniformBufferFormat();
+		s_ubAmbientFS._matInvP = wm.GetPassCamera()->GetMatrixInvP().UniformBufferFormat();
 		s_ubAmbientFS._ambientColorY0 = float4(atmo.GetAmbientColorY0().GLM(), 0);
 		s_ubAmbientFS._ambientColorY1 = float4(atmo.GetAmbientColorY1().GLM(), 0);
 		s_ubAmbientFS._invMapSide_minOcclusion.x = 1.f / _terrainMapSide;
@@ -628,8 +628,8 @@ bool DeferredShading::BeginLightingPass(bool ambient, bool terrainOcclusion)
 	{
 		_async_initPipe = true;
 
-		VERUS_QREF_HELPERS;
-		Scene::RDeferredLights dl = helpers.GetDeferredLights();
+		VERUS_QREF_WU;
+		World::RDeferredLights dl = wu.GetDeferredLights();
 
 		{
 			PipelineDesc pipeDesc(dl.Get(LightType::dir).GetGeometry(), _shader[SHADER_LIGHT], "#InstancedDir", _rph, 1);
@@ -690,7 +690,7 @@ void DeferredShading::EndLightingPass()
 void DeferredShading::BeginComposeAndForwardRendering(bool underwaterMask)
 {
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_SM;
+	VERUS_QREF_WM;
 	VERUS_QREF_ATMO;
 	VERUS_QREF_WATER;
 	VERUS_RT_ASSERT(renderer.GetFrameCount() == _frame);
@@ -707,7 +707,7 @@ void DeferredShading::BeginComposeAndForwardRendering(bool underwaterMask)
 			_tex[TEX_GBUFFER_3]->GetClearValue()
 		});
 
-	const Matrix4 matInvVP = VMath::inverse(sm.GetPassCamera()->GetMatrixVP());
+	const Matrix4 matInvVP = VMath::inverse(wm.GetPassCamera()->GetMatrixVP());
 
 	s_ubComposeVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubComposeVS._matV = Math::ToUVMatrix().UniformBufferFormat();
@@ -717,7 +717,7 @@ void DeferredShading::BeginComposeAndForwardRendering(bool underwaterMask)
 	s_ubComposeFS._exposure_underwaterMask.y = underwaterMask ? 1.f : 0.f;
 	s_ubComposeFS._backgroundColor = _backgroundColor.GLM();
 	s_ubComposeFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
-	s_ubComposeFS._zNearFarEx = sm.GetPassCamera()->GetZNearFarEx().GLM();
+	s_ubComposeFS._zNearFarEx = wm.GetPassCamera()->GetZNearFarEx().GLM();
 	s_ubComposeFS._waterDiffColorShallow = float4(water.GetDiffuseColorShallow().GLM(), water.GetFogDensity());
 	s_ubComposeFS._waterDiffColorDeep = float4(water.GetDiffuseColorDeep().GLM(), water.IsUnderwater() ? 1.f : 0.f);
 
@@ -802,13 +802,13 @@ bool DeferredShading::IsLightUrl(CSZ url)
 void DeferredShading::OnNewLightType(CommandBufferPtr cb, LightType type, bool wireframe)
 {
 	VERUS_QREF_ATMO;
-	VERUS_QREF_SM;
+	VERUS_QREF_WM;
 
 	s_ubPerFrame._matToUV = Math::ToUVMatrix().UniformBufferFormat();
-	s_ubPerFrame._matV = sm.GetPassCamera()->GetMatrixV().UniformBufferFormat();
-	s_ubPerFrame._matInvV = sm.GetPassCamera()->GetMatrixInvV().UniformBufferFormat();
-	s_ubPerFrame._matVP = sm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubPerFrame._matInvP = sm.GetPassCamera()->GetMatrixInvP().UniformBufferFormat();
+	s_ubPerFrame._matV = wm.GetPassCamera()->GetMatrixV().UniformBufferFormat();
+	s_ubPerFrame._matInvV = wm.GetPassCamera()->GetMatrixInvV().UniformBufferFormat();
+	s_ubPerFrame._matVP = wm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubPerFrame._matInvP = wm.GetPassCamera()->GetMatrixInvP().UniformBufferFormat();
 	s_ubPerFrame._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 
 	switch (type)
@@ -851,10 +851,10 @@ void DeferredShading::BindDescriptorsPerMeshVS(CommandBufferPtr cb)
 
 void DeferredShading::Load()
 {
-	VERUS_QREF_HELPERS;
-	Scene::RDeferredLights dl = helpers.GetDeferredLights();
+	VERUS_QREF_WU;
+	World::RDeferredLights dl = wu.GetDeferredLights();
 
-	Scene::Mesh::Desc meshDesc;
+	World::Mesh::Desc meshDesc;
 	meshDesc._instanceCapacity = 10000;
 
 	meshDesc._url = "[Models]:DS/Dir.x3d";

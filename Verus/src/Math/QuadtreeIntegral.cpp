@@ -153,7 +153,7 @@ void QuadtreeIntegral::InitNodes(int currentNode, int depth)
 
 void QuadtreeIntegral::TraverseVisible(int currentNode, int depth)
 {
-	VERUS_QREF_SM;
+	VERUS_QREF_WM;
 
 	if (!currentNode)
 	{
@@ -166,7 +166,7 @@ void QuadtreeIntegral::TraverseVisible(int currentNode, int depth)
 	bool testFrustum = true;
 	if (_distCoarseMode && depth + 2 >= _maxDepth)
 	{
-		RcPoint3 headPos = sm.GetHeadCamera()->GetEyePosition();
+		RcPoint3 headPos = wm.GetHeadCamera()->GetEyePosition();
 		RcPoint3 nodePos = _vNodes[currentNode].GetSphere().GetCenter();
 		const float distSq = VMath::distSqr(headPos, nodePos);
 		if (_maxDepth == depth && distSq >= 500 * 500.f)
@@ -177,7 +177,7 @@ void QuadtreeIntegral::TraverseVisible(int currentNode, int depth)
 			testFrustum = false;
 	}
 
-	RFrustum frustum = sm.GetPassCamera()->GetFrustum();
+	RFrustum frustum = wm.GetPassCamera()->GetFrustum();
 	if (testFrustum && Relation::outside == frustum.ContainsAabb(_vNodes[currentNode].GetBounds()))
 		return;
 

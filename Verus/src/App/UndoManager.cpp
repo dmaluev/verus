@@ -54,12 +54,12 @@ void UndoManager::Redo()
 
 bool UndoManager::CanUndo() const
 {
-	return _nextUndo < _vCommands.size() && _vCommands[_nextUndo]->HasRedo();
+	return _nextUndo < _vCommands.size() && _vCommands[_nextUndo]->IsValid() && _vCommands[_nextUndo]->HasRedo();
 }
 
 bool UndoManager::CanRedo() const
 {
-	return _nextUndo && _vCommands[_nextUndo - 1]->HasRedo();
+	return _nextUndo && _vCommands[_nextUndo - 1]->IsValid() && _vCommands[_nextUndo - 1]->HasRedo();
 }
 
 UndoManager::PCommand UndoManager::BeginChange(PCommand pCommand)

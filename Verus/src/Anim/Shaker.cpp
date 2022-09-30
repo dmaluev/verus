@@ -6,6 +6,8 @@ using namespace verus::Anim;
 
 void Shaker::Load(CSZ url)
 {
+	_url = url;
+
 	Vector<BYTE> v;
 	IO::FileSystem::LoadResource(url, v);
 
@@ -29,7 +31,7 @@ void Shaker::Load(CSZ url)
 		const float val = v[chunkOffset + i] * (1 / 128.f) - 1;
 		_vData[i] = val;
 	}
-	if (!_loop)
+	if (!_looping)
 		_offset = static_cast<float>(chunkSize);
 }
 
@@ -39,7 +41,7 @@ void Shaker::Update()
 	_offset += dt * _speed;
 	if (_offset >= _vData.size())
 	{
-		if (_loop)
+		if (_looping)
 		{
 			_offset = fmod(_offset, static_cast<float>(_vData.size()));
 		}
@@ -67,10 +69,4 @@ void Shaker::Randomize()
 float Shaker::Get()
 {
 	return _value;
-}
-
-void Shaker::SetScaleBias(float s, float b)
-{
-	_scale = s;
-	_bias = b;
 }

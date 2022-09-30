@@ -214,7 +214,7 @@ Continue Octree::TraverseVisible(RcFrustum frustum, PResult pResult, int current
 		pResult->_testCount = 0;
 		pResult->_passedTestCount = 0;
 		pResult->_pLastFoundToken = nullptr;
-		pResult->_depth = Scene::SceneManager::IsDrawingDepth(Scene::DrawDepth::automatic);
+		pResult->_depth = World::WorldManager::IsDrawingDepth(World::DrawDepth::automatic);
 	}
 
 	pResult->_testCount++;

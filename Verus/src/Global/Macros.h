@@ -25,6 +25,8 @@
 
 #define _C(x) ((x).c_str())
 
+#define VERUS_MAKE_VERSION(major, minor, patch) (((major)<<24)|((minor)<<12)|(patch))
+
 #define VERUS_P_FOR(i, to)                      Parallel::For(0, to, [&](int i)
 #define VERUS_U_FOR(i, to)                      for(UINT32 i = 0; i < to; ++i)
 #define VERUS_FOR(i, to)                        for(int i = 0; i < to; ++i)

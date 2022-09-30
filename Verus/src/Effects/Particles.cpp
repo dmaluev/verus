@@ -248,7 +248,7 @@ void Particles::Update()
 	VERUS_QREF_TIMER;
 
 	Vector3 wind = Vector3(0);
-	if (Scene::Atmosphere::IsValidSingleton())
+	if (World::Atmosphere::IsValidSingleton())
 	{
 		VERUS_QREF_ATMO;
 		wind = atmo.GetWindVelocity();
@@ -293,8 +293,8 @@ void Particles::Update()
 	}
 	else // Billboards:
 	{
-		VERUS_QREF_SM;
-		Scene::PCamera pHeadCamera = sm.GetHeadCamera();
+		VERUS_QREF_WM;
+		World::PCamera pHeadCamera = wm.GetHeadCamera();
 		Vector3 normal = pHeadCamera->GetFrontDirection();
 		Vector3 up(0, 1, 0);
 		switch (_billboardType)
@@ -371,7 +371,7 @@ void Particles::Draw()
 	VERUS_UPDATE_ONCE_CHECK_DRAW;
 
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_SM;
+	VERUS_QREF_WM;
 	VERUS_QREF_ATMO;
 
 	if (!_drawCount || !_csh.IsSet())
@@ -386,8 +386,8 @@ void Particles::Draw()
 		brightness = gray.x * abs(brightness);
 	}
 
-	s_ubParticlesVS._matP = sm.GetPassCamera()->GetMatrixP().UniformBufferFormat();
-	s_ubParticlesVS._matWVP = sm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubParticlesVS._matP = wm.GetPassCamera()->GetMatrixP().UniformBufferFormat();
+	s_ubParticlesVS._matWVP = wm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubParticlesVS._viewportSize = cb->GetViewportSize().GLM();
 	s_ubParticlesVS._brightness.x = brightness;
 	s_ubParticlesFS._tilesetSize = _tilesetSize.GLM();
@@ -539,7 +539,7 @@ int Particles::Add(RcPoint3 pos, RcVector3 dir, float scale, PcVector4 pUserColo
 	VERUS_QREF_TIMER;
 
 	Vector3 wind = Vector3(0);
-	if (Scene::Atmosphere::IsValidSingleton())
+	if (World::Atmosphere::IsValidSingleton())
 	{
 		VERUS_QREF_ATMO;
 		wind = atmo.GetWindVelocity();
@@ -626,7 +626,7 @@ bool Particles::TimeCorrectedVerletIntegration(RParticle particle, RPoint3 point
 	bool hit = false;
 
 	Vector3 wind = Vector3(0);
-	if (Scene::Atmosphere::IsValidSingleton())
+	if (World::Atmosphere::IsValidSingleton())
 	{
 		VERUS_QREF_ATMO;
 		wind = atmo.GetWindVelocity();
@@ -648,8 +648,8 @@ bool Particles::TimeCorrectedVerletIntegration(RParticle particle, RPoint3 point
 		}
 		else
 		{
-			VERUS_QREF_SM;
-			if (sm.RayCastingTest(particle._prevPosition, particle._position, nullptr, &point, &normal))
+			VERUS_QREF_WM;
+			if (wm.RayTestEx(particle._prevPosition, particle._position, nullptr, &point, &normal, nullptr, Physics::Bullet::I().GetMainMask()))
 			{
 				hit = true;
 				particle._inContact = normal.getY() > 0.7071f;

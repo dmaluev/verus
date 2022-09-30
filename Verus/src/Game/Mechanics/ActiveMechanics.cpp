@@ -183,11 +183,11 @@ bool ActiveMechanics::UpdateMultiplayer()
 	return false;
 }
 
-Scene::PMainCamera ActiveMechanics::GetScreenCamera()
+World::PMainCamera ActiveMechanics::GetScreenCamera()
 {
 	for (auto p : _vStack)
 	{
-		Scene::PMainCamera pCamera = p->GetScreenCamera();
+		World::PMainCamera pCamera = p->GetScreenCamera();
 		if (pCamera)
 			return pCamera;
 	}

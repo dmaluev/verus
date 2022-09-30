@@ -113,13 +113,17 @@ namespace verus
 			return nullptr;
 		}
 
-		void Delete(const TKey& key)
+		bool Delete(const TKey& key)
 		{
 			VERUS_IF_FOUND_IN(TMap, _map, key, it)
 			{
 				if (it->second.Done())
+				{
 					_map.erase(it);
+					return true;
+				}
 			}
+			return false;
 		}
 
 		void DeleteAll()

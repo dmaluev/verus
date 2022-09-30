@@ -317,13 +317,13 @@ void BaseConvert::Mesh::Compress()
 	VERUS_FOR(i, _vertCount)
 		aabb.Include(_vUberVerts[i]._pos);
 	extents = aabb.GetExtents();
-	Scene::BaseMesh::ComputeDeq(_posScale, _posBias, extents, aabb._mn);
+	World::BaseMesh::ComputeDeq(_posScale, _posBias, extents, aabb._mn);
 	_vZipPos.reserve(_vertCount);
 	VERUS_FOR(i, _vertCount)
 	{
 		Mesh::Vec3Short pos;
 		glm::vec3 v(_vUberVerts[i]._pos);
-		Scene::BaseMesh::QuantizeV(v, extents, aabb._mn);
+		World::BaseMesh::QuantizeV(v, extents, aabb._mn);
 		pos._x = short(v.x);
 		pos._y = short(v.y);
 		pos._z = short(v.z);
@@ -336,7 +336,7 @@ void BaseConvert::Mesh::Compress()
 	VERUS_FOR(i, _vertCount)
 		aabb.Include(glm::vec3(_vUberVerts[i]._tc0, 0));
 	extents = aabb.GetExtents();
-	Scene::BaseMesh::ComputeDeq(scale, bias, extents, aabb._mn);
+	World::BaseMesh::ComputeDeq(scale, bias, extents, aabb._mn);
 	_tc0Scale = glm::vec2(scale);
 	_tc0Bias = glm::vec2(bias);
 	_vZipTc0.reserve(_vertCount);
@@ -344,7 +344,7 @@ void BaseConvert::Mesh::Compress()
 	{
 		Mesh::Vec2Short tc;
 		glm::vec3 v(_vUberVerts[i]._tc0, 0);
-		Scene::BaseMesh::QuantizeV(v, extents, aabb._mn);
+		World::BaseMesh::QuantizeV(v, extents, aabb._mn);
 		tc._u = short(v.x);
 		tc._v = short(v.y);
 		_vZipTc0.push_back(tc);
@@ -369,7 +369,7 @@ void BaseConvert::Mesh::Compress()
 		aabb.Include(glm::vec3(_vUberVerts[i]._tc1, 0));
 	}
 	extents = aabb.GetExtents();
-	Scene::BaseMesh::ComputeDeq(scale, bias, extents, aabb._mn);
+	World::BaseMesh::ComputeDeq(scale, bias, extents, aabb._mn);
 	_tc1Scale = glm::vec2(scale);
 	_tc1Bias = glm::vec2(bias);
 	_vZipTc1.reserve(_vertCount);
@@ -377,7 +377,7 @@ void BaseConvert::Mesh::Compress()
 	{
 		Mesh::Vec2Short tc;
 		glm::vec3 v((_vUberVerts[i]._tc1), 0);
-		Scene::BaseMesh::QuantizeV(v, extents, aabb._mn);
+		World::BaseMesh::QuantizeV(v, extents, aabb._mn);
 		tc._u = short(v.x);
 		tc._v = short(v.y);
 		_vZipTc1.push_back(tc);

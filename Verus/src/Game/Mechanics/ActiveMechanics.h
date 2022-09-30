@@ -32,7 +32,7 @@ namespace verus
 			bool OnTakeDamage(int id, float amount);
 			void OnViewChanged(CGI::RcViewDesc viewDesc);
 			bool UpdateMultiplayer();
-			Scene::PMainCamera GetScreenCamera();
+			World::PMainCamera GetScreenCamera();
 
 			void Reset();
 			bool Push(RMechanics mech);

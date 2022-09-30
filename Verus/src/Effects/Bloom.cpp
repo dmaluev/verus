@@ -129,7 +129,7 @@ void Bloom::Generate()
 	VERUS_QREF_ATMO;
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
-	VERUS_QREF_SM;
+	VERUS_QREF_WM;
 
 	if (!settings._postProcessBloom)
 		return;
@@ -176,10 +176,10 @@ void Bloom::Generate()
 		cb->BeginRenderPass(_rphLightShafts, _fbh, { _tex[TEX_PING]->GetClearValue() },
 			CGI::ViewportScissorFlags::setAllForCurrentViewScaled | CGI::ViewportScissorFlags::applyHalfScale);
 
-		s_ubBloomLightShaftsFS._matInvVP = Matrix4(VMath::inverse(sm.GetPassCamera()->GetMatrixVP())).UniformBufferFormat();
+		s_ubBloomLightShaftsFS._matInvVP = Matrix4(VMath::inverse(wm.GetPassCamera()->GetMatrixVP())).UniformBufferFormat();
 		s_ubBloomLightShaftsFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
 		s_ubBloomLightShaftsFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-		s_ubBloomLightShaftsFS._eyePos = float4(sm.GetPassCamera()->GetEyePosition().GLM(), 0);
+		s_ubBloomLightShaftsFS._eyePos = float4(wm.GetPassCamera()->GetEyePosition().GLM(), 0);
 		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.x = _maxDist;
 		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.y = _sunGloss;
 		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.z = _wideStrength;

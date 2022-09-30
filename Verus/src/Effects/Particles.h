@@ -127,7 +127,7 @@ namespace verus
 			void Update(); // Call this after adding particles!
 			void Draw();
 
-			Str GetUrl() const { return _C(_url); }
+			Str GetURL() const { return _C(_url); }
 			int GetTilesetX() const { return _tilesetX; }
 			int GetTilesetY() const { return _tilesetY; }
 			int GetCapacity() const { return _capacity; }

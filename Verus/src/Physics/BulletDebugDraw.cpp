@@ -7,9 +7,9 @@ using namespace verus::Physics;
 void BulletDebugDraw::drawLine(const btVector3& from, const btVector3& to,
 	const btVector3& color)
 {
-	VERUS_QREF_SM;
+	VERUS_QREF_WM;
 	const float maxDistSq = s_maxDrawDist * s_maxDrawDist;
-	const Point3 headPos = sm.GetHeadCamera()->GetEyePosition();
+	const Point3 headPos = wm.GetHeadCamera()->GetEyePosition();
 	if (VMath::distSqr(headPos, Point3(from)) >= maxDistSq &&
 		VMath::distSqr(headPos, Point3(to)) >= maxDistSq)
 		return;
@@ -21,9 +21,9 @@ void BulletDebugDraw::drawLine(const btVector3& from, const btVector3& to,
 void BulletDebugDraw::drawLine(const btVector3& from, const btVector3& to,
 	const btVector3& fromColor, const btVector3& toColor)
 {
-	VERUS_QREF_SM;
+	VERUS_QREF_WM;
 	const float maxDistSq = s_maxDrawDist * s_maxDrawDist;
-	const Point3 headPos = sm.GetHeadCamera()->GetEyePosition();
+	const Point3 headPos = wm.GetHeadCamera()->GetEyePosition();
 	if (VMath::distSqr(headPos, Point3(from)) >= maxDistSq &&
 		VMath::distSqr(headPos, Point3(to)) >= maxDistSq)
 		return;

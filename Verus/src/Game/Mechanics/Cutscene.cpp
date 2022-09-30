@@ -571,7 +571,7 @@ void Cutscene::OnViewChanged(CGI::RcViewDesc viewDesc)
 	}
 }
 
-Scene::PMainCamera Cutscene::GetScreenCamera()
+World::PMainCamera Cutscene::GetScreenCamera()
 {
 	return _pCurrentCameraCommand ? &_screenCamera : nullptr;
 }

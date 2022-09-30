@@ -26,7 +26,7 @@ VERUS_TYPEDEFS(MyRendererDelegate);
 struct BaseGame::Pimpl : AllocatorAware
 {
 	PBaseGame         _p = nullptr;
-	Scene::MainCamera _camera;
+	World::MainCamera _camera;
 	Spirit            _cameraSpirit;
 	bool              _defaultCameraMovement = true;
 	bool              _escapeKeyExitGame = true;
@@ -107,14 +107,14 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc windowDes
 	// Configure:
 	VERUS_QREF_RENDERER;
 	_p->_camera.Update();
-	if (Scene::SceneManager::IsValidSingleton())
-		Scene::SceneManager::I().SetAllCameras(&_p->_camera);
+	if (World::WorldManager::IsValidSingleton())
+		World::WorldManager::I().SetAllCameras(&_p->_camera);
 
 	renderer.BeginFrame(); // Begin recording a command buffer.
 	renderer.InitCmd();
 	_engineInit.InitCmd();
-	if (Scene::MaterialManager::IsValidSingleton())
-		Scene::MaterialManager::I().InitCmd();
+	if (World::MaterialManager::IsValidSingleton())
+		World::MaterialManager::I().InitCmd();
 	BaseGame_LoadContent();
 	renderer.EndFrame(); // End recording a command buffer.
 
@@ -161,8 +161,7 @@ void BaseGame::Loop(bool relativeMouseMode)
 				{
 				case SDL_KEYDOWN:
 				{
-					if (event.key.keysym.mod & (KMOD_CTRL | KMOD_SHIFT | KMOD_ALT))
-						keyboardShortcut = BaseGame_SDL_OnKeyboardShortcut(event.key.keysym.sym, event.key.keysym.mod);
+					keyboardShortcut = BaseGame_SDL_OnKeyboardShortcut(event.key.keysym.sym, event.key.keysym.mod);
 				}
 				break;
 				case SDL_MOUSEMOTION:
@@ -298,20 +297,20 @@ void BaseGame::Loop(bool relativeMouseMode)
 			_p->_cameraSpirit.Update();
 			_p->_camera.MoveEyeTo(_p->_cameraSpirit.GetPosition());
 			_p->_camera.MoveAtTo(_p->_cameraSpirit.GetPosition() + _p->_cameraSpirit.GetFrontDirection());
-			if (Scene::Water::IsValidSingleton())
+			if (World::Water::IsValidSingleton())
 			{
 				VERUS_QREF_WATER;
 				if (water.IsInitialized())
 					_p->_camera.ExcludeWaterLine();
 			}
 			_p->_camera.Update();
-			if (Scene::SceneManager::IsValidSingleton())
-				Scene::SceneManager::I().SetAllCameras(&_p->_camera);
+			if (World::WorldManager::IsValidSingleton())
+				World::WorldManager::I().SetAllCameras(&_p->_camera);
 		}
 		else
 		{
-			if (Scene::SceneManager::IsValidSingleton())
-				Scene::SceneManager::I().SetAllCameras(nullptr);
+			if (World::WorldManager::IsValidSingleton())
+				World::WorldManager::I().SetAllCameras(nullptr);
 		}
 
 		BaseGame_Update(); // Between physics and audio update.
@@ -379,7 +378,7 @@ void BaseGame::ToggleFullscreen()
 		throw VERUS_RUNTIME_ERROR << "SDL_SetWindowFullscreen()";
 }
 
-Scene::RCamera BaseGame::GetDefaultCamera()
+World::RCamera BaseGame::GetDefaultCamera()
 {
 	return _p->_camera;
 }

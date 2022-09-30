@@ -6,6 +6,8 @@
 #define VERUS_E   2.718281828f
 #define VERUS_GR  1.618034f
 
+#define VERUS_HERMITE_CIRCLE ((0.707107f-0.5f)*8.f)
+
 #define VERUS_FLOAT_THRESHOLD 1e-4f
 
 namespace verus
@@ -151,6 +153,7 @@ namespace verus
 
 		// Scene:
 		Transform3 BoundsDrawMatrix(RcPoint3 mn, RcPoint3 mx);
+		Transform3 BoundsBoxMatrix(RcPoint3 mn, RcPoint3 mx);
 		float ComputeOnePixelDistance(float objectSize, float viewportHeightInPixels = 135, float fovY = VERUS_PI / 4);
 		float ComputeDistToMipScale(float texHeight, float viewportHeightInPixels, float objectSize, float fovY);
 		void Quadrant(const int** ppSrcMinMax, int** ppDestMinMax, int half, int id);
@@ -164,6 +167,9 @@ namespace verus
 		Transform3 ToUVMatrix(float zOffset = 0, RcVector4 texSize = Vector4(0), PcVector4 pTileSize = nullptr, float uOffset = 0, float vOffset = 0);
 
 		float Reduce(float val, float reduction);
+
+		Point3 ClosestPointOnSegment(RcPoint3 segA, RcPoint3 segB, RcPoint3 point);
+		float SegmentToPointDistance(RcPoint3 segA, RcPoint3 segB, RcPoint3 point);
 
 		void Test();
 	};

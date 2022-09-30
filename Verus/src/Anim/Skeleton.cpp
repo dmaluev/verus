@@ -137,9 +137,11 @@ void Skeleton::ApplyMotion(RMotion motion, float time, int layeredMotionCount, P
 		for (auto& kv : _mapBones)
 		{
 			RBone bone = kv.second;
-			if (bone._pBody)
+			if (bone._pRigidBody)
 			{
-				bone._matFinal = _matRagdollToWorldInv * Transform3(bone._pBody->getWorldTransform()) * bone._matToActorSpace;
+				btTransform btr;
+				bone._pRigidBody->getMotionState()->getWorldTransform(btr);
+				bone._matFinal = _matRagdollToWorldInv * Transform3(btr) * bone._matToActorSpace;
 			}
 			else
 			{
@@ -149,9 +151,11 @@ void Skeleton::ApplyMotion(RMotion motion, float time, int layeredMotionCount, P
 					PBone pParent = FindBone(_C(bone._parentName));
 					while (pParent)
 					{
-						if (pParent->_pBody)
+						if (pParent->_pRigidBody)
 						{
-							bone._matFinal = _matRagdollToWorldInv * Transform3(pParent->_pBody->getWorldTransform()) * pParent->_matToActorSpace;
+							btTransform btr;
+							pParent->_pRigidBody->getMotionState()->getWorldTransform(btr);
+							bone._matFinal = _matRagdollToWorldInv * Transform3(btr) * pParent->_matToActorSpace;
 							break;
 						}
 						pParent = FindBone(_C(pParent->_parentName));
@@ -553,16 +557,16 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			pParent->_matToActorSpace = VMath::inverse(matBody);
 			matBody = _matRagdollToWorld * pParent->_matFinal * matBody;
 
-			Physics::Group group = Physics::Group::general, mask = Physics::Group::all;
+			Physics::Group group = Physics::Group::ragdoll, mask = Physics::Group::all;
 			if (pParent->_noCollision)
 				group = mask = Physics::Group::none;
 			const btTransform tr = matBody.Bullet();
-			pParent->_pBody = bullet.AddNewRigidBody(pParent->_mass, tr, pParent->_pShape, group, mask);
-			pParent->_pBody->setFriction(pParent->_friction);
-			pParent->_pBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::leather) * 0.5f);
-			pParent->_pBody->setDamping(dampL, dampA);
-			pParent->_pBody->setDeactivationTime(daTime);
-			pParent->_pBody->setSleepingThresholds(sleepL, sleepA);
+			pParent->_pRigidBody = bullet.AddNewRigidBody(pParent->_mass, tr, pParent->_pShape, +group, +mask);
+			pParent->_pRigidBody->setFriction(pParent->_friction);
+			pParent->_pRigidBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::leather) * 0.5f);
+			pParent->_pRigidBody->setDamping(dampL, dampA);
+			pParent->_pRigidBody->setDeactivationTime(daTime);
+			pParent->_pRigidBody->setSleepingThresholds(sleepL, sleepA);
 		}
 	}
 
@@ -604,16 +608,16 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			pBone->_matToActorSpace = VMath::inverse(matBody);
 			matBody = _matRagdollToWorld * pBone->_matFinal * matBody;
 
-			Physics::Group group = Physics::Group::general, mask = Physics::Group::all;
+			Physics::Group group = Physics::Group::ragdoll, mask = Physics::Group::all;
 			if (pBone->_noCollision)
 				group = mask = Physics::Group::none;
 			const btTransform tr = matBody.Bullet();
-			pBone->_pBody = bullet.AddNewRigidBody(pBone->_mass, tr, pBone->_pShape, group, mask);
-			pBone->_pBody->setFriction(pBone->_friction);
-			pBone->_pBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::leather) * 0.5f);
-			pBone->_pBody->setDamping(dampL, dampA);
-			pBone->_pBody->setDeactivationTime(daTime);
-			pBone->_pBody->setSleepingThresholds(sleepL, sleepA);
+			pBone->_pRigidBody = bullet.AddNewRigidBody(pBone->_mass, tr, pBone->_pShape, +group, +mask);
+			pBone->_pRigidBody->setFriction(pBone->_friction);
+			pBone->_pRigidBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::leather) * 0.5f);
+			pBone->_pRigidBody->setDamping(dampL, dampA);
+			pBone->_pRigidBody->setDeactivationTime(daTime);
+			pBone->_pRigidBody->setSleepingThresholds(sleepL, sleepA);
 
 			isLeaf = true;
 		}
@@ -630,7 +634,7 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 
 			if (pBone->_hinge)
 			{
-				btHingeConstraint* pHingeC = new btHingeConstraint(*pBone->_pBody, *pParent->_pBody, localA, localB);
+				btHingeConstraint* pHingeC = new btHingeConstraint(*pBone->_pRigidBody, *pParent->_pRigidBody, localA, localB);
 				if (!pBone->_cLimits.IsZero())
 					pHingeC->setLimit(pBone->_cLimits.getX(), pBone->_cLimits.getY());
 				else
@@ -640,7 +644,7 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			}
 			else
 			{
-				btConeTwistConstraint* pConeC = new btConeTwistConstraint(*pBone->_pBody, *pParent->_pBody, localA, localB);
+				btConeTwistConstraint* pConeC = new btConeTwistConstraint(*pBone->_pRigidBody, *pParent->_pRigidBody, localA, localB);
 				if (!pBone->_cLimits.IsZero())
 					pConeC->setLimit(pBone->_cLimits.getX(), pBone->_cLimits.getY(), pBone->_cLimits.getZ(), 0.9f);
 				else
@@ -652,8 +656,8 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 			}
 		}
 
-		if (pBone->_name == bone && pBone->_pBody)
-			pBone->_pBody->applyCentralImpulse(impulse.Bullet());
+		if (pBone->_name == bone && pBone->_pRigidBody)
+			pBone->_pRigidBody->applyCentralImpulse(impulse.Bullet());
 	}
 
 	_ragdollMode = true;
@@ -677,12 +681,12 @@ void Skeleton::EndRagdoll()
 	for (auto& kv : _mapBones)
 	{
 		RBone bone = kv.second;
-		if (bone._pBody)
+		if (bone._pRigidBody)
 		{
-			bullet.GetWorld()->removeRigidBody(bone._pBody);
-			delete bone._pBody->getMotionState();
-			delete bone._pBody;
-			bone._pBody = nullptr;
+			bullet.GetWorld()->removeRigidBody(bone._pRigidBody);
+			delete bone._pRigidBody->getMotionState();
+			delete bone._pRigidBody;
+			bone._pRigidBody = nullptr;
 		}
 		if (bone._pShape)
 		{

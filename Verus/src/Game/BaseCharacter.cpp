@@ -251,7 +251,7 @@ void BaseCharacter::EndRagdoll()
 
 void BaseCharacter::ComputeThirdPersonCameraArgs(RcVector3 offset, RPoint3 eye, RPoint3 at)
 {
-	VERUS_QREF_SM;
+	VERUS_QREF_WM;
 
 	const float r = 0.1f;
 	Point3 point;
@@ -262,14 +262,14 @@ void BaseCharacter::ComputeThirdPersonCameraArgs(RcVector3 offset, RPoint3 eye, 
 	const float startAt = _cc.GetRadius() + _cc.GetHeight() * 0.5f; // Inside capsule.
 	const Point3 origin = pos + Vector3(0, startAt, 0);
 	at = pos + offsetW;
-	if (sm.RayCastingTest(origin, at, nullptr, &point, &norm, &r))
+	if (wm.RayTestEx(origin, at, nullptr, &point, &norm, &r, Physics::Bullet::I().GetMainMask()))
 		at = point + norm * r;
 	eye = at - GetFrontDirection() * _cameraRadius.GetValue() + offsetW * 0.05f;
 }
 
-float BaseCharacter::ComputeThirdPersonCamera(Scene::RCamera camera, Anim::RcOrbit orbit, RcVector3 offset)
+float BaseCharacter::ComputeThirdPersonCamera(World::RCamera camera, Anim::RcOrbit orbit, RcVector3 offset)
 {
-	VERUS_QREF_SM;
+	VERUS_QREF_WM;
 
 	const float r = 0.1f;
 	Point3 point;
@@ -288,7 +288,7 @@ float BaseCharacter::ComputeThirdPersonCamera(Scene::RCamera camera, Anim::RcOrb
 	eye = at + Vector3(toEye);
 
 	float ret = 0;
-	if (sm.RayCastingTest(at, eye, nullptr, &point, &norm, &r)) // Hitting the wall?
+	if (wm.RayTestEx(at, eye, nullptr, &point, &norm, &r, Physics::Bullet::I().GetMainMask())) // Hitting the wall?
 	{
 		eye = point + norm * r;
 		const float maxCameraRadius = VMath::dist(at, eye) + r;
@@ -315,7 +315,7 @@ float BaseCharacter::ComputeThirdPersonCamera(Scene::RCamera camera, Anim::RcOrb
 
 void BaseCharacter::ComputeThirdPersonAim(RPoint3 aimPos, RVector3 aimDir, RcVector3 offset)
 {
-	VERUS_QREF_SM;
+	VERUS_QREF_WM;
 
 	const float r = 0.1f;
 	Point3 point;
@@ -324,7 +324,7 @@ void BaseCharacter::ComputeThirdPersonAim(RPoint3 aimPos, RVector3 aimDir, RcVec
 	Point3 eye, at;
 	ComputeThirdPersonCameraArgs(offset, eye, at);
 
-	if (sm.RayCastingTest(at, eye, nullptr, &point, &norm, &r)) // Hitting the wall?
+	if (wm.RayTestEx(at, eye, nullptr, &point, &norm, &r, Physics::Bullet::I().GetMainMask())) // Hitting the wall?
 	{
 		eye = point + norm * r;
 	}

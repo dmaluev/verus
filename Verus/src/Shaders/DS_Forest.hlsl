@@ -86,16 +86,19 @@ void mainGS(point VSO si[1], inout TriangleStream<VSO> stream)
 }
 #endif
 
-float2 ComputeTexCoords(float2 tc, float2 angles)
+float4 ComputeTexCoords(float2 tc, float2 angles, out float frameBlend)
 {
-	const float margin = 4.0 / 512.0;
+	const float margin = 4.0 / 512.0; // 4 pixels.
 	const float tcScale = 1.0 - margin * 2.0;
 	const float2 tcWithMargin = tc * tcScale + margin;
 
 	const float2 frameCount = float2(16, 16);
 	const float2 frameScale = 1.0 / frameCount;
-	const float2 frameBias = floor(min(angles * frameCount + 0.5, float2(256, frameCount.y - 0.5)));
-	return (tcWithMargin + frameBias) * frameScale;
+	const float2 frameOffset = angles * frameCount;
+	const float2 maxOffset = float2(256, frameCount.y - 0.5);
+	const float4 frameBias = floor(min(frameOffset.xyxy + float4(0, 0.5, 1, 0.5), maxOffset.xyxy));
+	frameBlend = frac(frameOffset.x);
+	return (tcWithMargin.xyxy + frameBias) * frameScale.xyxy;
 }
 
 float ComputeMask(float2 tc, float alpha)
@@ -109,10 +112,13 @@ float ComputeMask(float2 tc, float alpha)
 #ifdef DEF_DEPTH
 void mainFS(VSO si)
 {
-	const float2 tc = ComputeTexCoords(si.tc0, si.angles);
+	float frameBlend;
+	const float4 tc = ComputeTexCoords(si.tc0, si.angles, frameBlend);
 	const float mask = ComputeMask(si.tc0, si.color.a);
 
-	const float alpha = g_texGBuffer1.Sample(g_samGBuffer1, tc).a;
+	const float alpha0 = g_texGBuffer1.Sample(g_samGBuffer1, tc.xy).a;
+	const float alpha1 = g_texGBuffer1.Sample(g_samGBuffer1, tc.zw).a;
+	const float alpha = lerp(alpha0, alpha1, frameBlend);
 
 	clip(alpha * mask - 0.5);
 }
@@ -123,27 +129,38 @@ DS_FSO mainFS(VSO si)
 
 	const float dither = Dither2x2(si.pos.xy);
 
-	const float2 tc = ComputeTexCoords(si.tc0, si.angles);
+	float frameBlend;
+	const float4 tc = ComputeTexCoords(si.tc0, si.angles, frameBlend);
 	const float mask = ComputeMask(si.tc0, si.color.a);
 
-	const float4 gBuffer0Sam = g_texGBuffer0.Sample(g_samGBuffer0, tc);
-	const float4 gBuffer1Sam = float4(
-		g_texGBuffer1.Sample(g_samGBuffer1, tc).rgb,
-		g_texGBuffer1.SampleBias(g_samGBuffer1, tc, 1.0).a);
-	const float4 gBuffer2Sam = g_texGBuffer2.Sample(g_samGBuffer2, tc);
-	const float4 gBuffer3Sam = g_texGBuffer3.Sample(g_samGBuffer3, tc);
+	const float4 gBuffer0Sam_F0 = g_texGBuffer0.Sample(g_samGBuffer0, tc.xy);
+	const float4 gBuffer0Sam_F1 = g_texGBuffer0.Sample(g_samGBuffer0, tc.zw);
+	const float4 gBuffer1Sam_F0 = float4(
+		g_texGBuffer1.Sample(g_samGBuffer1, tc.xy).rgb,
+		g_texGBuffer1.SampleBias(g_samGBuffer1, tc.xy, 1.0).a);
+	const float4 gBuffer1Sam_F1 = float4(
+		g_texGBuffer1.Sample(g_samGBuffer1, tc.zw).rgb,
+		g_texGBuffer1.SampleBias(g_samGBuffer1, tc.zw, 1.0).a);
+	const float4 gBuffer2Sam_F0 = g_texGBuffer2.Sample(g_samGBuffer2, tc.xy);
+	const float4 gBuffer2Sam_F1 = g_texGBuffer2.Sample(g_samGBuffer2, tc.zw);
+	const float4 gBuffer3Sam_F0 = g_texGBuffer3.Sample(g_samGBuffer3, tc.xy);
+	const float4 gBuffer3Sam_F1 = g_texGBuffer3.Sample(g_samGBuffer3, tc.zw);
 
-	so.target0 = gBuffer0Sam;
-	so.target1 = gBuffer1Sam;
-	so.target2 = gBuffer2Sam;
-	so.target3 = gBuffer3Sam;
+	const float alpha = lerp(gBuffer1Sam_F0.a, gBuffer1Sam_F1.a, frameBlend);
+	const float2 normAlphas = float2(gBuffer1Sam_F0.a, gBuffer1Sam_F1.a) / max(max(gBuffer1Sam_F0.a, gBuffer1Sam_F1.a), _SINGULARITY_FIX);
+	const float opaqueBlend = clamp(frameBlend, normAlphas.y - normAlphas.x, normAlphas.y);
 
-	so.target0.rgb = saturate(gBuffer0Sam.rgb * si.color.rgb * 2.0);
+	so.target0 = lerp(gBuffer0Sam_F0, gBuffer0Sam_F1, opaqueBlend);
+	so.target1 = lerp(gBuffer1Sam_F0, gBuffer1Sam_F1, opaqueBlend);
+	so.target2 = lerp(gBuffer2Sam_F0, gBuffer2Sam_F1, opaqueBlend);
+	so.target3 = lerp(gBuffer3Sam_F0, gBuffer3Sam_F1, opaqueBlend);
+
+	so.target0.rgb = saturate(so.target0.rgb * si.color.rgb * 2.0);
 	so.target1.a = 1.0;
-	so.target3.a = max(so.target3.a, AlphaToResolveDitheringMask(gBuffer1Sam.a));
+	so.target3.a = max(so.target3.a, AlphaToResolveDitheringMask(alpha));
 
 	const float fudgeFactor = 1.5;
-	clip(saturate(gBuffer1Sam.a * fudgeFactor) * mask - (dither + (1.0 / 8.0)));
+	clip(saturate(alpha * fudgeFactor) * mask - (dither + (1.0 / 8.0)));
 
 	return so;
 }

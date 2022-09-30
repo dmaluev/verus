@@ -407,7 +407,7 @@ bool FileSystem::FileExist(CSZ url)
 	File file;
 	if (file.Open(_C(pathname))) // Normal filename:
 		return true;
-	if (file.Open(_C(pakPathname))) // PAK filename:
+	if (file.Open(_C(pakPathname))) // PAK filename (don't check contents, just assume that it's there):
 		return true;
 	if (file.Open(_C(projectPathname))) // File in another project dir:
 		return true;

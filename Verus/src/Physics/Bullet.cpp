@@ -62,8 +62,8 @@ btRigidBody* Bullet::AddNewRigidBody(
 	float mass,
 	const btTransform& startTransform,
 	btCollisionShape* pShape,
-	Group group,
-	Group mask,
+	int group,
+	int mask,
 	const btTransform* pCenterOfMassOffset,
 	void* pPlacementMotionState,
 	void* pPlacementRigidBody)
@@ -82,16 +82,12 @@ btRigidBody* Bullet::AddNewRigidBody(
 	else
 		pMotionState = new btDefaultMotionState(startTransform, pCenterOfMassOffset ? *pCenterOfMassOffset : btTransform::getIdentity());
 	btRigidBody::btRigidBodyConstructionInfo rbci(mass, pMotionState, pShape, localInertia);
-	rbci.m_linearDamping = 0.01f;
-	rbci.m_angularDamping = 0.01f;
-	rbci.m_rollingFriction = 0.001f;
-	rbci.m_spinningFriction = 0.001f;
 	btRigidBody* pRigidBody = nullptr;
 	if (pPlacementRigidBody)
 		pRigidBody = new(pPlacementRigidBody) btRigidBody(rbci);
 	else
 		pRigidBody = new btRigidBody(rbci);
-	_pDiscreteDynamicsWorld->addRigidBody(pRigidBody, +group, +mask);
+	_pDiscreteDynamicsWorld->addRigidBody(pRigidBody, group, mask);
 
 	return pRigidBody;
 }
@@ -101,8 +97,8 @@ btRigidBody* Bullet::AddNewRigidBody(
 	float mass,
 	const btTransform& startTransform,
 	btCollisionShape* pShape,
-	Group group,
-	Group mask,
+	int group,
+	int mask,
 	const btTransform* pCenterOfMassOffset)
 {
 	btAssert(!pShape || pShape->getShapeType() != INVALID_SHAPE_PROXYTYPE);
@@ -116,12 +112,8 @@ btRigidBody* Bullet::AddNewRigidBody(
 	btDefaultMotionState* pMotionState = new(localRigidBody.GetDefaultMotionStateData())
 		btDefaultMotionState(startTransform, pCenterOfMassOffset ? *pCenterOfMassOffset : btTransform::getIdentity());
 	btRigidBody::btRigidBodyConstructionInfo rbci(mass, pMotionState, pShape, localInertia);
-	rbci.m_linearDamping = 0.01f;
-	rbci.m_angularDamping = 0.01f;
-	rbci.m_rollingFriction = 0.001f;
-	rbci.m_spinningFriction = 0.001f;
 	btRigidBody* pRigidBody = new(localRigidBody.GetRigidBodyData()) btRigidBody(rbci);
-	_pDiscreteDynamicsWorld->addRigidBody(pRigidBody, +group, +mask);
+	_pDiscreteDynamicsWorld->addRigidBody(pRigidBody, group, mask);
 
 	return pRigidBody;
 }
@@ -134,9 +126,9 @@ void Bullet::DeleteAllCollisionObjects()
 	for (int i = _pDiscreteDynamicsWorld->getNumCollisionObjects() - 1; i >= 0; --i)
 	{
 		btCollisionObject* pObject = _pDiscreteDynamicsWorld->getCollisionObjectArray()[i];
-		btRigidBody* pBody = btRigidBody::upcast(pObject);
-		if (pBody && pBody->getMotionState())
-			delete pBody->getMotionState();
+		btRigidBody* pRigidBody = btRigidBody::upcast(pObject);
+		if (pRigidBody && pRigidBody->getMotionState())
+			delete pRigidBody->getMotionState();
 		_pDiscreteDynamicsWorld->removeCollisionObject(pObject);
 		delete pObject;
 	}
@@ -196,7 +188,7 @@ void Bullet::EnableDebugPlane(bool b)
 	{
 		btTransform tr;
 		tr.setIdentity();
-		_pStaticPlaneRigidBody = AddNewRigidBody(_pStaticPlaneRigidBody, 0, tr, _pStaticPlaneShape.Get(), Group::sceneBounds);
+		_pStaticPlaneRigidBody = AddNewRigidBody(_pStaticPlaneRigidBody, 0, tr, _pStaticPlaneShape.Get(), +Group::wall);
 		_pStaticPlaneRigidBody->setFriction(GetFriction(Material::wood));
 		_pStaticPlaneRigidBody->setRestitution(GetRestitution(Material::wood));
 	}
@@ -241,4 +233,29 @@ float Bullet::GetRestitution(Material m)
 	case Material::wood: return 0.73f;
 	}
 	return 0;
+}
+
+CSZ Bullet::GroupToString(int index)
+{
+	CSZ text[] =
+	{
+		"General",
+		"Immovable",
+		"Kinematic",
+		"Debris",
+		"Sensor",
+		"Character",
+		"Ragdoll",
+		"Ray",
+		"Node",
+		"Dynamic",
+		"Gizmo",
+		"Particle",
+		"Terrain",
+		"Transport",
+		"Wall"
+	};
+	if (index >= 0 && index < VERUS_COUNT_OF(text))
+		return text[index];
+	return nullptr;
 }

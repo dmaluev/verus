@@ -51,7 +51,7 @@ namespace verus
 			String            _locale = "RU";
 			TMapStrings       _mapStrings;
 			Vector<PWidget>   _vTabList;
-			Scene::TexturePwn _tex;
+			World::TexturePwn _tex;
 			PWidget           _pLastHovered = nullptr;
 			PInputFocus       _pInputFocus = nullptr;
 			State             _state = State::done;

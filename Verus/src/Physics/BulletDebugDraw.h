@@ -7,7 +7,7 @@ namespace verus
 	{
 		class BulletDebugDraw : public btIDebugDraw
 		{
-			static const int s_maxDrawDist = 30;
+			static const int s_maxDrawDist = 25;
 
 			int _debugMode = 0;
 

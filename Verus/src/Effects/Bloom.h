@@ -40,8 +40,8 @@ namespace verus
 			float                         _colorBias = 1.4f;
 			float                         _maxDist = 20;
 			float                         _sunGloss = 128;
-			float                         _wideStrength = 0.2f;
-			float                         _sunStrength = 0.3f;
+			float                         _wideStrength = 0.15f;
+			float                         _sunStrength = 0.35f;
 			bool                          _blur = true;
 			bool                          _blurLightShafts = true;
 			bool                          _editMode = false;

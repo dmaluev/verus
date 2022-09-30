@@ -194,6 +194,11 @@ Transform3 Bounds::GetDrawTransform() const
 	return Math::BoundsDrawMatrix(_min, _max);
 }
 
+Transform3 Bounds::GetBoxTransform() const
+{
+	return Math::BoundsBoxMatrix(_min, _max);
+}
+
 RBounds Bounds::MirrorY()
 {
 	const float miny = _min.getY();

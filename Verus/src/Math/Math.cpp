@@ -379,6 +379,13 @@ Transform3 Math::BoundsDrawMatrix(RcPoint3 mn, RcPoint3 mx)
 	return VMath::appendScale(Transform3::translation(c - Point3(0, d.getY() * 0.5f, 0)), d);
 }
 
+Transform3 Math::BoundsBoxMatrix(RcPoint3 mn, RcPoint3 mx)
+{
+	const Vector3 d = mx - mn;
+	const Vector3 c = VMath::lerp(0.5f, mn, mx);
+	return VMath::appendScale(Transform3::translation(c), d);
+}
+
 float Math::ComputeOnePixelDistance(float objectSize, float viewportHeightInPixels, float fovY)
 {
 	// Assume that object occupies one pixel, then the whole viewport height will be:
@@ -472,6 +479,20 @@ float Math::Reduce(float val, float reduction)
 		return 0;
 	else
 		return val - glm::sign(val) * reduction;
+}
+
+Point3 Math::ClosestPointOnSegment(RcPoint3 segA, RcPoint3 segB, RcPoint3 point)
+{
+	const float lenSq = VMath::distSqr(segA, segB);
+	if (lenSq < VERUS_FLOAT_THRESHOLD)
+		return segA;
+	const float t = Math::Clamp<float>(VMath::dot(point - segA, segB - segA) / lenSq, 0, 1);
+	return VMath::lerp(t, segA, segB);
+}
+
+float Math::SegmentToPointDistance(RcPoint3 segA, RcPoint3 segB, RcPoint3 point)
+{
+	return VMath::dist(point, ClosestPointOnSegment(segA, segB, point));
 }
 
 void Math::Test()
@@ -655,11 +676,11 @@ void Math::Test()
 	}
 
 	{
-		//const Point3 a(1, 0, 0), b(3, 0, 0), p(1.25f, 3, 0), p2(10, 10, 0);
-		//Point3 res = ClosestPointOnLineSegment(a, b, p);
-		//VERUS_RT_ASSERT(glm::all(glm::epsilonEqual(res.GLM(), glm::vec3(1.25f, 0, 0), eps)));
-		//Point3 res2 = ClosestPointOnLineSegment(a, b, p2);
-		//VERUS_RT_ASSERT(glm::all(glm::epsilonEqual(res2.GLM(), glm::vec3(3, 0, 0), eps)));
+		const Point3 a(1, 0, 0), b(3, 0, 0), p(1.25f, 3, 0), p2(10, 10, 0);
+		Point3 res = ClosestPointOnSegment(a, b, p);
+		VERUS_RT_ASSERT(glm::all(glm::epsilonEqual(res.GLM(), glm::vec3(1.25f, 0, 0), eps)));
+		Point3 res2 = ClosestPointOnSegment(a, b, p2);
+		VERUS_RT_ASSERT(glm::all(glm::epsilonEqual(res2.GLM(), glm::vec3(3, 0, 0), eps)));
 	}
 
 	{
@@ -693,7 +714,7 @@ void Math::Test()
 
 	{
 		// Right-handed mode (default):
-		Scene::Camera camera;
+		World::Camera camera;
 		camera.MoveEyeTo(Point3(0, 0, 3));
 		camera.MoveAtTo(Point3(0, 0, 4));
 		camera.SetYFov(VERUS_PI * 0.25f);

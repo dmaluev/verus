@@ -42,6 +42,7 @@ namespace verus
 
 			void SetGain(float gain);
 			void SetPitch(float pitch);
+			void SetLooping(bool loop);
 		};
 		VERUS_TYPEDEFS(Source);
 

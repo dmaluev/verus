@@ -36,7 +36,7 @@ namespace verus
 			RcPoint3 GetZNearPosition() const { return _corners[8]; }
 			RcPoint3 GetZFarPosition() const { return _corners[9]; }
 
-			Vector4 GetBounds(RcMatrix4 m, float& zNear, float& zFar) const;
+			Bounds GetBounds(RcTransform3 tr, PPoint3 pFocusedCenterPos = nullptr) const;
 
 			Frustum& SetNearPlane(RcPoint3 eye, RcVector3 front, float zNear);
 			Frustum& SetFarPlane(RcPoint3 eye, RcVector3 front, float zFar);

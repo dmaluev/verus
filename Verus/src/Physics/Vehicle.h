@@ -8,6 +8,7 @@ namespace verus
 		class Vehicle : public Object, public UserPtr
 		{
 			LocalPtr<btBoxShape>                _pChassisShape;
+			LocalPtr<btCapsuleShape>            _pBumperShape;
 			LocalPtr<btCompoundShape>           _pCompoundShape;
 			LocalRigidBody                      _pChassis;
 			LocalPtr<btDefaultVehicleRaycaster> _pVehicleRaycaster;
@@ -23,7 +24,7 @@ namespace verus
 			{
 				float _angle = 0;
 				float _speed = 1;
-				float _maxAngle = Math::ToRadians(36);
+				float _maxAngle = Math::ToRadians(40);
 
 				void Update(float stiffness)
 				{
@@ -54,7 +55,7 @@ namespace verus
 				Vector<Math::Sphere> _vLeftWheels;
 				Vector<Math::Sphere> _vRightWheels;
 				float                _mass = 1200;
-				float                _suspensionRestLength = 0.2f;
+				float                _suspensionRestLength = 0.15f; // 0.25 for buggy, 0.05 for sports car.
 			};
 			VERUS_TYPEDEFS(Desc);
 
@@ -80,7 +81,7 @@ namespace verus
 
 			btRaycastVehicle* GetRaycastVehicle() { return _pRaycastVehicle.Get(); }
 
-			void ApplyAirForce(float scale = 2);
+			void ApplyAirForce(float scale = 1);
 			void SetBrake(float brake, float handBrake = 0, int index = -1);
 			void SetEngineForce(float force, int index = -1);
 			void SetSteeringAngle(float angle);

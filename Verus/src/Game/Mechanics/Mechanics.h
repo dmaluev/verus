@@ -31,7 +31,7 @@ namespace verus
 			virtual Continue OnTakeDamage(int id, float amount) { return Continue::yes; }
 			virtual void OnViewChanged(CGI::RcViewDesc viewDesc) {}
 			virtual Continue UpdateMultiplayer() { return Continue::yes; }
-			virtual Scene::PMainCamera GetScreenCamera() { return nullptr; }
+			virtual World::PMainCamera GetScreenCamera() { return nullptr; }
 		};
 		VERUS_TYPEDEFS(Mechanics);
 	}

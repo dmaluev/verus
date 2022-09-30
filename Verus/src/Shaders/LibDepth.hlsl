@@ -24,11 +24,12 @@ float ComputeFog(float depth, float density, float height = 0.0)
 	return 1.0 - saturate(fog);
 }
 
-float3 AdjustPosForShadow(float3 pos, float3 normal, float3 dirToLight, float depth, float offset = 0.0)
+float3 AdjustPosForShadow(float3 pos, float3 normal, float3 dirToLight,
+	float depth, float normalDepthBias = 0.015, float offset = 0.0)
 {
 	const float depthFactor = depth - 5.0;
 	return pos +
-		normal * 0.015 * max(1.0, depthFactor * 0.2) +
+		normal * normalDepthBias * max(1.0, depthFactor * 0.2) +
 		dirToLight * max(0.0, depthFactor * 0.002 + offset);
 }
 
@@ -52,17 +53,19 @@ float PCF(
 #elif _SHADOW_QUALITY <= _Q_HIGH
 	// High quality, use 5x5 PCF:
 	float sum = 0.0;
-	[unroll] for (int y = -2; y <= 2; y += 2)
+	[unroll] for (int y = -2; y <= 2; ++y)
 	{
-		[unroll] for (int x = -2; x <= 2; x += 2)
+		[unroll] for (int x = -2; x <= 2; ++x)
 		{
+			const int test = abs(x) + abs(y);
+			if (test == 4 || test % 2)
+				continue;
 			int2 offset = int2(x, y);
-			if (abs(x) + abs(y) == 4)
-				offset = clamp(offset, -1, 1);
 			sum += texCmp.SampleCmpLevelZero(samCmp, tc.xy, unormFragDepth, offset).r;
 		}
 	}
-	sum *= (1.0 / 9.0); // 3x3
+	sum *= (1.0 / 9.0); // 3x3-4 + 2x2
+
 	if (sum * (1.0 - sum) != 0.0)
 	{
 		float2 unormBlockersDepth_blockerCount = 0.0;
@@ -71,7 +74,8 @@ float PCF(
 		{
 			[unroll] for (int x = -2; x <= 2; ++x)
 			{
-				if (abs(x) + abs(y) == 4)
+				const int test = abs(x) + abs(y);
+				if (test == 4)
 					continue;
 				sum += texCmp.SampleCmpLevelZero(samCmp, tc.xy, unormFragDepth, int2(x, y)).r;
 				const float unormBlockerDepth = tex.SampleLevel(sam, tc.xy, 0.0, int2(x, y)).r;
@@ -79,7 +83,7 @@ float PCF(
 					unormBlockersDepth_blockerCount += float2(unormBlockerDepth, 1);
 			}
 		}
-		const float ret = sum *= (1.0 / 21.0); // 5x5 - 4
+		const float ret = sum *= (1.0 / 21.0); // 5x5-4
 		if (unormBlockersDepth_blockerCount.y > 0.0)
 		{
 			const float unormBlockersDepth = unormBlockersDepth_blockerCount.x / unormBlockersDepth_blockerCount.y;
@@ -98,17 +102,19 @@ float PCF(
 #else
 	// Ultra quality, use 7x7 PCF:
 	float sum = 0.0;
-	[unroll] for (int y = -3; y <= 3; y += 2)
+	[unroll] for (int y = -3; y <= 3; ++y)
 	{
-		[unroll] for (int x = -3; x <= 3; x += 2)
+		[unroll] for (int x = -3; x <= 3; ++x)
 		{
+			const int test = abs(x) + abs(y);
+			if (test == 6 || test % 2)
+				continue;
 			int2 offset = int2(x, y);
-			if (abs(x) + abs(y) == 6)
-				offset = clamp(offset, -2, 2);
 			sum += texCmp.SampleCmpLevelZero(samCmp, tc.xy, unormFragDepth, offset).r;
 		}
 	}
-	sum *= (1.0 / 16.0); // 4x4
+	sum *= (1.0 / 21.0); // 4x4-4 + 3x3
+
 	if (sum * (1.0 - sum) != 0.0)
 	{
 		float2 unormBlockersDepth_blockerCount = 0.0;
@@ -117,15 +123,17 @@ float PCF(
 		{
 			[unroll] for (int x = -3; x <= 3; ++x)
 			{
-				if (abs(x) + abs(y) == 6)
+				const int test = abs(x) + abs(y);
+				if (test == 6)
 					continue;
-				sum += texCmp.SampleCmpLevelZero(samCmp, tc.xy, unormFragDepth, int2(x, y)).r;
-				const float unormBlockerDepth = tex.SampleLevel(sam, tc.xy, 0.0, int2(x, y)).r;
+				int2 offset = int2(x, y);
+				sum += texCmp.SampleCmpLevelZero(samCmp, tc.xy, unormFragDepth, offset).r;
+				const float unormBlockerDepth = tex.SampleLevel(sam, tc.xy, 0.0, offset).r;
 				if (unormBlockerDepth < unormFragDepth)
 					unormBlockersDepth_blockerCount += float2(unormBlockerDepth, 1);
 			}
 		}
-		const float ret = sum *= (1.0 / 45.0); // 7x7 - 4
+		const float ret = sum *= (1.0 / 45.0); // 7x7-4
 		if (unormBlockersDepth_blockerCount.y > 0.0)
 		{
 			const float unormBlockersDepth = unormBlockersDepth_blockerCount.x / unormBlockersDepth_blockerCount.y;

@@ -67,7 +67,7 @@ void CharacterController::Done()
 
 int CharacterController::UserPtr_GetType()
 {
-	return +Scene::NodeType::character;
+	return +World::NodeType::character;
 }
 
 void CharacterController::SetRadius(float r)

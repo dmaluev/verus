@@ -32,8 +32,8 @@ namespace verus
 				const T d = _target - _actual;
 				if (angle)
 				{
-					VERUS_RT_ASSERT(_target >= T(-VERUS_PI) && _target < T(VERUS_PI));
-					VERUS_RT_ASSERT(_actual >= T(-VERUS_PI) && _actual < T(VERUS_PI));
+					VERUS_RT_ASSERT(_target >= T(-4) && _target < T(4));
+					VERUS_RT_ASSERT(_actual >= T(-4) && _actual < T(4));
 					if (d > T(VERUS_PI))
 						_actual += VERUS_2PI;
 					else if (d < T(-VERUS_PI))

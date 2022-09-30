@@ -151,8 +151,8 @@ float3 VerusIBL(float3 normal, float3 dirToEye,
 
 float ComputePointLightIntensity(float distSq, float radiusSq, float invRadiusSq)
 {
-	const float scaleFivePercent = 19.0 * invRadiusSq;
-	const float invSquareLaw = 1.0 / max(0.1, distSq * scaleFivePercent);
+	// This light falloff is physically correct only for radius 10.
+	const float invSquareLaw = 1.0 / (1.0 + 99.0 * distSq * invRadiusSq); // From 1 to 0.01 at radius.
 	const float x = max(0.0, radiusSq - distSq); // Zero at radius.
 	const float limit = x * x * invRadiusSq * invRadiusSq;
 	return min(invSquareLaw, limit);
