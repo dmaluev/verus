@@ -649,7 +649,7 @@ bool Particles::TimeCorrectedVerletIntegration(RParticle particle, RPoint3 point
 		else
 		{
 			VERUS_QREF_WM;
-			if (wm.RayTestEx(particle._prevPosition, particle._position, nullptr, &point, &normal, nullptr, Physics::Bullet::I().GetMainMask()))
+			if (wm.RayTestEx(particle._prevPosition, particle._position, nullptr, &point, &normal, nullptr, Physics::Bullet::I().GetStaticMask()))
 			{
 				hit = true;
 				particle._inContact = normal.getY() > 0.7071f;

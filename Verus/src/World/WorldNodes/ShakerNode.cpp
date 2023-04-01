@@ -30,9 +30,9 @@ void ShakerNode::Done()
 	VERUS_DONE(ShakerNode);
 }
 
-void ShakerNode::Duplicate(RBaseNode node)
+void ShakerNode::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
-	BaseNode::Duplicate(node);
+	BaseNode::Duplicate(node, hierarchyDuplication);
 
 	RShakerNode shakerNode = static_cast<RShakerNode>(node);
 
@@ -188,12 +188,12 @@ void ShakerNodePtr::Init(ShakerNode::RcDesc desc)
 	_p->Init(desc);
 }
 
-void ShakerNodePtr::Duplicate(RBaseNode node)
+void ShakerNodePtr::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
 	VERUS_QREF_WM;
 	VERUS_RT_ASSERT(!_p);
 	_p = wm.InsertShakerNode();
-	_p->Duplicate(node);
+	_p->Duplicate(node, hierarchyDuplication);
 }
 
 void ShakerNodePwn::Done()

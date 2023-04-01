@@ -56,11 +56,11 @@ void Vehicle::Init(RcDesc desc)
 	const float k = forcePerWheel / desc._suspensionRestLength; // Hooke's law (F = k * x).
 
 	_vehicleTuning.m_suspensionStiffness = k / desc._mass; // Per 1 kg.
-	_vehicleTuning.m_suspensionCompression = _vehicleTuning.m_suspensionStiffness * 0.15f;
-	_vehicleTuning.m_suspensionDamping = _vehicleTuning.m_suspensionStiffness * 0.2f;
+	_vehicleTuning.m_suspensionCompression = _vehicleTuning.m_suspensionStiffness * 0.09f; // Compression damping (absorb bumps).
+	_vehicleTuning.m_suspensionDamping = _vehicleTuning.m_suspensionStiffness * 0.11f; // Relaxation damping (track the downslope of the bump).
 	_vehicleTuning.m_maxSuspensionTravelCm = 100 * 2 * desc._suspensionRestLength;
-	_vehicleTuning.m_frictionSlip = 1.5f;
-	_vehicleTuning.m_maxSuspensionForce = forcePerWheel * 3;
+	_vehicleTuning.m_frictionSlip = 2;
+	_vehicleTuning.m_maxSuspensionForce = forcePerWheel * 10;
 
 	averageWheelPos -= centerOfMassOffset;
 	averageWheelPos.setY(0);
@@ -88,8 +88,8 @@ void Vehicle::Init(RcDesc desc)
 
 	_pChassis = bullet.AddNewRigidBody(_pChassis, desc._mass, desc._tr.Bullet(), _pCompoundShape.Get(),
 		+Group::transport, +Group::all, &trCoM);
-	_pChassis->setFriction(Bullet::GetFriction(Material::metal));
-	_pChassis->setRestitution(Bullet::GetRestitution(Material::metal) * 0.25f); // Energy-absorbing deformation.
+	_pChassis->setFriction(0);
+	_pChassis->setRestitution(0);
 	_pChassis->setUserPointer(this);
 	_pChassis->setActivationState(DISABLE_DEACTIVATION);
 	_pVehicleRaycaster = new(_pVehicleRaycaster.GetData()) btDefaultVehicleRaycaster(bullet.GetWorld());

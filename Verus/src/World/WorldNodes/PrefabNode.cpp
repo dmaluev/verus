@@ -28,9 +28,9 @@ void PrefabNode::Done()
 	VERUS_DONE(PrefabNode);
 }
 
-void PrefabNode::Duplicate(RBaseNode node)
+void PrefabNode::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
-	BaseNode::Duplicate(node);
+	BaseNode::Duplicate(node, hierarchyDuplication);
 
 	RPrefabNode prefabNode = static_cast<RPrefabNode>(node);
 
@@ -101,12 +101,12 @@ void PrefabNodePtr::Init(PrefabNode::RcDesc desc)
 	_p->Init(desc);
 }
 
-void PrefabNodePtr::Duplicate(RBaseNode node)
+void PrefabNodePtr::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
 	VERUS_QREF_WM;
 	VERUS_RT_ASSERT(!_p);
 	_p = wm.InsertPrefabNode();
-	_p->Duplicate(node);
+	_p->Duplicate(node, hierarchyDuplication);
 }
 
 void PrefabNodePwn::Done()

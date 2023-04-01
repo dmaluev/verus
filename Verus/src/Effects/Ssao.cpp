@@ -70,9 +70,12 @@ void Ssao::InitCmd()
 
 void Ssao::Done()
 {
-	VERUS_QREF_RENDERER;
-	renderer->DeleteFramebuffer(_fbh);
-	renderer->DeleteRenderPass(_rph);
+	if (CGI::Renderer::IsLoaded())
+	{
+		VERUS_QREF_RENDERER;
+		renderer->DeleteFramebuffer(_fbh);
+		renderer->DeleteRenderPass(_rph);
+	}
 	VERUS_DONE(Ssao);
 }
 
@@ -125,6 +128,8 @@ void Ssao::Generate()
 
 	auto cb = renderer.GetCommandBuffer();
 
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(255, 64, 255, 255), "Ssao/Generate");
+
 	cb->BeginRenderPass(_rph, _fbh, { renderer.GetDS().GetGBuffer(3)->GetClearValue() });
 
 	World::RCamera passCamera = *wm.GetPassCamera();
@@ -153,6 +158,8 @@ void Ssao::Generate()
 
 	if (_blur)
 		Blur::I().GenerateForSsao();
+
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void Ssao::UpdateRandNormalsTexture()

@@ -18,8 +18,13 @@ BlockNode::~BlockNode()
 
 void BlockNode::Init(RcDesc desc)
 {
-	SetOctreeElementFlag();
+	if (!(_flags & Flags::readOnlyFlags))
+	{
+		SetOctreeElementFlag();
+		SetShadowCasterFlag();
+	}
 	BaseNode::Init(desc._name ? desc._name : desc._modelURL);
+	SetShadowCasterFlag();
 
 	ModelNode::Desc modelDesc;
 	modelDesc._url = desc._modelURL;
@@ -38,9 +43,9 @@ void BlockNode::Done()
 	VERUS_DONE(BlockNode);
 }
 
-void BlockNode::Duplicate(RBaseNode node)
+void BlockNode::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
-	BaseNode::Duplicate(node);
+	BaseNode::Duplicate(node, hierarchyDuplication);
 
 	RBlockNode blockNode = static_cast<RBlockNode>(node);
 
@@ -219,12 +224,12 @@ void BlockNodePtr::Init(BlockNode::RcDesc desc)
 	_p->Init(desc);
 }
 
-void BlockNodePtr::Duplicate(RBaseNode node)
+void BlockNodePtr::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
 	VERUS_QREF_WM;
 	VERUS_RT_ASSERT(!_p);
 	_p = wm.InsertBlockNode();
-	_p->Duplicate(node);
+	_p->Duplicate(node, hierarchyDuplication);
 }
 
 void BlockNodePwn::Done()

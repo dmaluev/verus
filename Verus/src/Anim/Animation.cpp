@@ -32,7 +32,7 @@ void Collection::Async_WhenLoaded(CSZ url, RcBlob blob)
 		md._motion.ComputePlaybackSpeed(md._duration);
 }
 
-void Collection::AddMotion(CSZ name, bool loop, float duration)
+void Collection::AddMotion(CSZ name, bool looping, float duration, bool fast)
 {
 	CSZ shortName = name;
 	if (_useShortNames)
@@ -42,7 +42,8 @@ void Collection::AddMotion(CSZ name, bool loop, float duration)
 	}
 	RMotionData md = *TStoreMotions::Insert(shortName);
 	md._duration = duration;
-	md._loop = loop;
+	md._looping = looping;
+	md._fast = fast;
 	IO::Async::I().Load(name, this);
 }
 
@@ -107,8 +108,8 @@ void Animation::Update(int layerCount, PLayer pLayers)
 			md._motion.ProcessTriggers(_time, this, GetTriggerStatesArray());
 			if (_time >= duration)
 			{
-				_playing = md._loop; // Continue?
-				_time = md._loop ? fmod(_time, duration) : duration;
+				_playing = md._looping; // Continue?
+				_time = md._looping ? fmod(_time, duration) : duration;
 				md._motion.ResetTriggers(GetTriggerStatesArray()); // New loop, reset triggers.
 				if (_pDelegate)
 					_pDelegate->Animation_OnEnd(_C(_currentMotion)); // This can call TransitionTo and change everything.
@@ -178,11 +179,17 @@ void Animation::Pause()
 
 void Animation::TransitionTo(CSZ name, Interval duration, int randTime, PMotion pFromMotion)
 {
+	bool prevMotionFast = false;
 	PMotion pMotion = pFromMotion;
 	if (!_currentMotion.empty() || pFromMotion) // Deal with previous motion?
 	{
+		PMotionData pMotionData = nullptr;
 		if (!pFromMotion)
-			pMotion = &_pCollection->Find(_C(_currentMotion))->_motion;
+		{
+			pMotionData = _pCollection->Find(_C(_currentMotion));
+			pMotion = &pMotionData->_motion;
+			prevMotionFast = pMotionData->_fast;
+		}
 		if (_transition) // Already in transition?
 			pMotion->BindBlendMotion(&_transitionMotion, Math::ApplyEasing(_easing, _transitionTime / _transitionDuration));
 		pMotion->BakeMotionAt(_time, _transitionMotion); // Capture current pose.
@@ -209,8 +216,17 @@ void Animation::TransitionTo(CSZ name, Interval duration, int randTime, PMotion 
 		pMotion->ResetTriggers(GetTriggerStatesArray());
 	if (name)
 	{
-		pMotion = &_pCollection->Find(name)->_motion;
+		PMotionData pMotionData = _pCollection->Find(name);
+		pMotion = &pMotionData->_motion;
 		pMotion->ResetTriggers(GetTriggerStatesArray());
+		if (prevMotionFast)
+			_easing = pMotionData->_fast ? Easing::quadInOut : Easing::cubicOut;
+		else
+			_easing = pMotionData->_fast ? Easing::cubicIn : Easing::quadInOut;
+	}
+	else
+	{
+		_easing = prevMotionFast ? Easing::cubicOut : Easing::quadInOut;
 	}
 
 	// Reset time:

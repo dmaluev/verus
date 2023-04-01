@@ -18,7 +18,12 @@ TerrainNode::~TerrainNode()
 
 void TerrainNode::Init(RcDesc desc)
 {
+	if (!(_flags & Flags::readOnlyFlags))
+	{
+		SetShadowCasterFlag();
+	}
 	BaseNode::Init(desc._name ? desc._name : "Terrain");
+	SetShadowCasterFlag();
 
 	if (desc._terrainDesc._mapSide)
 		_terrain.Init(desc._terrainDesc);
@@ -53,6 +58,14 @@ void TerrainNode::Deserialize(IO::RStream stream)
 	BaseNode::Deserialize(stream);
 
 	_terrain.Deserialize(stream);
+
+	if (NodeType::terrain == _type)
+	{
+		Desc desc;
+		desc._name = _C(_name);
+		desc._terrainDesc._mapSide = 0;
+		Init(desc);
+	}
 }
 
 // TerrainNodePtr:

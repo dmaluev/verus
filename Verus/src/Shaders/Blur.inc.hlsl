@@ -21,5 +21,5 @@ VERUS_UBUFFER UB_ExtraBlurFS
 	float4 _zNearFarEx;
 	float4 _textureSize;
 	float4 _blurDir;
-	float4 _focusDist_blurStrength;
+	float4 _focusDist;
 };

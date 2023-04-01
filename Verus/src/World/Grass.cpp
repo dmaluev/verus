@@ -207,21 +207,19 @@ void Grass::Layout()
 {
 	VERUS_QREF_WM;
 
-	// <Traverse>
+	_visiblePatchCount = 0;
+
 	const float zFar = wm.GetPassCamera()->GetZFar();
 	wm.GetPassCamera()->SetZFar(128);
 	wm.GetPassCamera()->UpdateZNearFar();
 
-	// Reuse terrain's quadtree:
 	Math::RQuadtreeIntegral quadtree = _pTerrain->GetQuadtree();
-	_visiblePatchCount = 0;
 	quadtree.SetDelegate(this);
 	quadtree.TraverseVisible();
 	quadtree.SetDelegate(_pTerrain);
 
 	wm.GetPassCamera()->SetZFar(zFar);
 	wm.GetPassCamera()->UpdateZNearFar();
-	// </Traverse>
 }
 
 void Grass::Draw()
@@ -251,7 +249,7 @@ void Grass::Draw()
 	s_ubGrassVS._headPos = float4(wm.GetHeadCamera()->GetEyePosition().GLM(), 0);
 	s_ubGrassVS._viewportSize = cb->GetViewportSize().GLM();
 	s_ubGrassVS._warp_turb = Vector4(_warpSpring.GetOffset(), _turbulence).GLM();
-	s_ubGrassVS._spriteMat = wm.GetPassCamera()->GetMatrixV().ToSpriteMat();
+	s_ubGrassVS._matRoll = wm.GetPassCamera()->GetMatrixV().ToSpriteRollMatrix();
 
 	cb->BindVertexBuffers(_geo);
 	cb->BindIndexBuffer(_geo);

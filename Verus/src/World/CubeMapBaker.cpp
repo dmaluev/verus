@@ -74,6 +74,18 @@ void CubeMapBaker::BeginEnvMap(CGI::CubeMapFace cubeMapFace, RcPoint3 center)
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_WM;
 
+	auto cb = renderer.GetCommandBuffer();
+
+	switch (cubeMapFace)
+	{
+	case CGI::CubeMapFace::posX: VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(255, 240, 240, 255), "CubeMapBaker/posX"); break;
+	case CGI::CubeMapFace::negX: VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(255, 224, 224, 255), "CubeMapBaker/negX"); break;
+	case CGI::CubeMapFace::posY: VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(240, 255, 240, 255), "CubeMapBaker/posY"); break;
+	case CGI::CubeMapFace::negY: VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(224, 255, 224, 255), "CubeMapBaker/negY"); break;
+	case CGI::CubeMapFace::posZ: VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(240, 240, 255, 255), "CubeMapBaker/posZ"); break;
+	case CGI::CubeMapFace::negZ: VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(224, 224, 255, 255), "CubeMapBaker/negZ"); break;
+	}
+
 	_center = center;
 
 	Vector3 facePos = Vector3(0);
@@ -99,7 +111,7 @@ void CubeMapBaker::BeginEnvMap(CGI::CubeMapFace cubeMapFace, RcPoint3 center)
 
 	_pPrevPassCamera = wm.SetPassCamera(&_passCamera);
 
-	renderer.GetCommandBuffer()->BeginRenderPass(_rph, _fbh[+cubeMapFace],
+	cb->BeginRenderPass(_rph, _fbh[+cubeMapFace],
 		{
 			_tex[TEX_COLOR]->GetClearValue(),
 			_tex[TEX_DEPTH]->GetClearValue()
@@ -112,7 +124,11 @@ void CubeMapBaker::EndEnvMap()
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_WM;
 
-	renderer.GetCommandBuffer()->EndRenderPass();
+	auto cb = renderer.GetCommandBuffer();
+
+	cb->EndRenderPass();
+
+	VERUS_PROFILER_END_EVENT(cb);
 
 	wm.SetPassCamera(_pPrevPassCamera);
 }

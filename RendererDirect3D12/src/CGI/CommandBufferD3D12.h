@@ -53,6 +53,10 @@ namespace verus
 			virtual void DispatchMesh(int groupCountX, int groupCountY, int groupCountZ) override;
 			virtual void TraceRays(int width, int height, int depth) override;
 
+			virtual void ProfilerBeginEvent(UINT32 color, CSZ text) override;
+			virtual void ProfilerEndEvent() override;
+			virtual void ProfilerSetMarker(UINT32 color, CSZ text) override;
+
 			//
 			// D3D12
 			//

@@ -60,10 +60,21 @@ namespace verus
 			bool                        _initShape = false;
 
 		public:
+			struct SourceBuffers
+			{
+				Vector<UINT16>    _vIndices;
+				Vector<glm::vec3> _vPos;
+				Vector<glm::vec2> _vTc0;
+				Vector<glm::vec3> _vNrm;
+				bool              _recalculateTangentSpace = true;
+			};
+			VERUS_TYPEDEFS(SourceBuffers);
+
 			BaseMesh();
 			virtual ~BaseMesh();
 
 			void Init(CSZ url);
+			void Init(RcSourceBuffers sourceBuffers);
 			void Done();
 
 			Str GetURL() const { return _C(_url); }

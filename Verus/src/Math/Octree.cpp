@@ -206,6 +206,7 @@ Continue Octree::TraverseVisible(RcFrustum frustum, PResult pResult, int current
 	if (_vNodes.empty())
 		return Continue::no;
 
+	// <Init>
 	if (!currentNode)
 	{
 		_defaultResult = Result();
@@ -215,53 +216,91 @@ Continue Octree::TraverseVisible(RcFrustum frustum, PResult pResult, int current
 		pResult->_passedTestCount = 0;
 		pResult->_pLastFoundToken = nullptr;
 		pResult->_depth = World::WorldManager::IsDrawingDepth(World::DrawDepth::automatic);
+		_skipTestNode = -1;
 	}
+	// </Init>
 
-	pResult->_testCount++;
-	const float onePixel = Math::ComputeOnePixelDistance(
-		_vNodes[currentNode].GetSphere().GetRadius());
-	const bool notTooSmall = pResult->_depth || VMath::distSqr(
-		frustum.GetZNearPosition(), _vNodes[currentNode].GetSphere().GetCenter()) < onePixel * onePixel;
-
-	if (notTooSmall &&
-		Relation::outside != frustum.ContainsSphere(_vNodes[currentNode].GetSphere()) &&
-		Relation::outside != frustum.ContainsAabb(_vNodes[currentNode].GetBounds()))
+	// <TestNode>
+	if (-1 == _skipTestNode)
 	{
+		pResult->_testCount++;
+
+		const float onePixel = Math::ComputeOnePixelDistance(
+			_vNodes[currentNode].GetSphere().GetRadius());
+		const bool notTooSmall = pResult->_depth || VMath::distSqr(
+			frustum.GetZNearPosition(), _vNodes[currentNode].GetSphere().GetCenter()) < onePixel * onePixel;
+
+		Relation relation = Relation::outside;
+		if (notTooSmall)
 		{
-			RcNode node = _vNodes[currentNode];
-			const int count = node.GetElementCount();
-			VERUS_FOR(i, count)
-			{
-				RcElement element = node.GetElementAt(i);
-
-				pResult->_testCount++;
-				const float onePixel = Math::ComputeOnePixelDistance(
-					element._sphere.GetRadius());
-				const bool notTooSmall = pResult->_depth || VMath::distSqr(
-					frustum.GetZNearPosition(), element._sphere.GetCenter()) < onePixel * onePixel;
-
-				if (notTooSmall &&
-					Relation::outside != frustum.ContainsSphere(element._sphere) &&
-					Relation::outside != frustum.ContainsAabb(element._bounds))
-				{
-					pResult->_passedTestCount++;
-					pResult->_pLastFoundToken = element._pToken;
-					if (Continue::no == _pDelegate->Octree_ProcessNode(element._pToken, pUser))
-						return Continue::no;
-				}
-			}
+			relation = frustum.ContainsSphere(_vNodes[currentNode].GetSphere());
+			if (Relation::outside != relation)
+				relation = frustum.ContainsAabb(_vNodes[currentNode].GetBounds());
 		}
-
-		if (Node::HasChildren(currentNode, Utils::Cast32(_vNodes.size())))
+		switch (relation)
 		{
-			VERUS_FOR(i, 8)
-			{
-				const int childIndex = Node::GetChildIndex(currentNode, i);
-				if (Continue::no == TraverseVisible(frustum, pResult, childIndex, pUser))
-					return Continue::no;
-			}
+		case Relation::outside: return Continue::yes; // Early return.
+		case Relation::inside: _skipTestNode = currentNode;
 		}
 	}
+	// </TestNode>
+
+	// <ProcessNodeElements>
+	RcNode node = _vNodes[currentNode];
+	const int count = node.GetElementCount();
+	VERUS_FOR(i, count)
+	{
+		RcElement element = node.GetElementAt(i);
+
+		// <TestElement>
+		pResult->_testCount++;
+
+		const float onePixel = Math::ComputeOnePixelDistance(
+			element._sphere.GetRadius());
+		const bool notTooSmall = pResult->_depth || VMath::distSqr(
+			frustum.GetZNearPosition(), element._sphere.GetCenter()) < onePixel * onePixel;
+
+		Relation relation = Relation::outside;
+		if (notTooSmall)
+		{
+			if (-1 == _skipTestNode)
+			{
+				relation = frustum.ContainsSphere(element._sphere);
+				if (Relation::outside != relation)
+					relation = frustum.ContainsAabb(element._bounds);
+			}
+			else
+			{
+				relation = Relation::inside;
+			}
+		}
+		// </TestElement>
+
+		if (Relation::outside != relation)
+		{
+			pResult->_passedTestCount++;
+			pResult->_pLastFoundToken = element._pToken;
+			if (Continue::no == _pDelegate->Octree_ProcessNode(element._pToken, pUser))
+				return Continue::no;
+		}
+	}
+	// </ProcessNodeElements>
+
+	// <TraverseChildren>
+	if (Node::HasChildren(currentNode, Utils::Cast32(_vNodes.size())))
+	{
+		VERUS_FOR(i, 8)
+		{
+			const int childIndex = Node::GetChildIndex(currentNode, i);
+			if (Continue::no == TraverseVisible(frustum, pResult, childIndex, pUser))
+				return Continue::no;
+		}
+	}
+	// </TraverseChildren>
+
+	if (_skipTestNode == currentNode)
+		_skipTestNode = -1;
+
 	return Continue::yes;
 }
 
@@ -270,6 +309,7 @@ Continue Octree::TraverseVisible(RcPoint3 point, PResult pResult, int currentNod
 	if (_vNodes.empty())
 		return Continue::no;
 
+	// <Init>
 	if (!currentNode)
 	{
 		_defaultResult = Result();
@@ -279,27 +319,29 @@ Continue Octree::TraverseVisible(RcPoint3 point, PResult pResult, int currentNod
 		pResult->_passedTestCount = 0;
 		pResult->_pLastFoundToken = nullptr;
 	}
+	// </Init>
 
 	pResult->_testCount++;
 	if (_vNodes[currentNode].GetBounds().IsInside(point))
 	{
+		// <ProcessNodeElements>
+		RcNode node = _vNodes[currentNode];
+		const int count = node.GetElementCount();
+		VERUS_FOR(i, count)
 		{
-			RcNode node = _vNodes[currentNode];
-			const int count = node.GetElementCount();
-			VERUS_FOR(i, count)
+			RcElement element = node.GetElementAt(i);
+			pResult->_testCount++;
+			if (element._bounds.IsInside(point))
 			{
-				RcElement element = node.GetElementAt(i);
-				pResult->_testCount++;
-				if (element._bounds.IsInside(point))
-				{
-					pResult->_passedTestCount++;
-					pResult->_pLastFoundToken = element._pToken;
-					if (Continue::no == _pDelegate->Octree_ProcessNode(element._pToken, pUser))
-						return Continue::no;
-				}
+				pResult->_passedTestCount++;
+				pResult->_pLastFoundToken = element._pToken;
+				if (Continue::no == _pDelegate->Octree_ProcessNode(element._pToken, pUser))
+					return Continue::no;
 			}
 		}
+		// </ProcessNodeElements>
 
+		// <TraverseChildren>
 		if (Node::HasChildren(currentNode, Utils::Cast32(_vNodes.size())))
 		{
 			BYTE remapped[8];
@@ -311,6 +353,7 @@ Continue Octree::TraverseVisible(RcPoint3 point, PResult pResult, int currentNod
 					return Continue::no;
 			}
 		}
+		// </TraverseChildren>
 	}
 	return Continue::yes;
 }

@@ -14,6 +14,7 @@ namespace verus
 		typedef StoreUnique<String, ParticlesNode> TStoreParticlesNodes;
 		typedef Store<BaseNode> TStoreBaseNodes;
 		typedef Store<BlockNode> TStoreBlockNodes;
+		typedef Store<BlockChainNode> TStoreBlockChainNodes;
 		typedef Store<ControlPointNode> TStoreControlPointNodes;
 		typedef Store<EmitterNode> TStoreEmitterNodes;
 		typedef Store<InstanceNode> TStoreInstanceNodes;
@@ -26,10 +27,11 @@ namespace verus
 		typedef Store<TerrainNode> TStoreTerrainNodes;
 		class WorldManager : public Singleton<WorldManager>, public Object, public Math::OctreeDelegate,
 			private TStoreModelNodes, private TStoreParticlesNodes,
-			private TStoreBaseNodes, private TStoreBlockNodes, private TStoreControlPointNodes,
-			private TStoreEmitterNodes, private TStoreInstanceNodes, private TStoreLightNodes,
-			private TStorePathNodes, private TStorePhysicsNodes, private TStorePrefabNodes,
-			private TStoreShakerNodes, private TStoreSoundNodes, private TStoreTerrainNodes
+			private TStoreBaseNodes, private TStoreBlockNodes, private TStoreBlockChainNodes,
+			private TStoreControlPointNodes, private TStoreEmitterNodes, private TStoreInstanceNodes,
+			private TStoreLightNodes, private TStorePathNodes, private TStorePhysicsNodes,
+			private TStorePrefabNodes, private TStoreShakerNodes, private TStoreSoundNodes,
+			private TStoreTerrainNodes
 		{
 			Math::Octree         _octree;
 			LocalPtr<btBoxShape> _pPickingShape;
@@ -79,6 +81,7 @@ namespace verus
 			void Update();
 			void UpdateParts();
 			void Layout();
+			void SortVisible();
 			void Draw();
 			void DrawSimple(DrawSimpleMode mode);
 			void DrawTerrainNodes(Terrain::RcDrawDesc dd);
@@ -205,6 +208,20 @@ namespace verus
 							MatchParent(particles) &&
 							(!query._particlesURL || particles.GetURL() == query._particlesURL))
 							if (Continue::no == fn(particles))
+								return;
+					}
+				}
+
+				if (NodeType::unknown == query._type || NodeType::blockChain == query._type)
+				{
+					VERUS_FOREACH_X(TStoreBlockChainNodes::TList, TStoreBlockChainNodes::_list, it)
+					{
+						auto& blockChain = *it++;
+						if (
+							MatchName(blockChain) &&
+							MatchSelected(blockChain) &&
+							MatchParent(blockChain))
+							if (Continue::no == fn(blockChain))
 								return;
 					}
 				}
@@ -354,20 +371,20 @@ namespace verus
 			template<typename T>
 			void ForEachControlPointOf(PPathNode pPathNode, bool onlyHeads, const T& fn)
 			{
-				const int nodeIndex = GetIndexOf(pPathNode);
-				const int nodeDepth = pPathNode->GetDepth();
-
 				const int nodeCount = GetNodeCount();
-				for (int i = nodeIndex + 1; i < nodeCount; ++i)
+				for (int i = GetIndexOf(pPathNode) + 1; i < nodeCount; ++i)
 				{
 					PBaseNode pNode = _vNodes[i];
-					if (pNode->GetDepth() <= nodeDepth)
+					if (pNode->GetDepth() <= pPathNode->GetDepth())
 						break;
-					PControlPointNode pControlPointNode = static_cast<PControlPointNode>(pNode);
-					if (!onlyHeads || pControlPointNode->IsHeadControlPoint())
+					if (NodeType::controlPoint == pNode->GetType())
 					{
-						if (Continue::no == fn(pControlPointNode))
-							return;
+						PControlPointNode pControlPointNode = static_cast<PControlPointNode>(pNode);
+						if (!onlyHeads || pControlPointNode->IsHeadControlPoint())
+						{
+							if (Continue::no == fn(pControlPointNode))
+								return;
+						}
 					}
 				}
 			}
@@ -405,8 +422,8 @@ namespace verus
 
 			void ResetRigidBodyTransforms();
 
+			void GenerateBlockChainNodes(PBlockChainNode pBlockChainNode);
 			static bool Connect2ControlPoints(PControlPointNode pNodeA, PControlPointNode pNodeB);
-
 			void UpdatePrefabInstances(PPrefabNode pPrefabNode, bool sortNodes = true);
 			void ReplaceSimilarWithInstances(PPrefabNode pPrefabNode);
 			// </NodeOperations>
@@ -420,6 +437,8 @@ namespace verus
 			PBaseNode InsertBaseNode();
 
 			PBlockNode InsertBlockNode();
+
+			PBlockChainNode InsertBlockChainNode();
 
 			PControlPointNode InsertControlPointNode();
 

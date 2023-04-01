@@ -315,6 +315,27 @@ void CommandBufferD3D12::TraceRays(int width, int height, int depth)
 	//GetD3DGraphicsCommandList()->DispatchRays(&desc);
 }
 
+void CommandBufferD3D12::ProfilerBeginEvent(UINT32 color, CSZ text)
+{
+#if defined(VERUS_INCLUDE_PIX) && defined(VERUS_PROFILER_CALLS)
+	PIXBeginEvent(GetD3DGraphicsCommandList(), VERUS_COLOR_TO_D3D(color), text);
+#endif
+}
+
+void CommandBufferD3D12::ProfilerEndEvent()
+{
+#if defined(VERUS_INCLUDE_PIX) && defined(VERUS_PROFILER_CALLS)
+	PIXEndEvent(GetD3DGraphicsCommandList());
+#endif
+}
+
+void CommandBufferD3D12::ProfilerSetMarker(UINT32 color, CSZ text)
+{
+#if defined(VERUS_INCLUDE_PIX) && defined(VERUS_PROFILER_CALLS)
+	PIXSetMarker(GetD3DGraphicsCommandList(), VERUS_COLOR_TO_D3D(color), text);
+#endif
+}
+
 ID3D12GraphicsCommandList3* CommandBufferD3D12::GetD3DGraphicsCommandList() const
 {
 	VERUS_QREF_RENDERER;

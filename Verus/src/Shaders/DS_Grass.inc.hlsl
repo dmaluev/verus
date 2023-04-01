@@ -10,7 +10,7 @@ VERUS_UBUFFER UB_GrassVS
 	float4 _headPos;
 	float4 _viewportSize;
 	float4 _warp_turb;
-	float4 _spriteMat;
+	float4 _matRoll;
 };
 
 VERUS_UBUFFER UB_GrassFS

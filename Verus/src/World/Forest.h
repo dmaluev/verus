@@ -74,24 +74,32 @@ namespace verus
 			class alignas(VERUS_MEMORY_ALIGNMENT) CollisionPoolBlock
 			{
 			public:
-				BYTE _data[sizeof(btScaledBvhTriangleMeshShape) + sizeof(btDefaultMotionState) + sizeof(btRigidBody)];
-				bool _reserved = 0;
+				BYTE _data[sizeof(btCompoundShape) + 2 * sizeof(btUniformScalingShape) + sizeof(btDefaultMotionState) + sizeof(btRigidBody)];
+				bool _reserved = false;
 
 				bool IsReserved() const { return _reserved; }
 				void Reserve() { _reserved = true; }
 				void Free() { _reserved = false; }
 
-				btScaledBvhTriangleMeshShape* GetScaledBvhTriangleMeshShape()
+				btCompoundShape* GetCompoundShape()
 				{
-					return reinterpret_cast<btScaledBvhTriangleMeshShape*>(&_data[0]);
+					return reinterpret_cast<btCompoundShape*>(&_data[0]);
+				}
+				btUniformScalingShape* GetUniformScalingShapeForTrunk()
+				{
+					return reinterpret_cast<btUniformScalingShape*>(&_data[sizeof(btCompoundShape)]);
+				}
+				btUniformScalingShape* GetUniformScalingShapeForBranches()
+				{
+					return reinterpret_cast<btUniformScalingShape*>(&_data[sizeof(btCompoundShape) + sizeof(btUniformScalingShape)]);
 				}
 				btDefaultMotionState* GetDefaultMotionState()
 				{
-					return reinterpret_cast<btDefaultMotionState*>(&_data[sizeof(btScaledBvhTriangleMeshShape)]);
+					return reinterpret_cast<btDefaultMotionState*>(&_data[sizeof(btCompoundShape) + 2 * sizeof(btUniformScalingShape)]);
 				}
 				btRigidBody* GetRigidBody()
 				{
-					return reinterpret_cast<btRigidBody*>(&_data[sizeof(btScaledBvhTriangleMeshShape) + sizeof(btDefaultMotionState)]);
+					return reinterpret_cast<btRigidBody*>(&_data[sizeof(btCompoundShape) + 2 * sizeof(btUniformScalingShape) + sizeof(btDefaultMotionState)]);
 				}
 			};
 			VERUS_TYPEDEFS(CollisionPoolBlock);
@@ -114,12 +122,15 @@ namespace verus
 				CGI::TexturePwns<TEX_COUNT> _tex;
 				CGI::CSHandle               _csh;
 				CGI::CSHandle               _cshSimple;
+				LocalPtr<btConvexHullShape> _pConvexHullShapeForTrunk;
+				LocalPtr<btConvexHullShape> _pConvexHullShapeForBranches;
 				Vector<BakedChunk>          _vBakedChunks;
 				Vector<float>               _vScales;
 				float                       _alignToNormal = 1;
 				float                       _maxScale = 0;
 				float                       _maxSize = 0;
 				float                       _windBending = 1;
+				float                       _hullSplitU = -1;
 				char                        _allowedNormal = 116;
 
 				float GetSize() const;
@@ -171,7 +182,8 @@ namespace verus
 			DifferenceVector<CollisionPlant> _vCollisionPlants;
 			Pool<CollisionPoolBlock>         _vCollisionPool;
 			const float                      _margin = 1.1f;
-			float                            _maxDist = 100;
+			float                            _maxDistForModels = 100;
+			float                            _maxDistForChunks = 1000;
 			float                            _tessDist = 50;
 			float                            _maxSizeAll = 0;
 			float                            _phaseY = 0;
@@ -190,15 +202,24 @@ namespace verus
 				float _minScale = 0.8f;
 				float _maxScale = 1.25f;
 				float _windBending = 1;
+				float _hullSplitU = -1;
 				char  _allowedNormal = 116;
 
-				void Set(CSZ url, float alignToNormal = 1, float minScale = 0.8f, float maxScale = 1.25f, float windBending = 1, char allowedNormal = 116)
+				void Set(
+					CSZ url,
+					float alignToNormal = 1,
+					float minScale = 0.8f,
+					float maxScale = 1.25f,
+					float windBending = 1,
+					float hullSplitU = -1,
+					char allowedNormal = 116)
 				{
 					_url = url;
 					_alignToNormal = alignToNormal;
 					_minScale = minScale;
 					_maxScale = maxScale;
 					_windBending = windBending;
+					_hullSplitU = hullSplitU;
 					_allowedNormal = allowedNormal;
 				}
 			};
@@ -225,6 +246,7 @@ namespace verus
 			void ResetInstanceCount();
 			void Update();
 			void Layout(bool reflection = false);
+			void SortVisible();
 			void Draw(bool allowTess = true);
 			VERUS_P(void DrawModels(bool allowTess));
 			VERUS_P(void DrawSprites());

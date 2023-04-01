@@ -78,10 +78,13 @@ void Bloom::InitByAtmosphere(CGI::TexturePtr texShadow)
 
 void Bloom::Done()
 {
-	VERUS_QREF_RENDERER;
-	renderer->DeleteFramebuffer(_fbh);
-	renderer->DeleteRenderPass(_rphLightShafts);
-	renderer->DeleteRenderPass(_rph);
+	if (CGI::Renderer::IsLoaded())
+	{
+		VERUS_QREF_RENDERER;
+		renderer->DeleteFramebuffer(_fbh);
+		renderer->DeleteRenderPass(_rphLightShafts);
+		renderer->DeleteRenderPass(_rph);
+	}
 	VERUS_DONE(Bloom);
 }
 
@@ -148,6 +151,8 @@ void Bloom::Generate()
 
 	auto cb = renderer.GetCommandBuffer();
 
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(255, 96, 255, 255), "Bloom/Generate");
+
 	cb->BeginRenderPass(_rph, _fbh, { _tex[TEX_PING]->GetClearValue() },
 		CGI::ViewportScissorFlags::setAllForCurrentViewScaled | CGI::ViewportScissorFlags::applyHalfScale);
 
@@ -189,7 +194,7 @@ void Bloom::Generate()
 		s_ubBloomLightShaftsFS._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrix(2).UniformBufferFormat();
 		s_ubBloomLightShaftsFS._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrix(3).UniformBufferFormat();
 		s_ubBloomLightShaftsFS._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixVP().UniformBufferFormat();
-		s_ubBloomLightShaftsFS._csmSplitRanges = atmo.GetShadowMapBaker().GetSplitRanges().GLM();
+		s_ubBloomLightShaftsFS._csmSliceBounds = atmo.GetShadowMapBaker().GetSliceBounds().GLM();
 		memcpy(&s_ubBloomLightShaftsFS._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubBloomLightShaftsFS._shadowConfig));
 
 		cb->BindPipeline(_pipe[PIPE_LIGHT_SHAFTS]);
@@ -206,6 +211,8 @@ void Bloom::Generate()
 		if (_blurLightShafts)
 			Blur::I().GenerateForBloom(true);
 	}
+
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 CGI::TexturePtr Bloom::GetTexture() const

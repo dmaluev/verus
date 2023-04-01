@@ -155,13 +155,14 @@ void QuadtreeIntegral::TraverseVisible(int currentNode, int depth)
 {
 	VERUS_QREF_WM;
 
+	// <Init>
 	if (!currentNode)
 	{
 		_testCount = 0;
 		_passedTestCount = 0;
+		_skipTestNode = -1;
 	}
-
-	_testCount++;
+	// </Init>
 
 	bool testFrustum = true;
 	if (_distCoarseMode && depth + 2 >= _maxDepth)
@@ -177,9 +178,18 @@ void QuadtreeIntegral::TraverseVisible(int currentNode, int depth)
 			testFrustum = false;
 	}
 
-	RFrustum frustum = wm.GetPassCamera()->GetFrustum();
-	if (testFrustum && Relation::outside == frustum.ContainsAabb(_vNodes[currentNode].GetBounds()))
-		return;
+	// <TestNode>
+	if (testFrustum && -1 == _skipTestNode)
+	{
+		_testCount++;
+		RFrustum frustum = wm.GetPassCamera()->GetFrustum();
+		switch (frustum.ContainsAabb(_vNodes[currentNode].GetBounds()))
+		{
+		case Relation::outside: return; // Early return.
+		case Relation::inside: _skipTestNode = currentNode;
+		}
+	}
+	// </TestNode>
 
 	// Yes, it is visible:
 	if (Node::HasChildren(currentNode, _nodeCount)) // Node has children -> update them:
@@ -197,4 +207,7 @@ void QuadtreeIntegral::TraverseVisible(int currentNode, int depth)
 			_vNodes[currentNode].GetOffsetIJ(),
 			_vNodes[currentNode].GetSphere().GetCenter());
 	}
+
+	if (_skipTestNode == currentNode)
+		_skipTestNode = -1;
 }

@@ -11,6 +11,12 @@ namespace verus
 		int       _pong = 1;
 
 	public:
+		void Reserve(int capacity)
+		{
+			_v[0].reserve(capacity);
+			_v[1].reserve(capacity);
+		}
+
 		void PushBack(const T& x)
 		{
 			_v[_ping].push_back(x);
@@ -19,6 +25,7 @@ namespace verus
 		template<typename TFnInsert, typename TFnDelete>
 		void HandleDifference(const TFnInsert& fnInsert, const TFnDelete& fnDelete)
 		{
+			// Sort and remove duplicates:
 			std::sort(_v[_ping].begin(), _v[_ping].end(), [](const T& a, const T& b)
 				{
 					return a.GetID() < b.GetID();
@@ -31,34 +38,43 @@ namespace verus
 			typename Vector<T>::iterator itPong = _v[_pong].begin(), itPongEnd = _v[_pong].end();
 			while (itPing != itPingEnd)
 			{
-				if (itPong == itPongEnd) // No more items in pong?
+				if (itPong == itPongEnd) // Ran out of pong elements?
 				{
-					while (itPing != itPingEnd) // All remaining.
+					while (itPing != itPingEnd) // Ping leftovers.
 						fnInsert(*itPing++);
 					break;
 				}
 
-				if (itPing->GetID() < itPong->GetID()) // New item in ping, insert it:
+				if (itPing->GetID() < itPong->GetID()) // Found new element in ping?
 				{
 					fnInsert(*itPing++);
 				}
-				else if (itPong->GetID() < itPing->GetID()) // Old item in pong, delete it.
+				else if (itPong->GetID() < itPing->GetID()) // Found outdated element in pong?
 				{
 					fnDelete(*itPong++);
 				}
 				else // Same:
 				{
-					*itPing = *itPong; // No need to insert or delete, just copy payload.
+					*itPing = *itPong; // Copy existing payload from pong to ping.
 					itPing++;
 					itPong++;
 				}
 			}
-			while (itPong != itPongEnd) // Handle leftovers.
+			// Ran out of ping elements?
+			while (itPong != itPongEnd) // Pong leftovers.
 				fnDelete(*itPong++);
 
+			// Swap:
 			_pong = _ping;
 			_ping = (_ping + 1) & 0x1;
 			_v[_ping].clear();
+		}
+
+		template<typename TFn>
+		void ForEach(const TFn& fn)
+		{
+			for (auto& x : _v[_pong])
+				fn(x);
 		}
 	};
 }

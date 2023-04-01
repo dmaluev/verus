@@ -18,9 +18,12 @@ void Bullet::Init()
 	VERUS_INIT();
 	VERUS_QREF_CONST_SETTINGS;
 
+	const btVector3 worldAabbMin(-2048, -1024, -2048);
+	const btVector3 worldAabbMax(+2048, +1024, +2048);
+
 	_pCollisionConfiguration = new(_pCollisionConfiguration.GetData()) btDefaultCollisionConfiguration();
 	_pDispatcher = new(_pDispatcher.GetData()) btCollisionDispatcher(_pCollisionConfiguration.Get());
-	_pBroadphaseInterface = new(_pBroadphaseInterface.GetData()) btDbvtBroadphase();
+	_pBroadphaseInterface = new(_pBroadphaseInterface.GetData()) btAxisSweep3(worldAabbMin, worldAabbMax);
 	_pConstraintSolver = new(_pConstraintSolver.GetData()) btSequentialImpulseConstraintSolver();
 
 	_pBroadphaseInterface->getOverlappingPairCache()->setInternalGhostPairCallback(&_ghostPairCallback);
@@ -252,6 +255,7 @@ CSZ Bullet::GroupToString(int index)
 		"Gizmo",
 		"Particle",
 		"Terrain",
+		"Forest",
 		"Transport",
 		"Wall"
 	};

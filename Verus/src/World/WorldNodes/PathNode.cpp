@@ -26,9 +26,9 @@ void PathNode::Done()
 	VERUS_DONE(PathNode);
 }
 
-void PathNode::Duplicate(RBaseNode node)
+void PathNode::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
-	BaseNode::Duplicate(node);
+	BaseNode::Duplicate(node, hierarchyDuplication);
 
 	if (NodeType::path == _type)
 		Init(nullptr);
@@ -39,6 +39,7 @@ void PathNode::GetEditorCommands(Vector<EditorCommand>& v)
 	BaseNode::GetEditorCommands(v);
 
 	v.push_back(EditorCommand(nullptr, EditorCommandCode::separator));
+	v.push_back(EditorCommand(nullptr, EditorCommandCode::path_insertBlockChain));
 	v.push_back(EditorCommand(nullptr, EditorCommandCode::path_insertControlPoint));
 }
 
@@ -65,12 +66,12 @@ void PathNodePtr::Init(PathNode::RcDesc desc)
 	_p->Init(desc);
 }
 
-void PathNodePtr::Duplicate(RBaseNode node)
+void PathNodePtr::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
 	VERUS_QREF_WM;
 	VERUS_RT_ASSERT(!_p);
 	_p = wm.InsertPathNode();
-	_p->Duplicate(node);
+	_p->Duplicate(node, hierarchyDuplication);
 }
 
 void PathNodePwn::Done()

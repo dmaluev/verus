@@ -20,8 +20,11 @@ void LightNode::Init(RcDesc desc)
 {
 	_data = desc._data;
 	_trLocal.setCol2(_data._dir);
-	SetOctreeElementFlag();
-	SetDynamicFlag(desc._dynamic);
+	if (!(_flags & Flags::readOnlyFlags))
+	{
+		SetOctreeElementFlag();
+		SetDynamicFlag(desc._dynamic);
+	}
 	BaseNode::Init(desc._name ? desc._name : "Light");
 }
 
@@ -30,9 +33,9 @@ void LightNode::Done()
 	VERUS_DONE(LightNode);
 }
 
-void LightNode::Duplicate(RBaseNode node)
+void LightNode::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
-	BaseNode::Duplicate(node);
+	BaseNode::Duplicate(node, hierarchyDuplication);
 
 	RLightNode lightNode = static_cast<RLightNode>(node);
 
@@ -71,6 +74,8 @@ void LightNode::DrawEditorOverlays(DrawEditorOverlaysFlags flags)
 		VERUS_QREF_WM;
 
 		const float fadeDistSq = GetRadius() * GetRadius() * 9;
+		const Vector3 zAxis = VMath::normalizeApprox(wm.GetHeadCamera()->GetEyePosition() - GetPosition());
+		Transform3 trCircle(Matrix3::MakeTrackToZ(zAxis) * Matrix3::rotationX(VERUS_PI * 0.5f), Vector3(GetPosition()));
 		const UINT32 orColor = IsSelected() ? VERUS_COLOR_RGBA(255, 255, 255, 0) : 0;
 		switch (_data._lightType)
 		{
@@ -80,9 +85,8 @@ void LightNode::DrawEditorOverlays(DrawEditorOverlaysFlags flags)
 			if (alpha)
 			{
 				const int alpha128 = WorldManager::GetEditorOverlaysAlpha(128, GetDistToHeadSq(), fadeDistSq);
-				const Vector3 dir = VMath::normalizeApprox(wm.GetHeadCamera()->GetEyePosition() - GetPosition());
-				const Transform3 tr(Matrix3::MakeTrackToZ(dir) * Matrix3::rotationX(VERUS_PI * 0.5f), Vector3(GetPosition()));
-				eo.DrawCircle(&tr, _data._radius, EditorOverlays::GetLightColor(alpha128) | orColor);
+				eo.DrawCircle(&trCircle, _data._radius, EditorOverlays::GetLightColor(alpha128) | orColor);
+				eo.DrawCircle(&trCircle, ComputeLampRadius(), EditorOverlays::GetLightColor(alpha128) | orColor);
 				eo.DrawLight(GetPosition(), EditorOverlays::GetLightColor(alpha) | orColor);
 			}
 		}
@@ -107,6 +111,7 @@ void LightNode::DrawEditorOverlays(DrawEditorOverlaysFlags flags)
 					const float scaleXY = tan(angle);
 					eo.DrawCircle(&tr, _data._radius * scaleXY, EditorOverlays::GetLightColor(alpha64) | orColor);
 				}
+				eo.DrawCircle(&trCircle, ComputeLampRadius(), EditorOverlays::GetLightColor(alpha128) | orColor);
 				eo.DrawLight(GetPosition(), EditorOverlays::GetLightColor(alpha) | orColor, &targetPos);
 			}
 		}
@@ -356,6 +361,11 @@ Vector4 LightNode::GetInstData() const
 	return Vector4(_data._color.getXYZ() * _data._color.getW(), _data._coneIn);
 }
 
+float LightNode::ComputeLampRadius() const
+{
+	return _data._radius * 10 / VMath::dot(_data._color.getXYZ() * _data._color.getW(), Vector3::Replicate(1 / 3.f));
+}
+
 // LightNodePtr:
 
 void LightNodePtr::Init(LightNode::RcDesc desc)
@@ -366,12 +376,12 @@ void LightNodePtr::Init(LightNode::RcDesc desc)
 	_p->Init(desc);
 }
 
-void LightNodePtr::Duplicate(RBaseNode node)
+void LightNodePtr::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
 	VERUS_QREF_WM;
 	VERUS_RT_ASSERT(!_p);
 	_p = wm.InsertLightNode();
-	_p->Duplicate(node);
+	_p->Duplicate(node, hierarchyDuplication);
 }
 
 void LightNodePwn::Done()

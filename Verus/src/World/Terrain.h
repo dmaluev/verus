@@ -219,10 +219,9 @@ namespace verus
 
 			void ResetInstanceCount();
 			void Layout();
+			void SortVisible();
 			void Draw(RcDrawDesc dd = DrawDesc());
 			void DrawSimple(DrawSimpleMode mode);
-
-			void SortVisiblePatches();
 
 			virtual int UserPtr_GetType() override;
 

@@ -88,7 +88,6 @@ VSO mainVS(VSI si)
 	const float4 userColor = g_ubPerObject._userColor;
 #endif
 
-	float addLamBias = 0.0;
 #if defined(DEF_SKINNED) || defined(DEF_ROBOTIC)
 	const float4 warpMask = float4(
 		1,
@@ -124,9 +123,6 @@ VSO mainVS(VSI si)
 			lerp(matW33[1], matNewW33[1], userColor.a),
 			lerp(matW33[2], matNewW33[2], userColor.a),
 			matW[3]);
-
-		const float weight = 1.0 - saturate(dot(offsetXYZ, offsetXYZ));
-		addLamBias = (-(weight * weight * weight)) * saturate(userColor.a);
 	}
 	const float3 pos = inPos;
 #else
@@ -196,7 +192,7 @@ VSO mainVS(VSI si)
 	so.color0 = userColor;
 #ifdef DEF_PLANT
 	so.color0.rgb = RandomColor(userColor.xz, 0.25, 0.15);
-	so.color0.a = 1.0 - ComputeFade(max(-so.pos.z, so.pos.w), 70.0, 100.0);
+	so.color0.a = QuadOutEasing(1.0 - ComputeFade(max(-so.pos.z, so.pos.w), 50.0, 100.0));
 #endif
 #if !defined(DEF_DEPTH) && !defined(DEF_SOLID_COLOR)
 	so.matTBN0 = float4(tanWV, posW.x);
@@ -415,7 +411,7 @@ DS_FSO mainFS(VSO si)
 	// <Strass>
 	{
 		const float strass = g_texStrass.Sample(g_samStrass, tc0 * mm_strassScale).r;
-		roughness *= 1.0 - clamp(strass * mm_roughDiffuse * 4.0, 0.0, 0.99);
+		roughness *= 1.0 - strass * mm_roughDiffuse;
 	}
 	// </Strass>
 

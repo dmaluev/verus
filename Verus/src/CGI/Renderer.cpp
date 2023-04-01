@@ -296,7 +296,12 @@ void Renderer::Update()
 
 void Renderer::Draw()
 {
-	if (_pRendererDelegate)
+	if (!_pRendererDelegate)
+		return;
+
+	auto cb = GetCommandBuffer();
+
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(165, 13, 35, 255), "Renderer/Draw");
 	{
 		_currentViewType = ViewType::none;
 		_currentViewIndex = 0;
@@ -305,45 +310,50 @@ void Renderer::Draw()
 		_currentViewX = 0;
 		_currentViewY = 0;
 		_pRendererDelegate->Renderer_OnDraw();
+	}
+	VERUS_PROFILER_END_EVENT(cb);
 
-		{
-			ViewDesc viewDesc;
-			viewDesc._type = ViewType::screen;
-			_currentViewType = viewDesc._type;
-			_currentViewIndex = 0;
-			_currentViewWidth = _screenSwapChainWidth;
-			_currentViewHeight = _screenSwapChainHeight;
-			_currentViewX = 0;
-			_currentViewY = 0;
-			_pRendererDelegate->Renderer_OnDrawView(viewDesc);
-		}
-
-		auto pExtReality = _pBaseRenderer->GetExtReality();
-		if (pExtReality->IsInitialized())
-		{
-			const int viewCount = pExtReality->LocateViews();
-			VERUS_FOR(i, viewCount)
-			{
-				ViewDesc viewDesc;
-				pExtReality->BeginView(i, viewDesc);
-				_currentViewType = viewDesc._type;
-				_currentViewIndex = viewDesc._index;
-				_currentViewWidth = viewDesc._vpWidth;
-				_currentViewHeight = viewDesc._vpHeight;
-				_currentViewX = viewDesc._vpX;
-				_currentViewY = viewDesc._vpY;
-				_pRendererDelegate->Renderer_OnDrawView(viewDesc);
-				pExtReality->EndView(i);
-			}
-		}
-
-		_currentViewType = ViewType::none;
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(128, 187, 1, 255), "Renderer/DrawView");
+	{
+		ViewDesc viewDesc;
+		viewDesc._type = ViewType::screen;
+		_currentViewType = viewDesc._type;
 		_currentViewIndex = 0;
-		_currentViewWidth = 0;
-		_currentViewHeight = 0;
+		_currentViewWidth = _screenSwapChainWidth;
+		_currentViewHeight = _screenSwapChainHeight;
 		_currentViewX = 0;
 		_currentViewY = 0;
+		_pRendererDelegate->Renderer_OnDrawView(viewDesc);
 	}
+	VERUS_PROFILER_END_EVENT(cb);
+
+	auto pExtReality = _pBaseRenderer->GetExtReality();
+	if (pExtReality->IsInitialized())
+	{
+		const int viewCount = pExtReality->LocateViews();
+		VERUS_FOR(i, viewCount)
+		{
+			VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(116, 43, 144, 255), "Renderer/DrawView(XR)");
+			ViewDesc viewDesc;
+			pExtReality->BeginView(i, viewDesc);
+			_currentViewType = viewDesc._type;
+			_currentViewIndex = viewDesc._index;
+			_currentViewWidth = viewDesc._vpWidth;
+			_currentViewHeight = viewDesc._vpHeight;
+			_currentViewX = viewDesc._vpX;
+			_currentViewY = viewDesc._vpY;
+			_pRendererDelegate->Renderer_OnDrawView(viewDesc);
+			pExtReality->EndView(i);
+			VERUS_PROFILER_END_EVENT(cb);
+		}
+	}
+
+	_currentViewType = ViewType::none;
+	_currentViewIndex = 0;
+	_currentViewWidth = 0;
+	_currentViewHeight = 0;
+	_currentViewX = 0;
+	_currentViewY = 0;
 }
 
 void Renderer::BeginFrame()
@@ -353,10 +363,18 @@ void Renderer::BeginFrame()
 		pExtReality->BeginFrame();
 
 	_pBaseRenderer->BeginFrame();
+
+	auto cb = GetCommandBuffer();
+
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_WHITE, "Renderer/Frame");
 }
 
 void Renderer::AcquireSwapChainImage()
 {
+	auto cb = GetCommandBuffer();
+
+	VERUS_PROFILER_SET_MARKER(cb, VERUS_COLOR_WHITE, "Renderer/AcquireSwapChainImage");
+
 	switch (_currentViewType)
 	{
 	case ViewType::screen:
@@ -376,6 +394,10 @@ void Renderer::AcquireSwapChainImage()
 
 void Renderer::EndFrame()
 {
+	auto cb = GetCommandBuffer();
+
+	VERUS_PROFILER_END_EVENT(cb);
+
 	_pBaseRenderer->EndFrame();
 
 	auto pExtReality = _pBaseRenderer->GetExtReality();
@@ -537,7 +559,11 @@ void Renderer::DrawOffscreenColor(PBaseCommandBuffer pCB, bool endRenderPass)
 	case ViewType::screen:
 	{
 		if (!pExtReality->IsInitialized())
+		{
+			VERUS_PROFILER_BEGIN_EVENT(pCB, VERUS_COLOR_BLACK, "Renderer/DrawOffscreenColor/GenerateMips");
 			_tex[TEX_OFFSCREEN_COLOR]->GenerateMips();
+			VERUS_PROFILER_END_EVENT(pCB);
+		}
 
 		pCB->BeginRenderPass(_rphScreenSwapChain, _fbhScreenSwapChain[_pBaseRenderer->GetSwapChainBufferIndex()], { Vector4(0) },
 			ViewportScissorFlags::setScissorForFramebuffer);
@@ -554,7 +580,11 @@ void Renderer::DrawOffscreenColor(PBaseCommandBuffer pCB, bool endRenderPass)
 	{
 		VERUS_RT_ASSERT(pExtReality->IsInitialized());
 		if (!_currentViewIndex)
+		{
+			VERUS_PROFILER_BEGIN_EVENT(pCB, VERUS_COLOR_BLACK, "Renderer/DrawOffscreenColor/GenerateMips");
 			_tex[TEX_OFFSCREEN_COLOR]->GenerateMips();
+			VERUS_PROFILER_END_EVENT(pCB);
+		}
 
 		pCB->BeginRenderPass(pExtReality->GetRenderPassHandle(), pExtReality->GetFramebufferHandle(), { Vector4(0) },
 			ViewportScissorFlags::setScissorForFramebuffer);

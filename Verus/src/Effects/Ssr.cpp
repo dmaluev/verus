@@ -59,9 +59,12 @@ void Ssr::Init()
 
 void Ssr::Done()
 {
-	VERUS_QREF_RENDERER;
-	renderer->DeleteFramebuffer(_fbh);
-	renderer->DeleteRenderPass(_rph);
+	if (CGI::Renderer::IsLoaded())
+	{
+		VERUS_QREF_RENDERER;
+		renderer->DeleteFramebuffer(_fbh);
+		renderer->DeleteRenderPass(_rph);
+	}
 	VERUS_DONE(Ssr);
 }
 
@@ -134,6 +137,8 @@ void Ssr::Generate()
 
 	auto cb = renderer.GetCommandBuffer();
 
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(255, 32, 255, 255), "Ssr/Generate");
+
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
 	cb->BeginRenderPass(_rph, _fbh, { renderer.GetDS().GetLightAccSpecularTexture()->GetClearValue() });
 
@@ -164,4 +169,6 @@ void Ssr::Generate()
 
 	cb->EndRenderPass();
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilReadOnly, CGI::ImageLayout::depthStencilAttachment, 0);
+
+	VERUS_PROFILER_END_EVENT(cb);
 }

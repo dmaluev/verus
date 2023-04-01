@@ -1,6 +1,8 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
+#define VERUS_PROFILER_CALLS
+
 #define _WIN32_WINNT _WIN32_WINNT_WIN7
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -130,6 +132,13 @@ using namespace Microsoft::WRL;
 #	pragma comment(lib, "TootleDLL_2k8_64.lib")
 #endif
 
+// PIX:
+#if defined(VERUS_INCLUDE_PIX) && defined(VERUS_PROFILER_CALLS)
+#	define USE_PIX
+#	include <WinPixEventRuntime/pix3.h>
+#	pragma comment(lib, "WinPixEventRuntime.lib")
+#endif
+
 // C/C++:
 #include <atomic>
 #include <cassert>
@@ -150,7 +159,8 @@ using namespace Microsoft::WRL;
 #include <unordered_set>
 #include <vector>
 
-#define VERUS_SDK_VERSION 0x01010000
+#define VERUS_ENGINE_NAME "Verus"
+#define VERUS_SDK_VERSION VERUS_MAKE_VERSION(1, 1, 0)
 
 #include "ThirdParty/ThirdParty.h" // Third-party software components
 #include "Global/Basic.h"          // Essentials

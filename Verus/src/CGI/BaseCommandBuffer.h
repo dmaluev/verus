@@ -77,6 +77,12 @@ namespace verus
 			virtual void TraceRays(int width, int height, int depth) {} // WIP.
 			// </Draw>
 
+			// <Profiler>
+			virtual void ProfilerBeginEvent(UINT32 color, CSZ text) {}
+			virtual void ProfilerEndEvent() {}
+			virtual void ProfilerSetMarker(UINT32 color, CSZ text) {}
+			// </Profiler>
+
 			RcVector4 GetViewportSize() const { return _viewportSize; }
 			RcVector4 GetViewScaleBias() const { return _viewScaleBias; }
 		};

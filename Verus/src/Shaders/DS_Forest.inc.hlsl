@@ -7,7 +7,7 @@ VERUS_UBUFFER UB_ForestVS
 	float4 _viewportSize;
 	float4 _eyePos;
 	float4 _headPos;
-	float4 _spriteMat;
+	float4 _matRoll;
 };
 
 VERUS_UBUFFER UB_ForestFS

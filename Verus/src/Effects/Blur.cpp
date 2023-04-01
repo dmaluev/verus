@@ -170,26 +170,28 @@ void Blur::Init()
 
 void Blur::Done()
 {
-	VERUS_QREF_RENDERER;
+	if (CGI::Renderer::IsLoaded())
+	{
+		VERUS_QREF_RENDERER;
 
-	renderer->DeleteFramebuffer(_fbhMotionBlur);
-	renderer->DeleteRenderPass(_rphMotionBlur);
+		renderer->DeleteFramebuffer(_fbhMotionBlur);
+		renderer->DeleteRenderPass(_rphMotionBlur);
 
-	renderer->DeleteFramebuffer(_fbhAntiAliasing);
-	renderer->DeleteRenderPass(_rphAntiAliasing);
+		renderer->DeleteFramebuffer(_fbhAntiAliasing);
+		renderer->DeleteRenderPass(_rphAntiAliasing);
 
-	_bloomHandles.DeleteFramebuffers();
-	_bloomHandles.DeleteRenderPasses();
+		_bloomHandles.DeleteFramebuffers();
+		_bloomHandles.DeleteRenderPasses();
 
-	_dofHandles.DeleteFramebuffers();
-	_dofHandles.DeleteRenderPasses();
+		_dofHandles.DeleteFramebuffers();
+		_dofHandles.DeleteRenderPasses();
 
-	_rdsHandles.DeleteFramebuffers();
-	_rdsHandles.DeleteRenderPasses();
+		_rdsHandles.DeleteFramebuffers();
+		_rdsHandles.DeleteRenderPasses();
 
-	renderer->DeleteFramebuffer(_fbhSsao);
-	renderer->DeleteRenderPass(_rphSsao);
-
+		renderer->DeleteFramebuffer(_fbhSsao);
+		renderer->DeleteRenderPass(_rphSsao);
+	}
 	VERUS_DONE(Blur);
 }
 
@@ -287,6 +289,8 @@ void Blur::GenerateForSsao()
 
 	auto cb = renderer.GetCommandBuffer();
 
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(64, 0, 64, 255), "Blur/GenerateForSsao");
+
 	_shader->BeginBindDescriptors();
 	{
 		cb->BeginRenderPass(_rphSsao, _fbhSsao, { renderer.GetDS().GetGBuffer(2)->GetClearValue() });
@@ -304,6 +308,8 @@ void Blur::GenerateForSsao()
 		cb->EndRenderPass();
 	}
 	_shader->EndBindDescriptors();
+
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void Blur::GenerateForResolveDitheringAndSharpen()
@@ -311,6 +317,8 @@ void Blur::GenerateForResolveDitheringAndSharpen()
 	VERUS_QREF_RENDERER;
 
 	auto cb = renderer.GetCommandBuffer();
+
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(64, 0, 64, 255), "Blur/GenerateForResolveDitheringAndSharpen");
 
 	_shader->BeginBindDescriptors();
 	{
@@ -340,6 +348,8 @@ void Blur::GenerateForResolveDitheringAndSharpen()
 		cb->EndRenderPass();
 	}
 	_shader->EndBindDescriptors();
+
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void Blur::GenerateForDepthOfField()
@@ -351,7 +361,6 @@ void Blur::GenerateForDepthOfField()
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_WM;
 
-	const float radius = 0.02f;
 	const Matrix3 matR = Matrix3::rotationZ(Math::ToRadians(45));
 	const Vector3 dirs[] =
 	{
@@ -384,6 +393,8 @@ void Blur::GenerateForDepthOfField()
 
 	auto cb = renderer.GetCommandBuffer();
 
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(64, 0, 64, 255), "Blur/GenerateForDepthOfField");
+
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
 	_shader->BeginBindDescriptors();
 	{
@@ -393,11 +404,10 @@ void Blur::GenerateForDepthOfField()
 		s_ubBlurVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 		s_ubBlurVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 		s_ubBlurFS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
-		UpdateUniformBuffer(radius, 0, renderer.GetCurrentViewWidth(), samplesPerPixel, maxSamples);
+		UpdateUniformBuffer(_dofRadius, 0, renderer.GetCurrentViewWidth(), samplesPerPixel, maxSamples);
 		s_ubExtraBlurFS._zNearFarEx = wm.GetPassCamera()->GetZNearFarEx().GLM();
 		s_ubExtraBlurFS._textureSize = cb->GetViewportSize().GLM();
-		s_ubExtraBlurFS._focusDist_blurStrength.x = _dofFocusDist;
-		s_ubExtraBlurFS._focusDist_blurStrength.y = _dofBlurStrength;
+		s_ubExtraBlurFS._focusDist.x = _dofFocusDist;
 		s_ubExtraBlurFS._blurDir = float4(
 			dirs[0].getX(), dirs[0].getY() * renderer.GetCurrentViewAspectRatio(),
 			dirs[1].getX(), dirs[1].getY() * renderer.GetCurrentViewAspectRatio());
@@ -413,7 +423,7 @@ void Blur::GenerateForDepthOfField()
 	{
 		cb->BeginRenderPass(_dofHandles._rphV, _dofHandles._fbhV, { renderer.GetDS().GetComposedTextureA()->GetClearValue() });
 
-		UpdateUniformBuffer(radius * 0.5f, 0, renderer.GetCurrentViewHeight(), samplesPerPixel, maxSamples);
+		UpdateUniformBuffer(_dofRadius * 0.5f, 0, renderer.GetCurrentViewHeight(), samplesPerPixel, maxSamples);
 		s_ubExtraBlurFS._blurDir = float4(dirs[2].getX(), dirs[2].getY() * renderer.GetCurrentViewAspectRatio(), 0, 0);
 
 		cb->BindPipeline(_pipe[PIPE_DOF_V]);
@@ -426,6 +436,8 @@ void Blur::GenerateForDepthOfField()
 	}
 	_shader->EndBindDescriptors();
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilReadOnly, CGI::ImageLayout::depthStencilAttachment, 0);
+
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void Blur::GenerateForBloom(bool forLightShafts)
@@ -467,6 +479,8 @@ void Blur::GenerateForBloom(bool forLightShafts)
 
 	auto cb = renderer.GetCommandBuffer();
 
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(64, 0, 64, 255), "Blur/GenerateForBloom");
+
 	_shader->BeginBindDescriptors();
 	{
 		cb->BeginRenderPass(_bloomHandles._rphU, _bloomHandles._fbhU, { bloom.GetPongTexture()->GetClearValue() },
@@ -499,6 +513,8 @@ void Blur::GenerateForBloom(bool forLightShafts)
 		cb->EndRenderPass();
 	}
 	_shader->EndBindDescriptors();
+
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void Blur::GenerateForAntiAliasing()
@@ -508,6 +524,8 @@ void Blur::GenerateForAntiAliasing()
 	VERUS_QREF_WM;
 
 	auto cb = renderer.GetCommandBuffer();
+
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(64, 0, 64, 255), "Blur/GenerateForAntiAliasing");
 
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
 	cb->BeginRenderPass(_rphAntiAliasing, _fbhAntiAliasing, { renderer.GetDS().GetComposedTextureB()->GetClearValue() });
@@ -529,6 +547,8 @@ void Blur::GenerateForAntiAliasing()
 
 	cb->EndRenderPass();
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilReadOnly, CGI::ImageLayout::depthStencilAttachment, 0);
+
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void Blur::GenerateForMotionBlur()
@@ -538,6 +558,8 @@ void Blur::GenerateForMotionBlur()
 	VERUS_QREF_WM;
 
 	auto cb = renderer.GetCommandBuffer();
+
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(64, 0, 64, 255), "Blur/GenerateForMotionBlur");
 
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilAttachment, CGI::ImageLayout::depthStencilReadOnly, 0);
 	cb->BeginRenderPass(_rphMotionBlur, _fbhMotionBlur, { renderer.GetDS().GetComposedTextureA()->GetClearValue() });
@@ -560,6 +582,8 @@ void Blur::GenerateForMotionBlur()
 
 	cb->EndRenderPass();
 	cb->PipelineImageMemoryBarrier(renderer.GetTexDepthStencil(), CGI::ImageLayout::depthStencilReadOnly, CGI::ImageLayout::depthStencilAttachment, 0);
+
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void Blur::UpdateUniformBuffer(float radius, int sampleCount, int texSize, float samplesPerPixel, int maxSamples)

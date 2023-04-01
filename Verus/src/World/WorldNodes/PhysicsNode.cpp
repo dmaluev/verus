@@ -18,7 +18,10 @@ PhysicsNode::~PhysicsNode()
 
 void PhysicsNode::Init(RcDesc desc)
 {
-	SetDynamicFlag();
+	if (!(_flags & Flags::readOnlyFlags))
+	{
+		SetDynamicFlag();
+	}
 	BaseNode::Init(desc._name ? desc._name : "Physics");
 
 	SetShapeType(_shapeType);
@@ -33,9 +36,9 @@ void PhysicsNode::Done()
 	VERUS_DONE(PhysicsNode);
 }
 
-void PhysicsNode::Duplicate(RBaseNode node)
+void PhysicsNode::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
-	BaseNode::Duplicate(node);
+	BaseNode::Duplicate(node, hierarchyDuplication);
 
 	RPhysicsNode physicsNode = static_cast<RPhysicsNode>(node);
 
@@ -154,7 +157,7 @@ void PhysicsNode::ExecuteEditorCommand(RcEditorCommand command)
 
 bool PhysicsNode::CanAutoSelectParentNode() const
 {
-	return _pParent && NodeType::block == _pParent->GetType();
+	return (_pParent && NodeType::block == _pParent->GetType()) || BaseNode::CanAutoSelectParentNode();
 }
 
 void PhysicsNode::Disable(bool disable)
@@ -541,12 +544,12 @@ void PhysicsNodePtr::Init(PhysicsNode::RcDesc desc)
 	_p->Init(desc);
 }
 
-void PhysicsNodePtr::Duplicate(RBaseNode node)
+void PhysicsNodePtr::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
 	VERUS_QREF_WM;
 	VERUS_RT_ASSERT(!_p);
 	_p = wm.InsertPhysicsNode();
-	_p->Duplicate(node);
+	_p->Duplicate(node, hierarchyDuplication);
 }
 
 void PhysicsNodePwn::Done()

@@ -28,7 +28,7 @@ void Spirit::ComputeDerivedVars(float smoothSpeed)
 	_dv._frontDir2D = _dv._matYaw * Vector3(0, 0, 1);
 	_dv._sideDir = VMath::normalizeApprox(VMath::cross(_dv._frontDir, Vector3(0, 1, 0)));
 	_dv._sideDir2D = VMath::normalizeApprox(VMath::cross(_dv._frontDir2D, Vector3(0, 1, 0)));
-	if (VMath::distSqr(_position, _dv._jerkyPosition) > 5 * 5.f)
+	if (VMath::distSqr(_position, _dv._jerkyPosition) > _jerkyPositionDelta * _jerkyPositionDelta)
 		_dv._jerkyPosition = _position;
 }
 

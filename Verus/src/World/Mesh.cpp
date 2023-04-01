@@ -80,9 +80,19 @@ void Mesh::Init(RcDesc desc)
 	}
 
 	_instanceCapacity = desc._instanceCapacity;
+	_instanceBufferFormat = desc._instanceBufferFormat;
 	_initShape = desc._initShape;
 
 	BaseMesh::Init(desc._url);
+}
+
+void Mesh::Init(RcSourceBuffers sourceBuffers, RcDesc desc)
+{
+	_instanceCapacity = desc._instanceCapacity;
+	_instanceBufferFormat = desc._instanceBufferFormat;
+	_initShape = desc._initShape;
+
+	BaseMesh::Init(sourceBuffers);
 }
 
 void Mesh::Done()
@@ -505,7 +515,7 @@ void Mesh::UpdateUniformBufferSimplePerFrame(DrawSimpleMode mode)
 	s_ubSimplePerFrame._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrix(2).UniformBufferFormat();
 	s_ubSimplePerFrame._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrix(3).UniformBufferFormat();
 	s_ubSimplePerFrame._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixVP().UniformBufferFormat();
-	s_ubSimplePerFrame._csmSplitRanges = atmo.GetShadowMapBaker().GetSplitRanges().GLM();
+	s_ubSimplePerFrame._csmSliceBounds = atmo.GetShadowMapBaker().GetSliceBounds().GLM();
 	memcpy(&s_ubSimplePerFrame._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubSimplePerFrame._shadowConfig));
 }
 
@@ -520,26 +530,29 @@ void Mesh::CreateDeviceBuffers()
 
 	CGI::GeometryDesc geoDesc;
 	geoDesc._name = _C(_url);
-	const CGI::VertexInputAttrDesc viaDesc[] =
+	Vector<CGI::VertexInputAttrDesc> vViaDesc;
 	{
-		{0, offsetof(VertexInputBinding0, _pos), CGI::ViaType::shorts, 4, CGI::ViaUsage::position, 0},
-		{0, offsetof(VertexInputBinding0, _tc0), CGI::ViaType::shorts, 2, CGI::ViaUsage::texCoord, 0},
-		{0, offsetof(VertexInputBinding0, _nrm), CGI::ViaType::ubytes, 4, CGI::ViaUsage::normal, 0},
-		{1, offsetof(VertexInputBinding1, _bw),  CGI::ViaType::shorts, 4, CGI::ViaUsage::blendWeights, 0},
-		{1, offsetof(VertexInputBinding1, _bi),  CGI::ViaType::shorts, 4, CGI::ViaUsage::blendIndices, 0},
-		{2, offsetof(VertexInputBinding2, _tan), CGI::ViaType::shorts, 4, CGI::ViaUsage::tangent, 0},
-		{2, offsetof(VertexInputBinding2, _bin), CGI::ViaType::shorts, 4, CGI::ViaUsage::binormal, 0},
-		{3, offsetof(VertexInputBinding3, _tc1), CGI::ViaType::shorts, 2, CGI::ViaUsage::texCoord, 1},
-		{3, offsetof(VertexInputBinding3, _clr), CGI::ViaType::ubytes, 4, CGI::ViaUsage::color, 0},
-
-		{-4, offsetof(PerInstanceData, _matPart0), CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 0},
-		{-4, offsetof(PerInstanceData, _matPart1), CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 1},
-		{-4, offsetof(PerInstanceData, _matPart2), CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 2},
-		{-4, offsetof(PerInstanceData, _instData), CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 3},
-		CGI::VertexInputAttrDesc::End()
-	};
-	geoDesc._pVertexInputAttrDesc = viaDesc;
-	const int strides[] = { sizeof(VertexInputBinding0), sizeof(VertexInputBinding1), sizeof(VertexInputBinding2), sizeof(VertexInputBinding3), sizeof(PerInstanceData), 0 };
+		vViaDesc.reserve(16);
+		vViaDesc.push_back({ 0, offsetof(VertexInputBinding0, _pos), CGI::ViaType::shorts, 4, CGI::ViaUsage::position, 0 });
+		vViaDesc.push_back({ 0, offsetof(VertexInputBinding0, _tc0), CGI::ViaType::shorts, 2, CGI::ViaUsage::texCoord, 0 });
+		vViaDesc.push_back({ 0, offsetof(VertexInputBinding0, _nrm), CGI::ViaType::ubytes, 4, CGI::ViaUsage::normal, 0 });
+		vViaDesc.push_back({ 1, offsetof(VertexInputBinding1, _bw),  CGI::ViaType::shorts, 4, CGI::ViaUsage::blendWeights, 0 });
+		vViaDesc.push_back({ 1, offsetof(VertexInputBinding1, _bi),  CGI::ViaType::shorts, 4, CGI::ViaUsage::blendIndices, 0 });
+		vViaDesc.push_back({ 2, offsetof(VertexInputBinding2, _tan), CGI::ViaType::shorts, 4, CGI::ViaUsage::tangent, 0 });
+		vViaDesc.push_back({ 2, offsetof(VertexInputBinding2, _bin), CGI::ViaType::shorts, 4, CGI::ViaUsage::binormal, 0 });
+		vViaDesc.push_back({ 3, offsetof(VertexInputBinding3, _tc1), CGI::ViaType::shorts, 2, CGI::ViaUsage::texCoord, 1 });
+		vViaDesc.push_back({ 3, offsetof(VertexInputBinding3, _clr), CGI::ViaType::ubytes, 4, CGI::ViaUsage::color, 0 });
+		vViaDesc.push_back({ 3, offsetof(VertexInputBinding3, _clr), CGI::ViaType::ubytes, 4, CGI::ViaUsage::color, 0 });
+		vViaDesc.push_back({ -4, 0, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 0 });
+		vViaDesc.push_back({ -4, 16, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 1 });
+		vViaDesc.push_back({ -4, 32, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 2 });
+		vViaDesc.push_back({ -4, 48, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 3 });
+		if (InstanceBufferFormat::mataff_2float4 == _instanceBufferFormat)
+			vViaDesc.push_back({ -4, 64, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 4 });
+		vViaDesc.push_back(CGI::VertexInputAttrDesc::End());
+	}
+	geoDesc._pVertexInputAttrDesc = vViaDesc.data();
+	const int strides[] = { sizeof(VertexInputBinding0), sizeof(VertexInputBinding1), sizeof(VertexInputBinding2), sizeof(VertexInputBinding3), GetInstanceSize(), 0 };
 	geoDesc._pStrides = strides;
 	geoDesc._32BitIndices = _vIndices.empty();
 	_geo.Init(geoDesc);
@@ -588,9 +601,9 @@ void Mesh::CreateDeviceBuffers()
 	// Instance buffer:
 	if (_instanceCapacity > 0)
 	{
-		_vInstanceBuffer.resize(_instanceCapacity);
+		_vInstanceBuffer.resize(_instanceCapacity * GetInstanceSize());
 		_bindingsMask |= (1 << 4);
-		_geo->CreateVertexBuffer(Utils::Cast32(_vInstanceBuffer.size()), 4);
+		_geo->CreateVertexBuffer(_instanceCapacity, 4);
 	}
 }
 
@@ -605,15 +618,30 @@ void Mesh::ResetInstanceCount()
 	_firstInstance = 0;
 }
 
-void Mesh::PushInstance(RcTransform3 matW, RcVector4 instData)
+void Mesh::PushInstance(RcTransform3 matW, RcVector4 instData, PcVector4 pInstData1)
 {
 	VERUS_RT_ASSERT(!_vInstanceBuffer.empty());
 	if (!_vertCount)
 		return;
 	if (IsInstanceBufferFull())
 		return;
-	matW.InstFormat(&_vInstanceBuffer[_instanceCount]._matPart0);
-	_vInstanceBuffer[_instanceCount]._instData = instData;
+	const int offset = _instanceCount * GetInstanceSize();
+	switch (_instanceBufferFormat)
+	{
+	case InstanceBufferFormat::mataff_float4:
+	{
+		matW.InstFormat(reinterpret_cast<PVector4>(&_vInstanceBuffer[offset]));
+		*reinterpret_cast<PVector4>(&_vInstanceBuffer[offset] + 48) = instData;
+	}
+	break;
+	case InstanceBufferFormat::mataff_2float4:
+	{
+		matW.InstFormat(reinterpret_cast<PVector4>(&_vInstanceBuffer[offset]));
+		*reinterpret_cast<PVector4>(&_vInstanceBuffer[offset] + 48) = instData;
+		*reinterpret_cast<PVector4>(&_vInstanceBuffer[offset] + 64) = *pInstData1;
+	}
+	break;
+	}
 	_instanceCount++;
 }
 
@@ -633,8 +661,19 @@ bool Mesh::IsInstanceBufferEmpty(bool fromFirstInstance)
 	return GetInstanceCount(fromFirstInstance) <= 0;
 }
 
+int Mesh::GetInstanceSize() const
+{
+	switch (_instanceBufferFormat)
+	{
+	case InstanceBufferFormat::mataff_float4: return 64;
+	case InstanceBufferFormat::mataff_2float4: return 80;
+	}
+	return 0;
+}
+
 void Mesh::UpdateInstanceBuffer()
 {
 	VERUS_RT_ASSERT(!_vInstanceBuffer.empty());
-	_geo->UpdateVertexBuffer(&_vInstanceBuffer[_firstInstance], 4, nullptr, GetInstanceCount(true), _firstInstance);
+	const int offset = _firstInstance * GetInstanceSize();
+	_geo->UpdateVertexBuffer(&_vInstanceBuffer[offset], 4, nullptr, GetInstanceCount(true), _firstInstance);
 }

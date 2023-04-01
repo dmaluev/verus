@@ -31,6 +31,8 @@ void BaseNode::Init(RcDesc desc)
 	OnLocalTransformUpdated();
 	UpdateGlobalTransform();
 	AddDefaultPickingBody(); // Can be overridden by nodes that don't need this rigid body.
+
+	_flags &= ~Flags::readOnlyFlags;
 }
 
 void BaseNode::Done()
@@ -41,7 +43,7 @@ void BaseNode::Done()
 	VERUS_DONE(BaseNode);
 }
 
-void BaseNode::Duplicate(RBaseNode node)
+void BaseNode::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
 	_trLocal = node._trLocal;
 	_trGlobal = node._trGlobal;
@@ -52,7 +54,7 @@ void BaseNode::Duplicate(RBaseNode node)
 	_pParent = node._pParent;
 	_name = node._name;
 	_type = node._type;
-	_flags = node._flags;
+	_flags = node._flags | Flags::readOnlyFlags;
 	_groups = node._groups;
 	_depth = node._depth;
 
@@ -109,6 +111,7 @@ void BaseNode::GetEditorCommands(Vector<EditorCommand>& v)
 	v.push_back(EditorCommand(nullptr, EditorCommandCode::node_resetLocalTransform));
 	v.push_back(EditorCommand(nullptr, EditorCommandCode::node_resetLocalTransformKeepGlobal));
 	v.push_back(EditorCommand(nullptr, EditorCommandCode::node_pointAt));
+	v.push_back(EditorCommand(nullptr, EditorCommandCode::node_moveTo));
 }
 
 void BaseNode::ExecuteEditorCommand(RcEditorCommand command)
@@ -138,6 +141,11 @@ void BaseNode::ExecuteEditorCommand(RcEditorCommand command)
 	}
 	break;
 	}
+}
+
+bool BaseNode::CanAutoSelectParentNode() const
+{
+	return _pParent && NodeType::instance == _pParent->GetType();
 }
 
 void BaseNode::Rename(CSZ name)
@@ -273,6 +281,19 @@ void BaseNode::Select(bool select)
 		VERUS_BITMASK_SET(_flags, Flags::selected);
 	else
 		VERUS_BITMASK_UNSET(_flags, Flags::selected);
+}
+
+bool BaseNode::IsShadowCaster() const
+{
+	return !!(_flags & Flags::shadowCaster);
+}
+
+void BaseNode::SetShadowCasterFlag(bool shadowCaster)
+{
+	if (shadowCaster)
+		VERUS_BITMASK_SET(_flags, Flags::shadowCaster);
+	else
+		VERUS_BITMASK_UNSET(_flags, Flags::shadowCaster);
 }
 
 bool BaseNode::IsInGroup(int index) const
@@ -573,7 +594,7 @@ void BaseNode::Serialize(IO::RSeekableStream stream)
 	_dict.Serialize(stream);
 	stream << wm.GetIndexOf(_pParent, true);
 	stream.WriteString(_C(_name));
-	stream << (_flags & ~Flags::selected);
+	stream << (_flags & Flags::serializedMask);
 	stream << _groups;
 }
 
@@ -600,6 +621,7 @@ void BaseNode::Deserialize(IO::RStream stream)
 	_uiScale = uiScale;
 	_pParent = wm.GetNodeByIndex(parentIndex);
 	_name = name;
+	_flags |= Flags::readOnlyFlags;
 
 	UpdateDepth();
 
@@ -699,7 +721,7 @@ void BaseNode::SerializeXML(pugi::xml_node node)
 	node.append_attribute("uiS") = _C(_uiScale.ToString(true));
 	node.append_attribute("parent") = wm.GetIndexOf(_pParent, true);
 	node.append_attribute("name") = _C(_name);
-	node.append_attribute("flags") = (_flags & ~Flags::selected);
+	node.append_attribute("flags") = (_flags & Flags::serializedMask);
 	node.append_attribute("groups") = _groups;
 }
 
@@ -749,12 +771,12 @@ void BaseNodePtr::Init(BaseNode::RcDesc desc)
 	_p->Init(desc);
 }
 
-void BaseNodePtr::Duplicate(RBaseNode node)
+void BaseNodePtr::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
 	VERUS_QREF_WM;
 	VERUS_RT_ASSERT(!_p);
 	_p = wm.InsertBaseNode();
-	_p->Duplicate(node);
+	_p->Duplicate(node, hierarchyDuplication);
 }
 
 void BaseNodePwn::Done()

@@ -201,7 +201,7 @@ float ShadowMapCSM(
 	matrix mat2,
 	matrix mat3,
 	matrix matScreen,
-	float4 csmSplitRanges,
+	float4 csmSliceBounds,
 	float4 config)
 {
 #if _SHADOW_QUALITY >= _Q_HIGH
@@ -213,22 +213,22 @@ float ShadowMapCSM(
 
 	if (IsClippedCSM(clipSpacePos))
 	{
-		if (depth >= csmSplitRanges.x)
+		if (depth >= csmSliceBounds.x)
 		{
-			const float fadeStart = (csmSplitRanges.x + csmSplitRanges.w) * 0.5;
-			const float fade = saturate((depth - fadeStart) / (csmSplitRanges.w - fadeStart));
+			const float fadeStart = (csmSliceBounds.x + csmSliceBounds.w) * 0.5;
+			const float fade = saturate((depth - fadeStart) / (csmSliceBounds.w - fadeStart));
 
 			contrast = contrastScale * contrastScale * contrastScale;
 			const float3 tc = mul(float4(biasedPos, 1.0), mat0).xyz;
 			ret = max(PCF(texCmp, samCmp, tex, sam, tc, config), fade);
 		}
-		else if (depth >= csmSplitRanges.y)
+		else if (depth >= csmSliceBounds.y)
 		{
 			contrast = contrastScale * contrastScale;
 			const float3 tc = mul(float4(biasedPos, 1.0), mat1).xyz;
 			ret = PCF(texCmp, samCmp, tex, sam, tc, config);
 		}
-		else if (depth >= csmSplitRanges.z)
+		else if (depth >= csmSliceBounds.z)
 		{
 			contrast = contrastScale;
 			const float3 tc = mul(float4(biasedPos, 1.0), mat2).xyz;
@@ -263,7 +263,7 @@ float SimpleShadowMapCSM(
 	matrix mat2,
 	matrix mat3,
 	matrix matScreen,
-	float4 csmSplitRanges,
+	float4 csmSliceBounds,
 	float4 config,
 	bool clipping = true)
 {
@@ -276,22 +276,22 @@ float SimpleShadowMapCSM(
 
 	if (!clipping || IsClippedCSM(clipSpacePos))
 	{
-		if (depth >= csmSplitRanges.x)
+		if (depth >= csmSliceBounds.x)
 		{
-			const float fadeStart = (csmSplitRanges.x + csmSplitRanges.w) * 0.5;
-			const float fade = saturate((depth - fadeStart) / (csmSplitRanges.w - fadeStart));
+			const float fadeStart = (csmSliceBounds.x + csmSliceBounds.w) * 0.5;
+			const float fade = saturate((depth - fadeStart) / (csmSliceBounds.w - fadeStart));
 
 			contrast = contrastScale * contrastScale * contrastScale;
 			const float3 tc = mul(float4(biasedPos, 1.0), mat0).xyz;
 			ret = max(SimplePCF(texCmp, samCmp, tc), fade);
 		}
-		else if (depth >= csmSplitRanges.y)
+		else if (depth >= csmSliceBounds.y)
 		{
 			contrast = contrastScale * contrastScale;
 			const float3 tc = mul(float4(biasedPos, 1.0), mat1).xyz;
 			ret = SimplePCF(texCmp, samCmp, tc);
 		}
-		else if (depth >= csmSplitRanges.z)
+		else if (depth >= csmSliceBounds.z)
 		{
 			contrast = contrastScale;
 			const float3 tc = mul(float4(biasedPos, 1.0), mat2).xyz;

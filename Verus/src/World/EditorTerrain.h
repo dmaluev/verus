@@ -10,6 +10,7 @@ namespace verus
 			solid,
 			grad,
 			normal,
+			inversedNormal,
 			rand
 		};
 

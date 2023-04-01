@@ -15,6 +15,7 @@ namespace verus
 			particles,
 
 			block,
+			blockChain,
 			controlPoint,
 			emitter,
 			instance,

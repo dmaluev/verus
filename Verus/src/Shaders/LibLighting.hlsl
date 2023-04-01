@@ -163,3 +163,8 @@ float ComputeSpotLightConeIntensity(float3 dirToLight, float3 lightDir, float co
 	const float dp = dot(-dirToLight, lightDir);
 	return saturate((dp - coneOut) * invConeDelta);
 }
+
+float ComputeLampRadius(float radius, float3 color)
+{
+	return radius * 10.0 / dot(color, 1.0 / 3.0);
+}

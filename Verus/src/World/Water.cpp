@@ -265,7 +265,7 @@ void Water::Draw()
 	s_ubWaterFS._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrix(2).UniformBufferFormat();
 	s_ubWaterFS._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrix(3).UniformBufferFormat();
 	s_ubWaterFS._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixVP().UniformBufferFormat();
-	s_ubWaterFS._csmSplitRanges = atmo.GetShadowMapBaker().GetSplitRanges().GLM();
+	s_ubWaterFS._csmSliceBounds = atmo.GetShadowMapBaker().GetSliceBounds().GLM();
 	memcpy(&s_ubWaterFS._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubWaterFS._shadowConfig));
 
 	cb->BindPipeline(_pipe[PIPE_MAIN]);
@@ -341,7 +341,9 @@ void Water::EndPlanarReflection(CGI::PBaseCommandBuffer pCB)
 	wm.SetPassCamera(_pPrevPassCamera);
 	wm.SetHeadCamera(_pPrevHeadCamera);
 
+	VERUS_PROFILER_BEGIN_EVENT(pCB, VERUS_COLOR_BLACK, "Water/PlanarReflection/GenerateMips");
 	_tex[TEX_REFLECTION]->GenerateMips();
+	VERUS_PROFILER_END_EVENT(pCB);
 }
 
 void Water::GenerateTextures()
@@ -367,24 +369,30 @@ void Water::GenerateHeightmapTexture()
 
 	auto cb = renderer.GetCommandBuffer();
 
-	s_ubGen._matW = Math::QuadMatrix().UniformBufferFormat();
-	s_ubGen._matV = Math::ToUVMatrix().UniformBufferFormat();
-	s_ubGenHeightmapFS._phase.x = _phase;
-	memcpy(&s_ubGenHeightmapFS._amplitudes, _amplitudes, sizeof(_amplitudes));
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(96, 96, 160, 255), "Water/GenerateHeightmapTexture");
+	{
+		s_ubGen._matW = Math::QuadMatrix().UniformBufferFormat();
+		s_ubGen._matV = Math::ToUVMatrix().UniformBufferFormat();
+		s_ubGenHeightmapFS._phase.x = _phase;
+		memcpy(&s_ubGenHeightmapFS._amplitudes, _amplitudes, sizeof(_amplitudes));
 
-	cb->BeginRenderPass(_rphGenHeightmap, _fbhGenHeightmap, { _tex[TEX_GEN_HEIGHTMAP]->GetClearValue(), },
-		CGI::ViewportScissorFlags::setAllForFramebuffer);
+		cb->BeginRenderPass(_rphGenHeightmap, _fbhGenHeightmap, { _tex[TEX_GEN_HEIGHTMAP]->GetClearValue(), },
+			CGI::ViewportScissorFlags::setAllForFramebuffer);
 
-	cb->BindPipeline(_pipe[PIPE_GEN_HEIGHTMAP]);
-	_shader[SHADER_GEN]->BeginBindDescriptors();
-	cb->BindDescriptors(_shader[SHADER_GEN], 0);
-	cb->BindDescriptors(_shader[SHADER_GEN], 1, _cshGenHeightmap);
-	_shader[SHADER_GEN]->EndBindDescriptors();
-	renderer.DrawQuad(cb.Get());
+		cb->BindPipeline(_pipe[PIPE_GEN_HEIGHTMAP]);
+		_shader[SHADER_GEN]->BeginBindDescriptors();
+		cb->BindDescriptors(_shader[SHADER_GEN], 0);
+		cb->BindDescriptors(_shader[SHADER_GEN], 1, _cshGenHeightmap);
+		_shader[SHADER_GEN]->EndBindDescriptors();
+		renderer.DrawQuad(cb.Get());
 
-	cb->EndRenderPass();
+		cb->EndRenderPass();
 
-	_tex[TEX_GEN_HEIGHTMAP]->GenerateMips(cb.Get());
+		VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_BLACK, "Water/GenerateHeightmapTexture/GenerateMips");
+		_tex[TEX_GEN_HEIGHTMAP]->GenerateMips(cb.Get());
+		VERUS_PROFILER_END_EVENT(cb);
+	}
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void Water::GenerateNormalsTexture()
@@ -393,24 +401,30 @@ void Water::GenerateNormalsTexture()
 
 	auto cb = renderer.GetCommandBuffer();
 
-	s_ubGen._matW = Math::QuadMatrix().UniformBufferFormat();
-	s_ubGen._matV = Math::ToUVMatrix().UniformBufferFormat();
-	s_ubGenNormalsFS._textureSize = _tex[TEX_GEN_HEIGHTMAP]->GetSize().GLM();
-	s_ubGenNormalsFS._waterScale.x = 1 / _patchSide;
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(128, 128, 255, 255), "Water/GenerateNormalsTexture");
+	{
+		s_ubGen._matW = Math::QuadMatrix().UniformBufferFormat();
+		s_ubGen._matV = Math::ToUVMatrix().UniformBufferFormat();
+		s_ubGenNormalsFS._textureSize = _tex[TEX_GEN_HEIGHTMAP]->GetSize().GLM();
+		s_ubGenNormalsFS._waterScale.x = 1 / _patchSide;
 
-	cb->BeginRenderPass(_rphGenNormals, _fbhGenNormals, { _tex[TEX_GEN_NORMALS]->GetClearValue(), },
-		CGI::ViewportScissorFlags::setAllForFramebuffer);
+		cb->BeginRenderPass(_rphGenNormals, _fbhGenNormals, { _tex[TEX_GEN_NORMALS]->GetClearValue(), },
+			CGI::ViewportScissorFlags::setAllForFramebuffer);
 
-	cb->BindPipeline(_pipe[PIPE_GEN_NORMALS]);
-	_shader[SHADER_GEN]->BeginBindDescriptors();
-	cb->BindDescriptors(_shader[SHADER_GEN], 0);
-	cb->BindDescriptors(_shader[SHADER_GEN], 2, _cshGenNormals);
-	_shader[SHADER_GEN]->EndBindDescriptors();
-	renderer.DrawQuad(cb.Get());
+		cb->BindPipeline(_pipe[PIPE_GEN_NORMALS]);
+		_shader[SHADER_GEN]->BeginBindDescriptors();
+		cb->BindDescriptors(_shader[SHADER_GEN], 0);
+		cb->BindDescriptors(_shader[SHADER_GEN], 2, _cshGenNormals);
+		_shader[SHADER_GEN]->EndBindDescriptors();
+		renderer.DrawQuad(cb.Get());
 
-	cb->EndRenderPass();
+		cb->EndRenderPass();
 
-	_tex[TEX_GEN_NORMALS]->GenerateMips(cb.Get());
+		VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_BLACK, "Water/GenerateNormalsTexture/GenerateMips");
+		_tex[TEX_GEN_NORMALS]->GenerateMips(cb.Get());
+		VERUS_PROFILER_END_EVENT(cb);
+	}
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 CGI::TexturePtr Water::GetCausticsTexture() const

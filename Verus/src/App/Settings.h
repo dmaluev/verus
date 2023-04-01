@@ -12,6 +12,16 @@ namespace verus
 			borderlessWindowed
 		};
 
+		class Info
+		{
+		public:
+			CSZ    _appName = nullptr;
+			UINT32 _appVersion = 0;
+			CSZ    _engineName = nullptr;
+			UINT32 _engineVersion = 0;
+		};
+		VERUS_TYPEDEFS(Info);
+
 		class QualitySettings
 		{
 		public:
@@ -115,12 +125,13 @@ namespace verus
 		public:
 			struct CommandLine
 			{
-				int  _gapi = -1;
-				int  _openXR = -1;
-				bool _exclusiveFullscreen = false;
-				bool _windowed = false;
-				bool _borderlessWindowed = false;
-				bool _restarted = false;
+				int   _gapi = -1;
+				int   _openXR = -1;
+				float _xrHeight = -FLT_MAX;
+				bool  _exclusiveFullscreen = false;
+				bool  _windowed = false;
+				bool  _borderlessWindowed = false;
+				bool  _restarted = false;
 			};
 
 			enum Platform : int
@@ -140,9 +151,12 @@ namespace verus
 			bool        _openXR = false;
 			bool        _physicsSupportDebugDraw = false;
 			String      _uiLang = "EN";
+			float       _xrFOV = 110;
+			float       _xrHeight = 0;
 			CommandLine _commandLine;
 			Limits      _limits;
 			String      _imguiFont;
+			Info        _info;
 			float       _highDpiScale = 1;
 			Platform    _platform = Platform::classic;
 

@@ -22,7 +22,11 @@ namespace verus
 				dynamic = (1 << 2), // Will be bound to the root of octree.
 				generated = (1 << 3), // Created by some other node.
 				disabled = (1 << 4), // Draw method will not be called.
-				selected = (1 << 5)
+				selected = (1 << 5),
+				shadowCaster = (1 << 6),
+
+				readOnlyFlags = (1u << 31),
+				serializedMask = ~(octreeBindOnce | generated | selected)
 			};
 
 			Transform3     _trLocal = Transform3::identity();
@@ -56,7 +60,7 @@ namespace verus
 			void Init(RcDesc desc);
 			void Done();
 
-			virtual void Duplicate(BaseNode& node);
+			virtual void Duplicate(BaseNode& node, HierarchyDuplication hierarchyDuplication);
 
 			virtual void Update() {}
 			virtual void Layout() {}
@@ -68,7 +72,7 @@ namespace verus
 			// <Editor>
 			virtual void GetEditorCommands(Vector<EditorCommand>& v);
 			virtual void ExecuteEditorCommand(RcEditorCommand command);
-			virtual bool CanAutoSelectParentNode() const { return false; }
+			virtual bool CanAutoSelectParentNode() const;
 			// </Editor>
 
 			// <Identity>
@@ -104,6 +108,9 @@ namespace verus
 
 			bool IsSelected() const;
 			void Select(bool select = true);
+
+			bool IsShadowCaster() const;
+			void SetShadowCasterFlag(bool shadowCaster = true);
 			// </Flags>
 
 			// <Groups>
@@ -174,7 +181,7 @@ namespace verus
 		{
 		public:
 			void Init(BaseNode::RcDesc desc);
-			void Duplicate(RBaseNode node);
+			void Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication);
 		};
 		VERUS_TYPEDEFS(BaseNodePtr);
 

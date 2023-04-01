@@ -235,6 +235,7 @@ Vector<CSZ> RendererVulkan::GetRequiredExtensions()
 
 void RendererVulkan::CreateInstance()
 {
+	VERUS_QREF_CONST_SETTINGS;
 	VkResult res = VK_SUCCESS;
 
 #if defined(_DEBUG) || defined(VERUS_RELEASE_DEBUG)
@@ -244,20 +245,16 @@ void RendererVulkan::CreateInstance()
 
 	const auto vExtensions = GetRequiredExtensions();
 
-	const int major = (VERUS_SDK_VERSION >> 24) & 0xFF;
-	const int minor = (VERUS_SDK_VERSION >> 16) & 0xFF;
-	const int patch = (VERUS_SDK_VERSION) & 0xFFFF;
-
 	VkValidationFeatureEnableEXT enabledValidationFeatures[] = { VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT };
 	VkValidationFeaturesEXT vkvf = { VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT };
 	vkvf.enabledValidationFeatureCount = VERUS_COUNT_OF(enabledValidationFeatures);
 	vkvf.pEnabledValidationFeatures = enabledValidationFeatures;
 
 	VkApplicationInfo vkai = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
-	vkai.pApplicationName = "Game";
-	vkai.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-	vkai.pEngineName = "Verus";
-	vkai.engineVersion = VK_MAKE_VERSION(major, minor, patch);
+	vkai.pApplicationName = settings._info._appName;
+	vkai.applicationVersion = settings._info._appVersion;
+	vkai.pEngineName = settings._info._engineName;
+	vkai.engineVersion = settings._info._engineVersion;
 	vkai.apiVersion = s_apiVersion;
 
 	VkInstanceCreateInfo vkici = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };

@@ -259,10 +259,9 @@ void BaseCharacter::ComputeThirdPersonCameraArgs(RcVector3 offset, RPoint3 eye, 
 
 	const RcVector3 offsetW = GetYawMatrix() * offset;
 	const Point3 pos = _smoothPosition;
-	const float startAt = _cc.GetRadius() + _cc.GetHeight() * 0.5f; // Inside capsule.
-	const Point3 origin = pos + Vector3(0, startAt, 0);
+	const Point3 origin = pos + Vector3(0, GetThirdPersonCameraBaseHeight(), 0);
 	at = pos + offsetW;
-	if (wm.RayTestEx(origin, at, nullptr, &point, &norm, &r, Physics::Bullet::I().GetMainMask()))
+	if (wm.RayTestEx(origin, at, nullptr, &point, &norm, &r, Physics::Bullet::I().GetStaticMask()))
 		at = point + norm * r;
 	eye = at - GetFrontDirection() * _cameraRadius.GetValue() + offsetW * 0.05f;
 }
@@ -288,7 +287,7 @@ float BaseCharacter::ComputeThirdPersonCamera(World::RCamera camera, Anim::RcOrb
 	eye = at + Vector3(toEye);
 
 	float ret = 0;
-	if (wm.RayTestEx(at, eye, nullptr, &point, &norm, &r, Physics::Bullet::I().GetMainMask())) // Hitting the wall?
+	if (wm.RayTestEx(at, eye, nullptr, &point, &norm, &r, Physics::Bullet::I().GetStaticMask())) // Hitting the wall?
 	{
 		eye = point + norm * r;
 		const float maxCameraRadius = VMath::dist(at, eye) + r;
@@ -324,7 +323,7 @@ void BaseCharacter::ComputeThirdPersonAim(RPoint3 aimPos, RVector3 aimDir, RcVec
 	Point3 eye, at;
 	ComputeThirdPersonCameraArgs(offset, eye, at);
 
-	if (wm.RayTestEx(at, eye, nullptr, &point, &norm, &r, Physics::Bullet::I().GetMainMask())) // Hitting the wall?
+	if (wm.RayTestEx(at, eye, nullptr, &point, &norm, &r, Physics::Bullet::I().GetStaticMask())) // Hitting the wall?
 	{
 		eye = point + norm * r;
 	}
@@ -338,6 +337,11 @@ void BaseCharacter::ComputeThirdPersonAim(RPoint3 aimPos, RVector3 aimDir, RcVec
 
 	aimPos = eye;
 	aimDir = VMath::normalizeApprox(at - eye);
+}
+
+float BaseCharacter::GetThirdPersonCameraBaseHeight() const
+{
+	return _cc.GetRadius() + _cc.GetHeight() * 0.5f; // Inside capsule.
 }
 
 void BaseCharacter::SetMaxCameraRadius(float r)

@@ -57,8 +57,8 @@ VSO mainVS(VSI si)
 	const float3 toEye = eyePos - si.pos.xyz;
 	const float distToMainCamera = distance(mainCameraEyePos, si.pos.xyz);
 
-	const float nearAlpha = ComputeFade(distToMainCamera, 6.0, 9.0);
-	const float farAlpha = 1.0 - ComputeFade(distToMainCamera, 900.0, 1000.0);
+	const float nearAlpha = ComputeFade(distToMainCamera, 5.0, 10.0);
+	const float farAlpha = 1.0 - ComputeFade(distToMainCamera, 750.0, 1000.0);
 
 	so.pos = mul(si.pos, g_ubSimpleForestVS._matWVP);
 	so.tc0 = 0.0;
@@ -119,7 +119,7 @@ float ComputeMask(float2 tc, float alpha)
 {
 	const float2 tcCenter = tc - 0.5;
 	const float grad = 1.0 - saturate(dot(tcCenter, tcCenter) * 4.0);
-	return saturate(grad + (alpha * 2.0 - 1.0));
+	return saturate(grad + (alpha * 2.0 - 1.0)); // 0 to grad to 1.
 }
 
 #ifdef _FS
@@ -171,7 +171,7 @@ FSO mainFS(VSO si)
 			g_ubSimpleForestFS._matShadowCSM2,
 			g_ubSimpleForestFS._matShadowCSM3,
 			g_ubSimpleForestFS._matScreenCSM,
-			g_ubSimpleForestFS._csmSplitRanges,
+			g_ubSimpleForestFS._csmSliceBounds,
 			g_ubSimpleForestFS._shadowConfig);
 	}
 	// </Shadow>

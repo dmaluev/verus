@@ -39,7 +39,7 @@ namespace verus
 			void Init(RcDesc desc);
 			void Done();
 
-			virtual void Duplicate(RBaseNode node) override;
+			virtual void Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication) override;
 
 			virtual void Update() override;
 			virtual void DrawEditorOverlays(DrawEditorOverlaysFlags flags) override;
@@ -69,6 +69,7 @@ namespace verus
 			float GetConeOut() const;
 			void SetCone(float coneIn = 0, float coneOut = 0);
 			Vector4 GetInstData() const;
+			float ComputeLampRadius() const;
 		};
 		VERUS_TYPEDEFS(LightNode);
 
@@ -76,7 +77,7 @@ namespace verus
 		{
 		public:
 			void Init(LightNode::RcDesc desc);
-			void Duplicate(RBaseNode node);
+			void Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication);
 		};
 		VERUS_TYPEDEFS(LightNodePtr);
 

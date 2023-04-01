@@ -42,8 +42,8 @@ VSO mainVS(VSI si)
 	const float3 toEye = g_ubForestVS._eyePos.xyz - si.pos.xyz;
 	const float distToHead = distance(g_ubForestVS._headPos.xyz, si.pos.xyz);
 
-	const float nearAlpha = ComputeFade(distToHead, 60.0, 90.0);
-	const float farAlpha = 1.0 - ComputeFade(distToHead, 900.0, 1000.0);
+	const float nearAlpha = QuadOutEasing(ComputeFade(distToHead, 50.0, 100.0));
+	const float farAlpha = 1.0 - ComputeFade(distToHead, 750.0, 1000.0);
 
 	so.pos = mul(si.pos, g_ubForestVS._matWVP);
 	so.tc0 = 0.0;
@@ -77,8 +77,8 @@ void mainGS(point VSO si[1], inout TriangleStream<VSO> stream)
 	{
 		const float2 posOffset = _POINT_SPRITE_POS_OFFSETS[i] * so.psize;
 		const float2 offset = float2(
-			dot(posOffset, g_ubForestVS._spriteMat.xy),
-			dot(posOffset, g_ubForestVS._spriteMat.zw));
+			dot(posOffset, g_ubForestVS._matRoll.xy),
+			dot(posOffset, g_ubForestVS._matRoll.zw));
 		so.pos.xy = center + offset;
 		so.tc0 = _POINT_SPRITE_TEX_COORDS[i];
 		stream.Append(so);
@@ -105,7 +105,7 @@ float ComputeMask(float2 tc, float alpha)
 {
 	const float2 tcCenter = tc - 0.5;
 	const float grad = 1.0 - saturate(dot(tcCenter, tcCenter) * 4.0);
-	return saturate(grad + (alpha * 2.0 - 1.0));
+	return saturate(grad + (alpha * 2.0 - 1.0)); // 0 to grad to 1.
 }
 
 #ifdef _FS
@@ -159,7 +159,7 @@ DS_FSO mainFS(VSO si)
 	so.target1.a = 1.0;
 	so.target3.a = max(so.target3.a, AlphaToResolveDitheringMask(alpha));
 
-	const float fudgeFactor = 1.5;
+	const float fudgeFactor = 1.2;
 	clip(saturate(alpha * fudgeFactor) * mask - (dither + (1.0 / 8.0)));
 
 	return so;

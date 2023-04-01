@@ -28,9 +28,9 @@ void InstanceNode::Done()
 	VERUS_DONE(InstanceNode);
 }
 
-void InstanceNode::Duplicate(RBaseNode node)
+void InstanceNode::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
-	BaseNode::Duplicate(node);
+	BaseNode::Duplicate(node, hierarchyDuplication);
 
 	RInstanceNode instanceNode = static_cast<RInstanceNode>(node);
 
@@ -85,12 +85,12 @@ void InstanceNodePtr::Init(InstanceNode::RcDesc desc)
 	_p->Init(desc);
 }
 
-void InstanceNodePtr::Duplicate(RBaseNode node)
+void InstanceNodePtr::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
 	VERUS_QREF_WM;
 	VERUS_RT_ASSERT(!_p);
 	_p = wm.InsertInstanceNode();
-	_p->Duplicate(node);
+	_p->Duplicate(node, hierarchyDuplication);
 }
 
 void InstanceNodePwn::Done()

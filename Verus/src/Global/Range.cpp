@@ -32,3 +32,8 @@ Range::Iterator Range::end() const
 {
 	return _end;
 }
+
+bool Range::Includes(int value) const
+{
+	return value >= _begin && value < _end;
+}

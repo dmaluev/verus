@@ -577,6 +577,10 @@ void EditorTerrain::ApplyBrushSplat(const float xz[2], int layer, int radius, fl
 						falloff = Convert::Sint8ToSnorm(GetNormalAt(ij)[1]);
 						falloff = pow(falloff, 10.f);
 						break;
+					case TerrainSplatMode::inversedNormal:
+						falloff = Convert::Sint8ToSnorm(GetNormalAt(ij)[1]);
+						falloff = 1 - pow(falloff, 10.f);
+						break;
 					}
 					SplatTileAtEx(ij, layer, strength * maskValue * falloff);
 				}

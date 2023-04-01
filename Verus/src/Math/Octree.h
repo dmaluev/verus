@@ -73,6 +73,7 @@ namespace verus
 			Vector<Node>    _vNodes;
 			POctreeDelegate _pDelegate = nullptr;
 			Result          _defaultResult;
+			int             _skipTestNode = -1;
 
 		public:
 			Octree();

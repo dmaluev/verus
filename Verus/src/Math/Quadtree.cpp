@@ -196,6 +196,7 @@ Continue Quadtree::TraverseVisible(RcPoint3 point, PResult pResult, int currentN
 	if (_vNodes.empty())
 		return Continue::no;
 
+	// <Init>
 	if (!currentNode)
 	{
 		_defaultResult = Result();
@@ -205,27 +206,29 @@ Continue Quadtree::TraverseVisible(RcPoint3 point, PResult pResult, int currentN
 		pResult->_passedTestCount = 0;
 		pResult->_pLastFoundToken = nullptr;
 	}
+	// </Init>
 
 	pResult->_testCount++;
 	if (_vNodes[currentNode].GetBounds().IsInside2D(point))
 	{
+		// <ProcessNodeElements>
+		RcNode node = _vNodes[currentNode];
+		const int count = node.GetElementCount();
+		VERUS_FOR(i, count)
 		{
-			RcNode node = _vNodes[currentNode];
-			const int count = node.GetElementCount();
-			VERUS_FOR(i, count)
+			RcElement element = node.GetElementAt(i);
+			pResult->_testCount++;
+			if (element._bounds.IsInside2D(point))
 			{
-				RcElement element = node.GetElementAt(i);
-				pResult->_testCount++;
-				if (element._bounds.IsInside2D(point))
-				{
-					pResult->_passedTestCount++;
-					pResult->_pLastFoundToken = element._pToken;
-					if (Continue::no == _pDelegate->Quadtree_ProcessNode(element._pToken, pUser))
-						return Continue::no;
-				}
+				pResult->_passedTestCount++;
+				pResult->_pLastFoundToken = element._pToken;
+				if (Continue::no == _pDelegate->Quadtree_ProcessNode(element._pToken, pUser))
+					return Continue::no;
 			}
 		}
+		// </ProcessNodeElements>
 
+		// <TraverseChildren>
 		if (Node::HasChildren(currentNode, Utils::Cast32(_vNodes.size())))
 		{
 			BYTE remapped[4];
@@ -237,6 +240,7 @@ Continue Quadtree::TraverseVisible(RcPoint3 point, PResult pResult, int currentN
 					return Continue::no;
 			}
 		}
+		// </TraverseChildren>
 	}
 	return Continue::yes;
 }

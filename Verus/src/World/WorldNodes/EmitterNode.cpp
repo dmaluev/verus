@@ -30,9 +30,9 @@ void EmitterNode::Done()
 	VERUS_DONE(EmitterNode);
 }
 
-void EmitterNode::Duplicate(RBaseNode node)
+void EmitterNode::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
-	BaseNode::Duplicate(node);
+	BaseNode::Duplicate(node, hierarchyDuplication);
 
 	REmitterNode emitterNode = static_cast<REmitterNode>(node);
 
@@ -174,12 +174,12 @@ void EmitterNodePtr::Init(EmitterNode::RcDesc desc)
 	_p->Init(desc);
 }
 
-void EmitterNodePtr::Duplicate(RBaseNode node)
+void EmitterNodePtr::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
 	VERUS_QREF_WM;
 	VERUS_RT_ASSERT(!_p);
 	_p = wm.InsertEmitterNode();
-	_p->Duplicate(node);
+	_p->Duplicate(node, hierarchyDuplication);
 }
 
 void EmitterNodePwn::Done()

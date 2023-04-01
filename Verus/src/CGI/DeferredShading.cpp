@@ -564,7 +564,11 @@ void DeferredShading::BeginGeometryPass()
 	_activeGeometryPass = true;
 	_frame = renderer.GetFrameCount();
 
-	renderer.GetCommandBuffer()->BeginRenderPass(_rph, _fbh,
+	auto cb = renderer.GetCommandBuffer();
+
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(0, 128, 128, 255), "DeferredShading/GeometryPass...");
+
+	cb->BeginRenderPass(_rph, _fbh,
 		{
 			_tex[TEX_GBUFFER_0]->GetClearValue(),
 			_tex[TEX_GBUFFER_1]->GetClearValue(),
@@ -583,6 +587,9 @@ void DeferredShading::EndGeometryPass()
 	VERUS_RT_ASSERT(renderer.GetFrameCount() == _frame);
 	VERUS_RT_ASSERT(_activeGeometryPass && !_activeLightingPass && !_activeForwardRendering);
 	_activeGeometryPass = false;
+
+	auto cb = renderer.GetCommandBuffer();
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 bool DeferredShading::BeginLightingPass(bool ambient, bool terrainOcclusion)
@@ -593,6 +600,8 @@ bool DeferredShading::BeginLightingPass(bool ambient, bool terrainOcclusion)
 	_activeLightingPass = true;
 
 	auto cb = renderer.GetCommandBuffer();
+
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(255, 255, 96, 255), "...DeferredShading/LightingPass");
 
 	cb->NextSubpass();
 
@@ -683,8 +692,12 @@ void DeferredShading::EndLightingPass()
 	VERUS_RT_ASSERT(!_activeGeometryPass && _activeLightingPass && !_activeForwardRendering);
 	_activeLightingPass = false;
 
+	auto cb = renderer.GetCommandBuffer();
+
 	_shader[SHADER_LIGHT]->EndBindDescriptors();
-	renderer.GetCommandBuffer()->EndRenderPass();
+	cb->EndRenderPass();
+
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void DeferredShading::BeginComposeAndForwardRendering(bool underwaterMask)
@@ -698,6 +711,8 @@ void DeferredShading::BeginComposeAndForwardRendering(bool underwaterMask)
 	_activeForwardRendering = true;
 
 	auto cb = renderer.GetCommandBuffer();
+
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(96, 255, 255, 255), "DeferredShading/ComposeAndForwardRendering");
 
 	// Compose buffers, that is perform "final color = albedo * diffuse + specular" computation. Result is still HDR:
 	cb->BeginRenderPass(_rphCompose, _fbhCompose,
@@ -745,7 +760,11 @@ void DeferredShading::EndComposeAndForwardRendering()
 	VERUS_RT_ASSERT(!_activeGeometryPass && !_activeLightingPass && _activeForwardRendering);
 	_activeForwardRendering = false;
 
-	renderer.GetCommandBuffer()->EndRenderPass();
+	auto cb = renderer.GetCommandBuffer();
+
+	cb->EndRenderPass();
+
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void DeferredShading::DrawReflection()
@@ -755,20 +774,25 @@ void DeferredShading::DrawReflection()
 
 	auto cb = renderer.GetCommandBuffer();
 
-	cb->BeginRenderPass(_rphReflection, _fbhReflection, { _tex[TEX_COMPOSED_A]->GetClearValue() });
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(255, 128, 96, 255), "DeferredShading/DrawReflection");
+	{
 
-	s_ubReflectionVS._matW = Math::QuadMatrix().UniformBufferFormat();
-	s_ubReflectionVS._matV = Math::ToUVMatrix().UniformBufferFormat();
-	s_ubReflectionVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+		cb->BeginRenderPass(_rphReflection, _fbhReflection, { _tex[TEX_COMPOSED_A]->GetClearValue() });
 
-	cb->BindPipeline(ssr.IsCubeMapDebugMode() ? _pipe[PIPE_REFLECTION_DEBUG] : _pipe[PIPE_REFLECTION]);
-	_shader[SHADER_REFLECTION]->BeginBindDescriptors();
-	cb->BindDescriptors(_shader[SHADER_REFLECTION], 0);
-	cb->BindDescriptors(_shader[SHADER_REFLECTION], 1, _cshReflection);
-	_shader[SHADER_REFLECTION]->EndBindDescriptors();
-	renderer.DrawQuad(cb.Get());
+		s_ubReflectionVS._matW = Math::QuadMatrix().UniformBufferFormat();
+		s_ubReflectionVS._matV = Math::ToUVMatrix().UniformBufferFormat();
+		s_ubReflectionVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 
-	cb->EndRenderPass();
+		cb->BindPipeline(ssr.IsCubeMapDebugMode() ? _pipe[PIPE_REFLECTION_DEBUG] : _pipe[PIPE_REFLECTION]);
+		_shader[SHADER_REFLECTION]->BeginBindDescriptors();
+		cb->BindDescriptors(_shader[SHADER_REFLECTION], 0);
+		cb->BindDescriptors(_shader[SHADER_REFLECTION], 1, _cshReflection);
+		_shader[SHADER_REFLECTION]->EndBindDescriptors();
+		renderer.DrawQuad(cb.Get());
+
+		cb->EndRenderPass();
+	}
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void DeferredShading::ToneMapping()
@@ -777,18 +801,22 @@ void DeferredShading::ToneMapping()
 
 	auto cb = renderer.GetCommandBuffer();
 
-	s_ubComposeVS._matW = Math::QuadMatrix().UniformBufferFormat();
-	s_ubComposeVS._matV = Math::ToUVMatrix().UniformBufferFormat();
-	s_ubComposeVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
-	s_ubComposeFS._exposure_underwaterMask.x = renderer.GetExposure();
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(96, 160, 255, 255), "DeferredShading/ToneMapping");
+	{
+		s_ubComposeVS._matW = Math::QuadMatrix().UniformBufferFormat();
+		s_ubComposeVS._matV = Math::ToUVMatrix().UniformBufferFormat();
+		s_ubComposeVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+		s_ubComposeFS._exposure_underwaterMask.x = renderer.GetExposure();
 
-	// Convert HDR image to SDR. First multiply by exposure, then apply tone mapping curve:
-	cb->BindPipeline(_pipe[PIPE_TONE_MAPPING]);
-	_shader[SHADER_COMPOSE]->BeginBindDescriptors();
-	cb->BindDescriptors(_shader[SHADER_COMPOSE], 0);
-	cb->BindDescriptors(_shader[SHADER_COMPOSE], 1, _cshToneMapping);
-	_shader[SHADER_COMPOSE]->EndBindDescriptors();
-	renderer.DrawQuad(cb.Get());
+		// Convert HDR image to SDR. First multiply by exposure, then apply tone mapping curve:
+		cb->BindPipeline(_pipe[PIPE_TONE_MAPPING]);
+		_shader[SHADER_COMPOSE]->BeginBindDescriptors();
+		cb->BindDescriptors(_shader[SHADER_COMPOSE], 0);
+		cb->BindDescriptors(_shader[SHADER_COMPOSE], 1, _cshToneMapping);
+		_shader[SHADER_COMPOSE]->EndBindDescriptors();
+		renderer.DrawQuad(cb.Get());
+	}
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 bool DeferredShading::IsLightUrl(CSZ url)
@@ -839,7 +867,7 @@ void DeferredShading::OnNewLightType(CommandBufferPtr cb, LightType type, bool w
 	s_ubShadowFS._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrixDS(2).UniformBufferFormat();
 	s_ubShadowFS._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrixDS(3).UniformBufferFormat();
 	s_ubShadowFS._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixP().UniformBufferFormat();
-	s_ubShadowFS._csmSplitRanges = atmo.GetShadowMapBaker().GetSplitRanges().GLM();
+	s_ubShadowFS._csmSliceBounds = atmo.GetShadowMapBaker().GetSliceBounds().GLM();
 	memcpy(&s_ubShadowFS._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubShadowFS._shadowConfig));
 	cb->BindDescriptors(_shader[SHADER_LIGHT], 3);
 }

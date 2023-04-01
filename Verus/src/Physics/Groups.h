@@ -21,8 +21,9 @@ namespace verus
 			gizmo = (1 << 10), // Editor::PGizmoTool
 			particle = (1 << 11),
 			terrain = (1 << 12),
-			transport = (1 << 13),
-			wall = (1 << 14),
+			forest = (1 << 13),
+			transport = (1 << 14),
+			wall = (1 << 15),
 			all = UINT32_MAX
 		};
 	}

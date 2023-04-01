@@ -52,6 +52,7 @@ namespace verus
 			int                       _nodeCount = 0;
 			int                       _testCount = 0;
 			int                       _passedTestCount = 0;
+			int                       _skipTestNode = -1;
 			int                       _mapSide = 0;
 			int                       _limit = 0;
 			int                       _maxDepth = 0;

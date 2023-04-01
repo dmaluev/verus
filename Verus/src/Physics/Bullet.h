@@ -72,14 +72,14 @@ namespace verus
 
 			LocalPtr<btDefaultCollisionConfiguration>     _pCollisionConfiguration;
 			LocalPtr<btCollisionDispatcher>               _pDispatcher;
-			LocalPtr<btDbvtBroadphase>                    _pBroadphaseInterface;
+			LocalPtr<btAxisSweep3>                        _pBroadphaseInterface;
 			LocalPtr<btSequentialImpulseConstraintSolver> _pConstraintSolver;
 			LocalPtr<btDiscreteDynamicsWorld>             _pDiscreteDynamicsWorld;
 			LocalPtr<btStaticPlaneShape>                  _pStaticPlaneShape;
 			LocalRigidBody                                _pStaticPlaneRigidBody;
 			btGhostPairCallback                           _ghostPairCallback;
 			BulletDebugDraw                               _debugDraw;
-			Group                                         _mainMask = Group::immovable | Group::terrain;
+			Group                                         _staticMask = Group::immovable | Group::terrain | Group::forest;
 			bool                                          _pauseSimulation = false;
 
 		public:
@@ -89,6 +89,10 @@ namespace verus
 			void Init();
 			void Done();
 
+			btDefaultCollisionConfiguration* GetCollisionConfiguration() { return _pCollisionConfiguration.Get(); }
+			btCollisionDispatcher* GetDispatcher() { return _pDispatcher.Get(); }
+			btAxisSweep3* GetBroadphaseInterface() { return _pBroadphaseInterface.Get(); }
+			btSequentialImpulseConstraintSolver* GetConstraintSolver() { return _pConstraintSolver.Get(); }
 			btDiscreteDynamicsWorld* GetWorld() { return _pDiscreteDynamicsWorld.Get(); }
 
 			btRigidBody* AddNewRigidBody(
@@ -124,8 +128,9 @@ namespace verus
 
 			static CSZ GroupToString(int index);
 
-			Group GetMainMask() const { return _mainMask; }
-			void SetMainMask(Group mask) { _mainMask = mask; }
+			Group GetStaticMask() const { return _staticMask; }
+			Group GetNonStaticMask() const { return ~_staticMask; }
+			void SetStaticMask(Group mask) { _staticMask = mask; }
 		};
 		VERUS_TYPEDEFS(Bullet);
 	}

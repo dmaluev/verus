@@ -162,6 +162,8 @@ void Settings::ParseCommandLineArgs(int argc, char* argv[])
 			_commandLine._borderlessWindowed = true;
 		if (IsArg(i, "--restarted"))
 			_commandLine._restarted = true;
+		if (IsArg(i, "--xr-height") && i + 1 < argc)
+			_commandLine._xrHeight = static_cast<float>(atof(argv[i + 1]));
 	}
 
 	SetFilename("Settings.json");
@@ -233,6 +235,8 @@ void Settings::Load()
 	_sceneShadowQuality = static_cast<Quality>(GetI("sceneShadowQuality", +_sceneShadowQuality));
 	_sceneWaterQuality = static_cast<WaterQuality>(GetI("sceneWaterQuality", +_sceneWaterQuality));
 	_uiLang = GetS("uiLang", _C(_uiLang));
+	_xrFOV = GetF("xrFOV", _xrFOV);
+	_xrHeight = GetF("xrHeight", _xrHeight);
 }
 
 void Settings::HandleHighDpi()
@@ -276,10 +280,22 @@ void Settings::HandleCommandLineArgs()
 		_displayMode = DisplayMode::borderlessWindowed;
 		MatchScreen();
 	}
+
+	if (_commandLine._xrHeight != -FLT_MAX)
+		_xrHeight = _commandLine._xrHeight;
 }
 
 void Settings::Validate()
 {
+	if (!_info._appName)
+		_info._appName = "Unnamed";
+	if (!_info._appVersion)
+		_info._appVersion = VERUS_MAKE_VERSION(0, 1, 0);
+	if (!_info._engineName)
+		_info._engineName = VERUS_ENGINE_NAME;
+	if (!_info._engineVersion)
+		_info._engineVersion = VERUS_SDK_VERSION;
+
 	_displayFOV = Math::Clamp<float>(_displayFOV, 60, 90);
 	_displayOffscreenScale = Math::Clamp(_displayOffscreenScale, 0.25f, 4.f);
 	_displaySizeWidth = Math::Clamp(_displaySizeWidth, 480, 0x2000);
@@ -291,6 +307,8 @@ void Settings::Validate()
 	_sceneGrassDensity = Math::Clamp(_sceneGrassDensity, 100, 1000);
 	_sceneShadowQuality = Math::Clamp(_sceneShadowQuality, Quality::low, Quality::ultra);
 	_sceneWaterQuality = Math::Clamp(_sceneWaterQuality, WaterQuality::solidColor, WaterQuality::trueWavesRefraction);
+	_xrFOV = Math::Clamp<float>(_xrFOV, 45, 135);
+	_xrHeight = Math::Clamp<float>(_xrHeight, -3, 3);
 
 	if (_uiLang != "RU" && _uiLang != "EN")
 		_uiLang = "EN";
@@ -329,6 +347,8 @@ void Settings::Save()
 	Set("sceneShadowQuality", +_sceneShadowQuality);
 	Set("sceneWaterQuality", +_sceneWaterQuality);
 	Set("uiLang", _C(_uiLang));
+	Set("xrFOV", _xrFOV);
+	Set("xrHeight", _xrHeight);
 
 	Json::Save();
 }

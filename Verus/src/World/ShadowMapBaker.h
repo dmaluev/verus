@@ -63,10 +63,10 @@ namespace verus
 			Matrix4 _matOffset[4];
 			Matrix4 _matScreenVP = Matrix4::identity();
 			Matrix4 _matScreenP = Matrix4::identity();
-			Vector4 _splitRanges = Vector4(0);
-			Camera  _passCameraCSM;
-			int     _currentSplit = -1;
+			Vector4 _sliceBounds = Vector4(0);
+			int     _currentSlice = -1;
 			float   _depth = 0;
+			float   _headCameraPreferredRange = 0;
 
 		public:
 			CascadedShadowMapBaker();
@@ -77,19 +77,17 @@ namespace verus
 
 			void UpdateMatrixForCurrentView();
 
-			void Begin(RcVector3 dirToSun, int split, RcVector3 up = Vector3(0, 1, 0));
-			void End(int split);
+			void Begin(RcVector3 dirToSun, int slice, RcVector3 up = Vector3(0, 1, 0));
+			void End(int slice);
 
-			RcMatrix4 GetShadowMatrix(int split = 0) const;
-			RcMatrix4 GetShadowMatrixDS(int split = 0) const;
+			RcMatrix4 GetShadowMatrix(int slice = 0) const;
+			RcMatrix4 GetShadowMatrixDS(int slice = 0) const;
 
 			RcMatrix4 GetScreenMatrixVP() const { return _matScreenVP; }
 			RcMatrix4 GetScreenMatrixP() const { return _matScreenP; }
 
-			int GetCurrentSplit() const { return _currentSplit; }
-			RcVector4 GetSplitRanges() const { return _splitRanges; }
-
-			PCamera GetPassCameraCSM();
+			int GetCurrentSlice() const { return _currentSlice; }
+			RcVector4 GetSliceBounds() const { return _sliceBounds; }
 		};
 		VERUS_TYPEDEFS(CascadedShadowMapBaker);
 	}

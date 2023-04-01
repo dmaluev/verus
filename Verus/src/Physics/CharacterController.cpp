@@ -41,7 +41,7 @@ void CharacterController::Init(RcPoint3 pos, RcDesc desc)
 	_pKCC = new(_pKCC.GetData()) KinematicCharacterController(_pGhostObject.Get(), _pCapsule.Get(), stepHeight);
 	_pKCC->setGravity(-bullet.GetWorld()->getGravity().getY());
 	_pKCC->setMaxSlope(btRadians(48));
-	bullet.GetWorld()->addCollisionObject(_pGhostObject.Get(), +Group::character, -1);
+	bullet.GetWorld()->addCollisionObject(_pGhostObject.Get(), +Group::character, +Group::all);
 	bullet.GetWorld()->addAction(_pKCC.Get());
 	UpdateScaling();
 }

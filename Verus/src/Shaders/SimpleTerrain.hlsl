@@ -180,7 +180,7 @@ FSO mainFS(VSO si)
 			g_ubSimpleTerrainFS._matShadowCSM2,
 			g_ubSimpleTerrainFS._matShadowCSM3,
 			g_ubSimpleTerrainFS._matScreenCSM,
-			g_ubSimpleTerrainFS._csmSplitRanges,
+			g_ubSimpleTerrainFS._csmSliceBounds,
 			g_ubSimpleTerrainFS._shadowConfig);
 	}
 	// </Shadow>

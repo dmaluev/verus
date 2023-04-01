@@ -21,6 +21,6 @@ VERUS_UBUFFER UB_SimpleTerrainFS
 	matrix _matShadowCSM2;
 	matrix _matShadowCSM3;
 	matrix _matScreenCSM;
-	float4 _csmSplitRanges;
+	float4 _csmSliceBounds;
 	float4 _shadowConfig;
 };

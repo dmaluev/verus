@@ -167,7 +167,7 @@ void LightMapBaker::Init(RcDesc desc)
 				{
 					tex->GetClearValue(),
 					_tex[TEX_DEPTH]->GetClearValue()
-				});
+				}, CGI::ViewportScissorFlags::setAllForFramebuffer);
 			renderer.GetCommandBuffer()->EndRenderPass();
 			tex->GenerateMips();
 		}
@@ -179,19 +179,22 @@ void LightMapBaker::Init(RcDesc desc)
 
 void LightMapBaker::Done()
 {
-	VERUS_QREF_RENDERER;
-	if (renderer.GetShaderQuad())
+	if (CGI::Renderer::IsLoaded())
 	{
+		VERUS_QREF_RENDERER;
+		if (renderer.GetShaderQuad())
+		{
+			VERUS_FOR(ringBufferIndex, CGI::BaseRenderer::s_ringBufferSize)
+				renderer.GetShaderQuad()->FreeDescriptorSet(_cshQuad[ringBufferIndex]);
+			renderer.GetShaderQuad()->FreeDescriptorSet(_cshHemicubeMask);
+		}
 		VERUS_FOR(ringBufferIndex, CGI::BaseRenderer::s_ringBufferSize)
-			renderer.GetShaderQuad()->FreeDescriptorSet(_cshQuad[ringBufferIndex]);
-		renderer.GetShaderQuad()->FreeDescriptorSet(_cshHemicubeMask);
+		{
+			VERUS_FOR(batchIndex, s_batchSize)
+				renderer->DeleteFramebuffer(_fbh[ringBufferIndex][batchIndex]);
+		}
+		renderer->DeleteRenderPass(_rph);
 	}
-	VERUS_FOR(ringBufferIndex, CGI::BaseRenderer::s_ringBufferSize)
-	{
-		VERUS_FOR(batchIndex, s_batchSize)
-			renderer->DeleteFramebuffer(_fbh[ringBufferIndex][batchIndex]);
-	}
-	renderer->DeleteRenderPass(_rph);
 	VERUS_DONE(LightMapBaker);
 }
 
@@ -358,7 +361,7 @@ void LightMapBaker::DrawEmpty()
 		{
 			tex->GetClearValue(),
 			_tex[TEX_DEPTH]->GetClearValue()
-		});
+		}, CGI::ViewportScissorFlags::setAllForFramebuffer);
 
 	DrawHemicubeMask();
 
@@ -404,7 +407,7 @@ void LightMapBaker::DrawLumel(RcPoint3 pos, RcVector3 nrm, int batchIndex)
 		{
 			tex->GetClearValue(),
 			_tex[TEX_DEPTH]->GetClearValue()
-		});
+		}, CGI::ViewportScissorFlags::setAllForFramebuffer);
 	if (_pDelegate)
 	{
 		const glm::vec2 randVec = glm::circularRand(1.f);
@@ -420,7 +423,7 @@ void LightMapBaker::DrawLumel(RcPoint3 pos, RcVector3 nrm, int batchIndex)
 		{
 			const CGI::CubeMapFace cubeMapFace = static_cast<CGI::CubeMapFace>(i);
 
-			Camera cam;
+			MainCamera cam;
 			cam.MoveEyeTo(drawLumelDesc._eyePos);
 			switch (cubeMapFace)
 			{
@@ -450,12 +453,14 @@ void LightMapBaker::DrawLumel(RcPoint3 pos, RcVector3 nrm, int batchIndex)
 			cam.SetZNear(0.00001f);
 			cam.SetZFar(_desc._distance);
 			cam.Update();
-			PCamera pPrevCamera = wm.SetPassCamera(&cam);
+			auto pPrevPassCamera = wm.SetPassCamera(&cam);
+			auto pPrevHeadCamera = wm.SetHeadCamera(&cam);
 
 			drawLumelDesc._frontDir = cam.GetFrontDirection();
 			_pDelegate->LightMapBaker_Draw(cubeMapFace, drawLumelDesc);
 
-			wm.SetPassCamera(pPrevCamera);
+			wm.SetPassCamera(pPrevPassCamera);
+			wm.SetHeadCamera(pPrevHeadCamera);
 		}
 		_pDelegate->LightMapBaker_Draw(CGI::CubeMapFace::negZ, drawLumelDesc);
 

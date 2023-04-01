@@ -18,13 +18,16 @@ namespace verus
 			node_resetLocalTransform,
 			node_resetLocalTransformKeepGlobal,
 			node_pointAt,
+			node_moveTo,
 			model_insertBlockNode,
 			model_insertBlockAndPhysicsNodes,
 			model_selectAllBlocks,
 			particles_insertEmitterNode,
 			particles_insertEmitterAndSoundNodes,
 			particles_selectAllEmitters,
+			blockChain_generateNodes,
 			controlPoint_insertControlPoint,
+			path_insertBlockChain,
 			path_insertControlPoint,
 			physics_takeSizeFromParentBlock,
 			physics_loadShapeFromFile,
@@ -54,6 +57,7 @@ namespace verus
 #include "ParticlesNode.h"
 
 #include "BlockNode.h"
+#include "BlockChainNode.h"
 #include "ControlPointNode.h"
 #include "EmitterNode.h"
 #include "InstanceNode.h"

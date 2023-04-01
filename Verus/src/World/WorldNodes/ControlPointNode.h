@@ -31,7 +31,7 @@ namespace verus
 			void Init(RcDesc desc);
 			void Done();
 
-			virtual void Duplicate(RBaseNode node) override;
+			virtual void Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication) override;
 
 			virtual void DrawEditorOverlays(DrawEditorOverlaysFlags flags) override;
 
@@ -75,7 +75,7 @@ namespace verus
 			bool IsMarkedAsHead() const { return _markedAsHead; }
 			void MarkAsHead(bool head) { _markedAsHead = head; }
 
-			bool ComputePositionAt(float distance, RPoint3 pos) const;
+			bool ComputePositionAt(float distance, RPoint3 pos, PVector3 pDir = nullptr, bool extrapolate = false) const;
 		};
 		VERUS_TYPEDEFS(ControlPointNode);
 
@@ -83,7 +83,7 @@ namespace verus
 		{
 		public:
 			void Init(ControlPointNode::RcDesc desc);
-			void Duplicate(RBaseNode node);
+			void Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication);
 		};
 		VERUS_TYPEDEFS(ControlPointNodePtr);
 

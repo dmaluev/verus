@@ -35,16 +35,16 @@ struct VSI
 
 struct VSO
 {
-	float4 pos                         : SV_Position;
-	float4 clipSpacePos                : TEXCOORD0;
+	float4 pos                                      : SV_Position;
+	float4 clipSpacePos                             : TEXCOORD0;
 #if defined(DEF_DIR) || defined(DEF_SPOT) // Direction and cone shape for spot.
-	float4 lightDirWV_invConeDelta     : TEXCOORD1;
+	float4 lightDirWV_invConeDelta                  : TEXCOORD1;
 #endif
 #if defined(DEF_OMNI) || defined(DEF_SPOT) // Omni and spot have position and radius.
-	float3 lightPosWV                  : TEXCOORD2;
-	float3 radius_radiusSq_invRadiusSq : TEXCOORD3;
+	float4 lightPosWV_lampRadius                     : TEXCOORD2;
+	float4 radius_radiusSq_invRadiusSq_invLampRadius : TEXCOORD3;
 #endif
-	float4 color_coneOut               : TEXCOORD4;
+	float4 color_coneOut                            : TEXCOORD4;
 };
 
 #ifdef _VS
@@ -100,10 +100,14 @@ VSO mainVS(VSI si)
 #endif
 #if defined(DEF_OMNI) || defined(DEF_SPOT)
 	{
-		so.lightPosWV = mul(float4(0, 0, 0, 1), matWV).xyz;
-		so.radius_radiusSq_invRadiusSq.y = dot(scaledFrontDir, scaledFrontDir);
-		so.radius_radiusSq_invRadiusSq.x = sqrt(so.radius_radiusSq_invRadiusSq.y);
-		so.radius_radiusSq_invRadiusSq.z = 1.0 / so.radius_radiusSq_invRadiusSq.y;
+		so.lightPosWV_lampRadius.xyz = mul(float4(0, 0, 0, 1), matWV).xyz;
+		so.radius_radiusSq_invRadiusSq_invLampRadius.y = dot(scaledFrontDir, scaledFrontDir);
+		so.radius_radiusSq_invRadiusSq_invLampRadius.x = sqrt(so.radius_radiusSq_invRadiusSq_invLampRadius.y);
+		so.radius_radiusSq_invRadiusSq_invLampRadius.z = 1.0 / so.radius_radiusSq_invRadiusSq_invLampRadius.y;
+
+		const float lampRadius = ComputeLampRadius(so.radius_radiusSq_invRadiusSq_invLampRadius.x, color);
+		so.lightPosWV_lampRadius.w = lampRadius;
+		so.radius_radiusSq_invRadiusSq_invLampRadius.w = 1.0 / lampRadius;
 	}
 #endif
 	// </MoreLightParams>
@@ -113,6 +117,7 @@ VSO mainVS(VSI si)
 #endif
 
 #ifdef _FS
+[earlydepthstencil]
 DS_ACC_FSO mainFS(VSO si)
 {
 	DS_ACC_FSO so;
@@ -135,12 +140,14 @@ DS_ACC_FSO mainFS(VSO si)
 	const float coneOut = si.color_coneOut.a;
 #endif
 
-	// Omni and spot have position and radius:
+	// Omni and spot have position, radius and size:
 #if defined(DEF_OMNI) || defined(DEF_SPOT)
-	const float3 lightPosWV = si.lightPosWV;
-	const float radius = si.radius_radiusSq_invRadiusSq.x;
-	const float radiusSq = si.radius_radiusSq_invRadiusSq.y;
-	const float invRadiusSq = si.radius_radiusSq_invRadiusSq.z;
+	const float3 lightPosWV = si.lightPosWV_lampRadius.xyz;
+	const float radius = si.radius_radiusSq_invRadiusSq_invLampRadius.x;
+	const float radiusSq = si.radius_radiusSq_invRadiusSq_invLampRadius.y;
+	const float invRadiusSq = si.radius_radiusSq_invRadiusSq_invLampRadius.z;
+	const float lampRadius = si.lightPosWV_lampRadius.w;
+	const float invLampRadius = si.radius_radiusSq_invRadiusSq_invLampRadius.w;
 #endif
 
 	// Depth:
@@ -179,17 +186,20 @@ DS_ACC_FSO mainFS(VSO si)
 		const float lightFalloff = 1.0; // No falloff.
 #else
 		const float3 toLightWV = lightPosWV - posWV;
-		const float3 dirToLightWV = normalize(toLightWV);
-		const float distToLightSq = dot(toLightWV, toLightWV);
+		const float distToLight = length(toLightWV);
+		const float distToLightSq = distToLight * distToLight;
+		const float3 dirToLightWV = toLightWV / distToLight;
 		const float lightFalloff = ComputePointLightIntensity(distToLightSq, radiusSq, invRadiusSq);
 #endif
 #ifdef DEF_SPOT // Extra step for spot light:
-		const float coneIntensity = ComputeSpotLightConeIntensity(dirToLightWV, lightDirWV, coneOut, invConeDelta);
+		const float coneIntensity = ComputeSpotLightConeIntensity(dirToLightWV, lightDirWV, coneOut, invConeDelta) *
+			saturate(distToLight * invLampRadius * 10.0 - 10.0);
 #else
 		const float coneIntensity = 1.0; // No cone.
 #endif
 		const float lightFalloffWithCone = lightFalloff * coneIntensity;
-		const float3 dirToEyeWV = normalize(-posWV);
+		const float distToEye = length(posWV);
+		const float3 dirToEyeWV = -posWV / distToEye;
 		const float3 lightColor = si.color_coneOut.rgb;
 		// </LightData>
 
@@ -212,14 +222,20 @@ DS_ACC_FSO mainFS(VSO si)
 				g_ubShadowFS._matShadowCSM2,
 				g_ubShadowFS._matShadowCSM3,
 				g_ubShadowFS._matScreenCSM,
-				g_ubShadowFS._csmSplitRanges,
+				g_ubShadowFS._csmSliceBounds,
 				shadowConfig);
 #endif
 		}
 		// </Shadow>
 
-		const float lightMinRoughness = 0.015;
-		const float lightRoughness = lightMinRoughness + roughness * (1.0 / (1.0 - lightMinRoughness));
+#ifdef DEF_DIR
+		const float lightMinRoughness = 0.015; // The sun.
+#else
+		const float distToReflected = distToLight + distToEye;
+		const float lampRadiusFactor = lampRadius / (1.0 + distToReflected * distToReflected);
+		const float lightMinRoughness = clamp(lampRadiusFactor * 64.0, 0.01, 0.6);
+#endif
+		const float lightRoughness = lightMinRoughness + (1.0 - lightMinRoughness) * roughness;
 
 		float3 punctualDiff, punctualSpec;
 		VerusLit(normalWV, dirToLightWV, dirToEyeWV, tangentWV,

@@ -245,7 +245,7 @@ FSO mainFS(VSO si)
 			g_ubSimplePerFrame._matShadowCSM2,
 			g_ubSimplePerFrame._matShadowCSM3,
 			g_ubSimplePerFrame._matScreenCSM,
-			g_ubSimplePerFrame._csmSplitRanges,
+			g_ubSimplePerFrame._csmSliceBounds,
 			g_ubSimplePerFrame._shadowConfig);
 	}
 	// </Shadow>

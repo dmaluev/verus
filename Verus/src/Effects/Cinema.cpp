@@ -85,6 +85,8 @@ void Cinema::Draw()
 
 	auto cb = renderer.GetCommandBuffer();
 
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(200, 180, 150, 255), "Cinema/Draw");
+
 	s_ubCinemaVS._matW = Math::QuadMatrix().UniformBufferFormat();
 	s_ubCinemaVS._matV = Math::ToUVMatrix().UniformBufferFormat();
 	s_ubCinemaVS._matP = Math::ToUVMatrix(0, renderer.GetDS().GetGBuffer(0)->GetSize(), &_texFilmGrain->GetSize(), _uOffset, _vOffset).UniformBufferFormat();
@@ -97,4 +99,6 @@ void Cinema::Draw()
 	cb->BindDescriptors(_shader, 1, _csh);
 	_shader->EndBindDescriptors();
 	renderer.DrawQuad(cb.Get());
+
+	VERUS_PROFILER_END_EVENT(cb);
 }

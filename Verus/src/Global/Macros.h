@@ -26,6 +26,9 @@
 #define _C(x) ((x).c_str())
 
 #define VERUS_MAKE_VERSION(major, minor, patch) (((major)<<24)|((minor)<<12)|(patch))
+#define VERUS_VERSION_MAJOR(version) ((version >> 24) & 0xFF)
+#define VERUS_VERSION_MINOR(version) ((version >> 12) & 0xFFF)
+#define VERUS_VERSION_PATCH(version) ((version) & 0xFFF)
 
 #define VERUS_P_FOR(i, to)                      Parallel::For(0, to, [&](int i)
 #define VERUS_U_FOR(i, to)                      for(UINT32 i = 0; i < to; ++i)
@@ -93,3 +96,14 @@
 #define VERUS_COLOR_BLEND_TINTED_GLASS "s*(sc)+d*(1-sc)"
 #define VERUS_COLOR_BLEND_MIN          "min(s, d)"
 #define VERUS_COLOR_BLEND_MAX          "max(s, d)"
+
+#ifdef VERUS_PROFILER_CALLS
+#	pragma message("VERUS_PROFILER_CALLS is defined")
+#	define VERUS_PROFILER_BEGIN_EVENT(cb, color, text) cb->ProfilerBeginEvent(color, text)
+#	define VERUS_PROFILER_END_EVENT(cb)                cb->ProfilerEndEvent()
+#	define VERUS_PROFILER_SET_MARKER(cb, color, text)  cb->ProfilerSetMarker(color, text)
+#else
+#	define VERUS_PROFILER_BEGIN_EVENT(cb, color, text)
+#	define VERUS_PROFILER_END_EVENT(cb)
+#	define VERUS_PROFILER_SET_MARKER(cb, color, text)
+#endif

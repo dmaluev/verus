@@ -61,8 +61,8 @@ void WorldManager::Update()
 {
 	VERUS_UPDATE_ONCE_CHECK;
 
-	for (auto pNode : _vNodes)
-		pNode->Update();
+	VERUS_FOR(i, _vNodes.size()) // Must check size every loop iteration.
+		_vNodes[i]->Update(); // Can add/remove child nodes.
 }
 
 void WorldManager::UpdateParts()
@@ -88,21 +88,16 @@ void WorldManager::Layout()
 	_visibleCount = 0;
 	VERUS_ZERO_MEM(_visibleCountPerType);
 
-	// <Traverse>
-	PCamera pPrevPassCamera = nullptr;
-	// For CSM we need to create geometry beyond the view frustum (1st slice):
-	if (settings._sceneShadowQuality >= App::Settings::Quality::high && atmo.GetShadowMapBaker().IsBaking())
-	{
-		PCamera pPassCameraCSM = atmo.GetShadowMapBaker().GetPassCameraCSM();
-		if (pPassCameraCSM)
-			pPrevPassCamera = SetPassCamera(pPassCameraCSM);
-	}
 	_octree.TraverseVisible(_pPassCamera->GetFrustum());
-	// Back to original camera:
-	if (pPrevPassCamera)
-		SetPassCamera(pPrevPassCamera);
-	// </Traverse>
 
+	SortVisible();
+
+	for (auto& x : TStoreTerrainNodes::_list)
+		x.Layout();
+}
+
+void WorldManager::SortVisible()
+{
 	VERUS_RT_ASSERT(!_visibleCountPerType[+NodeType::unknown]);
 	std::sort(_vVisibleNodes.begin(), _vVisibleNodes.begin() + _visibleCount, [](PBaseNode pA, PBaseNode pB)
 		{
@@ -157,9 +152,6 @@ void WorldManager::Layout()
 			// Draw same node types front-to-back:
 			return pA->GetDistToHeadSq() < pB->GetDistToHeadSq();
 		});
-
-	for (auto& x : TStoreTerrainNodes::_list)
-		x.Layout();
 }
 
 void WorldManager::Draw()
@@ -447,6 +439,8 @@ Continue WorldManager::Octree_ProcessNode(void* pToken, void* pUser)
 {
 	PBaseNode pNode = static_cast<PBaseNode>(pToken);
 	if (pNode->IsDisabled())
+		return Continue::yes;
+	if (IsDrawingDepth(DrawDepth::automatic) && !pNode->IsShadowCaster())
 		return Continue::yes;
 	_vVisibleNodes[_visibleCount++] = pNode;
 	_visibleCountPerType[+pNode->GetType()]++;
@@ -792,6 +786,7 @@ void WorldManager::DeleteNode(NodeType type, CSZ name, bool hierarchy)
 			case NodeType::model:        deleted = TStoreModelNodes::Delete(_C(static_cast<RModelNode>(node).GetURL())); break;
 			case NodeType::particles:    deleted = TStoreParticlesNodes::Delete(_C(static_cast<RParticlesNode>(node).GetURL())); break;
 			case NodeType::block:        TStoreBlockNodes::Delete(static_cast<PBlockNode>(&node)); break;
+			case NodeType::blockChain:   TStoreBlockChainNodes::Delete(static_cast<PBlockChainNode>(&node)); break;
 			case NodeType::controlPoint: TStoreControlPointNodes::Delete(static_cast<PControlPointNode>(&node)); break;
 			case NodeType::emitter:      TStoreEmitterNodes::Delete(static_cast<PEmitterNode>(&node)); break;
 			case NodeType::instance:     TStoreInstanceNodes::Delete(static_cast<PInstanceNode>(&node)); break;
@@ -841,17 +836,18 @@ PBaseNode WorldManager::DuplicateNode(PBaseNode pTargetNode, HierarchyDuplicatio
 	BroadcastOnNodeDuplicated(pTargetNode, false, pNewNode, hierarchyDuplication);
 	switch (pTargetNode->GetType())
 	{
-	case NodeType::base: {BaseNodePtr node; node.Duplicate(*pTargetNode); pNewNode = node.Get(); break; }
-	case NodeType::block: {BlockNodePtr node; node.Duplicate(*pTargetNode); pNewNode = node.Get(); break; }
-	case NodeType::controlPoint: {ControlPointNodePtr node; node.Duplicate(*pTargetNode); pNewNode = node.Get(); break; }
-	case NodeType::emitter: {EmitterNodePtr node; node.Duplicate(*pTargetNode); pNewNode = node.Get(); break; }
-	case NodeType::instance: {InstanceNodePtr node; node.Duplicate(*pTargetNode); pNewNode = node.Get(); break; }
-	case NodeType::light: {LightNodePtr node; node.Duplicate(*pTargetNode); pNewNode = node.Get(); break; }
-	case NodeType::path: {PathNodePtr node; node.Duplicate(*pTargetNode); pNewNode = node.Get(); break; }
-	case NodeType::physics: {PhysicsNodePtr node; node.Duplicate(*pTargetNode); pNewNode = node.Get(); break; }
-	case NodeType::prefab: {PrefabNodePtr node; node.Duplicate(*pTargetNode); pNewNode = node.Get(); break; }
-	case NodeType::shaker: {ShakerNodePtr node; node.Duplicate(*pTargetNode); pNewNode = node.Get(); break; }
-	case NodeType::sound: {SoundNodePtr node; node.Duplicate(*pTargetNode); pNewNode = node.Get(); break; }
+	case NodeType::base: {BaseNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
+	case NodeType::block: {BlockNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
+	case NodeType::blockChain: {BlockChainNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
+	case NodeType::controlPoint: {ControlPointNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
+	case NodeType::emitter: {EmitterNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
+	case NodeType::instance: {InstanceNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
+	case NodeType::light: {LightNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
+	case NodeType::path: {PathNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
+	case NodeType::physics: {PhysicsNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
+	case NodeType::prefab: {PrefabNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
+	case NodeType::shaker: {ShakerNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
+	case NodeType::sound: {SoundNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
 	}
 	BroadcastOnNodeDuplicated(pTargetNode, true, pNewNode, hierarchyDuplication);
 
@@ -935,14 +931,11 @@ int WorldManager::GetSelectedCount()
 
 void WorldManager::SelectAllChildNodes(PBaseNode pTargetNode)
 {
-	const int nodeIndex = GetIndexOf(pTargetNode);
-	const int nodeDepth = pTargetNode->GetDepth();
-
 	const int nodeCount = GetNodeCount();
-	for (int i = nodeIndex + 1; i < nodeCount; ++i)
+	for (int i = GetIndexOf(pTargetNode) + 1; i < nodeCount; ++i)
 	{
 		PBaseNode pNode = _vNodes[i];
-		if (pNode->GetDepth() <= nodeDepth)
+		if (pNode->GetDepth() <= pTargetNode->GetDepth())
 			break;
 		pNode->Select();
 	}
@@ -957,6 +950,165 @@ void WorldManager::ResetRigidBodyTransforms()
 			static_cast<RPhysicsNode>(node).ResetRigidBodyTransform();
 			return Continue::yes;
 		});
+}
+
+void WorldManager::GenerateBlockChainNodes(PBlockChainNode pBlockChainNode)
+{
+	if (!pBlockChainNode->GetSourceModelCount())
+		return;
+	VERUS_RT_ASSERT(NodeType::path == pBlockChainNode->GetParent()->GetType());
+
+	char buffer[IO::Stream::s_bufferSize] = {};
+
+	PPathNode pPathNode = static_cast<PPathNode>(pBlockChainNode->GetParent());
+	PControlPointNode pHeadNode = nullptr;
+
+	float fullLength = 0;
+	ForEachControlPointOf(pPathNode, false, [&fullLength, &pHeadNode](World::PControlPointNode pControlPointNode)
+		{
+			if (!pHeadNode && pControlPointNode->IsHeadControlPoint())
+				pHeadNode = pControlPointNode;
+			fullLength += pControlPointNode->GetSegmentLength();
+			return Continue::yes;
+		});
+
+	pBlockChainNode->ParseArguments();
+
+	float length = 0;
+	int slot = 0;
+	while (true)
+	{
+		const float slotLength = pBlockChainNode->GetLengthForSlot(slot++);
+		if (slotLength < VERUS_FLOAT_THRESHOLD)
+			break;
+		length += slotLength;
+		if (length >= fullLength)
+			break;
+	}
+
+	// Delete previously generated nodes:
+	CGI::Renderer::I()->WaitIdle();
+	bool nodeDeleted = false;
+	do
+	{
+		nodeDeleted = false;
+		for (auto pNode : _vNodes)
+		{
+			if (pNode->GetParent() == pBlockChainNode && (pNode->GetType() == NodeType::model || pNode->GetType() == NodeType::block))
+			{
+				DeleteNode(pNode);
+				nodeDeleted = true;
+				break;
+			}
+		}
+	} while (nodeDeleted);
+
+	_recursionDepth = 1; // Disable sorting.
+
+	const int slotCount = slot;
+	slot = 0;
+	const float scale = fullLength / length;
+	const float bankedTurn = pPathNode->GetDictionary().FindFloat("_BankedTurn");
+	float distOffset = 0;
+	while (slot < slotCount)
+	{
+		const float slotLength = pBlockChainNode->GetLengthForSlot(slot) * scale;
+		const float pivotOffset = distOffset + slotLength * 0.5f;
+
+		Point3 pivotPos;
+		pHeadNode->ComputePositionAt(pivotOffset, pivotPos);
+
+		ModelNodePtr modelNode = pBlockChainNode->GetModelNodeForSlot(slot);
+		if (modelNode)
+		{
+			RMesh mesh = modelNode->GetMesh();
+
+			BaseMesh::SourceBuffers sourceBuffers;
+			sourceBuffers._vIndices.resize(mesh.GetIndexCount());
+			sourceBuffers._vPos.resize(mesh.GetVertCount());
+			sourceBuffers._vTc0.resize(mesh.GetVertCount());
+			sourceBuffers._vNrm.resize(mesh.GetVertCount());
+			memcpy(sourceBuffers._vIndices.data(), mesh.GetIndices(), sourceBuffers._vIndices.size() * sizeof(UINT16));
+			mesh.ForEachVertex([&sourceBuffers, pHeadNode, fullLength, scale, pivotOffset, &pivotPos, bankedTurn](int index, RcPoint3 pos, RcVector3 nrm, RcPoint3 tc)
+				{
+					const float offsetFromPivot = pos.getZ() * scale;
+
+					Point3 posOnPath;
+					Vector3 pathDir;
+					pHeadNode->ComputePositionAt(pivotOffset + offsetFromPivot, posOnPath, &pathDir, true);
+
+					const Vector3 zAxis = pathDir;
+					Vector3 yAxis(0, 1, 0);
+					Vector3 xAxis = VMath::cross(yAxis, zAxis);
+					yAxis = VMath::cross(zAxis, xAxis);
+
+					if (bankedTurn > 0)
+					{
+						Point3 posOnPath2;
+						pHeadNode->ComputePositionAt(pivotOffset + offsetFromPivot + 5, posOnPath2, nullptr, true);
+						const Vector3 delta = VMath::normalize(posOnPath2 - posOnPath) - pathDir;
+						yAxis = VMath::normalize(yAxis + delta * bankedTurn);
+						xAxis = VMath::cross(yAxis, zAxis);
+						yAxis = VMath::cross(zAxis, xAxis);
+					}
+
+					const Matrix3 mat(xAxis, yAxis, zAxis);
+					const Point3 newPos = (posOnPath - pivotPos) + xAxis * pos.getX() + yAxis * pos.getY();
+					const Vector3 newNrm = mat * nrm;
+
+					sourceBuffers._vPos[index] = newPos.GLM();
+					sourceBuffers._vTc0[index] = tc.GLM2();
+					sourceBuffers._vNrm[index] = newNrm.GLM();
+					return Continue::yes;
+				});
+
+			BlockChainNode::PcSourceModel pSourceModel = pBlockChainNode->GetSourceModelForSlot(slot);
+
+			String url("[_GEN]:");
+			url += _C(pBlockChainNode->GetName());
+			url += "/";
+			url += std::to_string(slot);
+
+			ModelNode::Desc modelNodeDesc;
+			modelNodeDesc._url = _C(url);
+			modelNodeDesc._materialURL = _C(modelNode->GetMaterial()->_name);
+			ModelNodePtr genModelNode;
+			genModelNode.Init(modelNodeDesc);
+			genModelNode->SetGeneratedFlag();
+			genModelNode->SetParent(pBlockChainNode);
+			Mesh::Desc meshDesc;
+			meshDesc._instanceCapacity = 1000;
+			meshDesc._initShape = true;
+			genModelNode->GetMesh().Init(sourceBuffers, meshDesc);
+
+			BlockNode::Desc blockNodeDesc;
+			blockNodeDesc._modelURL = _C(url);
+			BlockNodePtr genBlockNode;
+			genBlockNode.Init(blockNodeDesc);
+			genBlockNode->SetGeneratedFlag();
+			genBlockNode->SetParent(pBlockChainNode);
+			genBlockNode->MoveTo(pivotPos + Vector3(pBlockChainNode->GetPosition(true)));
+			if (pSourceModel && pSourceModel->_noShadowCaster)
+				genBlockNode->SetShadowCasterFlag(false);
+
+			if (pSourceModel && !pSourceModel->_noPhysicsNode)
+			{
+				PhysicsNodePtr genPhysicsNode;
+				genPhysicsNode.Init(_C(genBlockNode->GetName()));
+				genPhysicsNode->SetGeneratedFlag();
+				genPhysicsNode->SetParent(genBlockNode.Get(), true);
+			}
+
+			sprintf_s(buffer, "%d", slot);
+			genBlockNode->GetDictionary().Insert("_BlockChainSlot", buffer);
+		}
+
+		slot++;
+		distOffset += slotLength;
+	}
+
+	_recursionDepth = 0; // Enable sorting.
+	SortNodes();
 }
 
 bool WorldManager::Connect2ControlPoints(PControlPointNode pNodeA, PControlPointNode pNodeB)
@@ -1000,6 +1152,7 @@ void WorldManager::UpdatePrefabInstances(PPrefabNode pPrefabNode, bool sortNodes
 		});
 
 	// Delete all nodes which are children of these instances:
+	CGI::Renderer::I()->WaitIdle();
 	bool nodeDeleted = false;
 	do
 	{
@@ -1080,6 +1233,7 @@ void WorldManager::ReplaceSimilarWithInstances(PPrefabNode pPrefabNode)
 	}
 	const bool multiMode = (childCount >= 2);
 
+	CGI::Renderer::I()->WaitIdle();
 	bool nodeDeleted = false;
 	do
 	{
@@ -1200,6 +1354,13 @@ PBaseNode WorldManager::InsertBaseNode()
 PBlockNode WorldManager::InsertBlockNode()
 {
 	auto p = TStoreBlockNodes::Insert();
+	_vNodes.push_back(p);
+	return p;
+}
+
+PBlockChainNode WorldManager::InsertBlockChainNode()
+{
+	auto p = TStoreBlockChainNodes::Insert();
 	_vNodes.push_back(p);
 	return p;
 }
@@ -1385,6 +1546,7 @@ void WorldManager::Deserialize(IO::RStream stream)
 		case NodeType::model:        InsertModelNode(_C(url))->Deserialize(stream); break;
 		case NodeType::particles:    InsertParticlesNode(_C(url))->Deserialize(stream); break;
 		case NodeType::block:        InsertBlockNode()->Deserialize(stream); break;
+		case NodeType::blockChain:   InsertBlockChainNode()->Deserialize(stream); break;
 		case NodeType::controlPoint: InsertControlPointNode()->Deserialize(stream); break;
 		case NodeType::emitter:      InsertEmitterNode()->Deserialize(stream); break;
 		case NodeType::instance:     InsertInstanceNode()->Deserialize(stream); break;
@@ -1403,7 +1565,6 @@ void WorldManager::Deserialize(IO::RStream stream)
 
 	for (auto pNode : _vNodes)
 		pNode->OnAllNodesDeserialized();
-
 	for (auto& prefabNode : TStorePrefabNodes::_list)
 		UpdatePrefabInstances(&prefabNode, false);
 	SortNodes();
@@ -1486,6 +1647,7 @@ UINT32 WorldManager::NodeTypeToHash(NodeType type)
 	case NodeType::model:        return 'EDOM';
 	case NodeType::particles:    return 'TRAP';
 	case NodeType::block:        return 'COLB';
+	case NodeType::blockChain:   return 'HCLB';
 	case NodeType::controlPoint: return 'TNOC';
 	case NodeType::emitter:      return 'TIME';
 	case NodeType::instance:     return 'TSNI';
@@ -1509,6 +1671,7 @@ NodeType WorldManager::HashToNodeType(UINT32 hash)
 	case 'EDOM': return NodeType::model;
 	case 'TRAP': return NodeType::particles;
 	case 'COLB': return NodeType::block;
+	case 'HCLB': return NodeType::blockChain;
 	case 'TNOC': return NodeType::controlPoint;
 	case 'TIME': return NodeType::emitter;
 	case 'TSNI': return NodeType::instance;
@@ -1546,9 +1709,9 @@ UINT32 WorldManager::NodeTypeToColor(NodeType type, int alpha)
 		VERUS_COLOR_RGBA(255, 128, 255, alpha), // 11, prefab
 		VERUS_COLOR_RGBA(255, 255, 128, alpha), // 12, terrain
 
-		VERUS_COLOR_RGBA(255, 128, 000, alpha), // 13, sound
-		VERUS_COLOR_RGBA(000, 255, 128, alpha), // 14, shaker
-		VERUS_COLOR_RGBA(128, 000, 255, alpha), // 15
+		VERUS_COLOR_RGBA(255, 171, 85, alpha), // 13, sound
+		VERUS_COLOR_RGBA(85, 255, 171, alpha), // 14, shaker
+		VERUS_COLOR_RGBA(171, 85, 255, alpha), // 15, blockChain
 	};
 
 	switch (type)
@@ -1557,6 +1720,7 @@ UINT32 WorldManager::NodeTypeToColor(NodeType type, int alpha)
 	case NodeType::model:        return colors[8];
 	case NodeType::particles:    return colors[7];
 	case NodeType::block:        return colors[2];
+	case NodeType::blockChain:   return colors[15];
 	case NodeType::controlPoint: return colors[4];
 	case NodeType::emitter:      return colors[1];
 	case NodeType::instance:     return colors[5];

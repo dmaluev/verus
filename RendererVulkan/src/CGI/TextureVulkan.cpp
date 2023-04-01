@@ -536,7 +536,7 @@ Continue TextureVulkan::Scheduled_Update()
 	if (!_vCshGenerateMips.empty())
 	{
 		VERUS_QREF_RENDERER;
-		auto shader = renderer.GetShaderGenerateMips();
+		auto shader = (_desc._flags & TextureDesc::Flags::cubeMap) ? renderer.GetShaderGenerateCubeMapMips() : renderer.GetShaderGenerateMips();
 		for (auto& csh : _vCshGenerateMips)
 			shader->FreeDescriptorSet(csh);
 		_vCshGenerateMips.clear();

@@ -173,6 +173,7 @@ VSO mainDS(_IN_DS)
 #endif
 
 #ifdef _FS
+[earlydepthstencil]
 DS_FSO mainFS(VSO si)
 {
 	DS_FSO so;
@@ -184,16 +185,36 @@ DS_FSO mainFS(VSO si)
 	// Fix interpolation errors by rounding:
 	si.layerForChannel = round(si.layerForChannel);
 	const float2 tcLayer = si.tcLayer_tcMap.xy;
+	const float2 tcLayer2 = si.tcLayer_tcMap.xy * 0.25;
 	const float2 tcMap = si.tcLayer_tcMap.zw;
 
-	const float4 blendSam = g_texBlend.Sample(g_samBlend, si.tcBlend.xy);
-	const float4 weights = float4(blendSam.rgb, 1.0 - dot(blendSam.rgb, 1.0));
+	float4 weights;
+	{
+		const float4 blendSam = g_texBlend.Sample(g_samBlend, si.tcBlend.xy);
+		weights = float4(blendSam.rgb, 1.0 - dot(blendSam.rgb, 1.0));
+
+#if _SHADER_QUALITY >= _Q_HIGH
+		const float2 tc = tcLayer * 0.125;
+		const float4 blendNoise = float4(
+			g_texDetail.Sample(g_samDetail, tc + si.layerForChannel.rr * (1.0 / 16.0)).r,
+			g_texDetail.Sample(g_samDetail, tc + si.layerForChannel.gg * (1.0 / 16.0)).r,
+			g_texDetail.Sample(g_samDetail, tc + si.layerForChannel.bb * (1.0 / 16.0)).r,
+			g_texDetail.Sample(g_samDetail, tc + si.layerForChannel.aa * (1.0 / 16.0)).r);
+		const float4 noiseMask = saturate(weights * (1.0 - weights) * 3.0);
+		weights = lerp(weights, saturate((blendNoise - 0.5) * 6.0 + 0.5), noiseMask);
+		weights /= dot(weights, 1.0);
+#endif
+	}
 
 	const float4 texEnabled = ceil(weights);
 	const float3 tcLayerR = float3(tcLayer * texEnabled.r, si.layerForChannel.r);
 	const float3 tcLayerG = float3(tcLayer * texEnabled.g, si.layerForChannel.g);
 	const float3 tcLayerB = float3(tcLayer * texEnabled.b, si.layerForChannel.b);
 	const float3 tcLayerA = float3(tcLayer * texEnabled.a, si.layerForChannel.a);
+	const float3 tcLayerR2 = float3(tcLayer2 * texEnabled.r, si.layerForChannel.r);
+	const float3 tcLayerG2 = float3(tcLayer2 * texEnabled.g, si.layerForChannel.g);
+	const float3 tcLayerB2 = float3(tcLayer2 * texEnabled.b, si.layerForChannel.b);
+	const float3 tcLayerA2 = float3(tcLayer2 * texEnabled.a, si.layerForChannel.a);
 
 	// <Basis>
 	float3 basisTan, basisBin, basisNrm;
@@ -217,11 +238,20 @@ DS_FSO mainFS(VSO si)
 	float detailStrength;
 	float roughStrength;
 	{
+		const float ratio = 0.4;
 		float3 accAlbedo = 0.0;
-		accAlbedo += g_texLayers.Sample(g_samLayers, tcLayerR).rgb * weights.r;
-		accAlbedo += g_texLayers.Sample(g_samLayers, tcLayerG).rgb * weights.g;
-		accAlbedo += g_texLayers.Sample(g_samLayers, tcLayerB).rgb * weights.b;
-		accAlbedo += g_texLayers.Sample(g_samLayers, tcLayerA).rgb * weights.a;
+		accAlbedo += lerp(
+			g_texLayers.Sample(g_samLayers, tcLayerR).rgb,
+			g_texLayers.Sample(g_samLayers, tcLayerR2).rgb, ratio) * weights.r;
+		accAlbedo += lerp(
+			g_texLayers.Sample(g_samLayers, tcLayerG).rgb,
+			g_texLayers.Sample(g_samLayers, tcLayerG2).rgb, ratio) * weights.g;
+		accAlbedo += lerp(
+			g_texLayers.Sample(g_samLayers, tcLayerB).rgb,
+			g_texLayers.Sample(g_samLayers, tcLayerB2).rgb, ratio) * weights.b;
+		accAlbedo += lerp(
+			g_texLayers.Sample(g_samLayers, tcLayerA).rgb,
+			g_texLayers.Sample(g_samLayers, tcLayerA2).rgb, ratio) * weights.a;
 		albedo = accAlbedo;
 
 		static float vDetailStrength[_MAX_TERRAIN_LAYERS] = (float[_MAX_TERRAIN_LAYERS])g_ubTerrainFS._vDetailStrength;
@@ -269,11 +299,20 @@ DS_FSO mainFS(VSO si)
 	float3 normalWV;
 	float3 tangentWV;
 	{
+		const float ratio = 0.4;
 		float4 accNormal = 0.0;
-		accNormal += g_texLayersN.Sample(g_samLayersN, tcLayerR) * weights.r;
-		accNormal += g_texLayersN.Sample(g_samLayersN, tcLayerG) * weights.g;
-		accNormal += g_texLayersN.Sample(g_samLayersN, tcLayerB) * weights.b;
-		accNormal += g_texLayersN.Sample(g_samLayersN, tcLayerA) * weights.a;
+		accNormal += lerp(
+			g_texLayersN.Sample(g_samLayersN, tcLayerR),
+			g_texLayersN.Sample(g_samLayersN, tcLayerR2), ratio) * weights.r;
+		accNormal += lerp(
+			g_texLayersN.Sample(g_samLayersN, tcLayerG),
+			g_texLayersN.Sample(g_samLayersN, tcLayerG2), ratio) * weights.g;
+		accNormal += lerp(
+			g_texLayersN.Sample(g_samLayersN, tcLayerB),
+			g_texLayersN.Sample(g_samLayersN, tcLayerB2), ratio) * weights.b;
+		accNormal += lerp(
+			g_texLayersN.Sample(g_samLayersN, tcLayerA),
+			g_texLayersN.Sample(g_samLayersN, tcLayerA2), ratio) * weights.a;
 
 		accNormal.rg = saturate(accNormal.rg * lerp(0.5, detailNSam.rg, detailStrength) * 2.0);
 
@@ -319,7 +358,7 @@ DS_FSO mainFS(VSO si)
 	// <Strass>
 	{
 		const float strass = g_texStrass.Sample(g_samStrass, tcLayer * g_strassScale).r;
-		roughness *= 1.0 - clamp(strass * roughStrength * 4.0, 0.0, 0.99);
+		roughness *= 1.0 - strass * roughStrength;
 	}
 	// </Strass>
 
@@ -341,6 +380,20 @@ DS_FSO mainFS(VSO si)
 		DS_SetTangent(so, tangentWV);
 		DS_SetAnisoSpec(so, anisoSpec);
 		DS_SetRoughDiffuse(so, roughStrength);
+
+#if 0
+		DS_SetAlbedo(so, 1.0);
+
+		DS_SetNormal(so, matFromTBN[2]);
+		DS_SetEmission(so, 0.0);
+
+		DS_SetOcclusion(so, 1.0);
+		DS_SetRoughness(so, 0.0);
+		DS_SetMetallic(so, 1.0);
+		DS_SetWrapDiffuse(so, 0.0);
+
+		DS_SetRoughDiffuse(so, 0.0);
+#endif
 	}
 #endif
 

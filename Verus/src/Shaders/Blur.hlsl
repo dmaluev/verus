@@ -305,7 +305,7 @@ FSO mainSharpenFS(VSO si)
 
 float DepthToCircleOfConfusion(float depth, float focusDist)
 {
-	return abs((depth - focusDist * 2.0) / depth + 1.0);
+	return abs((depth - focusDist) / depth);
 }
 
 #ifdef _VS
@@ -327,16 +327,15 @@ FSO mainDofFS(VSO si)
 {
 	FSO so;
 
-	const float focusDist = g_ubExtraBlurFS._focusDist_blurStrength.x;
-	const float blurStrength = g_ubExtraBlurFS._focusDist_blurStrength.y;
+	const float focusDist = g_ubExtraBlurFS._focusDist.x;
 
 	const float originDepthSam = g_texDepth.SampleLevel(g_samDepth, si.tc0.zw, 0.0).r;
 	const float originDepth = ToLinearDepth(originDepthSam, g_ubExtraBlurFS._zNearFarEx);
-	const float scale = DepthToCircleOfConfusion(originDepth, focusDist) * blurStrength;
+	const float scale = DepthToCircleOfConfusion(originDepth, focusDist);
 
 	const int sampleCount = clamp(g_ubBlurFS._sampleCount * scale, 3, 31);
 	const float radius = g_ubBlurFS._radius_invRadius_stride.x * scale;
-	const float invRadius = 1.0 / radius;
+	const float invRadius = 1.0 / (radius + _SINGULARITY_FIX);
 	const float2 blurDir = g_ubExtraBlurFS._blurDir.xy;
 	const float2 blurDir2 = g_ubExtraBlurFS._blurDir.zw * radius;
 
@@ -355,9 +354,9 @@ FSO mainDofFS(VSO si)
 		const float kernelDepthSam = g_texDepth.SampleLevel(g_samDepth, tcView, 0.0).r;
 		const float kernelDepth = ToLinearDepth(kernelDepthSam, g_ubExtraBlurFS._zNearFarEx);
 		const float kernelDeeper = kernelDepth - originDepth;
-		const float kernelScale = DepthToCircleOfConfusion(kernelDepth, focusDist) * blurStrength;
+		const float kernelScale = DepthToCircleOfConfusion(kernelDepth, focusDist);
 		// Blurry area should not sample sharp area unless it is closer to the camera.
-		float weight = min(scale, min(2.0, max(kernelScale, kernelDeeper)));
+		float weight = _SINGULARITY_FIX + min(scale, max(kernelScale, kernelDeeper));
 
 #ifdef DEF_U // 1st pass - make a rhombus:
 		weight *= 1.0 - 0.5 * origin;
@@ -502,7 +501,7 @@ FSO mainMotionFS(VSO si)
 #else
 	const float3 rand = Rand(si.pos.xy);
 	const float2 ndcPos = ToNdcPos(si.tc0.xy);
-	const float offsetScale = 0.6 + 0.1 * rand.x; // Blur 60% - 70% of frame time.
+	const float offsetScale = 0.6 + 0.1 * rand.x; // Blur 60% - 70% of frame time (shutter time).
 
 #if _SHADER_QUALITY <= _Q_LOW
 	const int sampleCount = 6;
@@ -543,7 +542,7 @@ FSO mainMotionFS(VSO si)
 		const float kernelDepth = ToLinearDepth(kernelDepthSam, g_ubExtraBlurFS._zNearFarEx);
 		const float kernelDeeper = kernelDepth - originDepth;
 		const float allowed = saturate(1.0 + kernelDeeper * equalize) * gBuffer1Sam.a; // Closer points require extra care.
-		const float weight = 1.0 + saturate(kernelDeeper); // To fix the seam between foreground and background.
+		const float weight = 1.0 + 2.0 * saturate(kernelDeeper); // To fix the seam between foreground and background.
 
 		const float3 kernelColorSam = g_tex.SampleLevel(g_sam, kernelCoords, 0.0).rgb;
 		acc += lerp(0.0, float4(kernelColorSam * weight, weight), allowed);

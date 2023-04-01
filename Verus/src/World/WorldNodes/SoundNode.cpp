@@ -34,9 +34,9 @@ void SoundNode::Done()
 	VERUS_DONE(SoundNode);
 }
 
-void SoundNode::Duplicate(RBaseNode node)
+void SoundNode::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
-	BaseNode::Duplicate(node);
+	BaseNode::Duplicate(node, hierarchyDuplication);
 
 	RSoundNode soundNode = static_cast<RSoundNode>(node);
 
@@ -181,12 +181,12 @@ void SoundNodePtr::Init(SoundNode::RcDesc desc)
 	_p->Init(desc);
 }
 
-void SoundNodePtr::Duplicate(RBaseNode node)
+void SoundNodePtr::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
 	VERUS_QREF_WM;
 	VERUS_RT_ASSERT(!_p);
 	_p = wm.InsertSoundNode();
-	_p->Duplicate(node);
+	_p->Duplicate(node, hierarchyDuplication);
 }
 
 void SoundNodePwn::Done()

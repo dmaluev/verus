@@ -9,24 +9,31 @@ namespace verus
 		Vector<T> _v;
 		int       _next = 0;
 
+		void IncrementNext()
+		{
+			_next = (_next + 1) % _v.size();
+		}
+
 	public:
 		void Resize(int size)
 		{
 			_v.resize(size);
-			_next = Math::Min(_next, static_cast<int>(_v.size()));
+			_next = Math::Min(_next, static_cast<int>(_v.size()) - 1);
 		}
 
 		int Reserve()
 		{
-			_next = Math::Min(_next, static_cast<int>(_v.size()));
+			_next = Math::Min(_next, static_cast<int>(_v.size()) - 1);
 			VERUS_FOR(i, _v.size())
 			{
 				if (!_v[_next].IsReserved())
 				{
 					_v[_next].Reserve();
-					return _next++;
+					const int ret = _next;
+					IncrementNext();
+					return ret;
 				}
-				_next = (_next + 1) % _v.size();
+				IncrementNext();
 			}
 			return -1;
 		}

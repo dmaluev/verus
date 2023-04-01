@@ -810,6 +810,9 @@
     <ClInclude Include="src\World\WorldNodes\PathNode.h">
       <Filter>src\World\WorldNodes</Filter>
     </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\BlockChainNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -1395,6 +1398,9 @@
       <Filter>src\World\WorldNodes</Filter>
     </ClCompile>
     <ClCompile Include="src\World\WorldNodes\PathNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\BlockChainNode.cpp">
       <Filter>src\World\WorldNodes</Filter>
     </ClCompile>
   </ItemGroup>

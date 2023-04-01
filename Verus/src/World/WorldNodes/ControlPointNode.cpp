@@ -31,15 +31,15 @@ void ControlPointNode::Done()
 	VERUS_DONE(ControlPointNode);
 }
 
-void ControlPointNode::Duplicate(RBaseNode node)
+void ControlPointNode::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
-	BaseNode::Duplicate(node);
+	BaseNode::Duplicate(node, hierarchyDuplication);
 
 	RControlPointNode controlPointNode = static_cast<RControlPointNode>(node);
 
 	_smoothSegment = controlPointNode._smoothSegment;
 
-	if (!controlPointNode._pNext) // Connect control points during duplication?
+	if (!(hierarchyDuplication & HierarchyDuplication::yes) && !controlPointNode._pNext) // Connect control points during duplication?
 	{
 		controlPointNode._pNext = this;
 		controlPointNode._segmentLength = 0;
@@ -122,7 +122,7 @@ void ControlPointNode::GetEditorCommands(Vector<EditorCommand>& v)
 
 bool ControlPointNode::CanAutoSelectParentNode() const
 {
-	return _pParent && NodeType::controlPoint == _pParent->GetType();
+	return (_pParent && NodeType::controlPoint == _pParent->GetType()) || BaseNode::CanAutoSelectParentNode();
 }
 
 bool ControlPointNode::CanSetParent(PBaseNode pNode) const
@@ -343,47 +343,78 @@ void ControlPointNode::GetSegmentTangents(glm::vec3 pos4[4], float len3[3], glm:
 	tan2[1] = glm::mix(pos4[2] - pos4[1], pos4[3] - pos4[2], ratioB) * (VERUS_HERMITE_CIRCLE * 2) * ratioB;
 }
 
-bool ControlPointNode::ComputePositionAt(float distance, RPoint3 pos) const
+bool ControlPointNode::ComputePositionAt(float distance, RPoint3 pos, PVector3 pDir, bool extrapolate) const
 {
 	PcControlPointNode pNode = this;
+	if (_markedAsHead && distance < 0 && _pPrev) // Looped?
+	{
+		distance += _pPrev->GetSegmentLength();
+		pNode = _pPrev;
+	}
+	PcControlPointNode pStopNode = pNode;
+	bool loop = false;
 	float offset = 0;
 	while (true)
 	{
-		if (distance >= offset && distance < offset + pNode->GetSegmentLength())
+		const bool minOK = (distance >= offset) ||
+			(extrapolate && !pNode->GetPreviousControlPoint());
+		const bool maxOK = (distance < (offset + pNode->GetSegmentLength())) ||
+			(extrapolate && !pNode->GetNextControlPoint());
+		if (minOK && maxOK)
 		{
 			glm::vec3 pos4[4];
 			float len3[3];
 			pNode->GetSegmentData(pos4, len3);
-			const float t = (distance - offset) / Math::Max(VERUS_FLOAT_THRESHOLD, pNode->GetSegmentLength());
-			if (pNode->IsSmoothSegment())
+			const float segmentLength = pNode->GetNextControlPoint() ? Math::Max(VERUS_FLOAT_THRESHOLD, pNode->GetSegmentLength()) : 1;
+			const float t = (distance - offset) / segmentLength;
+			if (pNode->IsSmoothSegment() && pNode->GetNextControlPoint() && (t >= 0 && t <= 1))
 			{
 				glm::vec3 tan2[2];
 				pNode->GetSegmentTangents(pos4, len3, tan2);
 				pos = glm::hermite(pos4[1], tan2[0], pos4[2], tan2[1], t);
+				if (pDir)
+				{
+					float sign = 1;
+					float t2 = t + 0.0001f;
+					if (t2 > 1)
+					{
+						t2 = t - 0.0001f;
+						sign = -1;
+					}
+					const Point3 pos2 = glm::hermite(pos4[1], tan2[0], pos4[2], tan2[1], t2);
+					*pDir = VMath::normalize(pos2 - pos) * sign;
+				}
 			}
-			else
+			else // For edge cases use lerp:
 			{
 				pos = glm::mix(pos4[1], pos4[2], t);
+				if (pDir)
+				{
+					if (!pNode->GetNextControlPoint()) // Segment has no direction?
+					{
+						if (pNode->GetPreviousControlPoint())
+							*pDir = glm::normalize(pos4[2] - pNode->GetPreviousControlPoint()->GetPosition().GLM());
+						else
+							*pDir = glm::vec3(0, 0, 1);
+					}
+					else
+					{
+						*pDir = glm::normalize(pos4[2] - pos4[1]);
+					}
+				}
 			}
 			return true;
 		}
+		if (pNode->GetNextControlPoint() && !loop)
+		{
+			offset += pNode->GetSegmentLength();
+			pNode = pNode->GetNextControlPoint();
+			loop = (pNode == pStopNode);
+		}
 		else
 		{
-			if (pNode->GetNextControlPoint())
-			{
-				offset += pNode->GetSegmentLength();
-				pNode = pNode->GetNextControlPoint();
-				if (this == pNode)
-				{
-					pos = pNode->GetPosition();
-					return false;
-				}
-			}
-			else
-			{
-				pos = pNode->GetPosition();
-				return false;
-			}
+			pos = pNode->GetPosition();
+			return false;
 		}
 	}
 }
@@ -398,12 +429,12 @@ void ControlPointNodePtr::Init(ControlPointNode::RcDesc desc)
 	_p->Init(desc);
 }
 
-void ControlPointNodePtr::Duplicate(RBaseNode node)
+void ControlPointNodePtr::Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication)
 {
 	VERUS_QREF_WM;
 	VERUS_RT_ASSERT(!_p);
 	_p = wm.InsertControlPointNode();
-	_p->Duplicate(node);
+	_p->Duplicate(node, hierarchyDuplication);
 }
 
 void ControlPointNodePwn::Done()

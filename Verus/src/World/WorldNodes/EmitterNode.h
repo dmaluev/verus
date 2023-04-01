@@ -32,7 +32,7 @@ namespace verus
 			void Init(RcDesc desc);
 			void Done();
 
-			virtual void Duplicate(RBaseNode node) override;
+			virtual void Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication) override;
 
 			virtual void Update() override;
 
@@ -60,7 +60,7 @@ namespace verus
 		{
 		public:
 			void Init(EmitterNode::RcDesc desc);
-			void Duplicate(RBaseNode node);
+			void Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication);
 		};
 		VERUS_TYPEDEFS(EmitterNodePtr);
 

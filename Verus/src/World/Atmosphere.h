@@ -167,8 +167,8 @@ namespace verus
 			RCubeMapBaker GetCubeMapBaker() { return _cubeMapBaker; }
 
 			// ShadowMap:
-			void BeginShadow(int split);
-			void EndShadow(int split);
+			void BeginShadow(int slice);
+			void EndShadow(int slice);
 			RCascadedShadowMapBaker GetShadowMapBaker() { return _shadowMapBaker; }
 
 			void CreateCelestialBodyMesh();

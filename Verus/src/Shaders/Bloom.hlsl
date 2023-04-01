@@ -100,7 +100,7 @@ FSO mainFS(VSO si)
 				g_ubBloomLightShaftsFS._matShadowCSM2,
 				g_ubBloomLightShaftsFS._matShadowCSM3,
 				g_ubBloomLightShaftsFS._matScreenCSM,
-				g_ubBloomLightShaftsFS._csmSplitRanges,
+				g_ubBloomLightShaftsFS._csmSliceBounds,
 				g_ubBloomLightShaftsFS._shadowConfig,
 				false);
 			acc += shadowMask * step(pickingRayLen, distToEye);

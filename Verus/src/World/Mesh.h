@@ -69,12 +69,10 @@ namespace verus
 				PIPE_COUNT
 			};
 
-			struct PerInstanceData
+			enum class InstanceBufferFormat : int
 			{
-				Vector4 _matPart0 = Vector4(0);
-				Vector4 _matPart1 = Vector4(0);
-				Vector4 _matPart2 = Vector4(0);
-				Vector4 _instData = Vector4(0);
+				mataff_float4,
+				mataff_2float4
 			};
 
 		private:
@@ -91,20 +89,22 @@ namespace verus
 			static UB_SimpleSkeletonVS           s_ubSimpleSkeletonVS;
 			static UB_SimplePerObject            s_ubSimplePerObject;
 
-			CGI::GeometryPwn        _geo;
-			Vector<PerInstanceData> _vInstanceBuffer;
-			int                     _instanceCapacity = 0;
-			int                     _instanceCount = 0;
-			int                     _firstInstance = 0;
-			UINT32                  _bindingsMask = 0;
+			CGI::GeometryPwn     _geo;
+			Vector<BYTE>         _vInstanceBuffer;
+			int                  _instanceCapacity = 0;
+			int                  _instanceCount = 0;
+			int                  _firstInstance = 0;
+			InstanceBufferFormat _instanceBufferFormat = InstanceBufferFormat::mataff_float4;
+			UINT32               _bindingsMask = 0;
 
 		public:
 			struct Desc
 			{
-				CSZ  _url = nullptr;
-				CSZ  _warpURL = nullptr;
-				int  _instanceCapacity = 0;
-				bool _initShape = false;
+				CSZ                  _url = nullptr;
+				CSZ                  _warpURL = nullptr;
+				int                  _instanceCapacity = 0;
+				InstanceBufferFormat _instanceBufferFormat = InstanceBufferFormat::mataff_float4;
+				bool                 _initShape = false;
 
 				Desc(CSZ url = nullptr) : _url(url) {}
 			};
@@ -131,6 +131,7 @@ namespace verus
 			static void DoneStatic();
 
 			void Init(RcDesc desc = Desc());
+			void Init(RcSourceBuffers sourceBuffers, RcDesc desc = Desc());
 			void Done();
 
 			void Draw(RcDrawDesc drawDesc, CGI::CommandBufferPtr cb);
@@ -160,9 +161,10 @@ namespace verus
 			// Instancing:
 			void ResetInstanceCount();
 			void MarkFirstInstance() { _firstInstance = _instanceCount; }
-			void PushInstance(RcTransform3 matW, RcVector4 instData);
+			void PushInstance(RcTransform3 matW, RcVector4 instData, PcVector4 pInstData1 = nullptr);
 			bool IsInstanceBufferFull();
 			bool IsInstanceBufferEmpty(bool fromFirstInstance = false);
+			int GetInstanceSize() const;
 
 			void UpdateInstanceBuffer();
 			int GetInstanceCount(bool fromFirstInstance = false) const { return fromFirstInstance ? _instanceCount - _firstInstance : _instanceCount; }

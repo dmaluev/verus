@@ -472,15 +472,15 @@ float Atmosphere::GetWindSpeed() const
 	return _wind._speed;
 }
 
-void Atmosphere::BeginShadow(int split)
+void Atmosphere::BeginShadow(int slice)
 {
 	const Vector3 up = _sun._matTilt * Vector3(0, 0, 1);
-	_shadowMapBaker.Begin(_sun._dirTo, split, up);
+	_shadowMapBaker.Begin(_sun._dirTo, slice, up);
 }
 
-void Atmosphere::EndShadow(int split)
+void Atmosphere::EndShadow(int slice)
 {
-	_shadowMapBaker.End(split);
+	_shadowMapBaker.End(slice);
 }
 
 void Atmosphere::CreateCelestialBodyMesh()

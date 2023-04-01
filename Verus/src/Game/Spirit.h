@@ -42,6 +42,7 @@ namespace verus
 			float                      _accel = 0;
 			float                      _decel = 0;
 			float                      _turnLeanStrength = 0;
+			float                      _jerkyPositionDelta = 10;
 
 		public:
 			Spirit();

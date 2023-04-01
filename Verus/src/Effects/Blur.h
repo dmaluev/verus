@@ -79,7 +79,7 @@ namespace verus
 			CGI::CSHandle                 _cshMotionBlurExtra;
 
 			float                         _dofFocusDist = 10;
-			float                         _dofBlurStrength = 0.2f;
+			float                         _dofRadius = 0.005f;
 			float                         _bloomRadius = 0.02f;
 			float                         _bloomLightShaftsRadius = 0.002f;
 			bool                          _enableDepthOfField = false;
@@ -106,8 +106,8 @@ namespace verus
 			void EnableDepthOfField(bool b) { _enableDepthOfField = b; }
 			float GetDofFocusDistance() const { return _dofFocusDist; }
 			void SetDofFocusDistance(float dist) { _dofFocusDist = dist; }
-			float GetDofBlurStrength() const { return _dofBlurStrength; }
-			void SetDofBlurStrength(float strength) { _dofBlurStrength = strength; }
+			float GetDofRadius() const { return _dofRadius; }
+			void SetDofRadius(float radius) { _dofRadius = radius; }
 		};
 		VERUS_TYPEDEFS(Blur);
 	}

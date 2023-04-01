@@ -304,6 +304,7 @@
     <ClInclude Include="src\World\WorldManager.h" />
     <ClInclude Include="src\World\MaterialManager.h" />
     <ClInclude Include="src\World\Mesh.h" />
+    <ClInclude Include="src\World\WorldNodes\BlockChainNode.h" />
     <ClInclude Include="src\World\WorldNodes\BlockNode.h" />
     <ClInclude Include="src\World\WorldNodes\ControlPointNode.h" />
     <ClInclude Include="src\World\WorldNodes\EmitterNode.h" />
@@ -636,6 +637,7 @@
     <ClCompile Include="src\World\WorldManager.cpp" />
     <ClCompile Include="src\World\MaterialManager.cpp" />
     <ClCompile Include="src\World\Mesh.cpp" />
+    <ClCompile Include="src\World\WorldNodes\BlockChainNode.cpp" />
     <ClCompile Include="src\World\WorldNodes\BlockNode.cpp" />
     <ClCompile Include="src\World\WorldNodes\ControlPointNode.cpp" />
     <ClCompile Include="src\World\WorldNodes\EmitterNode.cpp" />

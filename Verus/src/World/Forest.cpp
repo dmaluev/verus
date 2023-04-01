@@ -80,13 +80,14 @@ void Forest::Init(PTerrain pTerrain, CSZ url)
 	};
 	_scatter.Init(s_scatterSide, SCATTER_TYPE_COUNT, id, 19201);
 	_scatter.SetDelegate(this);
-	_scatter.SetMaxDist(_maxDist * 1.25f);
+	_scatter.SetMaxDist(_maxDistForModels * 1.25f);
 
 	_vPlants.reserve(16);
 	_vLayerData.reserve(16);
 	_vDrawPlants.resize(_capacity);
 
-	_vCollisionPool.Resize(1000);
+	_vCollisionPlants.Reserve(400);
+	_vCollisionPool.Resize(400);
 
 	if (url)
 	{
@@ -127,6 +128,7 @@ void Forest::Init(PTerrain pTerrain, CSZ url)
 					typeNode.attribute("minScale").as_float(0.5f),
 					typeNode.attribute("maxScale").as_float(1.5f),
 					typeNode.attribute("windBending").as_float(1),
+					typeNode.attribute("hullSplitU").as_float(-1),
 					typeNode.attribute("allowedNormal").as_int(116));
 			}
 
@@ -143,11 +145,15 @@ void Forest::Done()
 			bullet.GetWorld()->removeRigidBody(block.GetRigidBody());
 			block.GetDefaultMotionState()->~btDefaultMotionState();
 			block.GetRigidBody()->~btRigidBody();
-			block.GetScaledBvhTriangleMeshShape()->~btScaledBvhTriangleMeshShape();
+			block.GetUniformScalingShapeForBranches()->~btUniformScalingShape();
+			block.GetUniformScalingShapeForTrunk()->~btUniformScalingShape();
+			block.GetCompoundShape()->~btCompoundShape();
 			block.Free();
 		});
 	for (auto& plant : _vPlants)
 	{
+		plant._pConvexHullShapeForBranches.Delete();
+		plant._pConvexHullShapeForTrunk.Delete();
 		s_shader[SHADER_SIMPLE]->FreeDescriptorSet(plant._cshSimple);
 		s_shader[SHADER_MAIN]->FreeDescriptorSet(plant._csh);
 	}
@@ -178,7 +184,6 @@ void Forest::Update()
 			Mesh::Desc meshDesc;
 			meshDesc._url = _C(plant._url);
 			meshDesc._instanceCapacity = _capacity;
-			meshDesc._initShape = true;
 			plant._mesh.Init(meshDesc);
 
 			Material::Desc matDesc;
@@ -203,6 +208,22 @@ void Forest::Update()
 				_maxSizeAll = plant._maxSize;
 				_pTerrain->FattenQuadtreeNodesBy(_maxSizeAll);
 			}
+
+			// Time to create convex hulls:
+			plant._pConvexHullShapeForTrunk = new(plant._pConvexHullShapeForTrunk.GetData()) btConvexHullShape();
+			plant._pConvexHullShapeForBranches = new(plant._pConvexHullShapeForBranches.GetData()) btConvexHullShape();
+			plant._mesh.ForEachVertex([&plant](int index, RcPoint3 pos, RcVector3 nrm, RcPoint3 tc)
+				{
+					if (tc.getX() >= plant._hullSplitU)
+						plant._pConvexHullShapeForBranches->addPoint(pos.Bullet(), false);
+					else
+						plant._pConvexHullShapeForTrunk->addPoint(pos.Bullet(), false);
+					return Continue::yes;
+				});
+			plant._pConvexHullShapeForTrunk->recalcLocalAabb();
+			plant._pConvexHullShapeForBranches->recalcLocalAabb();
+			plant._pConvexHullShapeForTrunk->optimizeConvexHull();
+			plant._pConvexHullShapeForBranches->optimizeConvexHull();
 		}
 
 		if (!plant._tex[0] && plant._mesh.IsLoaded() && plant._material->IsLoaded())
@@ -333,36 +354,31 @@ void Forest::Layout(bool reflection)
 {
 	if (!IsInitialized())
 		return;
-
-	_visibleCount = 0;
-
+	VERUS_QREF_ATMO;
+	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_WM;
 
+	_visibleCount = 0;
 	for (auto& plant : _vPlants)
+	{
 		for (auto& bc : plant._vBakedChunks)
 			bc._visible = false;
-
-	{
-		const float zFarWas = wm.GetHeadCamera()->GetZFar();
-
-		if (!reflection)
-		{
-			wm.GetHeadCamera()->SetFrustumFar(_maxDist);
-			Math::RQuadtreeIntegral qt = _pTerrain->GetQuadtree();
-			qt.SetDelegate(&_scatter);
-			qt.TraverseVisible();
-			qt.SetDelegate(_pTerrain);
-		}
-
-		wm.GetHeadCamera()->SetFrustumFar(1000);
-		_octree.TraverseVisible(wm.GetHeadCamera()->GetFrustum());
-
-		wm.GetHeadCamera()->SetFrustumFar(zFarWas);
-
-		if (reflection)
-			return;
 	}
 
+	_octree.TraverseVisible(wm.GetPassCamera()->GetFrustum());
+	if (!reflection)
+	{
+		Math::RQuadtreeIntegral quadtree = _pTerrain->GetQuadtree();
+		quadtree.SetDelegate(&_scatter);
+		quadtree.TraverseVisible();
+		quadtree.SetDelegate(_pTerrain);
+
+		SortVisible();
+	}
+}
+
+void Forest::SortVisible()
+{
 	const float tessDistSq = _tessDist * _tessDist;
 	std::sort(_vDrawPlants.begin(), _vDrawPlants.begin() + _visibleCount, [tessDistSq](RDrawPlant plantA, RDrawPlant plantB)
 		{
@@ -405,6 +421,8 @@ void Forest::DrawModels(bool allowTess)
 
 	auto cb = renderer.GetCommandBuffer();
 	auto shader = Mesh::GetShader();
+
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(96, 255, 160, 255), "Forest/DrawModels");
 
 	auto DrawMesh = [cb](PMesh pMesh)
 	{
@@ -480,6 +498,8 @@ void Forest::DrawModels(bool allowTess)
 		}
 	}
 	shader->EndBindDescriptors();
+
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void Forest::DrawSprites()
@@ -494,12 +514,14 @@ void Forest::DrawSprites()
 
 	auto cb = renderer.GetCommandBuffer();
 
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(64, 255, 160, 255), "Forest/DrawSprites");
+
 	s_ubForestVS._matP = wm.GetPassCamera()->GetMatrixP().UniformBufferFormat();
 	s_ubForestVS._matWVP = wm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubForestVS._viewportSize = cb->GetViewportSize().GLM();
 	s_ubForestVS._eyePos = float4(wm.GetPassCamera()->GetEyePosition().GLM(), 0);
 	s_ubForestVS._headPos = float4(wm.GetHeadCamera()->GetEyePosition().GLM(), 0);
-	s_ubForestVS._spriteMat = wm.GetPassCamera()->GetMatrixV().ToSpriteMat();
+	s_ubForestVS._matRoll = wm.GetPassCamera()->GetMatrixV().ToSpriteRollMatrix();
 
 	cb->BindPipeline(_pipe[drawingDepth ? PIPE_DEPTH : PIPE_MAIN]);
 	cb->BindVertexBuffers(_geo);
@@ -517,6 +539,8 @@ void Forest::DrawSprites()
 		}
 	}
 	s_shader[SHADER_MAIN]->EndBindDescriptors();
+
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void Forest::DrawSimple(DrawSimpleMode mode, CGI::CubeMapFace cubeMapFace)
@@ -568,6 +592,8 @@ void Forest::DrawSimple(DrawSimpleMode mode, CGI::CubeMapFace cubeMapFace)
 
 	auto cb = renderer.GetCommandBuffer();
 
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(32, 255, 160, 255), "Forest/DrawSimple");
+
 	s_ubSimpleForestVS._matP = wm.GetPassCamera()->GetMatrixP().UniformBufferFormat();
 	s_ubSimpleForestVS._matWVP = wm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubSimpleForestVS._viewportSize = cb->GetViewportSize().GLM();
@@ -585,7 +611,7 @@ void Forest::DrawSimple(DrawSimpleMode mode, CGI::CubeMapFace cubeMapFace)
 	s_ubSimpleForestFS._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrix(2).UniformBufferFormat();
 	s_ubSimpleForestFS._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrix(3).UniformBufferFormat();
 	s_ubSimpleForestFS._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixVP().UniformBufferFormat();
-	s_ubSimpleForestFS._csmSplitRanges = atmo.GetShadowMapBaker().GetSplitRanges().GLM();
+	s_ubSimpleForestFS._csmSliceBounds = atmo.GetShadowMapBaker().GetSliceBounds().GLM();
 	memcpy(&s_ubSimpleForestFS._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubSimpleForestFS._shadowConfig));
 
 	switch (mode)
@@ -608,6 +634,8 @@ void Forest::DrawSimple(DrawSimpleMode mode, CGI::CubeMapFace cubeMapFace)
 		}
 	}
 	s_shader[SHADER_SIMPLE]->EndBindDescriptors();
+
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void Forest::UpdateCollision(const Vector<Vector4>& vZones)
@@ -624,8 +652,8 @@ void Forest::UpdateCollision(const Vector<Vector4>& vZones)
 		};
 		const int r = static_cast<int>(zone.getW() + 0.5f);
 		const int r2 = r * r;
-		const int iRange[2] = { Math::Clamp(centerIJ[0] - r, 0, mapSide), Math::Clamp(centerIJ[0] + r, 0, mapSide) };
-		const int jRange[2] = { Math::Clamp(centerIJ[1] - r, 0, mapSide), Math::Clamp(centerIJ[1] + r, 0, mapSide) };
+		const int iRange[2] = { Math::Clamp(centerIJ[0] - r, 0, mapSide), Math::Clamp(centerIJ[0] + r + 1, 0, mapSide) };
+		const int jRange[2] = { Math::Clamp(centerIJ[1] - r, 0, mapSide), Math::Clamp(centerIJ[1] + r + 1, 0, mapSide) };
 		for (int i = iRange[0]; i < iRange[1]; ++i)
 		{
 			const int offsetI = centerIJ[0] - i;
@@ -697,22 +725,36 @@ void Forest::UpdateCollision(const Vector<Vector4>& vZones)
 			const float t = (plant._alignToNormal - 0.1f) / 0.8f;
 			const Matrix3 matBasis = Matrix3::Lerp(Matrix3::identity(), _pTerrain->GetBasisAt(ij), t);
 			const Transform3 matW = Transform3(matBasis * Matrix3::rotationY(instance._angle), Vector3(pos));
-			btScaledBvhTriangleMeshShape* pShape = new(block.GetScaledBvhTriangleMeshShape())
-				btScaledBvhTriangleMeshShape(plant._mesh.GetShape(), btVector3(scale, scale, scale));
-			btRigidBody* pRigidBody = bullet.AddNewRigidBody(0, matW.Bullet(), pShape, +Physics::Group::immovable, +Physics::Group::all, nullptr,
+			btCompoundShape* pCompoundShape = new(block.GetCompoundShape()) btCompoundShape();
+			btUniformScalingShape* pUniformScalingShapeForTrunk = new(block.GetUniformScalingShapeForTrunk())
+				btUniformScalingShape(plant._pConvexHullShapeForTrunk.Get(), scale);
+			btUniformScalingShape* pUniformScalingShapeForBranches = new(block.GetUniformScalingShapeForBranches())
+				btUniformScalingShape(plant._pConvexHullShapeForBranches.Get(), scale);
+			// DebugDraw will not show UniformScalingShape, add ConvexHullShape instead.
+			btTransform tr;
+			tr.setIdentity();
+			if (plant._pConvexHullShapeForTrunk->getNumPoints())
+				pCompoundShape->addChildShape(tr, pUniformScalingShapeForTrunk);
+			if (plant._pConvexHullShapeForBranches->getNumPoints())
+				pCompoundShape->addChildShape(tr, pUniformScalingShapeForBranches);
+			btRigidBody* pRigidBody = bullet.AddNewRigidBody(0, matW.Bullet(), pCompoundShape, +Physics::Group::forest, +bullet.GetNonStaticMask(), nullptr,
 				block.GetDefaultMotionState(),
 				block.GetRigidBody());
-			pRigidBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::stone));
-			pRigidBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::stone));
+			pRigidBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::wood));
+			pRigidBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::wood));
 		},
 		[this](RCollisionPlant cp)
 		{
+			if (cp._poolBlockIndex < 0)
+				return;
 			VERUS_QREF_BULLET;
 			RCollisionPoolBlock block = _vCollisionPool.GetBlockAt(cp._poolBlockIndex);
 			bullet.GetWorld()->removeRigidBody(block.GetRigidBody());
 			block.GetDefaultMotionState()->~btDefaultMotionState();
 			block.GetRigidBody()->~btRigidBody();
-			block.GetScaledBvhTriangleMeshShape()->~btScaledBvhTriangleMeshShape();
+			block.GetUniformScalingShapeForBranches()->~btUniformScalingShape();
+			block.GetUniformScalingShapeForTrunk()->~btUniformScalingShape();
+			block.GetCompoundShape()->~btCompoundShape();
 			block.Free();
 		});
 }
@@ -776,6 +818,7 @@ void Forest::SetLayer(int layer, RcLayerDesc desc)
 				plant._alignToNormal = plantDesc._alignToNormal;
 				plant._maxScale = plantDesc._maxScale;
 				plant._windBending = plantDesc._windBending;
+				plant._hullSplitU = plantDesc._hullSplitU;
 				plant._allowedNormal = plantDesc._allowedNormal;
 				const float ds = plantDesc._maxScale - plantDesc._minScale;
 				const int count = 64;
@@ -783,10 +826,6 @@ void Forest::SetLayer(int layer, RcLayerDesc desc)
 				VERUS_FOR(i, count)
 					plant._vScales[i] = plantDesc._minScale + ds * (i * i * i) / (count * count * count);
 				std::shuffle(plant._vScales.begin(), plant._vScales.end(), random.GetGenerator());
-
-				//plant._vShapePool.resize(2000 * sizeof(btScaledBvhTriangleMeshShape));
-				//plant._vMotionStatePool.resize(2000 * sizeof(btDefaultMotionState));
-				//plant._vRigidBodyPool.resize(2000 * sizeof(btRigidBody));
 			}
 		}
 	}
@@ -1185,7 +1224,7 @@ void Forest::Scatter_AddInstance(const int ij[2], int type, float x, float z, fl
 	Point3 pos(x, h, z);
 	RcPoint3 headPos = wm.GetHeadCamera()->GetEyePosition();
 	const float distSq = VMath::distSqr(headPos, pos);
-	const float maxDistSq = _maxDist * _maxDist;
+	const float maxDistSq = _maxDistForModels * _maxDistForModels;
 	if (distSq >= maxDistSq)
 		return;
 
@@ -1231,7 +1270,7 @@ Continue Forest::Octree_ProcessNode(void* pToken, void* pUser)
 {
 	VERUS_QREF_WM;
 	PBakedChunk pBakedChunk = static_cast<PBakedChunk>(pToken);
-	pBakedChunk->_visible = wm.GetPassCamera()->GetFrustum().ContainsAabb(pBakedChunk->_bounds) != Relation::outside;
+	pBakedChunk->_visible = true;
 	return Continue::yes;
 }
 

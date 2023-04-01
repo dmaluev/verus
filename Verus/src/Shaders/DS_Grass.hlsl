@@ -184,8 +184,8 @@ void mainGS(point VSO si[1], inout TriangleStream<VSO> stream)
 	{
 		const float2 posOffset = _POINT_SPRITE_POS_OFFSETS[i] * so.psize;
 		const float2 offset = float2(
-			dot(posOffset, g_ubGrassVS._spriteMat.xy),
-			dot(posOffset, g_ubGrassVS._spriteMat.zw));
+			dot(posOffset, g_ubGrassVS._matRoll.xy),
+			dot(posOffset, g_ubGrassVS._matRoll.zw));
 		so.pos.xy = center + offset;
 		so.tc0 = _POINT_SPRITE_TEX_COORDS[i];
 		stream.Append(so);

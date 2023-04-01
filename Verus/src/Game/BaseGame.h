@@ -18,7 +18,9 @@ namespace verus
 			BaseGame();
 			~BaseGame();
 
-			void Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc windowDesc = App::Window::Desc());
+			void Initialize(VERUS_MAIN_DEFAULT_ARGS,
+				App::RcInfo appInfo = App::Info(),
+				App::Window::RcDesc windowDesc = App::Window::Desc());
 			void Loop(bool relativeMouseMode = true);
 			void Exit();
 

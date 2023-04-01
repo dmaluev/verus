@@ -17,7 +17,8 @@ namespace verus
 		{
 			Motion _motion;
 			float  _duration = 0;
-			bool   _loop = true;
+			bool   _looping = true;
+			bool   _fast = false; // For auto easing.
 		};
 		VERUS_TYPEDEFS(MotionData);
 
@@ -33,7 +34,7 @@ namespace verus
 
 			virtual void Async_WhenLoaded(CSZ url, RcBlob blob) override;
 
-			void AddMotion(CSZ name, bool loop = true, float duration = 0);
+			void AddMotion(CSZ name, bool looping = true, float duration = 0, bool fast = false);
 			void DeleteAll();
 			PMotionData Find(CSZ name);
 			int GetMaxBones();
@@ -68,7 +69,7 @@ namespace verus
 			String             _currentMotion;
 			String             _prevMotion;
 			Vector<int>        _vTriggerStates;
-			Easing             _easing = Easing::quadInOut;
+			Easing             _easing = Easing::none;
 			float              _time = 0;
 			float              _transitionDuration = 0;
 			float              _transitionTime = 0;
@@ -98,8 +99,6 @@ namespace verus
 			bool TransitionToNew(std::initializer_list<CSZ> names,
 				Interval duration = 0.5f, int randTime = -1, PMotion pFromMotion = nullptr);
 			bool IsInTransition() const { return _transition; }
-
-			void SetEasing(Easing easing) { _easing = easing; }
 
 			virtual void Motion_OnTrigger(CSZ name, int state) override;
 

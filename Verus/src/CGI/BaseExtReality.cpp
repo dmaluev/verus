@@ -92,9 +92,13 @@ bool BaseExtReality::CheckRequiredExtensions() const
 
 void BaseExtReality::CreateInstance()
 {
+	VERUS_QREF_CONST_SETTINGS;
 	XrResult res = XR_SUCCESS;
 	XrInstanceCreateInfo xrici = { XR_TYPE_INSTANCE_CREATE_INFO };
-	strcpy_s(xrici.applicationInfo.applicationName, "TestApp");
+	strcpy_s(xrici.applicationInfo.applicationName, settings._info._appName);
+	xrici.applicationInfo.applicationVersion = settings._info._appVersion;
+	strcpy_s(xrici.applicationInfo.engineName, settings._info._engineName);
+	xrici.applicationInfo.engineVersion = settings._info._engineVersion;
 	xrici.applicationInfo.apiVersion = XR_CURRENT_API_VERSION;
 	xrici.enabledExtensionCount = Utils::Cast32(_vRequiredExtensions.size());
 	xrici.enabledExtensionNames = _vRequiredExtensions.data();

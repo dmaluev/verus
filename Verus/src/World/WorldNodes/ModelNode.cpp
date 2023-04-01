@@ -59,7 +59,7 @@ void ModelNode::GetEditorCommands(Vector<EditorCommand>& v)
 
 bool ModelNode::CanSetParent(PBaseNode pNode) const
 {
-	return !pNode;
+	return !pNode || IsGenerated();
 }
 
 void ModelNode::Serialize(IO::RSeekableStream stream)

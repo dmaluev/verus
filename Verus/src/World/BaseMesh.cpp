@@ -22,9 +22,90 @@ BaseMesh::~BaseMesh()
 
 void BaseMesh::Init(CSZ url)
 {
-	VERUS_INIT();
 	_url = url;
+	if (Str::StartsWith(url, "[_GEN]:"))
+		return;
+	VERUS_INIT();
 	IO::Async::I().Load(url, this);
+}
+
+void BaseMesh::Init(RcSourceBuffers sourceBuffers)
+{
+	VERUS_INIT();
+	VERUS_RT_ASSERT(!_vertCount);
+
+	_vertCount = Utils::Cast32(sourceBuffers._vPos.size());
+	_indexCount = Utils::Cast32(sourceBuffers._vIndices.size());
+	_faceCount = _indexCount ? _indexCount / 3 : _vertCount / 3;
+
+	if (_indexCount)
+		_vIndices.assign(sourceBuffers._vIndices.begin(), sourceBuffers._vIndices.end());
+
+	_vBinding0.resize(_vertCount);
+	if (!sourceBuffers._vPos.empty())
+	{
+		Math::Bounds bounds;
+		VERUS_FOR(i, _vertCount)
+			bounds.Include(sourceBuffers._vPos[i]);
+		const glm::vec3 extents = bounds.GetExtents().GLM();
+		glm::vec3 scale, bias;
+		ComputeDeq(scale, bias, extents, bounds.GetMin().GLM());
+		memcpy(_posDeq + 0, glm::value_ptr(scale), sizeof(float) * 3);
+		memcpy(_posDeq + 3, glm::value_ptr(bias), sizeof(float) * 3);
+		VERUS_FOR(i, _vertCount)
+		{
+			glm::vec3 v(sourceBuffers._vPos[i]);
+			QuantizeV(v, extents, bounds.GetMin().GLM());
+			_vBinding0[i]._pos[0] = short(v.x);
+			_vBinding0[i]._pos[1] = short(v.y);
+			_vBinding0[i]._pos[2] = short(v.z);
+		}
+	}
+	if (!sourceBuffers._vTc0.empty())
+	{
+		Math::Bounds bounds;
+		VERUS_FOR(i, _vertCount)
+			bounds.Include(sourceBuffers._vTc0[i]);
+		const glm::vec3 extents = bounds.GetExtents().GLM();
+		glm::vec3 scale, bias;
+		ComputeDeq(scale, bias, extents, bounds.GetMin().GLM());
+		memcpy(_tc0Deq + 0, glm::value_ptr(scale), sizeof(float) * 2);
+		memcpy(_tc0Deq + 2, glm::value_ptr(bias), sizeof(float) * 2);
+		VERUS_FOR(i, _vertCount)
+		{
+			glm::vec3 v(sourceBuffers._vTc0[i], 0);
+			QuantizeV(v, extents, bounds.GetMin().GLM());
+			_vBinding0[i]._tc0[0] = short(v.x);
+			_vBinding0[i]._tc0[1] = short(v.y);
+		}
+	}
+	if (!sourceBuffers._vNrm.empty())
+	{
+		VERUS_FOR(i, _vertCount)
+			Convert::SnormToSint8(glm::value_ptr(sourceBuffers._vNrm[i]), _vBinding0[i]._nrm, 3);
+	}
+
+	if (sourceBuffers._recalculateTangentSpace)
+	{
+		_vBinding2.resize(_vertCount);
+		Vector<glm::vec3> vTan, vBin;
+		Math::TangentSpaceTools::RecalculateTangentSpace(
+			sourceBuffers._vIndices,
+			sourceBuffers._vPos,
+			sourceBuffers._vNrm,
+			sourceBuffers._vTc0,
+			vTan, vBin);
+		VERUS_FOR(i, _vertCount)
+		{
+			Convert::SnormToSint16(glm::value_ptr(vTan[i]), _vBinding2[i]._tan, 3);
+			Convert::SnormToSint16(glm::value_ptr(vBin[i]), _vBinding2[i]._bin, 3);
+		}
+	}
+
+	if (_initShape)
+		InitShape(Transform3::identity());
+
+	CreateDeviceBuffers();
 }
 
 void BaseMesh::Done()
@@ -466,15 +547,15 @@ void BaseMesh::RecalculateTangentSpace()
 
 	Math::TangentSpaceTools::RecalculateNormals(_vIndices, vV, vN, 1);
 	VERUS_FOR(i, _vertCount)
-		Convert::SnormToSint8(&vN[i].x, _vBinding0[i]._nrm, 3);
+		Convert::SnormToSint8(glm::value_ptr(vN[i]), _vBinding0[i]._nrm, 3);
 
 	if (!_vBinding2.empty())
 	{
 		Math::TangentSpaceTools::RecalculateTangentSpace(_vIndices, vV, vN, vTex, vTan, vBin);
 		VERUS_FOR(i, _vertCount)
 		{
-			Convert::SnormToSint16(&vTan[i].x, _vBinding2[i]._tan, 3);
-			Convert::SnormToSint16(&vBin[i].x, _vBinding2[i]._bin, 3);
+			Convert::SnormToSint16(glm::value_ptr(vTan[i]), _vBinding2[i]._tan, 3);
+			Convert::SnormToSint16(glm::value_ptr(vBin[i]), _vBinding2[i]._bin, 3);
 		}
 	}
 }
@@ -493,11 +574,11 @@ btBvhTriangleMeshShape* BaseMesh::InitShape(RcTransform3 tr, CSZ url)
 
 	DoneShape();
 
-	String finalUrl = url ? url : _url;
+	String finalURL = url ? url : _url;
 	String cacheFilename;
-	if (!finalUrl.empty())
+	if (!finalURL.empty() && !Str::StartsWith(_C(finalURL), "[_GEN]:"))
 	{
-		String filename = Str::ToPakFriendlyUrl(_C(finalUrl));
+		String filename = Str::ToPakFriendlyUrl(_C(finalURL));
 		if (url)
 			filename += ".INST";
 		filename = "[Models]:PhyCache/" + filename + ".bullet";

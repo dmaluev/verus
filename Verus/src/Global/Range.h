@@ -31,5 +31,7 @@ namespace verus
 
 		Iterator begin() const;
 		Iterator end() const;
+
+		bool Includes(int value) const;
 	};
 }

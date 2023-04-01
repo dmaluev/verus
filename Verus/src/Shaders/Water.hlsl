@@ -304,7 +304,7 @@ FSO mainFS(VSO si)
 			g_ubWaterFS._matShadowCSM2,
 			g_ubWaterFS._matShadowCSM3,
 			g_ubWaterFS._matScreenCSM,
-			g_ubWaterFS._csmSplitRanges,
+			g_ubWaterFS._csmSliceBounds,
 			shadowConfig);
 	}
 	// </Shadow>

@@ -41,9 +41,9 @@ void TerrainPhysics::Init(Physics::PUserPtr p, int w, int h, const void* pData, 
 	btTransform tr;
 	tr.setIdentity();
 	tr.setOrigin(btVector3(-0.5f, 0, -0.5f));
-	_pRigidBody = bullet.AddNewRigidBody(_pRigidBody, 0, tr, _pShape.Get(), +Physics::Group::terrain);
-	_pRigidBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::wood));
-	_pRigidBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::wood));
+	_pRigidBody = bullet.AddNewRigidBody(_pRigidBody, 0, tr, _pShape.Get(), +Physics::Group::terrain, +bullet.GetNonStaticMask());
+	_pRigidBody->setFriction(Physics::Bullet::GetFriction(Physics::Material::stone));
+	_pRigidBody->setRestitution(Physics::Bullet::GetRestitution(Physics::Material::stone));
 	_pRigidBody->setUserPointer(p);
 
 	EnableDebugDraw(false);
@@ -740,26 +740,30 @@ void Terrain::Layout()
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_WM;
 
-	// <Traverse>
-	PCamera pPrevPassCamera = nullptr;
-	// For CSM we need to create geometry beyond the view frustum (1st slice):
-	if (settings._sceneShadowQuality >= App::Settings::Quality::high && atmo.GetShadowMapBaker().IsBaking())
-	{
-		PCamera pPassCameraCSM = atmo.GetShadowMapBaker().GetPassCameraCSM();
-		if (pPassCameraCSM)
-			pPrevPassCamera = wm.SetPassCamera(pPassCameraCSM);
-	}
-
 	_visiblePatchCount = 0;
 	_visibleSortedPatchCount = 0;
 	_visibleRandomPatchCount = 0;
-	_quadtree.TraverseVisible();
-	SortVisiblePatches();
 
-	// Back to original camera:
-	if (pPrevPassCamera)
-		wm.SetPassCamera(pPrevPassCamera);
-	// </Traverse>
+	_quadtree.TraverseVisible();
+
+	SortVisible();
+}
+
+void Terrain::SortVisible()
+{
+	_visiblePatchCount = _visibleSortedPatchCount + _visibleRandomPatchCount;
+	std::sort(_vSortedPatchIndices.begin(), _vSortedPatchIndices.begin() + _visibleSortedPatchCount, [this](int a, int b)
+		{
+			RcTerrainPatch patchA = GetPatch(a);
+			RcTerrainPatch patchB = GetPatch(b);
+
+			if (patchA._quadtreeLOD != patchB._quadtreeLOD)
+				return patchA._quadtreeLOD < patchB._quadtreeLOD;
+
+			return patchA._distToHeadSq < patchB._distToHeadSq;
+		});
+	if (_visibleRandomPatchCount)
+		memcpy(&_vSortedPatchIndices[_visibleSortedPatchCount], _vRandomPatchIndices.data(), _visibleRandomPatchCount * sizeof(UINT16));
 }
 
 void Terrain::Draw(RcDrawDesc dd)
@@ -776,6 +780,8 @@ void Terrain::Draw(RcDrawDesc dd)
 	const Transform3 matW = Transform3::identity();
 
 	auto cb = renderer.GetCommandBuffer();
+
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(160, 255, 96, 255), "Terrain/Draw");
 
 	s_ubTerrainVS._matW = matW.UniformBufferFormat();
 	s_ubTerrainVS._matWV = Transform3(wm.GetPassCamera()->GetMatrixV() * matW).UniformBufferFormat();
@@ -873,6 +879,8 @@ void Terrain::Draw(RcDrawDesc dd)
 
 	_geo->UpdateVertexBuffer(&_vInstanceBuffer[_instanceCount], 1, cb.Get(), _visiblePatchCount, _instanceCount);
 	_instanceCount += _visiblePatchCount;
+
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void Terrain::DrawSimple(DrawSimpleMode mode)
@@ -890,6 +898,8 @@ void Terrain::DrawSimple(DrawSimpleMode mode)
 
 	auto cb = renderer.GetCommandBuffer();
 
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(160, 255, 64, 255), "Terrain/DrawSimple");
+
 	s_ubSimpleTerrainVS._matW = matW.UniformBufferFormat();
 	s_ubSimpleTerrainVS._matVP = wm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubSimpleTerrainVS._headPos = float4(wm.GetHeadCamera()->GetEyePosition().GLM(), 0);
@@ -905,7 +915,7 @@ void Terrain::DrawSimple(DrawSimpleMode mode)
 	s_ubSimpleTerrainFS._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrix(2).UniformBufferFormat();
 	s_ubSimpleTerrainFS._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrix(3).UniformBufferFormat();
 	s_ubSimpleTerrainFS._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixVP().UniformBufferFormat();
-	s_ubSimpleTerrainFS._csmSplitRanges = atmo.GetShadowMapBaker().GetSplitRanges().GLM();
+	s_ubSimpleTerrainFS._csmSliceBounds = atmo.GetShadowMapBaker().GetSliceBounds().GLM();
 	memcpy(&s_ubSimpleTerrainFS._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubSimpleTerrainFS._shadowConfig));
 
 	cb->BindVertexBuffers(_geo);
@@ -973,23 +983,8 @@ void Terrain::DrawSimple(DrawSimpleMode mode)
 
 	_geo->UpdateVertexBuffer(&_vInstanceBuffer[_instanceCount], 1, cb.Get(), _visiblePatchCount, _instanceCount);
 	_instanceCount += _visiblePatchCount;
-}
 
-void Terrain::SortVisiblePatches()
-{
-	_visiblePatchCount = _visibleSortedPatchCount + _visibleRandomPatchCount;
-	std::sort(_vSortedPatchIndices.begin(), _vSortedPatchIndices.begin() + _visibleSortedPatchCount, [this](int a, int b)
-		{
-			RcTerrainPatch patchA = GetPatch(a);
-			RcTerrainPatch patchB = GetPatch(b);
-
-			if (patchA._quadtreeLOD != patchB._quadtreeLOD)
-				return patchA._quadtreeLOD < patchB._quadtreeLOD;
-
-			return patchA._distToHeadSq < patchB._distToHeadSq;
-		});
-	if (_visibleRandomPatchCount)
-		memcpy(&_vSortedPatchIndices[_visibleSortedPatchCount], _vRandomPatchIndices.data(), _visibleRandomPatchCount * sizeof(UINT16));
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 int Terrain::UserPtr_GetType()

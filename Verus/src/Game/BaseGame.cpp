@@ -64,7 +64,7 @@ BaseGame::~BaseGame()
 		RestartApp();
 }
 
-void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc windowDesc)
+void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::RcInfo appInfo, App::Window::RcDesc windowDesc)
 {
 	const int ret = SDL_Init(SDL_INIT_EVERYTHING);
 	if (ret)
@@ -74,6 +74,7 @@ void BaseGame::Initialize(VERUS_MAIN_DEFAULT_ARGS, App::Window::RcDesc windowDes
 
 	App::Settings::Make();
 	VERUS_QREF_SETTINGS;
+	settings._info = appInfo;
 	settings.ParseCommandLineArgs(argc, argv);
 	settings.Load();
 	settings.HandleHighDpi();
@@ -155,38 +156,47 @@ void BaseGame::Loop(bool relativeMouseMode)
 
 			// <RawInput>
 			bool keyboardShortcut = false;
-			if (_p->_rawInputEvents && !ImGui::GetIO().WantCaptureMouse)
+			if (_p->_rawInputEvents)
 			{
-				switch (event.type)
+				if (!ImGui::GetIO().WantCaptureMouse)
 				{
-				case SDL_KEYDOWN:
-				{
-					keyboardShortcut = BaseGame_SDL_OnKeyboardShortcut(event.key.keysym.sym, event.key.keysym.mod);
+					switch (event.type)
+					{
+					case SDL_MOUSEMOTION:
+					{
+						BaseGame_SDL_OnMouseMotion(event.motion.xrel, event.motion.yrel);
+					}
+					break;
+					case SDL_MOUSEBUTTONDOWN:
+					{
+						if (2 == event.button.clicks)
+							BaseGame_SDL_OnMouseDoubleClick(event.button.button);
+						else
+							BaseGame_SDL_OnMouseButtonDown(event.button.button);
+					}
+					break;
+					case SDL_MOUSEBUTTONUP:
+					{
+						BaseGame_SDL_OnMouseButtonUp(event.button.button);
+					}
+					break;
+					case SDL_MOUSEWHEEL:
+					{
+						BaseGame_SDL_OnMouseWheel(event.wheel.y);
+					}
+					break;
+					}
 				}
-				break;
-				case SDL_MOUSEMOTION:
+				if (!ImGui::GetIO().WantCaptureKeyboard)
 				{
-					BaseGame_SDL_OnMouseMotion(event.motion.xrel, event.motion.yrel);
-				}
-				break;
-				case SDL_MOUSEBUTTONDOWN:
-				{
-					if (2 == event.button.clicks)
-						BaseGame_SDL_OnMouseDoubleClick(event.button.button);
-					else
-						BaseGame_SDL_OnMouseButtonDown(event.button.button);
-				}
-				break;
-				case SDL_MOUSEBUTTONUP:
-				{
-					BaseGame_SDL_OnMouseButtonUp(event.button.button);
-				}
-				break;
-				case SDL_MOUSEWHEEL:
-				{
-					BaseGame_SDL_OnMouseWheel(event.wheel.y);
-				}
-				break;
+					switch (event.type)
+					{
+					case SDL_KEYDOWN:
+					{
+						keyboardShortcut = BaseGame_SDL_OnKeyboardShortcut(event.key.keysym.sym, event.key.keysym.mod);
+					}
+					break;
+					}
 				}
 			}
 			// </RawInput>
@@ -266,59 +276,77 @@ void BaseGame::Loop(bool relativeMouseMode)
 
 		renderer.BeginFrame();
 
-		async.Update();
+		auto cb = renderer.GetCommandBuffer();
 
-		timer.Update();
-
-		BaseGame_EnterRequestedState();
-
-		if (_p->_defaultCameraMovement) // Handle input:
+		VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(0, 113, 197, 255), "BaseGame/Update");
 		{
-			const float speed = im.IsKeyPressed(SDL_SCANCODE_SPACE) ? 20.f : 2.f;
-			if (im.IsKeyPressed(SDL_SCANCODE_W))
-				_p->_cameraSpirit.MoveFront(speed);
-			if (im.IsKeyPressed(SDL_SCANCODE_S))
-				_p->_cameraSpirit.MoveFront(-speed);
-			if (im.IsKeyPressed(SDL_SCANCODE_A))
-				_p->_cameraSpirit.MoveSide(-speed);
-			if (im.IsKeyPressed(SDL_SCANCODE_D))
-				_p->_cameraSpirit.MoveSide(speed);
-		}
-		im.HandleInput();
-		if (_restartApp)
-			continue;
+			VERUS_PROFILER_SET_MARKER(cb, VERUS_COLOR_WHITE, "BaseGame/Update/Async");
+			async.Update();
 
-		if (Physics::Bullet::IsValidSingleton())
-			Physics::Bullet::I().Simulate();
+			VERUS_PROFILER_SET_MARKER(cb, VERUS_COLOR_WHITE, "BaseGame/Update/Timer");
+			timer.Update();
 
-		if (_p->_defaultCameraMovement)
-		{
-			_p->_cameraSpirit.HandleActions();
-			_p->_cameraSpirit.Update();
-			_p->_camera.MoveEyeTo(_p->_cameraSpirit.GetPosition());
-			_p->_camera.MoveAtTo(_p->_cameraSpirit.GetPosition() + _p->_cameraSpirit.GetFrontDirection());
-			if (World::Water::IsValidSingleton())
+			BaseGame_EnterRequestedState();
+
+			if (_p->_defaultCameraMovement) // Handle input:
 			{
-				VERUS_QREF_WATER;
-				if (water.IsInitialized())
-					_p->_camera.ExcludeWaterLine();
+				const float speed = im.IsKeyPressed(SDL_SCANCODE_SPACE) ? 20.f : 2.f;
+				if (im.IsKeyPressed(SDL_SCANCODE_W))
+					_p->_cameraSpirit.MoveFront(speed);
+				if (im.IsKeyPressed(SDL_SCANCODE_S))
+					_p->_cameraSpirit.MoveFront(-speed);
+				if (im.IsKeyPressed(SDL_SCANCODE_A))
+					_p->_cameraSpirit.MoveSide(-speed);
+				if (im.IsKeyPressed(SDL_SCANCODE_D))
+					_p->_cameraSpirit.MoveSide(speed);
 			}
-			_p->_camera.Update();
-			if (World::WorldManager::IsValidSingleton())
-				World::WorldManager::I().SetAllCameras(&_p->_camera);
-		}
-		else
-		{
-			if (World::WorldManager::IsValidSingleton())
-				World::WorldManager::I().SetAllCameras(nullptr);
-		}
+			VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(38, 125, 11, 255), "BaseGame/Update/Input");
+			im.HandleInput();
+			VERUS_PROFILER_END_EVENT(cb);
+			if (_restartApp)
+				continue;
 
-		BaseGame_Update(); // Between physics and audio update.
-		if (_restartApp)
-			continue;
+			if (Physics::Bullet::IsValidSingleton())
+			{
+				VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(246, 154, 0, 255), "BaseGame/Update/Physics");
+				Physics::Bullet::I().Simulate();
+				VERUS_PROFILER_END_EVENT(cb);
+			}
 
-		if (Audio::AudioSystem::IsValidSingleton())
-			Audio::AudioSystem::I().Update();
+			if (_p->_defaultCameraMovement)
+			{
+				_p->_cameraSpirit.HandleActions();
+				_p->_cameraSpirit.Update();
+				_p->_camera.MoveEyeTo(_p->_cameraSpirit.GetPosition());
+				_p->_camera.MoveAtTo(_p->_cameraSpirit.GetPosition() + _p->_cameraSpirit.GetFrontDirection());
+				if (World::Water::IsValidSingleton())
+				{
+					VERUS_QREF_WATER;
+					if (water.IsInitialized())
+						_p->_camera.ExcludeWaterLine();
+				}
+				_p->_camera.Update();
+				if (World::WorldManager::IsValidSingleton())
+					World::WorldManager::I().SetAllCameras(&_p->_camera);
+			}
+			else
+			{
+				if (World::WorldManager::IsValidSingleton())
+					World::WorldManager::I().SetAllCameras(nullptr);
+			}
+
+			VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(0, 167, 116, 255), "BaseGame/Update/Game");
+			BaseGame_Update(); // Between physics and audio update.
+			VERUS_PROFILER_END_EVENT(cb);
+			if (_restartApp)
+				continue;
+
+			VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(128, 0, 0, 255), "BaseGame/Update/Audio");
+			if (Audio::AudioSystem::IsValidSingleton())
+				Audio::AudioSystem::I().Update();
+			VERUS_PROFILER_END_EVENT(cb);
+		}
+		VERUS_PROFILER_END_EVENT(cb);
 
 		// Draw current frame:
 		renderer.Draw();

@@ -79,6 +79,7 @@ namespace verus
 			virtual void ComputeThirdPersonCameraArgs(RcVector3 offset, RPoint3 eye, RPoint3 at);
 			float ComputeThirdPersonCamera(World::RCamera camera, Anim::RcOrbit orbit, RcVector3 offset = Vector3(0));
 			void ComputeThirdPersonAim(RPoint3 aimPos, RVector3 aimDir, RcVector3 offset = Vector3(0));
+			float GetThirdPersonCameraBaseHeight() const;
 			void SetMaxCameraRadius(float r);
 			float GetCameraRadius() const { return _cameraRadius.GetValue(); }
 		};

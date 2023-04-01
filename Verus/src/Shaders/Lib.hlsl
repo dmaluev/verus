@@ -208,6 +208,12 @@ float SinAcos(float x) // sin(acos(x))
 {
 	return sqrt(saturate(1.0 - x * x));
 }
+
+float QuadOutEasing(float x)
+{
+	const float a = 1.0 - x;
+	return 1.0 - a * a;
+}
 // </Math>
 
 // <PhysicallyBasedRendering>
