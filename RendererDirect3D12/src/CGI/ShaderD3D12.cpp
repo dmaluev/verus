@@ -182,7 +182,7 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		branches++;
 	}
 
-	_vDescriptorSetDesc.reserve(4);
+	_vDescriptorSetDesc.reserve(8);
 }
 
 void ShaderD3D12::Done()
@@ -229,8 +229,8 @@ void ShaderD3D12::CreateDescriptorSet(int setNumber, const void* pSrc, int size,
 	{
 		const UINT64 bufferSize = dsd._capacityInBytes * BaseRenderer::s_ringBufferSize;
 		D3D12MA::ALLOCATION_DESC allocDesc = {};
-		const auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 		allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+		const auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 		if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
 			&allocDesc,
 			&resDesc,
@@ -241,6 +241,8 @@ void ShaderD3D12::CreateDescriptorSet(int setNumber, const void* pSrc, int size,
 			throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD); hr=" << VERUS_HR(hr);
 		dsd._pConstantBuffer->SetName(_C(Str::Utf8ToWide("Shader.ConstantBuffer (" + _sourceName + ", set=" + std::to_string(setNumber) + ")")));
 
+		// Device requires alignment be a multiple of 256.
+		// Device requires SizeInBytes be a multiple of 256.
 		const int count = dsd._capacity * BaseRenderer::s_ringBufferSize;
 		dsd._dhDynamicOffsets.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, count);
 		VERUS_FOR(i, count)
@@ -292,60 +294,73 @@ void ShaderD3D12::CreatePipelineLayout()
 		{
 			auto& dsd = _vDescriptorSetDesc[i];
 			stageFlags |= dsd._stageFlags;
+
+			D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
+			switch (dsd._stageFlags)
+			{
+			case ShaderStageFlags::vs: visibility = D3D12_SHADER_VISIBILITY_VERTEX; break;
+			case ShaderStageFlags::hs: visibility = D3D12_SHADER_VISIBILITY_HULL; break;
+			case ShaderStageFlags::ds: visibility = D3D12_SHADER_VISIBILITY_DOMAIN; break;
+			case ShaderStageFlags::gs: visibility = D3D12_SHADER_VISIBILITY_GEOMETRY; break;
+			case ShaderStageFlags::fs: visibility = D3D12_SHADER_VISIBILITY_PIXEL; break;
+			case ShaderStageFlags::ts: visibility = D3D12_SHADER_VISIBILITY_AMPLIFICATION; break;
+			case ShaderStageFlags::ms: visibility = D3D12_SHADER_VISIBILITY_MESH; break;
+			}
+
 			if (dsd._capacity > 0)
 			{
-				D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL;
-				switch (dsd._stageFlags)
-				{
-				case ShaderStageFlags::vs: visibility = D3D12_SHADER_VISIBILITY_VERTEX; break;
-				case ShaderStageFlags::hs: visibility = D3D12_SHADER_VISIBILITY_HULL; break;
-				case ShaderStageFlags::ds: visibility = D3D12_SHADER_VISIBILITY_DOMAIN; break;
-				case ShaderStageFlags::gs: visibility = D3D12_SHADER_VISIBILITY_GEOMETRY; break;
-				case ShaderStageFlags::fs: visibility = D3D12_SHADER_VISIBILITY_PIXEL; break;
-				case ShaderStageFlags::ts: visibility = D3D12_SHADER_VISIBILITY_AMPLIFICATION; break;
-				case ShaderStageFlags::ms: visibility = D3D12_SHADER_VISIBILITY_MESH; break;
-				}
-
 				CD3DX12_DESCRIPTOR_RANGE1 descRange;
 				descRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, space);
 				vDescRanges.push_back(descRange);
 				const auto pDescriptorRanges = &vDescRanges.back();
+
 				const int textureCount = Utils::Cast32(dsd._vSamplers.size());
 				VERUS_FOR(i, textureCount)
 				{
-					if (Sampler::storage == dsd._vSamplers[i])
+					if (Sampler::storageImage == dsd._vSamplers[i])
 					{
 						CD3DX12_DESCRIPTOR_RANGE1 descRange;
-						descRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, i + 1, space);
+						descRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1 + i, space);
 						vDescRanges.push_back(descRange);
 					}
 					else
 					{
 						CD3DX12_DESCRIPTOR_RANGE1 descRange;
-						descRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, i + 1, space);
+						descRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1 + i, space);
 						vDescRanges.push_back(descRange);
 						if (Sampler::custom == dsd._vSamplers[i])
 						{
 							dsd._staticSamplersOnly = false;
 							CD3DX12_DESCRIPTOR_RANGE1 descRangeSampler;
-							descRangeSampler.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, i + 1, space);
+							descRangeSampler.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 1 + i, space);
 							vDescRangesSamplers.push_back(descRangeSampler);
 						}
 						else
 						{
 							Sampler s = dsd._vSamplers[i];
-							if (Sampler::input == s)
+							if (Sampler::inputAttach == s)
 								s = Sampler::nearestMipN;
 							D3D12_STATIC_SAMPLER_DESC samplerDesc = pRendererD3D12->GetD3DStaticSamplerDesc(s);
-							samplerDesc.ShaderRegister = i + 1;
+							samplerDesc.ShaderRegister = 1 + i;
 							samplerDesc.RegisterSpace = space;
 							samplerDesc.ShaderVisibility = visibility;
 							vStaticSamplers.push_back(samplerDesc);
 						}
 					}
 				}
+
 				CD3DX12_ROOT_PARAMETER1 rootParam;
 				rootParam.InitAsDescriptorTable(1 + textureCount, pDescriptorRanges, visibility);
+				vRootParams.push_back(rootParam);
+			}
+			else if (!dsd._size) // Structured buffer?
+			{
+				CD3DX12_DESCRIPTOR_RANGE1 descRange;
+				descRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, space);
+				vDescRanges.push_back(descRange);
+
+				CD3DX12_ROOT_PARAMETER1 rootParam;
+				rootParam.InitAsDescriptorTable(1, &vDescRanges.back(), visibility);
 				vRootParams.push_back(rootParam);
 			}
 			else
@@ -449,7 +464,8 @@ CSHandle ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_
 		const int mipLevel = pMipLevels ? pMipLevels[index] : 0;
 		const int arrayLayer = pArrayLayers ? pArrayLayers[index] : 0;
 		auto& texD3D12 = static_cast<RTextureD3D12>(*x);
-		if (Sampler::storage == dsd._vSamplers[index])
+
+		if (Sampler::storageImage == dsd._vSamplers[index])
 		{
 			if (toViewHeap)
 			{
@@ -490,6 +506,7 @@ CSHandle ShaderD3D12::BindDescriptorSetTextures(int setNumber, std::initializer_
 					D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 			}
 		}
+
 		index++;
 	}
 
@@ -551,10 +568,12 @@ void ShaderD3D12::EndBindDescriptors()
 
 UINT ShaderD3D12::ToRootParameterIndex(int setNumber) const
 {
+	// Arrange parameters in a large root signature so that the parameters most likely to change often,
+	// or if low access latency for a given parameter is important, occur first.
 	return static_cast<UINT>(_vDescriptorSetDesc.size()) - setNumber - 1;
 }
 
-bool ShaderD3D12::TryRootConstants(int setNumber, RBaseCommandBuffer cb)
+bool ShaderD3D12::TryRootConstants(int setNumber, RBaseCommandBuffer cb) const
 {
 	const auto& dsd = _vDescriptorSetDesc[setNumber];
 	if (!dsd._capacity)
@@ -570,14 +589,14 @@ bool ShaderD3D12::TryRootConstants(int setNumber, RBaseCommandBuffer cb)
 	return false;
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, int complexSetHandle)
+CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateConstantBuffer(int setNumber, int complexSetHandle)
 {
 	VERUS_QREF_RENDERER_D3D12;
 
 	auto& dsd = _vDescriptorSetDesc[setNumber];
 	if (dsd._offset + dsd._alignedSize > dsd._capacityInBytes)
 	{
-		VERUS_RT_FAIL("UniformBuffer is full.");
+		VERUS_RT_FAIL("ConstantBuffer is full.");
 		return CD3DX12_GPU_DESCRIPTOR_HANDLE(D3D12_DEFAULT);
 	}
 
@@ -621,7 +640,7 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateUniformBuffer(int setNumber, in
 	return hpBase._hGPU;
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateSamplers(int setNumber, int complexSetHandle)
+CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateSamplers(int setNumber, int complexSetHandle) const
 {
 	VERUS_QREF_RENDERER_D3D12;
 	VERUS_RT_ASSERT(complexSetHandle >= 0);
@@ -650,7 +669,7 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE ShaderD3D12::UpdateSamplers(int setNumber, int com
 	return hOffset;
 }
 
-void ShaderD3D12::OnError(CSZ s)
+void ShaderD3D12::OnError(CSZ s) const
 {
 	VERUS_QREF_RENDERER;
 
@@ -781,7 +800,7 @@ void ShaderD3D12::UpdateDebugInfo(
 	_debugInfo = ss.str();
 }
 
-void ShaderD3D12::UpdateUtilization()
+void ShaderD3D12::UpdateUtilization() const
 {
 	VERUS_QREF_RENDERER;
 

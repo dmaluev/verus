@@ -81,7 +81,7 @@ void Scatter::Done()
 	VERUS_DONE(Scatter);
 }
 
-void Scatter::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center)
+void Scatter::QuadtreeIntegral_OnElementDetected(const short ij[2], RcPoint3 center)
 {
 	VERUS_QREF_WM;
 

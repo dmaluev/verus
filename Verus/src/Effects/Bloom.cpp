@@ -63,7 +63,7 @@ void Bloom::Init()
 	OnSwapChainResized();
 }
 
-void Bloom::InitByAtmosphere(CGI::TexturePtr texShadow)
+void Bloom::InitByCascadedShadowMapBaker(CGI::TexturePtr texShadow)
 {
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
@@ -71,9 +71,9 @@ void Bloom::InitByAtmosphere(CGI::TexturePtr texShadow)
 	if (!settings._postProcessBloom)
 		return;
 
-	_texAtmoShadow = texShadow;
+	_texCSMB = texShadow;
 
-	_cshLightShafts = _shader->BindDescriptorSetTextures(2, { renderer.GetTexDepthStencil(), _texAtmoShadow });
+	_cshLightShafts = _shader->BindDescriptorSetTextures(2, { renderer.GetTexDepthStencil(), _texCSMB });
 }
 
 void Bloom::Done()
@@ -121,8 +121,8 @@ void Bloom::OnSwapChainResized()
 		_fbh = renderer->CreateFramebuffer(_rph, { _tex[TEX_PING] }, scaled05CombinedSwapChainWidth, scaled05CombinedSwapChainHeight);
 		_csh = _shader->BindDescriptorSetTextures(1, { renderer.GetDS().GetComposedTextureA() });
 
-		if (_texAtmoShadow)
-			InitByAtmosphere(_texAtmoShadow);
+		if (_texCSMB)
+			InitByCascadedShadowMapBaker(_texCSMB);
 	}
 	renderer.GetDS().InitByBloom(_tex[TEX_PING]);
 }
@@ -131,6 +131,7 @@ void Bloom::Generate()
 {
 	VERUS_QREF_ATMO;
 	VERUS_QREF_CONST_SETTINGS;
+	VERUS_QREF_CSMB;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_WM;
 
@@ -189,13 +190,13 @@ void Bloom::Generate()
 		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.y = _sunGloss;
 		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.z = _wideStrength;
 		s_ubBloomLightShaftsFS._maxDist_sunGloss_wideStrength_sunStrength.w = _sunStrength;
-		s_ubBloomLightShaftsFS._matShadow = atmo.GetShadowMapBaker().GetShadowMatrix(0).UniformBufferFormat();
-		s_ubBloomLightShaftsFS._matShadowCSM1 = atmo.GetShadowMapBaker().GetShadowMatrix(1).UniformBufferFormat();
-		s_ubBloomLightShaftsFS._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrix(2).UniformBufferFormat();
-		s_ubBloomLightShaftsFS._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrix(3).UniformBufferFormat();
-		s_ubBloomLightShaftsFS._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixVP().UniformBufferFormat();
-		s_ubBloomLightShaftsFS._csmSliceBounds = atmo.GetShadowMapBaker().GetSliceBounds().GLM();
-		memcpy(&s_ubBloomLightShaftsFS._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubBloomLightShaftsFS._shadowConfig));
+		s_ubBloomLightShaftsFS._matShadow = csmb.GetShadowMatrix(0).UniformBufferFormat();
+		s_ubBloomLightShaftsFS._matShadowCSM1 = csmb.GetShadowMatrix(1).UniformBufferFormat();
+		s_ubBloomLightShaftsFS._matShadowCSM2 = csmb.GetShadowMatrix(2).UniformBufferFormat();
+		s_ubBloomLightShaftsFS._matShadowCSM3 = csmb.GetShadowMatrix(3).UniformBufferFormat();
+		s_ubBloomLightShaftsFS._matScreenCSM = csmb.GetScreenMatrixVP().UniformBufferFormat();
+		s_ubBloomLightShaftsFS._csmSliceBounds = csmb.GetSliceBounds().GLM();
+		memcpy(&s_ubBloomLightShaftsFS._shadowConfig, &csmb.GetConfig(), sizeof(s_ubBloomLightShaftsFS._shadowConfig));
 
 		cb->BindPipeline(_pipe[PIPE_LIGHT_SHAFTS]);
 		_shader->BeginBindDescriptors();

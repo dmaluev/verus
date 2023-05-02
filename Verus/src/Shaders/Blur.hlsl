@@ -133,6 +133,51 @@ FSO mainBoxFS(VSO si)
 
 // </BoxBlur>
 
+// <VsmBlur>
+
+#ifdef _VS
+VSO mainVsmVS(VSI si)
+{
+	VSO so;
+
+	// Standard quad:
+	so.pos = float4(mul(si.pos, g_ubBlurVS._matW), 1);
+	so.tc0.xy = mul(si.pos, g_ubBlurVS._matV).xy;
+	so.tc0.zw = 0.0;
+
+	return so;
+}
+#endif
+
+#ifdef _FS
+FSO mainVsmFS(VSO si)
+{
+	FSO so;
+
+	static const float weights[6] = { 1.0, 0.9, 0.6, 0.3, 0.2, 1.0 / 5.0 };
+
+	float2 acc = 0.0;
+	[unroll] for (int i = -4; i <= 4; ++i)
+	{
+#ifdef DEF_U
+		// Use linear depth because render target has half-precision floating-point format:
+		const float depthSam = g_tex.SampleLevel(g_sam, si.tc0.xy, 0.0, int2(i, 0)).r;
+		const float linearDepth = ToLinearDepth(depthSam, g_ubExtraBlurFS._zNearFarEx);
+		acc += weights[abs(i)] * float2(linearDepth, linearDepth * linearDepth);
+#else
+		acc += weights[abs(i)] * g_tex.SampleLevel(g_sam, si.tc0.xy, 0.0, int2(0, i)).rg;
+#endif
+	}
+	acc *= weights[5];
+
+	so.color = float4(acc, 0, 0);
+
+	return so;
+}
+#endif
+
+// </VsmBlur>
+
 // <SsaoBlur>
 
 #ifdef _VS
@@ -560,6 +605,8 @@ FSO mainMotionFS(VSO si)
 //@main:#V V
 //@mainBox:#UBox U
 //@mainBox:#VBox V
+//@mainVsm:#UVsm U
+//@mainVsm:#VVsm V
 //@mainSsao:#Ssao
 //@mainResolveDithering:#ResolveDithering
 //@mainSharpen:#Sharpen

@@ -117,6 +117,9 @@ void CubeMapBaker::BeginEnvMap(CGI::CubeMapFace cubeMapFace, RcPoint3 center)
 			_tex[TEX_DEPTH]->GetClearValue()
 		},
 		CGI::ViewportScissorFlags::setAllForFramebuffer);
+
+	VERUS_RT_ASSERT(!_baking);
+	_baking = true;
 }
 
 void CubeMapBaker::EndEnvMap()
@@ -130,7 +133,12 @@ void CubeMapBaker::EndEnvMap()
 
 	VERUS_PROFILER_END_EVENT(cb);
 
-	wm.SetPassCamera(_pPrevPassCamera);
+	_pPrevPassCamera = wm.SetPassCamera(_pPrevPassCamera);
+	VERUS_RT_ASSERT(&_passCamera == _pPrevPassCamera); // Check camera's integrity.
+	_pPrevPassCamera = nullptr;
+
+	VERUS_RT_ASSERT(_baking);
+	_baking = false;
 }
 
 CGI::TexturePtr CubeMapBaker::GetColorTexture()

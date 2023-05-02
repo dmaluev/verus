@@ -35,9 +35,10 @@ void Ssr::Init()
 			CGI::Sampler::nearestClampMipN, // GBuffer1
 			CGI::Sampler::nearestClampMipN, // GBuffer2
 			CGI::Sampler::nearestClampMipN, // GBuffer3
-			CGI::Sampler::linearClampMipN, // Scene
 			CGI::Sampler::linearClampMipN, // Depth
-			CGI::Sampler::linearClampMipL // Image
+			CGI::Sampler::nearestClampMipN, // AccAmb
+			CGI::Sampler::linearClampMipL, // Image
+			CGI::Sampler::linearClampMipN // Scene
 		}, CGI::ShaderStageFlags::fs);
 	_shader->CreatePipelineLayout();
 
@@ -106,9 +107,10 @@ bool Ssr::BindDescriptorSetTextures()
 				renderer.GetDS().GetGBuffer(1),
 				renderer.GetDS().GetGBuffer(2),
 				renderer.GetDS().GetGBuffer(3),
-				renderer.GetDS().GetComposedTextureA(),
 				renderer.GetTexDepthStencil(),
-				atmo.GetCubeMapBaker().GetColorTexture()
+				renderer.GetDS().GetLightAccAmbientTexture(),
+				atmo.GetCubeMapBaker().GetColorTexture(),
+				renderer.GetDS().GetComposedTextureA()
 			});
 		return true;
 	}

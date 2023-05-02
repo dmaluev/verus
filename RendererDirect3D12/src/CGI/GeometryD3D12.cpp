@@ -66,6 +66,14 @@ void GeometryD3D12::Done()
 {
 	ForceScheduled();
 
+	for (auto& x : _vStructuredBuffers)
+	{
+		x._dhDynamicOffsets.Reset();
+		VERUS_SMART_RELEASE(x._pMaAllocation);
+		VERUS_COM_RELEASE_CHECK(x._pBuffer.Get());
+		x._pBuffer.Reset();
+	}
+	_vStructuredBuffers.clear();
 	VERUS_SMART_RELEASE(_indexBuffer._pMaAllocation);
 	VERUS_COM_RELEASE_CHECK(_indexBuffer._pBuffer.Get());
 	_indexBuffer._pBuffer.Reset();
@@ -324,6 +332,69 @@ void GeometryD3D12::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, INT
 	}
 }
 
+void GeometryD3D12::CreateStorageBuffer(int count, int structSize, int sbIndex, ShaderStageFlags stageFlags)
+{
+	VERUS_QREF_RENDERER_D3D12;
+	HRESULT hr = 0;
+
+	if (_vStructuredBuffers.size() <= sbIndex)
+		_vStructuredBuffers.resize(sbIndex + 1);
+
+	auto& sb = _vStructuredBuffers[sbIndex];
+	sb._structSize = structSize;
+	sb._bufferSize = count * sb._structSize;
+
+	D3D12MA::ALLOCATION_DESC allocDesc = {};
+	allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+	const auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(sb._bufferSize * BaseRenderer::s_ringBufferSize);
+	if (FAILED(hr = pRendererD3D12->GetMaAllocator()->CreateResource(
+		&allocDesc,
+		&resDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		&sb._pMaAllocation,
+		IID_PPV_ARGS(&sb._pBuffer))))
+		throw VERUS_RUNTIME_ERROR << "CreateResource(D3D12_HEAP_TYPE_UPLOAD); hr=" << VERUS_HR(hr);
+	sb._pBuffer->SetName(_C(Str::Utf8ToWide(_name + " (SB, " + std::to_string(sbIndex) + ")")));
+
+	sb._dhDynamicOffsets.Create(pRendererD3D12->GetD3DDevice(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, BaseRenderer::s_ringBufferSize);
+	VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
+	{
+		auto handle = sb._dhDynamicOffsets.AtCPU(i);
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Buffer.FirstElement = i * count;
+		srvDesc.Buffer.NumElements = count;
+		srvDesc.Buffer.StructureByteStride = sb._structSize;
+		pRendererD3D12->GetD3DDevice()->CreateShaderResourceView(sb._pBuffer.Get(), &srvDesc, handle);
+	}
+}
+
+void GeometryD3D12::UpdateStorageBuffer(const void* p, int sbIndex, PBaseCommandBuffer pCB, INT64 size, INT64 offset)
+{
+	VERUS_QREF_RENDERER_D3D12;
+	HRESULT hr = 0;
+
+	auto& sb = _vStructuredBuffers[sbIndex];
+	size = size ? size * sb._structSize : sb._bufferSize;
+
+	CD3DX12_RANGE readRange(0, 0);
+	void* pData = nullptr;
+	if (FAILED(hr = sb._pBuffer->Map(0, &readRange, &pData)))
+		throw VERUS_RUNTIME_ERROR << "Map(); hr=" << VERUS_HR(hr);
+	BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererD3D12->GetRingBufferIndex() * sb._bufferSize;
+	memcpy(pMappedData + offset * sb._structSize, p, size);
+	sb._pBuffer->Unmap(0, nullptr);
+	sb._utilization = offset * sb._structSize + size;
+}
+
+int GeometryD3D12::GetStorageBufferStructSize(int sbIndex) const
+{
+	return _vStructuredBuffers[sbIndex]._structSize;
+}
+
 Continue GeometryD3D12::Scheduled_Update()
 {
 	if (!IsScheduledAllowed())
@@ -392,7 +463,26 @@ const D3D12_INDEX_BUFFER_VIEW* GeometryD3D12::GetD3DIndexBufferView() const
 		return &_indexBufferView[0];
 }
 
-void GeometryD3D12::UpdateUtilization()
+CD3DX12_GPU_DESCRIPTOR_HANDLE GeometryD3D12::CopyStructuredBufferView(int sbIndex) const
+{
+	VERUS_QREF_RENDERER_D3D12;
+
+	if (sbIndex >= _vStructuredBuffers.size())
+		return CD3DX12_GPU_DESCRIPTOR_HANDLE(D3D12_DEFAULT);
+
+	auto& sb = _vStructuredBuffers[sbIndex];
+
+	HandlePair hpBase = pRendererD3D12->GetViewHeap().GetNextHandlePair();
+
+	pRendererD3D12->GetD3DDevice()->CopyDescriptorsSimple(1,
+		hpBase._hCPU,
+		sb._dhDynamicOffsets.AtCPU(pRendererD3D12->GetRingBufferIndex()),
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	return hpBase._hGPU;
+}
+
+void GeometryD3D12::UpdateUtilization() const
 {
 	VERUS_QREF_RENDERER;
 	int binding = 0;

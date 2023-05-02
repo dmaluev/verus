@@ -1,6 +1,6 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-VERUS_UBUFFER UB_TerrainVS
+VERUS_UBUFFER_STRUCT UB_TerrainVS
 {
 	mataff _matW;
 	mataff _matWV; // For normal.
@@ -11,7 +11,7 @@ VERUS_UBUFFER UB_TerrainVS
 	float4 _viewportSize;
 };
 
-VERUS_UBUFFER UB_TerrainFS
+VERUS_UBUFFER_STRUCT UB_TerrainFS
 {
 	mataff _matWV; // For basis.
 	float4 _vDetailStrength[8];

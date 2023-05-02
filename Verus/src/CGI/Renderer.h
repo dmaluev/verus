@@ -48,6 +48,7 @@ namespace verus
 				INT64  _value = 0;
 				INT64  _total = 0;
 				float  _fraction = 0;
+				float  _balance = 0;
 			};
 			VERUS_TYPEDEFS(Utilization);
 
@@ -95,6 +96,8 @@ namespace verus
 			UB_GenerateCubeMapMips   _ubGenerateCubeMapMips;
 			UB_QuadVS                _ubQuadVS;
 			UB_QuadFS                _ubQuadFS;
+			int                      _utilIgnoreIfTotal = 0;
+			bool                     _utilSortByBalance = false;
 			bool                     _autoExposure = true;
 			bool                     _allowInitShaders = true;
 			bool                     _showUtilization = false;

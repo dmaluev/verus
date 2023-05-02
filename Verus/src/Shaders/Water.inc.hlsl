@@ -1,6 +1,6 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-VERUS_UBUFFER UB_WaterVS
+VERUS_UBUFFER_STRUCT UB_WaterVS
 {
 	mataff _matW;
 	matrix _matVP;
@@ -10,7 +10,7 @@ VERUS_UBUFFER UB_WaterVS
 	float4 _waterScale_distToMipScale_landDistToMipScale_wavePhase;
 };
 
-VERUS_UBUFFER UB_WaterFS
+VERUS_UBUFFER_STRUCT UB_WaterFS
 {
 	mataff _matV;
 	float4 _phase_wavePhase_camScale;

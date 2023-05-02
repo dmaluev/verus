@@ -8,7 +8,7 @@ namespace verus
 		class OctreeDelegate
 		{
 		public:
-			virtual Continue Octree_ProcessNode(void* pToken, void* pUser) = 0;
+			virtual Continue Octree_OnElementDetected(void* pToken, void* pUser) = 0;
 		};
 		VERUS_TYPEDEFS(OctreeDelegate);
 
@@ -91,8 +91,9 @@ namespace verus
 			void UpdateDynamicBounds(RcElement element);
 			VERUS_P(bool MustBind(int currentNode, RcBounds bounds) const);
 
-			Continue TraverseVisible(RcFrustum frustum, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr);
-			Continue TraverseVisible(RcPoint3 point, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr);
+			Continue DetectElements(RcFrustum frustum, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr);
+			Continue DetectElements(Math::RcSphere sphere, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr);
+			Continue DetectElements(RcPoint3 point, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr);
 
 			VERUS_P(static void RemapChildIndices(RcPoint3 point, RcPoint3 center, BYTE childIndices[8]));
 

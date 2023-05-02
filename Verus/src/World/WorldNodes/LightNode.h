@@ -22,8 +22,12 @@ namespace verus
 		// * has different light parameters, like color, radius, etc.
 		class LightNode : public BaseNode
 		{
-			LightData _data;
-			bool      _async_loadedMesh = false;
+			Matrix4         _matShadow = Matrix4::identity();
+			LightData       _data;
+			ShadowMapHandle _shadowMapHandle;
+			float           _cachedInfluence = 0;
+			bool            _shadowMapUpdateRequired = false;
+			bool            _async_loadedMesh = false;
 
 		public:
 			struct Desc : BaseNode::Desc
@@ -44,6 +48,12 @@ namespace verus
 			virtual void Update() override;
 			virtual void DrawEditorOverlays(DrawEditorOverlaysFlags flags) override;
 
+			// <Flags>
+			virtual void SetShadowFlag(bool shadow = true) override;
+			bool CanReserveShadow() const;
+			void SetReserveShadowFlag(bool reserveShadow);
+			// </Flags>
+
 			virtual float GetPropertyByName(CSZ name) const override;
 			virtual void SetPropertyByName(CSZ name, float value) override;
 
@@ -51,6 +61,8 @@ namespace verus
 			virtual void OnLocalTransformUpdated() override;
 
 			virtual void UpdateBounds() override;
+
+			virtual void OnNodeTransformed(PBaseNode pNode, bool afterEvent) override;
 
 			virtual void Serialize(IO::RSeekableStream stream) override;
 			virtual void Deserialize(IO::RStream stream) override;
@@ -66,10 +78,30 @@ namespace verus
 			float GetRadius() const;
 			void SetRadius(float r);
 			float GetConeIn() const;
+			void SetConeIn(float coneIn);
 			float GetConeOut() const;
-			void SetCone(float coneIn = 0, float coneOut = 0);
+			void SetConeOut(float coneOut);
 			Vector4 GetInstData() const;
 			float ComputeLampRadius() const;
+
+			// <Shadow>
+			ShadowMapHandle GetShadowMapHandle() const { return _shadowMapHandle; }
+			void UpdateShadowMapHandle(bool freeCell = false);
+			bool CanRequestShadowMapUpdate() const;
+			void RequestShadowMapUpdate(bool mustBeStatic = true);
+			bool IsShadowMapUpdateRequired() const;
+			void OnShadowMapUpdated();
+			bool CanBeSmbpStatic() const;
+			bool CanBeSmbpDynamic() const;
+
+			void SetupShadowMapCamera(RCamera camera);
+
+			RcMatrix4 GetShadowMatrix() const;
+			Matrix4 GetShadowMatrixForDS() const;
+			// </Shadow>
+
+			float GetInfluenceAt(Math::RcSphere sphere);
+			float GetCachedInfluence() const { return _cachedInfluence; }
 		};
 		VERUS_TYPEDEFS(LightNode);
 

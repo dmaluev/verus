@@ -45,6 +45,7 @@ namespace verus
 			virtual void BindIndexBuffer(GeometryPtr geo) override;
 
 			virtual bool BindDescriptors(ShaderPtr shader, int setNumber, CSHandle complexSetHandle) override;
+			virtual bool BindDescriptors(ShaderPtr shader, int setNumber, GeometryPtr geo, int sbIndex) override;
 			virtual void PushConstants(ShaderPtr shader, int offset, int size, const void* p, ShaderStageFlags stageFlags) override;
 
 			virtual void Draw(int vertexCount, int instanceCount, int firstVertex, int firstInstance) override;

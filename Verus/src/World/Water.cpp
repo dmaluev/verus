@@ -203,6 +203,7 @@ void Water::Draw()
 	VERUS_UPDATE_ONCE_CHECK_DRAW;
 
 	VERUS_QREF_ATMO;
+	VERUS_QREF_CSMB;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_WM;
 
@@ -260,13 +261,13 @@ void Water::Draw()
 		s_ubWaterFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubWaterFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
 	s_ubWaterFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-	s_ubWaterFS._matShadow = atmo.GetShadowMapBaker().GetShadowMatrix(0).UniformBufferFormat();
-	s_ubWaterFS._matShadowCSM1 = atmo.GetShadowMapBaker().GetShadowMatrix(1).UniformBufferFormat();
-	s_ubWaterFS._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrix(2).UniformBufferFormat();
-	s_ubWaterFS._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrix(3).UniformBufferFormat();
-	s_ubWaterFS._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixVP().UniformBufferFormat();
-	s_ubWaterFS._csmSliceBounds = atmo.GetShadowMapBaker().GetSliceBounds().GLM();
-	memcpy(&s_ubWaterFS._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubWaterFS._shadowConfig));
+	s_ubWaterFS._matShadow = csmb.GetShadowMatrix(0).UniformBufferFormat();
+	s_ubWaterFS._matShadowCSM1 = csmb.GetShadowMatrix(1).UniformBufferFormat();
+	s_ubWaterFS._matShadowCSM2 = csmb.GetShadowMatrix(2).UniformBufferFormat();
+	s_ubWaterFS._matShadowCSM3 = csmb.GetShadowMatrix(3).UniformBufferFormat();
+	s_ubWaterFS._matScreenCSM = csmb.GetScreenMatrixVP().UniformBufferFormat();
+	s_ubWaterFS._csmSliceBounds = csmb.GetSliceBounds().GLM();
+	memcpy(&s_ubWaterFS._shadowConfig, &csmb.GetConfig(), sizeof(s_ubWaterFS._shadowConfig));
 
 	cb->BindPipeline(_pipe[PIPE_MAIN]);
 	cb->BindVertexBuffers(_geo);
@@ -285,7 +286,7 @@ void Water::OnSwapChainResized()
 	if (!_tex[TEX_FOAM]->IsLoaded())
 		return;
 
-	VERUS_QREF_ATMO;
+	VERUS_QREF_CSMB;
 	VERUS_QREF_RENDERER;
 
 	_shader[SHADER_MAIN]->FreeDescriptorSet(_cshWaterFS);
@@ -300,8 +301,8 @@ void Water::OnSwapChainResized()
 			_tex[TEX_REFLECTION],
 			renderer.GetDS().GetComposedTextureB(),
 			renderer.GetDS().GetGBuffer(3),
-			atmo.GetShadowMapBaker().GetTexture(),
-			atmo.GetShadowMapBaker().GetTexture(),
+			csmb.GetTexture(),
+			csmb.GetTexture(),
 		});
 }
 

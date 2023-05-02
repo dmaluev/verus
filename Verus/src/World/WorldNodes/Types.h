@@ -14,6 +14,7 @@ namespace verus
 			model,
 			particles,
 
+			ambient,
 			block,
 			blockChain,
 			controlPoint,

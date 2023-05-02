@@ -43,13 +43,13 @@ void ShadowMapBaker::Init(int side)
 
 void ShadowMapBaker::Done()
 {
+	if (CGI::Renderer::IsLoaded())
+	{
+		VERUS_QREF_RENDERER;
+		renderer->DeleteFramebuffer(_fbh);
+		renderer->DeleteRenderPass(_rph);
+	}
 	VERUS_DONE(ShadowMapBaker);
-}
-
-void ShadowMapBaker::UpdateMatrixForCurrentView()
-{
-	VERUS_QREF_WM;
-	_matShadowDS = _matShadow * wm.GetViewCamera()->GetMatrixInvV();
 }
 
 void ShadowMapBaker::Begin(RcVector3 dirToSun, RcVector3 up)
@@ -113,8 +113,8 @@ void ShadowMapBaker::End()
 
 	VERUS_PROFILER_END_EVENT(cb);
 
-	const Matrix4 m = Math::ToUVMatrix();
-	_matShadow = m * _passCamera.GetMatrixVP();
+	const Matrix4 toUV = Math::ToUVMatrix();
+	_matShadow = toUV * _passCamera.GetMatrixVP();
 
 	_pPrevPassCamera = wm.SetPassCamera(_pPrevPassCamera);
 	VERUS_RT_ASSERT(&_passCamera == _pPrevPassCamera); // Check camera's integrity.
@@ -124,14 +124,20 @@ void ShadowMapBaker::End()
 	_baking = false;
 }
 
+void ShadowMapBaker::UpdateMatrixForCurrentView()
+{
+	VERUS_QREF_WM;
+	_matShadowForDS = _matShadow * wm.GetViewCamera()->GetMatrixInvV();
+}
+
 RcMatrix4 ShadowMapBaker::GetShadowMatrix() const
 {
 	return _matShadow;
 }
 
-RcMatrix4 ShadowMapBaker::GetShadowMatrixDS() const
+RcMatrix4 ShadowMapBaker::GetShadowMatrixForDS() const
 {
-	return _matShadowDS;
+	return _matShadowForDS;
 }
 
 CGI::TexturePtr ShadowMapBaker::GetTexture() const
@@ -160,12 +166,19 @@ CascadedShadowMapBaker::~CascadedShadowMapBaker()
 
 void CascadedShadowMapBaker::Init(int side)
 {
+	VERUS_QREF_BLOOM;
 	VERUS_QREF_CONST_SETTINGS;
+	VERUS_QREF_RENDERER;
+
 	if (settings._sceneShadowQuality < App::Settings::Quality::high)
-		return ShadowMapBaker::Init(side);
+	{
+		ShadowMapBaker::Init(side);
+		renderer.GetDS().InitByCascadedShadowMapBaker(_tex);
+		bloom.InitByCascadedShadowMapBaker(_tex);
+		return;
+	}
 
 	VERUS_INIT();
-	VERUS_QREF_RENDERER;
 
 	_side = side;
 	_headCameraPreferredRange = 300;
@@ -199,21 +212,13 @@ void CascadedShadowMapBaker::Init(int side)
 	_matOffset[1] = VMath::appendScale(Matrix4::translation(Vector3(x, 0, 0)), s);
 	_matOffset[2] = VMath::appendScale(Matrix4::translation(Vector3(0, x, 0)), s);
 	_matOffset[3] = VMath::appendScale(Matrix4::translation(Vector3(x, x, 0)), s);
+
+	renderer.GetDS().InitByCascadedShadowMapBaker(_tex);
+	bloom.InitByCascadedShadowMapBaker(_tex);
 }
 
 void CascadedShadowMapBaker::Done()
 {
-}
-
-void CascadedShadowMapBaker::UpdateMatrixForCurrentView()
-{
-	VERUS_QREF_CONST_SETTINGS;
-	if (settings._sceneShadowQuality < App::Settings::Quality::high)
-		return ShadowMapBaker::UpdateMatrixForCurrentView();
-
-	VERUS_QREF_WM;
-	VERUS_FOR(i, 4)
-		_matShadowCSM_DS[i] = _matShadowCSM[i] * wm.GetViewCamera()->GetMatrixInvV();
 }
 
 void CascadedShadowMapBaker::Begin(RcVector3 dirToSun, int slice, RcVector3 up)
@@ -348,17 +353,20 @@ void CascadedShadowMapBaker::Begin(RcVector3 dirToSun, int slice, RcVector3 up)
 	if (0 == _currentSlice)
 	{
 		cb->BeginRenderPass(_rph, _fbh, { _tex->GetClearValue() },
-			CGI::ViewportScissorFlags::setAllForFramebuffer);
+			CGI::ViewportScissorFlags::none);
 	}
 
 	const float s = static_cast<float>(_side / 2);
+	Vector4 rc;
 	switch (_currentSlice)
 	{
-	case 0: cb->SetViewport({ Vector4(0, 0, s, s) }); break;
-	case 1: cb->SetViewport({ Vector4(s, 0, s, s) }); break;
-	case 2: cb->SetViewport({ Vector4(0, s, s, s) }); break;
-	case 3: cb->SetViewport({ Vector4(s, s, s, s) }); break;
+	case 0: rc = Vector4(0, 0, s, s); break;
+	case 1: rc = Vector4(s, 0, s, s); break;
+	case 2: rc = Vector4(0, s, s, s); break;
+	case 3: rc = Vector4(s, s, s, s); break;
 	}
+	cb->SetViewport({ rc });
+	cb->SetScissor({ rc });
 
 	VERUS_RT_ASSERT(!_baking);
 	_baking = true;
@@ -381,8 +389,8 @@ void CascadedShadowMapBaker::End(int slice)
 
 	VERUS_PROFILER_END_EVENT(cb);
 
-	const Matrix4 m = Math::ToUVMatrix();
-	_matShadowCSM[_currentSlice] = _matOffset[_currentSlice] * m * _passCamera.GetMatrixVP();
+	const Matrix4 toUV = Math::ToUVMatrix();
+	_matShadowCSM[_currentSlice] = _matOffset[_currentSlice] * toUV * _passCamera.GetMatrixVP();
 
 	_pPrevPassCamera = wm.SetPassCamera(_pPrevPassCamera);
 	VERUS_RT_ASSERT(&_passCamera == _pPrevPassCamera); // Check camera's integrity.
@@ -394,6 +402,17 @@ void CascadedShadowMapBaker::End(int slice)
 	_baking = false;
 }
 
+void CascadedShadowMapBaker::UpdateMatrixForCurrentView()
+{
+	VERUS_QREF_CONST_SETTINGS;
+	if (settings._sceneShadowQuality < App::Settings::Quality::high)
+		return ShadowMapBaker::UpdateMatrixForCurrentView();
+
+	VERUS_QREF_WM;
+	VERUS_FOR(i, 4)
+		_matShadowCSM_DS[i] = _matShadowCSM[i] * wm.GetViewCamera()->GetMatrixInvV();
+}
+
 RcMatrix4 CascadedShadowMapBaker::GetShadowMatrix(int slice) const
 {
 	VERUS_QREF_CONST_SETTINGS;
@@ -402,10 +421,10 @@ RcMatrix4 CascadedShadowMapBaker::GetShadowMatrix(int slice) const
 	return _matShadowCSM[slice];
 }
 
-RcMatrix4 CascadedShadowMapBaker::GetShadowMatrixDS(int slice) const
+RcMatrix4 CascadedShadowMapBaker::GetShadowMatrixForDS(int slice) const
 {
 	VERUS_QREF_CONST_SETTINGS;
 	if (settings._sceneShadowQuality < App::Settings::Quality::high)
-		return ShadowMapBaker::GetShadowMatrixDS();
+		return ShadowMapBaker::GetShadowMatrixForDS();
 	return _matShadowCSM_DS[slice];
 }

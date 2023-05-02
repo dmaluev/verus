@@ -183,7 +183,7 @@ void ShaderD3D11::Init(CSZ source, CSZ sourceName, CSZ* branches)
 		branches++;
 	}
 
-	_vDescriptorSetDesc.reserve(4);
+	_vDescriptorSetDesc.reserve(8);
 }
 
 void ShaderD3D11::Done()
@@ -220,7 +220,7 @@ void ShaderD3D11::CreateDescriptorSet(int setNumber, const void* pSrc, int size,
 	dsd._uavCount = 0;
 	for (const auto& sampler : dsd._vSamplers)
 	{
-		if (Sampler::storage == sampler)
+		if (Sampler::storageImage == sampler)
 			dsd._uavCount++;
 		else
 			dsd._srvCount++;
@@ -231,16 +231,21 @@ void ShaderD3D11::CreateDescriptorSet(int setNumber, const void* pSrc, int size,
 	{
 		dsd._srvStartSlot += prevDsd._srvCount;
 		dsd._uavStartSlot += prevDsd._uavCount;
+		if (!prevDsd._size) // Structured buffer?
+			dsd._srvStartSlot++;
 	}
 
-	D3D11_BUFFER_DESC bDesc = {};
-	bDesc.ByteWidth = dsd._capacityInBytes;
-	bDesc.Usage = D3D11_USAGE_DYNAMIC;
-	bDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	bDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	if (FAILED(hr = pRendererD3D11->GetD3DDevice()->CreateBuffer(&bDesc, 0, &dsd._pConstantBuffer)))
-		throw VERUS_RUNTIME_ERROR << "CreateBuffer(D3D11_BIND_CONSTANT_BUFFER); hr=" << VERUS_HR(hr);
-	SetDebugObjectName(dsd._pConstantBuffer.Get(), _C("Shader.ConstantBuffer (" + _sourceName + ", set=" + std::to_string(setNumber) + ")"));
+	if (dsd._capacityInBytes)
+	{
+		D3D11_BUFFER_DESC bDesc = {};
+		bDesc.ByteWidth = dsd._capacityInBytes;
+		bDesc.Usage = D3D11_USAGE_DYNAMIC;
+		bDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		bDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		if (FAILED(hr = pRendererD3D11->GetD3DDevice()->CreateBuffer(&bDesc, nullptr, &dsd._pConstantBuffer)))
+			throw VERUS_RUNTIME_ERROR << "CreateBuffer(D3D11_BIND_CONSTANT_BUFFER); hr=" << VERUS_HR(hr);
+		SetDebugObjectName(dsd._pConstantBuffer.Get(), _C("Shader.ConstantBuffer (" + _sourceName + ", set=" + std::to_string(setNumber) + ")"));
+	}
 
 	_vDescriptorSetDesc.push_back(dsd);
 }
@@ -286,10 +291,12 @@ CSHandle ShaderD3D11::BindDescriptorSetTextures(int setNumber, std::initializer_
 		const int mipLevel = pMipLevels ? pMipLevels[index] : 0;
 		const int arrayLayer = pArrayLayers ? pArrayLayers[index] : 0;
 		const auto& texD3D11 = static_cast<RTextureD3D11>(*x);
-		if (Sampler::storage == dsd._vSamplers[index])
+
+		if (Sampler::storageImage == dsd._vSamplers[index])
 			complexSet._vUAVs.push_back(mipLevel >= 0 ? texD3D11.GetUAV(mipLevel + arrayLayer * (mipLevelCount - 1)) : nullptr);
 		else
 			complexSet._vSRVs.push_back(texD3D11.GetSRV());
+
 		index++;
 	}
 
@@ -317,7 +324,7 @@ void ShaderD3D11::EndBindDescriptors()
 {
 }
 
-ID3D11Buffer* ShaderD3D11::UpdateUniformBuffer(int setNumber, ShaderStageFlags& stageFlags)
+ID3D11Buffer* ShaderD3D11::UpdateConstantBuffer(int setNumber) const
 {
 	VERUS_QREF_RENDERER_D3D11;
 	HRESULT hr = 0;
@@ -330,21 +337,25 @@ ID3D11Buffer* ShaderD3D11::UpdateUniformBuffer(int setNumber, ShaderStageFlags& 
 	memcpy(ms.pData, dsd._pSrc, dsd._size);
 	pRendererD3D11->GetD3DDeviceContext()->Unmap(dsd._pConstantBuffer.Get(), 0);
 
-	stageFlags = dsd._stageFlags;
-
 	return dsd._pConstantBuffer.Get();
 }
 
-void ShaderD3D11::GetShaderResources(int setNumber, int complexSetHandle, RShaderResources shaderResources)
+ShaderStageFlags ShaderD3D11::GetShaderStageFlags(int setNumber) const
 {
+	const auto& dsd = _vDescriptorSetDesc[setNumber];
+	return dsd._stageFlags;
+}
+
+void ShaderD3D11::GetShaderResources(int setNumber, int complexSetHandle, RShaderResources shaderResources) const
+{
+	const auto& dsd = _vDescriptorSetDesc[setNumber];
+	shaderResources._srvCount = dsd._srvCount;
+	shaderResources._uavCount = dsd._uavCount;
+	shaderResources._srvStartSlot = dsd._srvStartSlot;
+	shaderResources._uavStartSlot = dsd._uavStartSlot;
 	if (complexSetHandle >= 0)
 	{
-		const auto& dsd = _vDescriptorSetDesc[setNumber];
 		const auto& complexSet = _vComplexSets[complexSetHandle];
-		shaderResources._srvCount = dsd._srvCount;
-		shaderResources._uavCount = dsd._uavCount;
-		shaderResources._srvStartSlot = dsd._srvStartSlot;
-		shaderResources._uavStartSlot = dsd._uavStartSlot;
 		if (shaderResources._srvCount)
 			memcpy(shaderResources._srvs, complexSet._vSRVs.data(), shaderResources._srvCount * sizeof(ID3D11ShaderResourceView*));
 		if (shaderResources._uavCount)
@@ -352,7 +363,7 @@ void ShaderD3D11::GetShaderResources(int setNumber, int complexSetHandle, RShade
 	}
 }
 
-void ShaderD3D11::GetSamplers(int setNumber, int complexSetHandle, RShaderResources shaderResources)
+void ShaderD3D11::GetSamplers(int setNumber, int complexSetHandle, RShaderResources shaderResources) const
 {
 	VERUS_QREF_RENDERER_D3D11;
 
@@ -366,9 +377,9 @@ void ShaderD3D11::GetSamplers(int setNumber, int complexSetHandle, RShaderResour
 			const auto& texD3D11 = static_cast<RTextureD3D11>(*complexSet._vTextures[i]);
 			shaderResources._samplers[i] = texD3D11.GetD3DSamplerState();
 		}
-		else if (Sampler::input == dsd._vSamplers[i])
+		else if (Sampler::inputAttach == dsd._vSamplers[i])
 		{
-			shaderResources._samplers[i] = pRendererD3D11->GetD3DSamplerState(Sampler::nearestClampMipN);
+			shaderResources._samplers[i] = pRendererD3D11->GetD3DSamplerState(Sampler::nearestMipN);
 		}
 		else
 		{
@@ -377,7 +388,7 @@ void ShaderD3D11::GetSamplers(int setNumber, int complexSetHandle, RShaderResour
 	}
 }
 
-void ShaderD3D11::OnError(CSZ s)
+void ShaderD3D11::OnError(CSZ s) const
 {
 	VERUS_QREF_RENDERER;
 

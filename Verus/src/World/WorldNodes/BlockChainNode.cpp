@@ -233,7 +233,7 @@ void BlockChainNode::ParseArguments()
 	{
 		x._vSlots.clear();
 		x._noPhysicsNode = false;
-		x._noShadowCaster = false;
+		x._noShadow = false;
 		Vector<String> vArgs;
 		Str::Explode(_C(x._arguments), ",", vArgs);
 		for (const auto& arg : vArgs)
@@ -250,9 +250,9 @@ void BlockChainNode::ParseArguments()
 			{
 				x._noPhysicsNode = true;
 			}
-			else if (arg == "-nosc")
+			else if (arg == "-nosc" || arg == "-nosh")
 			{
-				x._noShadowCaster = true;
+				x._noShadow = true;
 			}
 		}
 	}

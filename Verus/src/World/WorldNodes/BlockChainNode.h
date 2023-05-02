@@ -15,7 +15,7 @@ namespace verus
 				String        _arguments;
 				float         _length = 0;
 				bool          _noPhysicsNode = false;
-				bool          _noShadowCaster = false;
+				bool          _noShadow = false;
 
 				bool IsAssignedToSlot(int slot) const;
 			};

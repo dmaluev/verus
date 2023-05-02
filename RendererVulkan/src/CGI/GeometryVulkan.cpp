@@ -81,6 +81,10 @@ void GeometryVulkan::Done()
 
 	ForceScheduled();
 
+	_descriptors.Done();
+	for (auto& x : _vStorageBuffers)
+		VERUS_VULKAN_DESTROY(x._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), x._buffer, x._vmaAllocation));
+	_vStorageBuffers.clear();
 	VERUS_VULKAN_DESTROY(_indexBuffer._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), _indexBuffer._buffer, _indexBuffer._vmaAllocation));
 	for (auto& x : _vVertexBuffers)
 		VERUS_VULKAN_DESTROY(x._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), x._buffer, x._vmaAllocation));
@@ -213,6 +217,59 @@ void GeometryVulkan::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, IN
 	}
 }
 
+void GeometryVulkan::CreateStorageBuffer(int count, int structSize, int sbIndex, ShaderStageFlags stageFlags)
+{
+	VERUS_QREF_RENDERER_VULKAN;
+	VkResult res = VK_SUCCESS;
+
+	if (_vStorageBuffers.size() <= sbIndex)
+		_vStorageBuffers.resize(sbIndex + 1);
+
+	auto& sb = _vStorageBuffers[sbIndex];
+	sb._structSize = structSize;
+	sb._bufferSize = count * sb._structSize;
+
+	pRendererVulkan->CreateBuffer(sb._bufferSize * BaseRenderer::s_ringBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, HostAccess::sequentialWrite,
+		sb._buffer, sb._vmaAllocation);
+
+	// <VkDescriptorSet>
+	if (!_descriptors.IsInitialized())
+		_descriptors.Init();
+
+	_descriptors.BeginCreateSetLayout(sbIndex, s_maxStorageBuffers);
+	_descriptors.SetLayoutBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1, ToNativeStageFlags(stageFlags));
+	_descriptors.EndCreateSetLayout();
+
+	_descriptors.CreatePool(false);
+
+	_descriptors.BeginAllocateSet(sbIndex);
+	_descriptors.BufferInfo(0, sb._buffer, sb._bufferSize, 0);
+	sb._descriptorSet = _descriptors.EndAllocateSet();
+	// </VkDescriptorSet>
+}
+
+void GeometryVulkan::UpdateStorageBuffer(const void* p, int sbIndex, PBaseCommandBuffer pCB, INT64 size, INT64 offset)
+{
+	VERUS_QREF_RENDERER_VULKAN;
+	VkResult res = VK_SUCCESS;
+
+	auto& sb = _vStorageBuffers[sbIndex];
+	size = size ? size * sb._structSize : sb._bufferSize;
+
+	void* pData = nullptr;
+	if (VK_SUCCESS != (res = vmaMapMemory(pRendererVulkan->GetVmaAllocator(), sb._vmaAllocation, &pData)))
+		throw VERUS_RECOVERABLE << "vmaMapMemory(); res=" << res;
+	BYTE* pMappedData = static_cast<BYTE*>(pData) + pRendererVulkan->GetRingBufferIndex() * sb._bufferSize;
+	memcpy(pMappedData + offset * sb._structSize, p, size);
+	vmaUnmapMemory(pRendererVulkan->GetVmaAllocator(), sb._vmaAllocation);
+	sb._utilization = offset * sb._structSize + size;
+}
+
+int GeometryVulkan::GetStorageBufferStructSize(int sbIndex) const
+{
+	return _vStorageBuffers[sbIndex]._structSize;
+}
+
 Continue GeometryVulkan::Scheduled_Update()
 {
 	if (!IsScheduledAllowed())
@@ -299,7 +356,14 @@ VkDeviceSize GeometryVulkan::GetVkIndexBufferOffset() const
 		return 0;
 }
 
-void GeometryVulkan::UpdateUtilization()
+VkDeviceSize GeometryVulkan::GetVkStorageBufferOffset(int sbIndex) const
+{
+	VERUS_QREF_RENDERER_VULKAN;
+	auto& sb = _vStorageBuffers[sbIndex];
+	return pRendererVulkan->GetRingBufferIndex() * sb._bufferSize;
+}
+
+void GeometryVulkan::UpdateUtilization() const
 {
 	VERUS_QREF_RENDERER;
 	int binding = 0;

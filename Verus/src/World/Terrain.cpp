@@ -423,6 +423,7 @@ void Terrain::Init(RcDesc desc)
 {
 	VERUS_INIT();
 	VERUS_QREF_ATMO;
+	VERUS_QREF_CSMB;
 	VERUS_QREF_CONST_SETTINGS;
 	VERUS_QREF_RENDERER;
 
@@ -590,7 +591,7 @@ void Terrain::Init(RcDesc desc)
 	}
 
 	{
-		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#Depth", atmo.GetShadowMapBaker().GetRenderPassHandle());
+		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#Depth", csmb.GetRenderPassHandle());
 		pipeDesc._colorAttachBlendEqs[0] = "";
 		_pipe[PIPE_DEPTH_LIST].Init(pipeDesc);
 		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
@@ -599,7 +600,7 @@ void Terrain::Init(RcDesc desc)
 	}
 	if (settings._gpuTessellation)
 	{
-		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#DepthTess", atmo.GetShadowMapBaker().GetRenderPassHandle());
+		CGI::PipelineDesc pipeDesc(_geo, s_shader[SHADER_MAIN], "#DepthTess", csmb.GetRenderPassHandle());
 		pipeDesc._colorAttachBlendEqs[0] = "";
 		pipeDesc._topology = CGI::PrimitiveTopology::patchList3;
 		_pipe[PIPE_DEPTH_TESS].Init(pipeDesc);
@@ -744,7 +745,7 @@ void Terrain::Layout()
 	_visibleSortedPatchCount = 0;
 	_visibleRandomPatchCount = 0;
 
-	_quadtree.TraverseVisible();
+	_quadtree.DetectElements();
 
 	SortVisible();
 }
@@ -886,6 +887,7 @@ void Terrain::Draw(RcDrawDesc dd)
 void Terrain::DrawSimple(DrawSimpleMode mode)
 {
 	VERUS_QREF_ATMO;
+	VERUS_QREF_CSMB;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_WATER;
 	VERUS_QREF_WM;
@@ -900,23 +902,25 @@ void Terrain::DrawSimple(DrawSimpleMode mode)
 
 	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(160, 255, 64, 255), "Terrain/DrawSimple");
 
+	const float occlusion = 0.1f;
+
 	s_ubSimpleTerrainVS._matW = matW.UniformBufferFormat();
 	s_ubSimpleTerrainVS._matVP = wm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
 	s_ubSimpleTerrainVS._headPos = float4(wm.GetHeadCamera()->GetEyePosition().GLM(), 0);
 	s_ubSimpleTerrainVS._eyePos = float4(wm.GetPassCamera()->GetEyePosition().GLM(), 0);
 	s_ubSimpleTerrainVS._invMapSide_clipDistanceOffset.x = 1.f / _mapSide;
 	s_ubSimpleTerrainVS._invMapSide_clipDistanceOffset.y = clipDistanceOffset;
-	s_ubSimpleTerrainFS._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0);
+	s_ubSimpleTerrainFS._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0) * occlusion;
 	s_ubSimpleTerrainFS._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
 	s_ubSimpleTerrainFS._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
 	s_ubSimpleTerrainFS._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-	s_ubSimpleTerrainFS._matShadow = atmo.GetShadowMapBaker().GetShadowMatrix(0).UniformBufferFormat();
-	s_ubSimpleTerrainFS._matShadowCSM1 = atmo.GetShadowMapBaker().GetShadowMatrix(1).UniformBufferFormat();
-	s_ubSimpleTerrainFS._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrix(2).UniformBufferFormat();
-	s_ubSimpleTerrainFS._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrix(3).UniformBufferFormat();
-	s_ubSimpleTerrainFS._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixVP().UniformBufferFormat();
-	s_ubSimpleTerrainFS._csmSliceBounds = atmo.GetShadowMapBaker().GetSliceBounds().GLM();
-	memcpy(&s_ubSimpleTerrainFS._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubSimpleTerrainFS._shadowConfig));
+	s_ubSimpleTerrainFS._matShadow = csmb.GetShadowMatrix(0).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matShadowCSM1 = csmb.GetShadowMatrix(1).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matShadowCSM2 = csmb.GetShadowMatrix(2).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matShadowCSM3 = csmb.GetShadowMatrix(3).UniformBufferFormat();
+	s_ubSimpleTerrainFS._matScreenCSM = csmb.GetScreenMatrixVP().UniformBufferFormat();
+	s_ubSimpleTerrainFS._csmSliceBounds = csmb.GetSliceBounds().GLM();
+	memcpy(&s_ubSimpleTerrainFS._shadowConfig, &csmb.GetConfig(), sizeof(s_ubSimpleTerrainFS._shadowConfig));
 
 	cb->BindVertexBuffers(_geo);
 	cb->BindIndexBuffer(_geo);
@@ -992,7 +996,7 @@ int Terrain::UserPtr_GetType()
 	return +NodeType::terrain;
 }
 
-void Terrain::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center)
+void Terrain::QuadtreeIntegral_OnElementDetected(const short ij[2], RcPoint3 center)
 {
 	VERUS_QREF_WM;
 
@@ -1214,7 +1218,7 @@ void Terrain::LoadLayerTextures()
 	if (_vLayerUrls.empty())
 		return;
 
-	VERUS_QREF_ATMO;
+	VERUS_QREF_CSMB;
 	VERUS_QREF_MM;
 	VERUS_QREF_RENDERER;
 
@@ -1280,7 +1284,7 @@ void Terrain::LoadLayerTextures()
 			_tex[TEX_BLEND],
 			_tex[TEX_LAYERS],
 			_tex[TEX_LAYERS_X],
-			atmo.GetShadowMapBaker().GetTexture()
+			csmb.GetTexture()
 		});
 }
 

@@ -1,6 +1,6 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-VERUS_UBUFFER UB_ForestVS
+VERUS_UBUFFER_STRUCT UB_ForestVS
 {
 	matrix _matP;
 	matrix _matWVP;
@@ -10,7 +10,7 @@ VERUS_UBUFFER UB_ForestVS
 	float4 _matRoll;
 };
 
-VERUS_UBUFFER UB_ForestFS
+VERUS_UBUFFER_STRUCT UB_ForestFS
 {
 	float4 _dummy;
 };

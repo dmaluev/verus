@@ -18,19 +18,28 @@ float4 ToLinearDepth(float4 unormDepth, float4 zNearFarEx)
 
 float ComputeFog(float depth, float density, float height = 0.0)
 {
-	const float strength = 1.0 - saturate(height * 0.0025);
-	const float power = depth * lerp(0.0, density, strength * strength);
-	const float fog = 1.0 / exp(power * power);
-	return 1.0 - saturate(fog);
+	const float opacity = 1.0 - saturate(height * (1.0 / 400.0));
+	const float power = depth * lerp(0.0, density, opacity * opacity);
+	const float2 fog = 1.0 / exp(float2(power, power * power));
+	return 1.0 - saturate(lerp(fog.x, fog.y, 2.0 / 3.0));
 }
 
-float3 AdjustPosForShadow(float3 pos, float3 normal, float3 dirToLight,
-	float depth, float normalDepthBias = 0.015, float offset = 0.0)
+float ChebyshevUpperBound(float2 moments, float z)
+{
+	const float p = step(z, moments.x);
+	const float v = max(moments.y - moments.x * moments.x, 1e-10);
+	const float d = z - moments.x;
+	const float pMax = v / (v + d * d);
+	return max(p, saturate((pMax - 0.2) * 1.25));
+}
+
+float3 ApplyShadowBiasing(float3 pos, float3 normal, float3 dirToLight,
+	float depth, float normalDepthBias = 0.04)
 {
 	const float depthFactor = depth - 5.0;
 	return pos +
 		normal * normalDepthBias * max(1.0, depthFactor * 0.2) +
-		dirToLight * max(0.0, depthFactor * 0.002 + offset);
+		dirToLight * max(0.0, depthFactor * 0.002);
 }
 
 float ComputePenumbraContrast(float deltaScale, float strength, float unormFragDepth, float unormBlockersDepth)
@@ -39,6 +48,7 @@ float ComputePenumbraContrast(float deltaScale, float strength, float unormFragD
 	return 1.0 + max(0.0, 3.0 - delta * deltaScale) * strength;
 }
 
+// Percentage Closer Filtering:
 float PCF(
 	Texture2D texCmp,
 	SamplerComparisonState samCmp,
@@ -170,7 +180,8 @@ float ShadowMap(
 {
 	const float ret = PCF(texCmp, samCmp, tex, sam, tc, config);
 	const float2 center = tc.xy * 2.0 - 1.0;
-	return max(ret, saturate(dot(center, center) * (9.0 / 4.0) - 1.0));
+	const float presence = 1.0 - saturate(dot(center, center) * (9.0 / 4.0) - 1.0);
+	return max(ret, 1.0 - presence);
 }
 
 float SimpleShadowMap(
@@ -180,7 +191,8 @@ float SimpleShadowMap(
 {
 	const float ret = SimplePCF(texCmp, samCmp, tc);
 	const float2 center = tc.xy * 2.0 - 1.0;
-	return max(ret, saturate(dot(center, center) * (9.0 / 4.0) - 1.0));
+	const float presence = 1.0 - saturate(dot(center, center) * (9.0 / 4.0) - 1.0);
+	return max(ret, 1.0 - presence);
 }
 
 bool IsClippedCSM(float4 clipSpacePos)
@@ -208,35 +220,36 @@ float ShadowMapCSM(
 	float ret = 1.0;
 	float contrast = 1.0;
 	const float contrastScale = config.w;
-	const float4 clipSpacePos = mul(float4(inPos, 1.0), matScreen);
-	const float depth = clipSpacePos.w;
+	const float4 clipSpacePos = mul(float4(inPos, 1), matScreen);
+	const float depth = clipSpacePos.w; // W is linear depth from 0.
 
 	if (IsClippedCSM(clipSpacePos))
 	{
 		if (depth >= csmSliceBounds.x)
 		{
-			const float fadeStart = (csmSliceBounds.x + csmSliceBounds.w) * 0.5;
-			const float fade = saturate((depth - fadeStart) / (csmSliceBounds.w - fadeStart));
-
 			contrast = contrastScale * contrastScale * contrastScale;
-			const float3 tc = mul(float4(biasedPos, 1.0), mat0).xyz;
-			ret = max(PCF(texCmp, samCmp, tex, sam, tc, config), fade);
+			const float3 tc = mul(float4(biasedPos, 1), mat0).xyz;
+			ret = PCF(texCmp, samCmp, tex, sam, tc, config);
+
+			const float presenceDist = (csmSliceBounds.x + csmSliceBounds.w) * 0.5;
+			const float presence = 1.0 - saturate((depth - presenceDist) / (csmSliceBounds.w - presenceDist));
+			ret = max(ret, 1.0 - presence);
 		}
 		else if (depth >= csmSliceBounds.y)
 		{
 			contrast = contrastScale * contrastScale;
-			const float3 tc = mul(float4(biasedPos, 1.0), mat1).xyz;
+			const float3 tc = mul(float4(biasedPos, 1), mat1).xyz;
 			ret = PCF(texCmp, samCmp, tex, sam, tc, config);
 		}
 		else if (depth >= csmSliceBounds.z)
 		{
 			contrast = contrastScale;
-			const float3 tc = mul(float4(biasedPos, 1.0), mat2).xyz;
+			const float3 tc = mul(float4(biasedPos, 1), mat2).xyz;
 			ret = PCF(texCmp, samCmp, tex, sam, tc, config);
 		}
 		else
 		{
-			const float3 tc = mul(float4(biasedPos, 1.0), mat3).xyz;
+			const float3 tc = mul(float4(biasedPos, 1), mat3).xyz;
 			ret = PCF(texCmp, samCmp, tex, sam, tc, config);
 		}
 
@@ -245,8 +258,8 @@ float ShadowMapCSM(
 	else
 		return 1.0;
 #else
-	const float3 tc = mul(float4(biasedPos, 1.0), mat0).xyz;
-	if (all(tc.xy >= 0.0) && all(tc.xy < 1.0))
+	const float3 tc = mul(float4(biasedPos, 1), mat0).xyz;
+	if (all(bool4(tc.xy >= 0.0, tc.xy < 1.0)))
 		return ShadowMap(texCmp, samCmp, tex, sam, tc, config);
 	else
 		return 1.0;
@@ -271,35 +284,36 @@ float SimpleShadowMapCSM(
 	float ret = 1.0;
 	float contrast = 1.0;
 	const float contrastScale = config.w;
-	const float4 clipSpacePos = mul(float4(inPos, 1.0), matScreen);
-	const float depth = clipSpacePos.w;
+	const float4 clipSpacePos = mul(float4(inPos, 1), matScreen);
+	const float depth = clipSpacePos.w; // W is linear depth from 0.
 
 	if (!clipping || IsClippedCSM(clipSpacePos))
 	{
 		if (depth >= csmSliceBounds.x)
 		{
-			const float fadeStart = (csmSliceBounds.x + csmSliceBounds.w) * 0.5;
-			const float fade = saturate((depth - fadeStart) / (csmSliceBounds.w - fadeStart));
-
 			contrast = contrastScale * contrastScale * contrastScale;
-			const float3 tc = mul(float4(biasedPos, 1.0), mat0).xyz;
-			ret = max(SimplePCF(texCmp, samCmp, tc), fade);
+			const float3 tc = mul(float4(biasedPos, 1), mat0).xyz;
+			ret = SimplePCF(texCmp, samCmp, tc);
+
+			const float presenceDist = (csmSliceBounds.x + csmSliceBounds.w) * 0.5;
+			const float presence = 1.0 - saturate((depth - presenceDist) / (csmSliceBounds.w - presenceDist));
+			ret = max(ret, 1.0 - presence);
 		}
 		else if (depth >= csmSliceBounds.y)
 		{
 			contrast = contrastScale * contrastScale;
-			const float3 tc = mul(float4(biasedPos, 1.0), mat1).xyz;
+			const float3 tc = mul(float4(biasedPos, 1), mat1).xyz;
 			ret = SimplePCF(texCmp, samCmp, tc);
 		}
 		else if (depth >= csmSliceBounds.z)
 		{
 			contrast = contrastScale;
-			const float3 tc = mul(float4(biasedPos, 1.0), mat2).xyz;
+			const float3 tc = mul(float4(biasedPos, 1), mat2).xyz;
 			ret = SimplePCF(texCmp, samCmp, tc);
 		}
 		else
 		{
-			const float3 tc = mul(float4(biasedPos, 1.0), mat3).xyz;
+			const float3 tc = mul(float4(biasedPos, 1), mat3).xyz;
 			ret = SimplePCF(texCmp, samCmp, tc);
 		}
 
@@ -308,10 +322,23 @@ float SimpleShadowMapCSM(
 	else
 		return 1.0;
 #else
-	const float3 tc = mul(float4(biasedPos, 1.0), mat0).xyz;
-	if (all(tc.xy >= 0.0) && all(tc.xy < 1.0))
+	const float3 tc = mul(float4(biasedPos, 1), mat0).xyz;
+	if (all(bool4(tc.xy >= 0.0, tc.xy < 1.0)))
 		return SimpleShadowMap(texCmp, samCmp, tc);
 	else
 		return 1.0;
 #endif
+}
+
+// Variance Shadow Map:
+float ShadowMapVSM(
+	Texture2D tex,
+	SamplerState sam,
+	float3 biasedPos,
+	matrix mat)
+{
+	float4 tc = mul(float4(biasedPos, 1), mat);
+	tc.xy /= tc.w;
+	const float2 moments = tex.SampleLevel(sam, tc.xy, 0.0).rg;
+	return ChebyshevUpperBound(moments, tc.w); // W is linear depth from 0.
 }

@@ -17,8 +17,8 @@ namespace verus
 			virtual void Init() override;
 			virtual void Done() override;
 
-			virtual void InitOneTimeSubmit();
-			virtual void DoneOneTimeSubmit();
+			virtual void InitOneTimeSubmit() override;
+			virtual void DoneOneTimeSubmit() override;
 
 			virtual void Begin() override;
 			virtual void End() override;
@@ -39,6 +39,7 @@ namespace verus
 			virtual void BindIndexBuffer(GeometryPtr geo) override;
 
 			virtual bool BindDescriptors(ShaderPtr shader, int setNumber, CSHandle complexSetHandle) override;
+			virtual bool BindDescriptors(ShaderPtr shader, int setNumber, GeometryPtr geo, int sbIndex) override;
 			virtual void PushConstants(ShaderPtr shader, int offset, int size, const void* p, ShaderStageFlags stageFlags) override;
 
 			virtual void Draw(int vertexCount, int instanceCount, int firstVertex, int firstInstance) override;

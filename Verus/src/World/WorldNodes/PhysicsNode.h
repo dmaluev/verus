@@ -111,7 +111,7 @@ namespace verus
 
 			RcVector3 GetSize() const { return _size; }
 			void Resize(RcVector3 size);
-			void TakeSizeFromParentBlock();
+			void FitParentBlock();
 
 			float GetMass() const { return _mass; }
 			void SetMass(float mass) { _mass = Math::Max(0.f, mass); }

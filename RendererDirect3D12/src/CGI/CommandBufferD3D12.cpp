@@ -238,7 +238,8 @@ void CommandBufferD3D12::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilte
 			filteredCount++;
 		}
 	}
-	GetD3DGraphicsCommandList()->IASetVertexBuffers(0, filteredCount, views);
+	if (filteredCount)
+		GetD3DGraphicsCommandList()->IASetVertexBuffers(0, filteredCount, views);
 }
 
 void CommandBufferD3D12::BindIndexBuffer(GeometryPtr geo)
@@ -250,10 +251,11 @@ void CommandBufferD3D12::BindIndexBuffer(GeometryPtr geo)
 bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int setNumber, CSHandle complexSetHandle)
 {
 	auto& shaderD3D12 = static_cast<RShaderD3D12>(*shader);
+
 	if (shaderD3D12.TryRootConstants(setNumber, *this))
 		return true;
 
-	const D3D12_GPU_DESCRIPTOR_HANDLE hGPU = shaderD3D12.UpdateUniformBuffer(setNumber, complexSetHandle.Get());
+	const D3D12_GPU_DESCRIPTOR_HANDLE hGPU = shaderD3D12.UpdateConstantBuffer(setNumber, complexSetHandle.Get());
 	if (!hGPU.ptr)
 		return false;
 
@@ -273,6 +275,25 @@ bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int setNumber, CSHand
 			pCmdList->SetGraphicsRootDescriptorTable(rootParameterIndex, hGPU);
 		}
 	}
+
+	return true;
+}
+
+bool CommandBufferD3D12::BindDescriptors(ShaderPtr shader, int setNumber, GeometryPtr geo, int sbIndex)
+{
+	auto& shaderD3D12 = static_cast<RShaderD3D12>(*shader);
+	auto& geoD3D12 = static_cast<RGeometryD3D12>(*geo);
+
+	const D3D12_GPU_DESCRIPTOR_HANDLE hGPU = geoD3D12.CopyStructuredBufferView(sbIndex);
+	if (!hGPU.ptr)
+		return false;
+
+	auto pCmdList = GetD3DGraphicsCommandList();
+	const UINT rootParameterIndex = shaderD3D12.ToRootParameterIndex(setNumber);
+	if (shaderD3D12.IsCompute())
+		pCmdList->SetComputeRootDescriptorTable(rootParameterIndex, hGPU);
+	else
+		pCmdList->SetGraphicsRootDescriptorTable(rootParameterIndex, hGPU);
 
 	return true;
 }

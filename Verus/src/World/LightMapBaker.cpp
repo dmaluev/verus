@@ -297,7 +297,7 @@ void LightMapBaker::Update()
 				(_currentI + 0.5f) / _desc._texHeight);
 
 			_currentLayer = 0;
-			_quadtree.TraverseVisible(_currentUV);
+			_quadtree.DetectElements(_currentUV);
 			_stats._maxLayer = Math::Max<int>(_stats._maxLayer, _currentLayer);
 
 			NextLumel();
@@ -361,7 +361,7 @@ void LightMapBaker::DrawEmpty()
 		{
 			tex->GetClearValue(),
 			_tex[TEX_DEPTH]->GetClearValue()
-		}, CGI::ViewportScissorFlags::setAllForFramebuffer);
+		}, CGI::ViewportScissorFlags::none);
 
 	DrawHemicubeMask();
 
@@ -379,13 +379,15 @@ void LightMapBaker::DrawHemicubeMask()
 	auto shader = renderer.GetShaderQuad();
 
 	const float side = static_cast<float>(_desc._texLumelSide);
+	const Vector4 rc(0, 0, side, side);
 
 	renderer.GetUbQuadVS()._matW = Math::QuadMatrix().UniformBufferFormat();
 	renderer.GetUbQuadVS()._matV = Math::ToUVMatrix().UniformBufferFormat();
 	renderer.ResetQuadMultiplexer();
 
 	cb->BindPipeline(_pipe[PIPE_HEMICUBE_MASK]);
-	cb->SetViewport({ Vector4(0, 0, side, side) });
+	cb->SetViewport({ rc });
+	cb->SetScissor({ rc });
 	shader->BeginBindDescriptors();
 	cb->BindDescriptors(shader, 0);
 	cb->BindDescriptors(shader, 1, _cshHemicubeMask);
@@ -407,7 +409,7 @@ void LightMapBaker::DrawLumel(RcPoint3 pos, RcVector3 nrm, int batchIndex)
 		{
 			tex->GetClearValue(),
 			_tex[TEX_DEPTH]->GetClearValue()
-		}, CGI::ViewportScissorFlags::setAllForFramebuffer);
+		}, CGI::ViewportScissorFlags::none);
 	if (_pDelegate)
 	{
 		const glm::vec2 randVec = glm::circularRand(1.f);
@@ -472,7 +474,7 @@ void LightMapBaker::DrawLumel(RcPoint3 pos, RcVector3 nrm, int batchIndex)
 	tex->ReadbackSubresource(nullptr);
 }
 
-Continue LightMapBaker::Quadtree_ProcessNode(void* pToken, void* pUser)
+Continue LightMapBaker::Quadtree_OnElementDetected(void* pToken, void* pUser)
 {
 	RcFace face = _vFaces[reinterpret_cast<INT64>(pToken)];
 	const int index = _currentI * _desc._texWidth + _currentJ;
@@ -552,26 +554,19 @@ void LightMapBaker::BindPipeline(RcMesh mesh, CGI::CommandBufferPtr cb)
 	cb->BindPipeline(_pipe[pipe]);
 }
 
-void LightMapBaker::SetViewportFor(CGI::CubeMapFace cubeMapFace, CGI::CommandBufferPtr cb)
+void LightMapBaker::SetViewportAndScissorFor(CGI::CubeMapFace cubeMapFace, CGI::CommandBufferPtr cb)
 {
 	const float sideDiv2 = static_cast<float>(_desc._texLumelSide >> 1);
 	const float sideDiv4 = static_cast<float>(_desc._texLumelSide >> 2);
+	Vector4 rc;
 	switch (cubeMapFace)
 	{
-	case CGI::CubeMapFace::posX:
-		cb->SetViewport({ Vector4(-sideDiv4, sideDiv4, sideDiv2, sideDiv2) });
-		break;
-	case CGI::CubeMapFace::negX:
-		cb->SetViewport({ Vector4(sideDiv2 + sideDiv4, sideDiv4, sideDiv2, sideDiv2) });
-		break;
-	case CGI::CubeMapFace::posY:
-		cb->SetViewport({ Vector4(sideDiv4, -sideDiv4, sideDiv2, sideDiv2) });
-		break;
-	case CGI::CubeMapFace::negY:
-		cb->SetViewport({ Vector4(sideDiv4, sideDiv2 + sideDiv4, sideDiv2, sideDiv2) });
-		break;
-	case CGI::CubeMapFace::posZ:
-		cb->SetViewport({ Vector4(sideDiv4, sideDiv4, sideDiv2, sideDiv2) });
-		break;
+	case CGI::CubeMapFace::posX: rc = Vector4(-sideDiv4, sideDiv4, sideDiv2, sideDiv2); break;
+	case CGI::CubeMapFace::negX: rc = Vector4(sideDiv2 + sideDiv4, sideDiv4, sideDiv2, sideDiv2); break;
+	case CGI::CubeMapFace::posY: rc = Vector4(sideDiv4, -sideDiv4, sideDiv2, sideDiv2); break;
+	case CGI::CubeMapFace::negY: rc = Vector4(sideDiv4, sideDiv2 + sideDiv4, sideDiv2, sideDiv2); break;
+	case CGI::CubeMapFace::posZ: rc = Vector4(sideDiv4, sideDiv4, sideDiv2, sideDiv2); break;
 	}
+	cb->SetViewport({ rc });
+	cb->SetScissor({ rc });
 }

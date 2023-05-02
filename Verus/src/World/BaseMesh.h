@@ -91,7 +91,6 @@ namespace verus
 			bool IsLoaded() const { return !!_vertCount; }
 
 			// Load extra:
-			VERUS_P(void LoadPrimaryBones());
 			VERUS_P(void LoadRig());
 			VERUS_P(void LoadWarp());
 

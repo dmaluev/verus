@@ -8,7 +8,7 @@ namespace verus
 		class Texture : public AllocatorAware
 		{
 			UINT64              _date = 0;
-			UINT64              _nextSafeFrame = 0;
+			UINT64              _doneFrame = 0;
 			CGI::TexturePwn     _texTiny;
 			CGI::TexturePwns<2> _texHuge;
 			int                 _refCount = 0;

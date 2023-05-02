@@ -191,7 +191,7 @@ bool Quadtree::MustBind(int currentNode, RcBounds bounds) const
 	return _vNodes[currentNode].GetBounds().IsOverlappingWith2D(bounds, 2);
 }
 
-Continue Quadtree::TraverseVisible(RcPoint3 point, PResult pResult, int currentNode, void* pUser)
+Continue Quadtree::DetectElements(RcPoint3 point, PResult pResult, int currentNode, void* pUser)
 {
 	if (_vNodes.empty())
 		return Continue::no;
@@ -208,40 +208,44 @@ Continue Quadtree::TraverseVisible(RcPoint3 point, PResult pResult, int currentN
 	}
 	// </Init>
 
+	// <TestNode>
 	pResult->_testCount++;
-	if (_vNodes[currentNode].GetBounds().IsInside2D(point))
-	{
-		// <ProcessNodeElements>
-		RcNode node = _vNodes[currentNode];
-		const int count = node.GetElementCount();
-		VERUS_FOR(i, count)
-		{
-			RcElement element = node.GetElementAt(i);
-			pResult->_testCount++;
-			if (element._bounds.IsInside2D(point))
-			{
-				pResult->_passedTestCount++;
-				pResult->_pLastFoundToken = element._pToken;
-				if (Continue::no == _pDelegate->Quadtree_ProcessNode(element._pToken, pUser))
-					return Continue::no;
-			}
-		}
-		// </ProcessNodeElements>
+	const bool inside = _vNodes[currentNode].GetBounds().IsInside2D(point);
+	if (!inside)
+		return Continue::yes; // Early return.
+	// </TestNode>
 
-		// <TraverseChildren>
-		if (Node::HasChildren(currentNode, Utils::Cast32(_vNodes.size())))
+	// <DetectNodeElements>
+	RcNode node = _vNodes[currentNode];
+	const int count = node.GetElementCount();
+	VERUS_FOR(i, count)
+	{
+		RcElement element = node.GetElementAt(i);
+		pResult->_testCount++;
+		if (element._bounds.IsInside2D(point))
 		{
-			BYTE remapped[4];
-			RemapChildIndices(point, _vNodes[currentNode].GetBounds().GetCenter(), remapped);
-			VERUS_FOR(i, 4)
-			{
-				const int childIndex = Node::GetChildIndex(currentNode, remapped[i]);
-				if (Continue::no == TraverseVisible(point, pResult, childIndex, pUser))
-					return Continue::no;
-			}
+			pResult->_passedTestCount++;
+			pResult->_pLastFoundToken = element._pToken;
+			if (Continue::no == _pDelegate->Quadtree_OnElementDetected(element._pToken, pUser))
+				return Continue::no;
 		}
-		// </TraverseChildren>
 	}
+	// </DetectNodeElements>
+
+	// <TraverseChildren>
+	if (Node::HasChildren(currentNode, Utils::Cast32(_vNodes.size())))
+	{
+		BYTE remapped[4];
+		RemapChildIndices(point, _vNodes[currentNode].GetBounds().GetCenter(), remapped);
+		VERUS_FOR(i, 4)
+		{
+			const int childIndex = Node::GetChildIndex(currentNode, remapped[i]);
+			if (Continue::no == DetectElements(point, pResult, childIndex, pUser))
+				return Continue::no;
+		}
+	}
+	// </TraverseChildren>
+
 	return Continue::yes;
 }
 

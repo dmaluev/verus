@@ -7,12 +7,12 @@ using namespace verus::World;
 CGI::ShaderPwns<Mesh::SHADER_COUNT> Mesh::s_shader;
 CGI::PipelinePwns<Mesh::PIPE_COUNT> Mesh::s_pipe;
 
-Mesh::UB_PerFrame            Mesh::s_ubPerFrame;
+Mesh::UB_PerView             Mesh::s_ubPerView;
 Mesh::UB_PerMaterialFS       Mesh::s_ubPerMaterialFS;
 Mesh::UB_PerMeshVS           Mesh::s_ubPerMeshVS;
 Mesh::UB_SkeletonVS          Mesh::s_ubSkeletonVS;
 Mesh::UB_PerObject           Mesh::s_ubPerObject;
-Mesh::UB_SimplePerFrame      Mesh::s_ubSimplePerFrame;
+Mesh::UB_SimplePerView       Mesh::s_ubSimplePerView;
 Mesh::UB_SimplePerMaterialFS Mesh::s_ubSimplePerMaterialFS;
 Mesh::UB_SimplePerMeshVS     Mesh::s_ubSimplePerMeshVS;
 Mesh::UB_SimpleSkeletonVS    Mesh::s_ubSimpleSkeletonVS;
@@ -34,7 +34,7 @@ void Mesh::InitStatic()
 	VERUS_QREF_CONST_SETTINGS;
 
 	s_shader[SHADER_MAIN].Init("[Shaders]:DS_Mesh.hlsl");
-	s_shader[SHADER_MAIN]->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame), settings.GetLimits()._mesh_ubPerFrameCapacity, {}, CGI::ShaderStageFlags::vs_hs_ds_fs);
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(0, &s_ubPerView, sizeof(s_ubPerView), settings.GetLimits()._mesh_ubPerViewCapacity, {}, CGI::ShaderStageFlags::vs_hs_ds_fs);
 	s_shader[SHADER_MAIN]->CreateDescriptorSet(1, &s_ubPerMaterialFS, sizeof(s_ubPerMaterialFS), settings.GetLimits()._mesh_ubPerMaterialFSCapacity,
 		{
 			CGI::Sampler::aniso, // A
@@ -50,7 +50,7 @@ void Mesh::InitStatic()
 	s_shader[SHADER_MAIN]->CreatePipelineLayout();
 
 	s_shader[SHADER_SIMPLE].Init("[Shaders]:SimpleMesh.hlsl");
-	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(0, &s_ubSimplePerFrame, sizeof(s_ubSimplePerFrame), settings.GetLimits()._mesh_ubPerFrameCapacity);
+	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(0, &s_ubSimplePerView, sizeof(s_ubSimplePerView), settings.GetLimits()._mesh_ubPerViewCapacity);
 	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(1, &s_ubSimplePerMaterialFS, sizeof(s_ubSimplePerMaterialFS), settings.GetLimits()._mesh_ubPerMaterialFSCapacity,
 		{
 			CGI::Sampler::linearMipN,
@@ -114,9 +114,9 @@ void Mesh::Draw(RcDrawDesc drawDesc, CGI::CommandBufferPtr cb)
 	BindGeo(cb);
 
 	// Set 0:
-	UpdateUniformBufferPerFrame();
+	UpdateUniformBufferPerView();
 	if (drawDesc._pOverrideFogColor)
-		s_ubSimplePerFrame._fogColor = drawDesc._pOverrideFogColor->GLM();
+		s_ubSimplePerView._fogColor = drawDesc._pOverrideFogColor->GLM();
 	cb->BindDescriptors(shader, 0);
 
 	// Set 1:
@@ -157,9 +157,9 @@ void Mesh::DrawSimple(RcDrawDesc drawDesc, CGI::CommandBufferPtr cb)
 	BindGeo(cb);
 
 	// Set 0:
-	UpdateUniformBufferSimplePerFrame(mode);
+	UpdateUniformBufferSimplePerView(mode);
 	if (drawDesc._pOverrideFogColor)
-		s_ubSimplePerFrame._fogColor = drawDesc._pOverrideFogColor->GLM();
+		s_ubSimplePerView._fogColor = drawDesc._pOverrideFogColor->GLM();
 	cb->BindDescriptors(shader, 0);
 
 	// Set 1:
@@ -191,6 +191,7 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 {
 	VERUS_QREF_ATMO;
 	VERUS_QREF_CONST_SETTINGS;
+	VERUS_QREF_CSMB;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_WATER;
 
@@ -340,7 +341,7 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 			case PIPE_DEPTH_PLANT:
 			{
 				pipeDesc._colorAttachBlendEqs[0] = "";
-				pipeDesc._renderPassHandle = atmo.GetShadowMapBaker().GetRenderPassHandle();
+				pipeDesc._renderPassHandle = csmb.GetRenderPassHandle();
 			}
 			break;
 			case PIPE_DEPTH_TESS:
@@ -350,7 +351,7 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 			case PIPE_DEPTH_TESS_PLANT:
 			{
 				pipeDesc._colorAttachBlendEqs[0] = "";
-				pipeDesc._renderPassHandle = atmo.GetShadowMapBaker().GetRenderPassHandle();
+				pipeDesc._renderPassHandle = csmb.GetRenderPassHandle();
 				if (settings._gpuTessellation)
 					pipeDesc._topology = CGI::PrimitiveTopology::patchList3;
 			}
@@ -381,7 +382,8 @@ void Mesh::BindPipeline(PIPE pipe, CGI::CommandBufferPtr cb)
 
 void Mesh::BindPipeline(CGI::CommandBufferPtr cb, bool allowTess)
 {
-	VERUS_QREF_ATMO;
+	VERUS_QREF_CSMB;
+	VERUS_QREF_SMBP;
 
 	static PIPE pipes[] =
 	{
@@ -412,7 +414,7 @@ void Mesh::BindPipeline(CGI::CommandBufferPtr cb, bool allowTess)
 		PIPE_DEPTH_TESS_SKINNED
 	};
 
-	if (atmo.GetShadowMapBaker().IsBaking())
+	if (csmb.IsBaking() || smbp.IsBaking())
 		BindPipeline(allowTess ? depthTessPipes[GetPipelineIndex()] : depthPipes[GetPipelineIndex()], cb);
 	else
 		BindPipeline(allowTess ? tessPipes[GetPipelineIndex()] : pipes[GetPipelineIndex()], cb);
@@ -420,8 +422,9 @@ void Mesh::BindPipeline(CGI::CommandBufferPtr cb, bool allowTess)
 
 void Mesh::BindPipelineInstanced(CGI::CommandBufferPtr cb, bool allowTess, bool plant)
 {
-	VERUS_QREF_ATMO;
-	if (atmo.GetShadowMapBaker().IsBaking())
+	VERUS_QREF_CSMB;
+	VERUS_QREF_SMBP;
+	if (csmb.IsBaking() || smbp.IsBaking())
 	{
 		if (allowTess)
 			BindPipeline(plant ? PIPE_DEPTH_TESS_PLANT : PIPE_DEPTH_TESS_INSTANCED, cb);
@@ -443,7 +446,7 @@ void Mesh::BindGeo(CGI::CommandBufferPtr cb, UINT32 bindingsFilter)
 	cb->BindIndexBuffer(_geo);
 }
 
-void Mesh::UpdateUniformBufferPerFrame(float invTessDist)
+void Mesh::UpdateUniformBufferPerView(float invTessDist)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_WM;
@@ -451,11 +454,11 @@ void Mesh::UpdateUniformBufferPerFrame(float invTessDist)
 	RcPoint3 headPos = wm.GetHeadCamera()->GetEyePosition();
 	Point3 headPosWV = wm.GetPassCamera()->GetMatrixV() * headPos;
 
-	s_ubPerFrame._matV = wm.GetPassCamera()->GetMatrixV().UniformBufferFormat();
-	s_ubPerFrame._matVP = wm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubPerFrame._matP = wm.GetPassCamera()->GetMatrixP().UniformBufferFormat();
-	s_ubPerFrame._viewportSize = renderer.GetCommandBuffer()->GetViewportSize().GLM();
-	s_ubPerFrame._eyePosWV_invTessDistSq = float4(headPosWV.GLM(), invTessDist * invTessDist);
+	s_ubPerView._matV = wm.GetPassCamera()->GetMatrixV().UniformBufferFormat();
+	s_ubPerView._matVP = wm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubPerView._matP = wm.GetPassCamera()->GetMatrixP().UniformBufferFormat();
+	s_ubPerView._viewportSize = renderer.GetCommandBuffer()->GetViewportSize().GLM();
+	s_ubPerView._eyePosWV_invTessDistSq = float4(headPosWV.GLM(), invTessDist * invTessDist);
 }
 
 void Mesh::UpdateUniformBufferPerMeshVS()
@@ -494,9 +497,10 @@ void Mesh::UpdateUniformBufferPerObject(RcTransform3 tr, RcVector4 color)
 	s_ubSimplePerObject._userColor = s_ubPerObject._userColor;
 }
 
-void Mesh::UpdateUniformBufferSimplePerFrame(DrawSimpleMode mode)
+void Mesh::UpdateUniformBufferSimplePerView(DrawSimpleMode mode)
 {
 	VERUS_QREF_ATMO;
+	VERUS_QREF_CSMB;
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_WATER;
 	VERUS_QREF_WM;
@@ -504,19 +508,21 @@ void Mesh::UpdateUniformBufferSimplePerFrame(DrawSimpleMode mode)
 	RcPoint3 headPos = wm.GetHeadCamera()->GetEyePosition();
 	const float clipDistanceOffset = (water.IsUnderwater() || DrawSimpleMode::envMap == mode) ? static_cast<float>(USHRT_MAX) : 0.f;
 
-	s_ubSimplePerFrame._matVP = wm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubSimplePerFrame._eyePos_clipDistanceOffset = float4(headPos.GLM(), clipDistanceOffset);
-	s_ubSimplePerFrame._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0);
-	s_ubSimplePerFrame._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
-	s_ubSimplePerFrame._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
-	s_ubSimplePerFrame._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-	s_ubSimplePerFrame._matShadow = atmo.GetShadowMapBaker().GetShadowMatrix(0).UniformBufferFormat();
-	s_ubSimplePerFrame._matShadowCSM1 = atmo.GetShadowMapBaker().GetShadowMatrix(1).UniformBufferFormat();
-	s_ubSimplePerFrame._matShadowCSM2 = atmo.GetShadowMapBaker().GetShadowMatrix(2).UniformBufferFormat();
-	s_ubSimplePerFrame._matShadowCSM3 = atmo.GetShadowMapBaker().GetShadowMatrix(3).UniformBufferFormat();
-	s_ubSimplePerFrame._matScreenCSM = atmo.GetShadowMapBaker().GetScreenMatrixVP().UniformBufferFormat();
-	s_ubSimplePerFrame._csmSliceBounds = atmo.GetShadowMapBaker().GetSliceBounds().GLM();
-	memcpy(&s_ubSimplePerFrame._shadowConfig, &atmo.GetShadowMapBaker().GetConfig(), sizeof(s_ubSimplePerFrame._shadowConfig));
+	const float occlusion = 0.1f;
+
+	s_ubSimplePerView._matVP = wm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubSimplePerView._eyePos_clipDistanceOffset = float4(headPos.GLM(), clipDistanceOffset);
+	s_ubSimplePerView._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0) * occlusion;
+	s_ubSimplePerView._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
+	s_ubSimplePerView._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
+	s_ubSimplePerView._sunColor = float4(atmo.GetSunColor().GLM(), 0);
+	s_ubSimplePerView._matShadow = csmb.GetShadowMatrix(0).UniformBufferFormat();
+	s_ubSimplePerView._matShadowCSM1 = csmb.GetShadowMatrix(1).UniformBufferFormat();
+	s_ubSimplePerView._matShadowCSM2 = csmb.GetShadowMatrix(2).UniformBufferFormat();
+	s_ubSimplePerView._matShadowCSM3 = csmb.GetShadowMatrix(3).UniformBufferFormat();
+	s_ubSimplePerView._matScreenCSM = csmb.GetScreenMatrixVP().UniformBufferFormat();
+	s_ubSimplePerView._csmSliceBounds = csmb.GetSliceBounds().GLM();
+	memcpy(&s_ubSimplePerView._shadowConfig, &csmb.GetConfig(), sizeof(s_ubSimplePerView._shadowConfig));
 }
 
 void Mesh::UpdateUniformBufferSimpleSkeletonVS()
@@ -532,7 +538,7 @@ void Mesh::CreateDeviceBuffers()
 	geoDesc._name = _C(_url);
 	Vector<CGI::VertexInputAttrDesc> vViaDesc;
 	{
-		vViaDesc.reserve(16);
+		vViaDesc.reserve(32);
 		vViaDesc.push_back({ 0, offsetof(VertexInputBinding0, _pos), CGI::ViaType::shorts, 4, CGI::ViaUsage::position, 0 });
 		vViaDesc.push_back({ 0, offsetof(VertexInputBinding0, _tc0), CGI::ViaType::shorts, 2, CGI::ViaUsage::texCoord, 0 });
 		vViaDesc.push_back({ 0, offsetof(VertexInputBinding0, _nrm), CGI::ViaType::ubytes, 4, CGI::ViaUsage::normal, 0 });
@@ -543,16 +549,47 @@ void Mesh::CreateDeviceBuffers()
 		vViaDesc.push_back({ 3, offsetof(VertexInputBinding3, _tc1), CGI::ViaType::shorts, 2, CGI::ViaUsage::texCoord, 1 });
 		vViaDesc.push_back({ 3, offsetof(VertexInputBinding3, _clr), CGI::ViaType::ubytes, 4, CGI::ViaUsage::color, 0 });
 		vViaDesc.push_back({ 3, offsetof(VertexInputBinding3, _clr), CGI::ViaType::ubytes, 4, CGI::ViaUsage::color, 0 });
-		vViaDesc.push_back({ -4, 0, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 0 });
+		vViaDesc.push_back({ -4,  0, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 0 });
 		vViaDesc.push_back({ -4, 16, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 1 });
 		vViaDesc.push_back({ -4, 32, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 2 });
 		vViaDesc.push_back({ -4, 48, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 3 });
-		if (InstanceBufferFormat::mataff_2float4 == _instanceBufferFormat)
-			vViaDesc.push_back({ -4, 64, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 4 });
+		switch (_instanceBufferFormat)
+		{
+		case InstanceBufferFormat::pid0_mataff_float4_pid1_float4:
+		{
+			vViaDesc.push_back({ -4,  64, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 4 });
+		}
+		break;
+		case InstanceBufferFormat::pid0_mataff_float4_pid1_mataff_float4:
+		{
+			vViaDesc.push_back({ -4,  64, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 4 });
+			vViaDesc.push_back({ -4,  80, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 5 });
+			vViaDesc.push_back({ -4,  96, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 6 });
+			vViaDesc.push_back({ -4, 112, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 7 });
+		}
+		break;
+		case InstanceBufferFormat::pid0_mataff_float4_pid1_matrix_float4:
+		{
+			vViaDesc.push_back({ -4,  64, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 4 });
+			vViaDesc.push_back({ -4,  80, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 5 });
+			vViaDesc.push_back({ -4,  96, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 6 });
+			vViaDesc.push_back({ -4, 112, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 7 });
+			vViaDesc.push_back({ -4, 128, CGI::ViaType::floats, 4, CGI::ViaUsage::instData, 8 });
+		}
+		break;
+		}
 		vViaDesc.push_back(CGI::VertexInputAttrDesc::End());
 	}
 	geoDesc._pVertexInputAttrDesc = vViaDesc.data();
-	const int strides[] = { sizeof(VertexInputBinding0), sizeof(VertexInputBinding1), sizeof(VertexInputBinding2), sizeof(VertexInputBinding3), GetInstanceSize(), 0 };
+	const int strides[] =
+	{
+		sizeof(VertexInputBinding0),
+		sizeof(VertexInputBinding1),
+		sizeof(VertexInputBinding2),
+		sizeof(VertexInputBinding3),
+		GetInstanceSize(),
+		0
+	};
 	geoDesc._pStrides = strides;
 	geoDesc._32BitIndices = _vIndices.empty();
 	_geo.Init(geoDesc);
@@ -612,68 +649,127 @@ void Mesh::UpdateVertexBuffer(const void* p, int binding)
 	_geo->UpdateVertexBuffer(p, binding);
 }
 
+void Mesh::CreateStorageBuffer(int count, int structSize, int sbIndex, CGI::ShaderStageFlags stageFlags)
+{
+	if (!count)
+		count = _instanceCapacity;
+	_geo->CreateStorageBuffer(count, structSize, sbIndex, stageFlags);
+	if (sbIndex >= _vStorageBuffers.size())
+		_vStorageBuffers.resize(sbIndex + 1);
+	_vStorageBuffers[sbIndex].resize(count * structSize);
+}
+
 void Mesh::ResetInstanceCount()
 {
 	_instanceCount = 0;
-	_firstInstance = 0;
+	_markedInstance = 0;
 }
 
-void Mesh::PushInstance(RcTransform3 matW, RcVector4 instData, PcVector4 pInstData1)
+int Mesh::GetInstanceSize() const
 {
-	VERUS_RT_ASSERT(!_vInstanceBuffer.empty());
-	if (!_vertCount)
-		return;
-	if (IsInstanceBufferFull())
-		return;
-	const int offset = _instanceCount * GetInstanceSize();
+	const int float4size = 16;
 	switch (_instanceBufferFormat)
 	{
-	case InstanceBufferFormat::mataff_float4:
-	{
-		matW.InstFormat(reinterpret_cast<PVector4>(&_vInstanceBuffer[offset]));
-		*reinterpret_cast<PVector4>(&_vInstanceBuffer[offset] + 48) = instData;
+	case InstanceBufferFormat::pid0_mataff_float4:                    return float4size * 4;
+	case InstanceBufferFormat::pid0_mataff_float4_pid1_float4:        return float4size * 5;
+	case InstanceBufferFormat::pid0_mataff_float4_pid1_mataff_float4: return float4size * 8;
+	case InstanceBufferFormat::pid0_mataff_float4_pid1_matrix_float4: return float4size * 9;
 	}
-	break;
-	case InstanceBufferFormat::mataff_2float4:
-	{
-		matW.InstFormat(reinterpret_cast<PVector4>(&_vInstanceBuffer[offset]));
-		*reinterpret_cast<PVector4>(&_vInstanceBuffer[offset] + 48) = instData;
-		*reinterpret_cast<PVector4>(&_vInstanceBuffer[offset] + 64) = *pInstData1;
-	}
-	break;
-	}
-	_instanceCount++;
+	return 0;
 }
 
-bool Mesh::IsInstanceBufferFull()
+bool Mesh::IsInstanceBufferEmpty(bool fromMarkedInstance) const
 {
-	VERUS_RT_ASSERT(!_vInstanceBuffer.empty());
+	if (!_vertCount)
+		return true;
+	return GetInstanceCount(fromMarkedInstance) <= 0;
+}
+
+bool Mesh::IsInstanceBufferFull() const
+{
 	if (!_vertCount)
 		return false;
 	return _instanceCount >= _instanceCapacity;
 }
 
-bool Mesh::IsInstanceBufferEmpty(bool fromFirstInstance)
+bool Mesh::PushInstanceCheck() const
 {
-	VERUS_RT_ASSERT(!_vInstanceBuffer.empty());
 	if (!_vertCount)
-		return true;
-	return GetInstanceCount(fromFirstInstance) <= 0;
+		return false;
+	if (IsInstanceBufferFull())
+		return false;
+	return true;
 }
 
-int Mesh::GetInstanceSize() const
+void Mesh::PushStorageBufferData(int sbIndex, const void* p, bool incInstanceCount)
 {
-	switch (_instanceBufferFormat)
-	{
-	case InstanceBufferFormat::mataff_float4: return 64;
-	case InstanceBufferFormat::mataff_2float4: return 80;
-	}
-	return 0;
+	if (!PushInstanceCheck())
+		return;
+	const int structSize = _geo->GetStorageBufferStructSize(sbIndex);
+	const int offset = _instanceCount * structSize;
+	memcpy(&_vStorageBuffers[sbIndex][offset], p, structSize);
+	if (incInstanceCount)
+		_instanceCount++;
+}
+
+void Mesh::PushInstance(RcTransform3 matW, RcVector4 instData)
+{
+	VERUS_RT_ASSERT(InstanceBufferFormat::pid0_mataff_float4 == _instanceBufferFormat);
+	if (!PushInstanceCheck())
+		return;
+	const int offset = _instanceCount * GetInstanceSize();
+	matW.InstFormat(reinterpret_cast<PVector4>(&_vInstanceBuffer[offset]));
+	*reinterpret_cast<PVector4>(&_vInstanceBuffer[offset] + 48) = instData;
+	_instanceCount++;
+}
+
+void Mesh::PushInstance(RcTransform3 matW, RcVector4 instData, RcVector4 pid1_instData)
+{
+	VERUS_RT_ASSERT(InstanceBufferFormat::pid0_mataff_float4_pid1_float4 == _instanceBufferFormat);
+	if (!PushInstanceCheck())
+		return;
+	const int offset = _instanceCount * GetInstanceSize();
+	matW.InstFormat(reinterpret_cast<PVector4>(&_vInstanceBuffer[offset]));
+	*reinterpret_cast<PVector4>(&_vInstanceBuffer[offset] + 48) = instData;
+	*reinterpret_cast<PVector4>(&_vInstanceBuffer[offset] + 64) = pid1_instData;
+	_instanceCount++;
+}
+
+void Mesh::PushInstance(RcTransform3 matW, RcVector4 instData, RcTransform3 pid1_mat, RcVector4 pid1_instData)
+{
+	VERUS_RT_ASSERT(InstanceBufferFormat::pid0_mataff_float4_pid1_mataff_float4 == _instanceBufferFormat);
+	if (!PushInstanceCheck())
+		return;
+	const int offset = _instanceCount * GetInstanceSize();
+	matW.InstFormat(reinterpret_cast<PVector4>(&_vInstanceBuffer[offset]));
+	*reinterpret_cast<PVector4>(&_vInstanceBuffer[offset] + 48) = instData;
+	pid1_mat.InstFormat(reinterpret_cast<PVector4>(&_vInstanceBuffer[offset] + 64));
+	*reinterpret_cast<PVector4>(&_vInstanceBuffer[offset] + 112) = pid1_instData;
+	_instanceCount++;
+}
+
+void Mesh::PushInstance(RcTransform3 matW, RcVector4 instData, RcMatrix4 pid1_mat, RcVector4 pid1_instData)
+{
+	VERUS_RT_ASSERT(InstanceBufferFormat::pid0_mataff_float4_pid1_matrix_float4 == _instanceBufferFormat);
+	if (!PushInstanceCheck())
+		return;
+	const int offset = _instanceCount * GetInstanceSize();
+	matW.InstFormat(reinterpret_cast<PVector4>(&_vInstanceBuffer[offset]));
+	*reinterpret_cast<PVector4>(&_vInstanceBuffer[offset] + 48) = instData;
+	pid1_mat.InstFormat(reinterpret_cast<PVector4>(&_vInstanceBuffer[offset] + 64));
+	*reinterpret_cast<PVector4>(&_vInstanceBuffer[offset] + 128) = pid1_instData;
+	_instanceCount++;
+}
+
+void Mesh::UpdateStorageBuffer(int sbIndex)
+{
+	const int offset = _markedInstance * _geo->GetStorageBufferStructSize(sbIndex);
+	_geo->UpdateStorageBuffer(&_vStorageBuffers[sbIndex][offset], sbIndex, nullptr, GetInstanceCount(true), _markedInstance);
 }
 
 void Mesh::UpdateInstanceBuffer()
 {
 	VERUS_RT_ASSERT(!_vInstanceBuffer.empty());
-	const int offset = _firstInstance * GetInstanceSize();
-	_geo->UpdateVertexBuffer(&_vInstanceBuffer[offset], 4, nullptr, GetInstanceCount(true), _firstInstance);
+	const int offset = _markedInstance * GetInstanceSize();
+	_geo->UpdateVertexBuffer(&_vInstanceBuffer[offset], 4, nullptr, GetInstanceCount(true), _markedInstance);
 }

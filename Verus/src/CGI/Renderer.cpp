@@ -153,10 +153,10 @@ void Renderer::Init(PRendererDelegate pDelegate, bool allowInitShaders)
 		_shader[SHADER_GENERATE_MIPS]->CreateDescriptorSet(0, &_ubGenerateMips, sizeof(_ubGenerateMips), settings.GetLimits()._generateMips_ubCapacity,
 			{
 				Sampler::linearClampMipN, // Texture
-				Sampler::storage, // Mip N
-				Sampler::storage, // Mip N+1
-				Sampler::storage, // Mip N+2
-				Sampler::storage  // Mip N+3
+				Sampler::storageImage, // Mip N
+				Sampler::storageImage, // Mip N+1
+				Sampler::storageImage, // Mip N+2
+				Sampler::storageImage  // Mip N+3
 			},
 			ShaderStageFlags::cs);
 		_shader[SHADER_GENERATE_MIPS]->CreatePipelineLayout();
@@ -165,12 +165,12 @@ void Renderer::Init(PRendererDelegate pDelegate, bool allowInitShaders)
 		_shader[SHADER_GENERATE_CUBE_MAP_MIPS]->CreateDescriptorSet(0, &_ubGenerateCubeMapMips, sizeof(_ubGenerateCubeMapMips), settings.GetLimits()._generateCubeMapMips_ubCapacity,
 			{
 				Sampler::linearMipN, // CubeMap
-				Sampler::storage, // Face +X
-				Sampler::storage, // Face -X
-				Sampler::storage, // Face +Y
-				Sampler::storage, // Face -Y
-				Sampler::storage, // Face +Z
-				Sampler::storage  // Face -Z
+				Sampler::storageImage, // Face +X
+				Sampler::storageImage, // Face -X
+				Sampler::storageImage, // Face +Y
+				Sampler::storageImage, // Face -Y
+				Sampler::storageImage, // Face +Z
+				Sampler::storageImage  // Face -Z
 			},
 			ShaderStageFlags::cs);
 		_shader[SHADER_GENERATE_CUBE_MAP_MIPS]->CreatePipelineLayout();
@@ -282,7 +282,7 @@ void Renderer::Update()
 		const float target = -0.1f + 0.5f * expScale * expScale; // Dark scene exposure compensation.
 		const float important = (actual - 0.5f * (1 - alpha)) / alpha;
 		const float delta = target - important;
-		const float speed = (delta * delta) * ((delta > 0) ? 5.f : 15.f);
+		const float speed = (delta * delta) * ((delta > 0) ? 75.f : 100.f);
 
 		if (important < target * 0.99f)
 			_exposure[1] -= speed * dt;
@@ -566,14 +566,15 @@ void Renderer::DrawOffscreenColor(PBaseCommandBuffer pCB, bool endRenderPass)
 		}
 
 		pCB->BeginRenderPass(_rphScreenSwapChain, _fbhScreenSwapChain[_pBaseRenderer->GetSwapChainBufferIndex()], { Vector4(0) },
-			ViewportScissorFlags::setScissorForFramebuffer);
+			ViewportScissorFlags::none);
 		// Align view and swap chain:
 		const Vector4 rc(
 			static_cast<float>(-_currentViewX),
 			static_cast<float>(-_currentViewY),
 			static_cast<float>(_combinedSwapChainWidth),
 			static_cast<float>(_combinedSwapChainHeight));
-		pCB->SetViewport({ rc }, 0, 1);
+		pCB->SetViewport({ rc });
+		pCB->SetScissor({ rc });
 	}
 	break;
 	case ViewType::openXR:
@@ -587,14 +588,15 @@ void Renderer::DrawOffscreenColor(PBaseCommandBuffer pCB, bool endRenderPass)
 		}
 
 		pCB->BeginRenderPass(pExtReality->GetRenderPassHandle(), pExtReality->GetFramebufferHandle(), { Vector4(0) },
-			ViewportScissorFlags::setScissorForFramebuffer);
+			ViewportScissorFlags::none);
 		// Align view and swap chain:
 		const Vector4 rc(
 			static_cast<float>(-_currentViewX),
 			static_cast<float>(-_currentViewY),
 			static_cast<float>(_combinedSwapChainWidth),
 			static_cast<float>(_combinedSwapChainHeight));
-		pCB->SetViewport({ rc }, 0, 1);
+		pCB->SetViewport({ rc });
+		pCB->SetScissor({ rc });
 	}
 	break;
 	}
@@ -881,8 +883,15 @@ void Renderer::UpdateUtilization()
 		return;
 	_vUtilization.clear();
 	_pBaseRenderer->UpdateUtilization();
-	std::sort(_vUtilization.begin(), _vUtilization.end(), [](RcUtilization a, RcUtilization b)
+	ImGui::Checkbox("Sort by balance", &_utilSortByBalance);
+	ImGui::InputInt("Ignore if total", &_utilIgnoreIfTotal);
+	std::sort(_vUtilization.begin(), _vUtilization.end(), [this](RcUtilization a, RcUtilization b)
 		{
+			if (_utilSortByBalance)
+			{
+				if (a._balance != b._balance)
+					return a._balance < b._balance;
+			}
 			if (a._fraction != b._fraction)
 				return a._fraction < b._fraction;
 			if (a._total != b._total)
@@ -891,6 +900,8 @@ void Renderer::UpdateUtilization()
 		});
 	for (const auto& x : _vUtilization)
 	{
+		if (_utilIgnoreIfTotal == x._total)
+			continue;
 		StringStream ss;
 		ss << "(" << x._value << "/" << x._total << ")";
 		ImGui::ProgressBar(x._fraction, ImVec2(0, 0), _C(ss.str()));
@@ -908,5 +919,6 @@ void Renderer::AddUtilization(CSZ name, INT64 value, INT64 total)
 	u._value = value;
 	u._total = total;
 	u._fraction = value / static_cast<float>(total);
+	u._balance = 0.5f - abs(0.5f - u._fraction);
 	_vUtilization.push_back(std::move(u));
 }

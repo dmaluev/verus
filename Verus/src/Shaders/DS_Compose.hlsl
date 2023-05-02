@@ -81,6 +81,7 @@ FSO3 mainFS(VSO si)
 
 	const float4 gBuffer2Sam = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0.zw, 0.0);
 	const float occlusion = gBuffer2Sam.r;
+	const float metallic = gBuffer2Sam.b;
 
 	const float depthSam = g_texDepth.SampleLevel(g_samDepth, si.tc0.zw, 0.0).r;
 	const float3 posW = DS_GetPosition(depthSam, g_ubComposeFS._matInvVP, ndcPos);
@@ -89,7 +90,7 @@ FSO3 mainFS(VSO si)
 	const float4 accAmbSam = g_texAccAmb.SampleLevel(g_samAccAmb, si.tc0.zw, 0.0);
 	const float4 accDiffSam = g_texAccDiff.SampleLevel(g_samAccDiff, si.tc0.zw, 0.0);
 	const float4 accSpecSam = g_texAccSpec.SampleLevel(g_samAccSpec, si.tc0.zw, 0.0);
-	const float3 ambientColor = accAmbSam.rgb * occlusion;
+	const float3 ambientColor = accAmbSam.rgb * occlusion * (1.0 - metallic);
 	// </Sample>
 
 	const float3 color = albedo * (ambientColor + accDiffSam.rgb + emission) + accSpecSam.rgb;
@@ -142,21 +143,7 @@ FSO mainFS(VSO si)
 	// <Sample>
 	const float4 gBuffer0Sam = g_texGBuffer0.SampleLevel(g_samGBuffer0, si.tc0.zw, 0.0);
 	const float4 gBuffer1Sam = g_texGBuffer1.SampleLevel(g_samGBuffer1, si.tc0.zw, 0.0);
-	float3 composed;
-	{
-#ifdef DEF_CINEMA
-		// Chromatic aberration:
-		const float2 offset = (0.5 - si.tc0.zw) * 0.0015;
-		const float2 tcR = si.tc0.zw + offset;
-		const float2 tcG = si.tc0.zw;
-		const float2 tcB = si.tc0.zw - offset;
-		composed.r = g_texGBuffer2.SampleLevel(g_samGBuffer2, tcR, 0.0).r;
-		composed.g = g_texGBuffer2.SampleLevel(g_samGBuffer2, tcG, 0.0).g;
-		composed.b = g_texGBuffer2.SampleLevel(g_samGBuffer2, tcB, 0.0).b;
-#else
-		composed = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0.zw, 0.0).rgb;
-#endif
-	}
+	const float3 composed = g_texGBuffer2.SampleLevel(g_samGBuffer2, si.tc0.zw, 0.0).rgb;
 #ifdef DEF_BLOOM
 	const float4 gBuffer2Sam = g_texAccSpec.SampleLevel(g_samAccSpec, si.tc0.zw, 0.0);
 #endif

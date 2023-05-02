@@ -151,7 +151,7 @@ void QuadtreeIntegral::InitNodes(int currentNode, int depth)
 	node.SetSphere(node.GetBounds().GetSphere());
 }
 
-void QuadtreeIntegral::TraverseVisible(int currentNode, int depth)
+void QuadtreeIntegral::DetectElements(int currentNode, int depth)
 {
 	VERUS_QREF_WM;
 
@@ -197,13 +197,13 @@ void QuadtreeIntegral::TraverseVisible(int currentNode, int depth)
 		VERUS_FOR(i, 4)
 		{
 			const int childIndex = Node::GetChildIndex(currentNode, i);
-			TraverseVisible(childIndex, depth + 1);
+			DetectElements(childIndex, depth + 1);
 		}
 	}
 	else // Smallest node -> update it:
 	{
 		_passedTestCount++;
-		_pDelegate->QuadtreeIntegral_ProcessVisibleNode(
+		_pDelegate->QuadtreeIntegral_OnElementDetected(
 			_vNodes[currentNode].GetOffsetIJ(),
 			_vNodes[currentNode].GetSphere().GetCenter());
 	}

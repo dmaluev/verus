@@ -17,6 +17,7 @@ namespace verus
 		{
 #include "../Shaders/DS.inc.hlsl"
 #include "../Shaders/DS_Ambient.inc.hlsl"
+#include "../Shaders/DS_AmbientNode.inc.hlsl"
 #include "../Shaders/DS_Compose.inc.hlsl"
 #include "../Shaders/DS_Reflection.inc.hlsl"
 #include "../Shaders/DS_BakeSprites.inc.hlsl"
@@ -25,6 +26,7 @@ namespace verus
 			{
 				SHADER_LIGHT,
 				SHADER_AMBIENT,
+				SHADER_AMBIENT_NODE,
 				SHADER_COMPOSE,
 				SHADER_REFLECTION,
 				SHADER_BAKE_SPRITES,
@@ -37,6 +39,8 @@ namespace verus
 				PIPE_INSTANCED_OMNI,
 				PIPE_INSTANCED_SPOT,
 				PIPE_AMBIENT,
+				PIPE_AMBIENT_NODE_MUL,
+				PIPE_AMBIENT_NODE_ADD,
 				PIPE_COMPOSE,
 				PIPE_REFLECTION,
 				PIPE_REFLECTION_DEBUG,
@@ -63,29 +67,33 @@ namespace verus
 				TEX_COUNT
 			};
 
-			static UB_PerFrame      s_ubPerFrame;
-			static UB_TexturesFS    s_ubTexturesFS;
-			static UB_PerMeshVS     s_ubPerMeshVS;
-			static UB_ShadowFS      s_ubShadowFS;
-			static UB_PerObject     s_ubPerObject;
+			static UB_PerView               s_ubPerView;
+			static UB_TexturesFS            s_ubTexturesFS;
+			static UB_PerMeshVS             s_ubPerMeshVS;
+			static UB_ShadowFS              s_ubShadowFS;
+			static UB_PerObject             s_ubPerObject;
 
-			static UB_AmbientVS     s_ubAmbientVS;
-			static UB_AmbientFS     s_ubAmbientFS;
+			static UB_AmbientVS             s_ubAmbientVS;
+			static UB_AmbientFS             s_ubAmbientFS;
 
-			static UB_ComposeVS     s_ubComposeVS;
-			static UB_ComposeFS     s_ubComposeFS;
+			static UB_AmbientNodePerView    s_ubAmbientNodePerView;
+			static UB_AmbientNodeTexturesFS s_ubAmbientNodeTexturesFS;
+			static UB_AmbientNodePerMeshVS  s_ubAmbientNodePerMeshVS;
+			static UB_AmbientNodePerObject  s_ubAmbientNodePerObject;
 
-			static UB_ReflectionVS  s_ubReflectionVS;
-			static UB_ReflectionFS  s_ubReflectionFS;
+			static UB_ComposeVS             s_ubComposeVS;
+			static UB_ComposeFS             s_ubComposeFS;
 
-			static UB_BakeSpritesVS s_ubBakeSpritesVS;
-			static UB_BakeSpritesFS s_ubBakeSpritesFS;
+			static UB_ReflectionVS          s_ubReflectionVS;
+			static UB_ReflectionFS          s_ubReflectionFS;
+
+			static UB_BakeSpritesVS         s_ubBakeSpritesVS;
+			static UB_BakeSpritesFS         s_ubBakeSpritesFS;
 
 			Vector4                  _backgroundColor = Vector4(0);
 			ShaderPwns<SHADER_COUNT> _shader;
 			PipelinePwns<PIPE_COUNT> _pipe;
 			TexturePwns<TEX_COUNT>   _tex;
-			TexturePtr               _texAtmoShadow;
 			TexturePtr               _texTerrainHeightmap;
 			TexturePtr               _texTerrainBlend;
 			UINT64                   _frame = 0;
@@ -103,7 +111,9 @@ namespace verus
 			FBHandle                 _fbhBakeSprites;
 
 			CSHandle                 _cshLight;
+			CSHandle                 _cshLightShadow;
 			CSHandle                 _cshAmbient;
+			CSHandle                 _cshAmbientNode;
 			CSHandle                 _cshCompose;
 			CSHandle                 _cshReflection;
 			CSHandle                 _cshToneMapping;
@@ -123,8 +133,8 @@ namespace verus
 
 			void Init();
 			void InitGBuffers(int w, int h);
-			void InitByAtmosphere(TexturePtr texShadow);
 			void InitByBloom(TexturePtr tex);
+			void InitByCascadedShadowMapBaker(TexturePtr texShadow);
 			void InitByTerrain(TexturePtr texHeightmap, TexturePtr texBlend, int mapSide);
 
 			void Done();
@@ -161,15 +171,25 @@ namespace verus
 			void OnNewLightType(CommandBufferPtr cb, LightType type, bool wireframe = false);
 			void BindDescriptorsPerMeshVS(CommandBufferPtr cb);
 			static UB_PerMeshVS& GetUbPerMeshVS() { return s_ubPerMeshVS; }
+			CSHandle BindDescriptorSetTexturesForVSM(TexturePtr texShadow);
+			void BindDescriptorsForVSM(CommandBufferPtr cb, int firstInstance, CSHandle complexSetHandle, float presence);
+
+			// Ambient:
+			void OnNewAmbientNodePriority(CommandBufferPtr cb, int firstInstance, bool add);
+			void BindDescriptorsAmbientNodePerMeshVS(CommandBufferPtr cb);
+			static UB_AmbientNodePerMeshVS& GetUbAmbientNodePerMeshVS() { return s_ubAmbientNodePerMeshVS; }
 
 			void Load();
 
-			TexturePtr GetGBuffer(int index);
-			TexturePtr GetLightAccAmbientTexture();
-			TexturePtr GetLightAccDiffuseTexture();
-			TexturePtr GetLightAccSpecularTexture();
-			TexturePtr GetComposedTextureA();
-			TexturePtr GetComposedTextureB();
+			ShaderPtr GetLightShader() const;
+			ShaderPtr GetAmbientNodeShader() const;
+
+			TexturePtr GetGBuffer(int index) const;
+			TexturePtr GetLightAccAmbientTexture() const;
+			TexturePtr GetLightAccDiffuseTexture() const;
+			TexturePtr GetLightAccSpecularTexture() const;
+			TexturePtr GetComposedTextureA() const;
+			TexturePtr GetComposedTextureB() const;
 
 			static Vector4 GetClearValueForGBuffer0(float albedo = 0);
 			static Vector4 GetClearValueForGBuffer1(float normal = 0, float motionBlur = 1);

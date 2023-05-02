@@ -30,7 +30,7 @@ namespace verus
 			CGI::ShaderPwn                _shader;
 			CGI::PipelinePwns<PIPE_COUNT> _pipe;
 			CGI::TexturePwns<TEX_COUNT>   _tex;
-			CGI::TexturePtr               _texAtmoShadow;
+			CGI::TexturePtr               _texCSMB;
 			CGI::RPHandle                 _rph;
 			CGI::RPHandle                 _rphLightShafts;
 			CGI::FBHandle                 _fbh;
@@ -51,7 +51,7 @@ namespace verus
 			~Bloom();
 
 			void Init();
-			void InitByAtmosphere(CGI::TexturePtr texShadow);
+			void InitByCascadedShadowMapBaker(CGI::TexturePtr texShadow);
 			void Done();
 
 			void OnSwapChainResized();

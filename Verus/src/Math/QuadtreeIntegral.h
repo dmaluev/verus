@@ -8,7 +8,7 @@ namespace verus
 		class QuadtreeIntegralDelegate
 		{
 		public:
-			virtual void QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center) = 0;
+			virtual void QuadtreeIntegral_OnElementDetected(const short ij[2], RcPoint3 center) = 0;
 			virtual void QuadtreeIntegral_GetHeights(const short ij[2], float height[2]) = 0;
 		};
 		VERUS_TYPEDEFS(QuadtreeIntegralDelegate);
@@ -70,7 +70,7 @@ namespace verus
 			VERUS_P(void AllocNodes());
 			VERUS_P(void InitNodes(int currentNode = 0, int depth = 0));
 
-			void TraverseVisible(int currentNode = 0, int depth = 0);
+			void DetectElements(int currentNode = 0, int depth = 0);
 
 			int GetTestCount()       const { return _testCount; }
 			int GetPassedTestCount() const { return _passedTestCount; }

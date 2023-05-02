@@ -8,43 +8,44 @@
 #include "LibVertex.hlsl"
 #include "DS.inc.hlsl"
 
-CBUFFER(0, UB_PerFrame, g_ubPerFrame)
+CBUFFER(0, UB_PerView, g_ubPerView)
 CBUFFER(1, UB_TexturesFS, g_ubTexturesFS)
 CBUFFER(2, UB_PerMeshVS, g_ubPerMeshVS)
 CBUFFER(3, UB_ShadowFS, g_ubShadowFS)
+SBUFFER(4, SB_PerInstanceData, g_sbPerInstanceData, t7)
 VK_PUSH_CONSTANT
-CBUFFER(4, UB_PerObject, g_ubPerObject)
+CBUFFER(5, UB_PerObject, g_ubPerObject)
 
 VK_SUBPASS_INPUT(0, g_texGBuffer0, g_samGBuffer0, 1, space1);
 VK_SUBPASS_INPUT(1, g_texGBuffer1, g_samGBuffer1, 2, space1);
 VK_SUBPASS_INPUT(2, g_texGBuffer2, g_samGBuffer2, 3, space1);
 VK_SUBPASS_INPUT(3, g_texGBuffer3, g_samGBuffer3, 4, space1);
 VK_SUBPASS_INPUT(4, g_texDepth, g_samDepth, 5, space1);
-Texture2D              g_texShadowCmp : REG(t6, space1, t5);
-SamplerComparisonState g_samShadowCmp : REG(s6, space1, s5);
-Texture2D              g_texShadow    : REG(t7, space1, t6);
-SamplerState           g_samShadow    : REG(s7, space1, s6);
+Texture2D              g_texShadowCmp : REG(t1, space3, t5);
+SamplerComparisonState g_samShadowCmp : REG(s1, space3, s5);
+Texture2D              g_texShadow    : REG(t2, space3, t6);
+SamplerState           g_samShadow    : REG(s2, space3, s6);
 
 struct VSI
 {
 	VK_LOCATION_POSITION int4 pos   : POSITION;
 	VK_LOCATION_NORMAL   float3 nrm : NORMAL;
 	VK_LOCATION(8)       int2 tc0   : TEXCOORD0;
-	_PER_INSTANCE_DATA
+	uint instanceID                 : SV_InstanceID;
+	_PER_INSTANCE_DATA_0
 };
 
 struct VSO
 {
-	float4 pos                                      : SV_Position;
-	float4 clipSpacePos                             : TEXCOORD0;
-#if defined(DEF_DIR) || defined(DEF_SPOT) // Direction and cone shape for spot.
-	float4 lightDirWV_invConeDelta                  : TEXCOORD1;
-#endif
+	float4 pos                                       : SV_Position;
+	float4 clipSpacePos                              : TEXCOORD0;
+	float4 lightDirWV_invConeDelta                   : TEXCOORD1;
 #if defined(DEF_OMNI) || defined(DEF_SPOT) // Omni and spot have position and radius.
 	float4 lightPosWV_lampRadius                     : TEXCOORD2;
 	float4 radius_radiusSq_invRadiusSq_invLampRadius : TEXCOORD3;
 #endif
-	float4 color_coneOut                            : TEXCOORD4;
+	float4 color_coneOut                             : TEXCOORD4;
+	uint instanceID                                  : SV_InstanceID;
 };
 
 #ifdef _VS
@@ -57,17 +58,17 @@ VSO mainVS(VSI si)
 	// <TheMatrix>
 #ifdef DEF_INSTANCED
 	const mataff matW = GetInstMatrix(
-		si.matPart0,
-		si.matPart1,
-		si.matPart2);
-	const float3 color = si.instData.rgb;
-	const float coneIn = si.instData.a;
+		si.pid0_matPart0,
+		si.pid0_matPart1,
+		si.pid0_matPart2);
+	const float3 color = si.pid0_instData.rgb;
+	const float coneIn = si.pid0_instData.a;
 #else
 	const mataff matW = g_ubPerObject._matW;
 	const float3 color = g_ubPerObject._color.rgb;
 	const float coneIn = g_ubPerObject._color.a;
 #endif
-	const matrix matWV = mul(ToFloat4x4(matW), ToFloat4x4(g_ubPerFrame._matV));
+	const matrix matWV = mul(ToFloat4x4(matW), ToFloat4x4(g_ubPerView._matV));
 	const float3x3 matWV33 = (float3x3)matWV;
 	// </TheMatrix>
 
@@ -75,7 +76,7 @@ VSO mainVS(VSI si)
 	so.pos = float4(inPos, 1);
 #else
 	const float3 posW = mul(float4(inPos, 1), matW);
-	so.pos = mul(float4(posW, 1), g_ubPerFrame._matVP);
+	so.pos = mul(float4(posW, 1), g_ubPerView._matVP);
 #endif
 	so.clipSpacePos = so.pos;
 
@@ -85,6 +86,10 @@ VSO mainVS(VSI si)
 #ifdef DEF_DIR
 	{
 		so.lightDirWV_invConeDelta = float4(scaledFrontDir, 1); // Assume not scaled.
+	}
+#elif defined(DEF_OMNI)
+	{
+		so.lightDirWV_invConeDelta = float4(normalize(scaledFrontDir), 1); // Assume scaled.
 	}
 #elif defined(DEF_SPOT)
 	{
@@ -112,6 +117,8 @@ VSO mainVS(VSI si)
 #endif
 	// </MoreLightParams>
 
+	so.instanceID = si.instanceID;
+
 	return so;
 }
 #endif
@@ -128,14 +135,12 @@ DS_ACC_FSO mainFS(VSO si)
 #else
 	const float3 ndcPos = si.clipSpacePos.xyz / si.clipSpacePos.w;
 #endif
-	const float2 tc0 = mul(float4(ndcPos.xy, 0, 1), g_ubPerFrame._matToUV).xy *
-		g_ubPerFrame._tcViewScaleBias.xy + g_ubPerFrame._tcViewScaleBias.zw;
+	const float2 tc0 = mul(float4(ndcPos.xy, 0, 1), g_ubPerView._matToUV).xy *
+		g_ubPerView._tcViewScaleBias.xy + g_ubPerView._tcViewScaleBias.zw;
 
 	// Direction and cone shape for spot:
-#ifdef DEF_DIR
 	const float3 lightDirWV = si.lightDirWV_invConeDelta.xyz;
-#elif defined(DEF_SPOT)
-	const float3 lightDirWV = si.lightDirWV_invConeDelta.xyz;
+#ifdef DEF_SPOT
 	const float invConeDelta = si.lightDirWV_invConeDelta.w;
 	const float coneOut = si.color_coneOut.a;
 #endif
@@ -152,7 +157,7 @@ DS_ACC_FSO mainFS(VSO si)
 
 	// Depth:
 	const float depthSam = VK_SUBPASS_LOAD(g_texDepth, g_samDepth, tc0).r;
-	const float3 posWV = DS_GetPosition(depthSam, g_ubPerFrame._matInvP, ndcPos.xy);
+	const float3 posWV = DS_GetPosition(depthSam, g_ubPerView._matInvP, ndcPos.xy);
 
 #if defined(DEF_OMNI) || defined(DEF_SPOT)
 	if (posWV.z <= lightPosWV.z + radius)
@@ -200,23 +205,23 @@ DS_ACC_FSO mainFS(VSO si)
 		const float lightFalloffWithCone = lightFalloff * coneIntensity;
 		const float distToEye = length(posWV);
 		const float3 dirToEyeWV = -posWV / distToEye;
-		const float3 lightColor = si.color_coneOut.rgb;
+		const float3 lightColor = (si.color_coneOut.r >= 0.0) ? si.color_coneOut.rgb : g_ubPerView._ambientColor.rgb;
 		// </LightData>
 
 		// <Shadow>
 		float shadowMask = 1.0;
 		{
-#ifdef DEF_DIR
 			float4 shadowConfig = g_ubShadowFS._shadowConfig;
 			shadowConfig.y = 1.0 - saturate(wrapDiffuse * shadowConfig.y);
-			const float3 posForShadow = AdjustPosForShadow(posWV, normalWV, dirToLightWV, -posWV.z, shadowConfig.z);
+			const float3 biasedPosWV = ApplyShadowBiasing(posWV, normalWV, dirToLightWV, -posWV.z, shadowConfig.z);
+#ifdef DEF_DIR
 			shadowMask = ShadowMapCSM(
 				g_texShadowCmp,
 				g_samShadowCmp,
 				g_texShadow,
 				g_samShadow,
 				posWV,
-				posForShadow,
+				biasedPosWV,
 				g_ubShadowFS._matShadow,
 				g_ubShadowFS._matShadowCSM1,
 				g_ubShadowFS._matShadowCSM2,
@@ -224,6 +229,30 @@ DS_ACC_FSO mainFS(VSO si)
 				g_ubShadowFS._matScreenCSM,
 				g_ubShadowFS._csmSliceBounds,
 				shadowConfig);
+#else
+			const float dp = dot(lightDirWV, -dirToLightWV);
+#ifdef DEF_OMNI
+			if (dp > 0.5)
+#elif DEF_SPOT
+			if (dp > coneOut)
+#endif
+			{
+
+#ifdef _VULKAN
+				const uint realInstanceID = si.instanceID;
+#else
+				const uint realInstanceID = si.instanceID + g_ubShadowFS._shadowConfig.x;
+#endif
+				shadowMask = ShadowMapVSM(
+					g_texShadow,
+					g_samShadow,
+					biasedPosWV,
+					g_sbPerInstanceData[realInstanceID]._matShadow);
+				shadowMask = max(shadowMask, g_ubShadowFS._shadowConfig.y);
+#ifdef DEF_OMNI
+				shadowMask = max(shadowMask, saturate(1.0 - (dp - 0.5) * (1.0 / 0.2071))); // Fade edges.
+#endif
+			}
 #endif
 		}
 		// </Shadow>

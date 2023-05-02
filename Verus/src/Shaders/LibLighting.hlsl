@@ -166,5 +166,5 @@ float ComputeSpotLightConeIntensity(float3 dirToLight, float3 lightDir, float co
 
 float ComputeLampRadius(float radius, float3 color)
 {
-	return radius * 10.0 / dot(color, 1.0 / 3.0);
+	return radius * 10.0 / dot(abs(color), 1.0 / 3.0);
 }

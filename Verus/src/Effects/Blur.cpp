@@ -48,6 +48,10 @@ void Blur::Init()
 	VERUS_QREF_RENDERER;
 
 	Vector<CSZ> vIgnoreList;
+	{
+		_rphVsmU = renderer->CreateSimpleRenderPass(CGI::Format::floatR16G16);
+		_rphVsmV = renderer->CreateSimpleRenderPass(CGI::Format::floatR16G16, CGI::RP::Attachment::LoadOp::load);
+	}
 	if (settings._postProcessSSAO)
 	{
 		_rphSsao = renderer->CreateSimpleRenderPass(CGI::Format::unormR8G8B8A8); // >> GBuffer2.r
@@ -98,6 +102,16 @@ void Blur::Init()
 		_pipe[PIPE_U].Init(pipeDesc);
 		pipeDesc._shaderBranch = "#V";
 		_pipe[PIPE_V].Init(pipeDesc);
+	}
+	{
+		CGI::PipelineDesc pipeDesc(renderer.GetGeoQuad(), _shader, "#UVsm", _rphVsmU);
+		pipeDesc._colorAttachWriteMasks[0] = "rg";
+		pipeDesc._topology = CGI::PrimitiveTopology::triangleStrip;
+		pipeDesc.DisableDepthTest();
+		_pipe[PIPE_VSM_U].Init(pipeDesc);
+		pipeDesc._shaderBranch = "#VVsm";
+		pipeDesc._renderPassHandle = _rphVsmV;
+		_pipe[PIPE_VSM_V].Init(pipeDesc);
 	}
 	if (settings._postProcessSSAO)
 	{
@@ -281,6 +295,51 @@ void Blur::OnSwapChainResized()
 			_cshMotionBlurExtra = _shader->BindDescriptorSetTextures(2, { renderer.GetDS().GetGBuffer(1), renderer.GetTexDepthStencil() });
 		}
 	}
+}
+
+void Blur::GenerateForVSM(CGI::FBHandle fbhU, CGI::FBHandle fbhV, CGI::CSHandle cshU, CGI::CSHandle cshV,
+	RcVector4 rc, RcVector4 zNearFarEx)
+{
+	VERUS_QREF_RENDERER;
+
+	auto cb = renderer.GetCommandBuffer();
+
+	VERUS_PROFILER_BEGIN_EVENT(cb, VERUS_COLOR_RGBA(64, 0, 64, 255), "Blur/GenerateForVSM");
+
+	_shader->BeginBindDescriptors();
+	{
+		cb->BeginRenderPass(_rphVsmU, fbhU, { Vector4(1) }, CGI::ViewportScissorFlags::setAllForFramebuffer);
+
+		s_ubBlurVS._matW = Math::QuadMatrix().UniformBufferFormat();
+		s_ubBlurVS._matV = Math::ToUVMatrix().UniformBufferFormat();
+		s_ubBlurVS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+		s_ubBlurFS._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+		s_ubExtraBlurFS._zNearFarEx = zNearFarEx.GLM();
+
+		cb->BindPipeline(_pipe[PIPE_VSM_U]);
+		cb->BindDescriptors(_shader, 0);
+		cb->BindDescriptors(_shader, 1, cshU);
+		cb->BindDescriptors(_shader, 2, _cshRdsExtra); // Dummy CSHandle.
+		renderer.DrawQuad(cb.Get());
+
+		cb->EndRenderPass();
+	}
+	{
+		cb->BeginRenderPass(_rphVsmV, fbhV, { Vector4(1) }, CGI::ViewportScissorFlags::none);
+
+		cb->SetViewport({ rc });
+		cb->SetScissor({ rc });
+
+		cb->BindPipeline(_pipe[PIPE_VSM_V]);
+		cb->BindDescriptors(_shader, 0);
+		cb->BindDescriptors(_shader, 1, cshV);
+		renderer.DrawQuad(cb.Get());
+
+		cb->EndRenderPass();
+	}
+	_shader->EndBindDescriptors();
+
+	VERUS_PROFILER_END_EVENT(cb);
 }
 
 void Blur::GenerateForSsao()

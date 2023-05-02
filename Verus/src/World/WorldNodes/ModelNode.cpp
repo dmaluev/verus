@@ -128,7 +128,7 @@ void ModelNode::LoadMaterial(CSZ url)
 void ModelNode::BindPipeline(CGI::CommandBufferPtr cb)
 {
 	_mesh.BindPipelineInstanced(cb, false);
-	_mesh.UpdateUniformBufferPerFrame();
+	_mesh.UpdateUniformBufferPerView();
 }
 
 void ModelNode::BindPipelineSimple(DrawSimpleMode mode, CGI::CommandBufferPtr cb)
@@ -138,7 +138,7 @@ void ModelNode::BindPipelineSimple(DrawSimpleMode mode, CGI::CommandBufferPtr cb
 	case DrawSimpleMode::envMap:           _mesh.BindPipeline(Mesh::PIPE_SIMPLE_ENV_MAP_INSTANCED, cb); break;
 	case DrawSimpleMode::planarReflection: _mesh.BindPipeline(Mesh::PIPE_SIMPLE_PLANAR_REF_INSTANCED, cb); break;
 	}
-	_mesh.UpdateUniformBufferSimplePerFrame(mode);
+	_mesh.UpdateUniformBufferSimplePerView(mode);
 }
 
 void ModelNode::BindGeo(CGI::CommandBufferPtr cb)
@@ -147,9 +147,9 @@ void ModelNode::BindGeo(CGI::CommandBufferPtr cb)
 	_mesh.UpdateUniformBufferPerMeshVS();
 }
 
-void ModelNode::MarkFirstInstance()
+void ModelNode::MarkInstance()
 {
-	_mesh.MarkFirstInstance();
+	_mesh.MarkInstance();
 }
 
 void ModelNode::PushInstance(RcTransform3 matW, RcVector4 instData)
@@ -162,7 +162,7 @@ void ModelNode::Draw(CGI::CommandBufferPtr cb)
 	if (!_mesh.IsInstanceBufferEmpty(true))
 	{
 		_mesh.UpdateInstanceBuffer();
-		cb->DrawIndexed(_mesh.GetIndexCount(), _mesh.GetInstanceCount(true), 0, 0, _mesh.GetFirstInstance());
+		cb->DrawIndexed(_mesh.GetIndexCount(), _mesh.GetInstanceCount(true), 0, 0, _mesh.GetMarkedInstance());
 	}
 }
 

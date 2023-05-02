@@ -117,13 +117,11 @@ void BaseMesh::Done()
 
 void BaseMesh::Async_WhenLoaded(CSZ url, RcBlob blob)
 {
-	if (_url == url)
+	if (!IsLoaded() && _url == url)
 	{
 		Load(blob);
-		LoadPrimaryBones();
 		LoadRig();
 		LoadWarp();
-		return;
 	}
 }
 
@@ -387,33 +385,6 @@ void BaseMesh::LoadX3D3(RcBlob blob)
 		InitShape(Transform3::identity());
 
 	CreateDeviceBuffers();
-}
-
-void BaseMesh::LoadPrimaryBones()
-{
-#if 0
-	if (!m_skeleton.IsInitialized())
-		return;
-
-	String url(_url);
-	Str::ReplaceExtension(url, ".primary");
-	Vector<BYTE> vData;
-	IO::FileSystem::I().LoadResourceFromCache(_C(url), vData, false);
-	if (vData.size() <= 1)
-		return;
-	Vector<String> vPrimaryBones;
-	Str::ReadLines(reinterpret_cast<CSZ>(vData.data()), vPrimaryBones);
-	if (!vPrimaryBones.empty())
-	{
-		_skeleton.AdjustPrimaryBones(vPrimaryBones);
-		VERUS_FOREACH(Vector<VertexInputBinding1>, _vBinding1, it)
-		{
-			VERUS_FOR(i, 4)
-				it->bi[i] = _skeleton.RemapBoneIndex(it->bi[i]);
-		}
-		UpdateVertexBuffer(_vBinding1.data(), 1);
-	}
-#endif
 }
 
 void BaseMesh::LoadRig()

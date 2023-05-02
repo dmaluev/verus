@@ -1,6 +1,6 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-VERUS_UBUFFER UB_PerFrame
+VERUS_UBUFFER_STRUCT UB_PerView
 {
 	float4 _time_cloudiness;
 	float4 _ambientColor;
@@ -10,18 +10,18 @@ VERUS_UBUFFER UB_PerFrame
 	float4 _phaseAB;
 };
 
-VERUS_UBUFFER UB_PerMaterialFS
+VERUS_UBUFFER_STRUCT UB_PerMaterialFS
 {
 	float4 _dummy;
 };
 
-VERUS_UBUFFER UB_PerMeshVS
+VERUS_UBUFFER_STRUCT UB_PerMeshVS
 {
 	float4 _posDeqScale;
 	float4 _posDeqBias;
 };
 
-VERUS_UBUFFER UB_PerObject
+VERUS_UBUFFER_STRUCT UB_PerObject
 {
 	mataff _matW;
 	matrix _matWVP;

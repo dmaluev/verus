@@ -36,19 +36,14 @@ namespace verus
 				VkShaderStageFlags _stageFlags = 0;
 			};
 
-			TMapCompiled                  _mapCompiled;
-			Vector<DescriptorSetDesc>     _vDescriptorSetDesc;
-			Vector<VkDescriptorSetLayout> _vDescriptorSetLayouts;
-			Vector<VkDescriptorSet>       _vComplexDescriptorSets;
-			VkDescriptorPool              _descriptorPool = VK_NULL_HANDLE;
-			VkPipelineLayout              _pipelineLayout = VK_NULL_HANDLE;
-			String                        _debugInfo;
-			UINT64                        _currentFrame = UINT64_MAX;
-			uint32_t                      _poolComplexUniformBuffers = 0;
-			uint32_t                      _poolComplexImageSamplers = 0;
-			uint32_t                      _poolComplexStorageImages = 0;
-			uint32_t                      _poolComplexInputAttachments = 0;
-			bool                          _compute = false;
+			TMapCompiled              _mapCompiled;
+			Vector<DescriptorSetDesc> _vDescriptorSetDesc;
+			Vector<VkDescriptorSet>   _vComplexDescriptorSets;
+			Descriptors               _descriptors;
+			VkPipelineLayout          _pipelineLayout = VK_NULL_HANDLE;
+			String                    _debugInfo;
+			UINT64                    _currentFrame = UINT64_MAX;
+			bool                      _compute = false;
 
 		public:
 			ShaderVulkan();
@@ -69,23 +64,22 @@ namespace verus
 			// Vulkan
 			//
 
-			void CreateDescriptorPool();
 			void CreateDescriptorSets();
-			VkDescriptorSet GetVkDescriptorSet(int setNumber);
-			VkDescriptorSet GetComplexVkDescriptorSet(CSHandle descSetID);
+			VkDescriptorSet GetVkDescriptorSet(int setNumber) const;
+			VkDescriptorSet GetComplexVkDescriptorSet(CSHandle descSetID) const;
 
 			RcCompiled GetCompiled(CSZ branch) const { return _mapCompiled.at(branch); }
 
 			VkPipelineLayout GetVkPipelineLayout() const { return _pipelineLayout; }
 
-			bool TryPushConstants(int setNumber, RBaseCommandBuffer cb);
+			bool TryPushConstants(int setNumber, RBaseCommandBuffer cb) const;
 			int UpdateUniformBuffer(int setNumber);
 
 			bool IsCompute() const { return _compute; }
 
-			void OnError(CSZ s);
+			void OnError(CSZ s) const;
 
-			void UpdateUtilization();
+			void UpdateUtilization() const;
 		};
 		VERUS_TYPEDEFS(ShaderVulkan);
 	}

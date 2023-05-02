@@ -55,7 +55,7 @@ namespace verus
 			void BindPipeline(CGI::CommandBufferPtr cb);
 			void BindPipelineSimple(DrawSimpleMode mode, CGI::CommandBufferPtr cb);
 			void BindGeo(CGI::CommandBufferPtr cb);
-			void MarkFirstInstance();
+			void MarkInstance();
 			void PushInstance(RcTransform3 matW, RcVector4 instData);
 			void Draw(CGI::CommandBufferPtr cb);
 		};

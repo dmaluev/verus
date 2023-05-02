@@ -13,6 +13,7 @@ namespace verus
 		typedef StoreUnique<String, ModelNode> TStoreModelNodes;
 		typedef StoreUnique<String, ParticlesNode> TStoreParticlesNodes;
 		typedef Store<BaseNode> TStoreBaseNodes;
+		typedef Store<AmbientNode> TStoreAmbientNodes;
 		typedef Store<BlockNode> TStoreBlockNodes;
 		typedef Store<BlockChainNode> TStoreBlockChainNodes;
 		typedef Store<ControlPointNode> TStoreControlPointNodes;
@@ -27,17 +28,22 @@ namespace verus
 		typedef Store<TerrainNode> TStoreTerrainNodes;
 		class WorldManager : public Singleton<WorldManager>, public Object, public Math::OctreeDelegate,
 			private TStoreModelNodes, private TStoreParticlesNodes,
-			private TStoreBaseNodes, private TStoreBlockNodes, private TStoreBlockChainNodes,
-			private TStoreControlPointNodes, private TStoreEmitterNodes, private TStoreInstanceNodes,
-			private TStoreLightNodes, private TStorePathNodes, private TStorePhysicsNodes,
-			private TStorePrefabNodes, private TStoreShakerNodes, private TStoreSoundNodes,
-			private TStoreTerrainNodes
+			private TStoreBaseNodes, private TStoreAmbientNodes, private TStoreBlockNodes,
+			private TStoreBlockChainNodes, private TStoreControlPointNodes, private TStoreEmitterNodes,
+			private TStoreInstanceNodes, private TStoreLightNodes, private TStorePathNodes,
+			private TStorePhysicsNodes, private TStorePrefabNodes, private TStoreShakerNodes,
+			private TStoreSoundNodes, private TStoreTerrainNodes
 		{
+#include "../Shaders/DS.inc.hlsl"
+#include "../Shaders/DS_AmbientNode.inc.hlsl"
+
 			Math::Octree         _octree;
 			LocalPtr<btBoxShape> _pPickingShape;
 			PCamera              _pPassCamera = nullptr; // Render pass camera for getting view and projection matrices.
 			PMainCamera          _pHeadCamera = nullptr; // Head camera which is located between the eyes.
 			PMainCamera          _pViewCamera = nullptr; // Current view camera which is valid only inside DrawView method (eye camera).
+			PLightNode           _pSmbpStatic = nullptr;
+			PLightNode           _pSmbpDynamic[4];
 			Vector<PBaseNode>    _vNodes;
 			Vector<PBaseNode>    _vVisibleNodes;
 			Random               _random;
@@ -45,7 +51,11 @@ namespace verus
 			int                  _visibleCountPerType[+NodeType::count];
 			int                  _worldSide = 0;
 			int                  _recursionDepth = 0;
+			int                  _smbpDynamicCount = 0;
 			float                _pickingShapeHalfExtent = 0.05f;
+			float                _lightsReserveShadowDist = 100;
+			float                _lightsFreeShadowDist = 150;
+			bool                 _async_loaded = false;
 
 		public:
 			struct Desc
@@ -87,6 +97,7 @@ namespace verus
 			void DrawTerrainNodes(Terrain::RcDrawDesc dd);
 			void DrawTerrainNodesSimple(DrawSimpleMode mode);
 			void DrawLights();
+			void DrawAmbient();
 			void DrawTransparent();
 			void DrawSelectedBounds();
 			void DrawSelectedRelationshipLines();
@@ -95,6 +106,15 @@ namespace verus
 			static bool IsDrawingDepth(DrawDepth dd);
 
 			static int GetEditorOverlaysAlpha(int originalAlpha, float distSq, float fadeDistSq);
+
+			// <Lights>
+			PLightNode GetSmbpStatic() const { return _pSmbpStatic; }
+			PLightNode GetSmbpDynamic(int index) const { return _pSmbpDynamic[index]; }
+			int GetSmbpDynamicCount() const { return _smbpDynamicCount; }
+			bool IsSmbpDynamic(PcLightNode pLightNode) const;
+			int GetInfluentialLightsAt(Math::RcSphere sphere, PLightNode lightNodes[], int maxLights = 4, bool forShadow = true, bool incDir = false);
+			void InfluentialLightsToSmbpDynamic(Math::RcSphere sphere);
+			// </Lights>
 
 			// <Cameras>
 			PCamera GetPassCamera() const { return _pPassCamera; }
@@ -108,7 +128,7 @@ namespace verus
 
 			// Octree (Acceleration Structure):
 			Math::ROctree GetOctree() { return _octree; }
-			virtual Continue Octree_ProcessNode(void* pToken, void* pUser) override;
+			virtual Continue Octree_OnElementDetected(void* pToken, void* pUser) override;
 
 			bool RayTest(RcPoint3 pointA, RcPoint3 pointB, Physics::Group mask = Physics::Group::all);
 			bool RayTestEx(RcPoint3 pointA, RcPoint3 pointB, PBlockNodePtr pBlock = nullptr,
@@ -208,6 +228,20 @@ namespace verus
 							MatchParent(particles) &&
 							(!query._particlesURL || particles.GetURL() == query._particlesURL))
 							if (Continue::no == fn(particles))
+								return;
+					}
+				}
+
+				if (NodeType::unknown == query._type || NodeType::ambient == query._type)
+				{
+					VERUS_FOREACH_X(TStoreAmbientNodes::TList, TStoreAmbientNodes::_list, it)
+					{
+						auto& ambient = *it++;
+						if (
+							MatchName(ambient) &&
+							MatchSelected(ambient) &&
+							MatchParent(ambient))
+							if (Continue::no == fn(ambient))
 								return;
 					}
 				}
@@ -435,6 +469,8 @@ namespace verus
 			PParticlesNode FindParticlesNode(CSZ url);
 
 			PBaseNode InsertBaseNode();
+
+			PAmbientNode InsertAmbientNode();
 
 			PBlockNode InsertBlockNode();
 

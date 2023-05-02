@@ -1,13 +1,13 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-VERUS_UBUFFER UB_ComposeVS
+VERUS_UBUFFER_STRUCT UB_ComposeVS
 {
 	mataff _matW;
 	mataff _matV;
 	float4 _tcViewScaleBias;
 };
 
-VERUS_UBUFFER UB_ComposeFS
+VERUS_UBUFFER_STRUCT UB_ComposeFS
 {
 	matrix _matInvVP;
 	float4 _exposure_underwaterMask;

@@ -1,6 +1,7 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-#define VERUS_UBUFFER struct
+#define VERUS_UBUFFER_STRUCT struct
+#define VERUS_SBUFFER_STRUCT struct
 #define mataff float4x3
 
 #define _Q_LOW    0
@@ -54,20 +55,38 @@
 
 #ifdef _DIRECT3D11
 #	define CBUFFER(set, type, name) cbuffer type : register(b##set) { type name; }
+#	define SBUFFER(set, type, name, sm50slot) StructuredBuffer<type> name : register(sm50slot);
 #	define REG(slot, space, sm50slot) register(sm50slot)
 #else
 #	define CBUFFER(set, type, name) ConstantBuffer<type> name : register(b0, space##set);
+#	define SBUFFER(set, type, name, sm50slot) StructuredBuffer<type> name : register(t0, space##set);
 #	define REG(slot, space, sm50slot) register(slot, space)
 #endif
 
 #ifdef DEF_INSTANCED
-#	define _PER_INSTANCE_DATA\
-	VK_LOCATION(16) float4 matPart0 : INSTDATA0;\
-	VK_LOCATION(17) float4 matPart1 : INSTDATA1;\
-	VK_LOCATION(18) float4 matPart2 : INSTDATA2;\
-	VK_LOCATION(19) float4 instData : INSTDATA3;
+#	define _PER_INSTANCE_DATA_0\
+	VK_LOCATION(16) float4 pid0_matPart0 : INSTDATA0;\
+	VK_LOCATION(17) float4 pid0_matPart1 : INSTDATA1;\
+	VK_LOCATION(18) float4 pid0_matPart2 : INSTDATA2;\
+	VK_LOCATION(19) float4 pid0_instData : INSTDATA3;
+#	define _PER_INSTANCE_DATA_1_FLOAT4\
+	VK_LOCATION(20) float4 pid1_instData : INSTDATA4;
+#	define _PER_INSTANCE_DATA_1_MATAFF_FLOAT4\
+	VK_LOCATION(20) float4 pid1_matPart0 : INSTDATA4;\
+	VK_LOCATION(21) float4 pid1_matPart1 : INSTDATA5;\
+	VK_LOCATION(22) float4 pid1_matPart2 : INSTDATA6;\
+	VK_LOCATION(23) float4 pid1_instData : INSTDATA7;
+#	define _PER_INSTANCE_DATA_1_MATRIX_FLOAT4\
+	VK_LOCATION(20) float4 pid1_matPart0 : INSTDATA4;\
+	VK_LOCATION(21) float4 pid1_matPart1 : INSTDATA5;\
+	VK_LOCATION(22) float4 pid1_matPart2 : INSTDATA6;\
+	VK_LOCATION(23) float4 pid1_matPart3 : INSTDATA7;\
+	VK_LOCATION(24) float4 pid1_instData : INSTDATA8;
 #else
-#	define _PER_INSTANCE_DATA
+#	define _PER_INSTANCE_DATA_0
+#	define _PER_INSTANCE_DATA_1_FLOAT4
+#	define _PER_INSTANCE_DATA_1_MATAFF_FLOAT4
+#	define _PER_INSTANCE_DATA_1_MATRIX_FLOAT4
 #endif
 
 // <Constants>

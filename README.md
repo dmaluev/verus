@@ -44,7 +44,8 @@ These features should be implemented in version **1.x**:
 - [x] Materials v2.0: PBR/GGX with Metallic-Roughness workflow
 - [x] Direct3D 11
 - [x] OpenXR
-- [ ] Shadow maps for all lights
+- [x] Shadow maps for all lights
+- [x] Ambient occlusion volumes
 - [ ] Triggers
 - [ ] Quest system, dialogue system
 - [ ] Soft particles

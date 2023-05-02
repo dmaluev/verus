@@ -1,20 +1,20 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-VERUS_UBUFFER UB_BlurVS
+VERUS_UBUFFER_STRUCT UB_BlurVS
 {
 	mataff _matW;
 	mataff _matV;
 	float4 _tcViewScaleBias;
 };
 
-VERUS_UBUFFER UB_BlurFS
+VERUS_UBUFFER_STRUCT UB_BlurFS
 {
 	float4 _tcViewScaleBias;
 	float3 _radius_invRadius_stride;
 	int    _sampleCount;
 };
 
-VERUS_UBUFFER UB_ExtraBlurFS
+VERUS_UBUFFER_STRUCT UB_ExtraBlurFS
 {
 	matrix _matInvVP;
 	matrix _matPrevVP;

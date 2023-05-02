@@ -7,6 +7,8 @@ namespace verus
 	{
 		World::WorldUtils::Make();
 		World::EditorOverlays::Make();
+		World::CascadedShadowMapBaker::Make();
+		World::ShadowMapBakerPool::Make();
 		World::MaterialManager::Make();
 		World::WorldManager::Make();
 		World::Atmosphere::Make();
@@ -20,6 +22,8 @@ namespace verus
 		World::Atmosphere::Free();
 		World::WorldManager::Free();
 		World::MaterialManager::Free();
+		World::ShadowMapBakerPool::Free();
+		World::CascadedShadowMapBaker::Free();
 		World::EditorOverlays::Free();
 		World::WorldUtils::Free();
 	}

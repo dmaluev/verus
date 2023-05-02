@@ -14,6 +14,9 @@ namespace verus
 				PIPE_U,
 				PIPE_V,
 
+				PIPE_VSM_U,
+				PIPE_VSM_V,
+
 				PIPE_SSAO,
 
 				PIPE_RESOLVE_DITHERING,
@@ -56,6 +59,9 @@ namespace verus
 			CGI::ShaderPwn                _shader;
 			CGI::PipelinePwns<PIPE_COUNT> _pipe;
 
+			CGI::RPHandle                 _rphVsmU;
+			CGI::RPHandle                 _rphVsmV;
+
 			CGI::RPHandle                 _rphSsao;
 			CGI::FBHandle                 _fbhSsao;
 			CGI::CSHandle                 _cshSsao;
@@ -93,6 +99,10 @@ namespace verus
 
 			void OnSwapChainResized();
 
+			CGI::ShaderPtr GetShader() const { return _shader; }
+
+			void GenerateForVSM(CGI::FBHandle fbhU, CGI::FBHandle fbhV, CGI::CSHandle cshU, CGI::CSHandle cshV,
+				RcVector4 rc, RcVector4 zNearFarEx);
 			void GenerateForSsao();
 			void GenerateForResolveDitheringAndSharpen();
 			void GenerateForDepthOfField();
@@ -101,6 +111,9 @@ namespace verus
 			void GenerateForMotionBlur();
 
 			void UpdateUniformBuffer(float radius, int sampleCount, int texSize = 0, float samplesPerPixel = 1, int maxSamples = 61);
+
+			CGI::RPHandle GetRenderPassHandleForVsmU() const { return _rphVsmU; }
+			CGI::RPHandle GetRenderPassHandleForVsmV() const { return _rphVsmV; }
 
 			bool IsDepthOfFieldEnabled() const { return _enableDepthOfField; }
 			void EnableDepthOfField(bool b) { _enableDepthOfField = b; }

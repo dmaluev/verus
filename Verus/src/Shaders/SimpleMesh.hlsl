@@ -7,7 +7,7 @@
 #include "LibVertex.hlsl"
 #include "SimpleMesh.inc.hlsl"
 
-CBUFFER(0, UB_SimplePerFrame, g_ubSimplePerFrame)
+CBUFFER(0, UB_SimplePerView, g_ubSimplePerView)
 CBUFFER(1, UB_SimplePerMaterialFS, g_ubSimplePerMaterialFS)
 CBUFFER(2, UB_SimplePerMeshVS, g_ubSimplePerMeshVS)
 CBUFFER(3, UB_SimpleSkeletonVS, g_ubSimpleSkeletonVS)
@@ -32,7 +32,7 @@ struct VSI
 	VK_LOCATION_BLENDWEIGHTS int4 bw : BLENDWEIGHTS;
 	VK_LOCATION_BLENDINDICES int4 bi : BLENDINDICES;
 #endif
-	_PER_INSTANCE_DATA
+	_PER_INSTANCE_DATA_0
 };
 
 struct VSO
@@ -58,8 +58,8 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
-	const float3 eyePos = g_ubSimplePerFrame._eyePos_clipDistanceOffset.xyz;
-	const float clipDistanceOffset = g_ubSimplePerFrame._eyePos_clipDistanceOffset.w;
+	const float3 eyePos = g_ubSimplePerView._eyePos_clipDistanceOffset.xyz;
+	const float clipDistanceOffset = g_ubSimplePerView._eyePos_clipDistanceOffset.w;
 
 	// Dequantize:
 	const float3 inPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubSimplePerMeshVS._posDeqScale.xyz, g_ubSimplePerMeshVS._posDeqBias.xyz);
@@ -69,10 +69,10 @@ VSO mainVS(VSI si)
 	// <TheMatrix>
 #ifdef DEF_INSTANCED
 	mataff matW = GetInstMatrix(
-		si.matPart0,
-		si.matPart1,
-		si.matPart2);
-	const float4 userColor = si.instData;
+		si.pid0_matPart0,
+		si.pid0_matPart1,
+		si.pid0_matPart2);
+	const float4 userColor = si.pid0_instData;
 #else
 	mataff matW = g_ubSimplePerObject._matW;
 	const float4 userColor = g_ubSimplePerObject._userColor;
@@ -116,7 +116,7 @@ VSO mainVS(VSI si)
 #endif
 	}
 
-	so.pos = mul(float4(posW, 1), g_ubSimplePerFrame._matVP);
+	so.pos = mul(float4(posW, 1), g_ubSimplePerView._matVP);
 	so.posW_depth = float4(posW, so.pos.w);
 	so.color0 = userColor;
 	so.tc0 = inTc0;
@@ -147,7 +147,7 @@ FSO mainFS(VSO si)
 
 	const float4 albedo = g_texA.Sample(g_samA, tc0);
 
-	const float alpha = max(saturate(dot(normal, dirToEye)), g_ubSimplePerFrame._fogColor.a);
+	const float alpha = max(saturate(dot(normal, dirToEye)), g_ubSimplePerView._fogColor.a);
 
 	so.color.rgb = albedo.rgb * (alpha * alpha) * si.color0.rgb;
 	so.color.a = 1.0;
@@ -164,8 +164,8 @@ FSO mainFS(VSO si)
 
 	so.color.rgb = albedo.rgb * si.color0.rgb;
 
-	const float fog = saturate(si.posW_depth.w * g_ubSimplePerFrame._fogColor.a);
-	so.color.rgb = lerp(so.color.rgb, g_ubSimplePerFrame._fogColor.rgb, fog);
+	const float fog = saturate(si.posW_depth.w * g_ubSimplePerView._fogColor.a);
+	so.color.rgb = lerp(so.color.rgb, g_ubSimplePerView._fogColor.rgb, fog);
 
 	so.color.rgb = SaturateHDR(so.color.rgb);
 	so.color.a = 1.0;
@@ -227,26 +227,26 @@ FSO mainFS(VSO si)
 	// </X>
 
 	const float3 normal = normalize(si.nrmW);
-	const float3 dirToLight = g_ubSimplePerFrame._dirToSun.xyz;
+	const float3 dirToLight = g_ubSimplePerView._dirToSun.xyz;
 	const float3 dirToEye = normalize(si.dirToEye.xyz);
 	const float depth = si.posW_depth.w;
 
 	// <Shadow>
 	float shadowMask;
 	{
-		const float3 posForShadow = AdjustPosForShadow(si.posW_depth.xyz, normal, dirToLight, depth);
+		const float3 biasedPosW = ApplyShadowBiasing(si.posW_depth.xyz, normal, dirToLight, depth);
 		shadowMask = SimpleShadowMapCSM(
 			g_texShadowCmp,
 			g_samShadowCmp,
 			si.posW_depth.xyz,
-			posForShadow,
-			g_ubSimplePerFrame._matShadow,
-			g_ubSimplePerFrame._matShadowCSM1,
-			g_ubSimplePerFrame._matShadowCSM2,
-			g_ubSimplePerFrame._matShadowCSM3,
-			g_ubSimplePerFrame._matScreenCSM,
-			g_ubSimplePerFrame._csmSliceBounds,
-			g_ubSimplePerFrame._shadowConfig);
+			biasedPosW,
+			g_ubSimplePerView._matShadow,
+			g_ubSimplePerView._matShadowCSM1,
+			g_ubSimplePerView._matShadowCSM2,
+			g_ubSimplePerView._matShadowCSM3,
+			g_ubSimplePerView._matScreenCSM,
+			g_ubSimplePerView._csmSliceBounds,
+			g_ubSimplePerView._shadowConfig);
 	}
 	// </Shadow>
 
@@ -256,14 +256,14 @@ FSO mainFS(VSO si)
 		roughness, metallic,
 		punctualDiff, punctualSpec);
 
-	punctualDiff *= g_ubSimplePerFrame._sunColor.rgb * shadowMask;
-	punctualSpec *= g_ubSimplePerFrame._sunColor.rgb * shadowMask;
+	punctualDiff *= g_ubSimplePerView._sunColor.rgb * shadowMask;
+	punctualSpec *= g_ubSimplePerView._sunColor.rgb * shadowMask;
 
-	so.color.rgb = albedo.rgb * (g_ubSimplePerFrame._ambientColor.rgb * occlusion + punctualDiff + emission) + punctualSpec;
+	so.color.rgb = albedo.rgb * (g_ubSimplePerView._ambientColor.rgb * occlusion + punctualDiff + emission) + punctualSpec;
 	so.color.a = 1.0;
 
-	const float fog = ComputeFog(depth, g_ubSimplePerFrame._fogColor.a, si.posW_depth.y);
-	so.color.rgb = lerp(so.color.rgb, g_ubSimplePerFrame._fogColor.rgb, fog);
+	const float fog = ComputeFog(depth, g_ubSimplePerView._fogColor.a, si.posW_depth.y);
+	so.color.rgb = lerp(so.color.rgb, g_ubSimplePerView._fogColor.rgb, fog);
 
 	so.color.rgb = SaturateHDR(so.color.rgb);
 

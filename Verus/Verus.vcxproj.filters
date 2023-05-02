@@ -88,9 +88,6 @@
     <Filter Include="src\ThirdParty\imgui">
       <UniqueIdentifier>{e5d1efc7-6850-406e-8abe-7dc0084d2ac7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\Game\ECS">
-      <UniqueIdentifier>{7a1b235f-6f61-41be-87dc-78a3aa2f7ae2}</UniqueIdentifier>
-    </Filter>
     <Filter Include="src\Game\Mechanics">
       <UniqueIdentifier>{e81cdb7e-c6de-41ee-bfe5-76bd2aa3a602}</UniqueIdentifier>
     </Filter>
@@ -627,18 +624,6 @@
     <ClInclude Include="src\ThirdParty\mikktspace.h">
       <Filter>src\ThirdParty</Filter>
     </ClInclude>
-    <ClInclude Include="src\Game\ECS\Component.h">
-      <Filter>src\Game\ECS</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Game\ECS\Entity.h">
-      <Filter>src\Game\ECS</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Game\ECS\Lot.h">
-      <Filter>src\Game\ECS</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Game\ECS\LotManager.h">
-      <Filter>src\Game\ECS</Filter>
-    </ClInclude>
     <ClInclude Include="src\Game\Mechanics\ActiveMechanics.h">
       <Filter>src\Game\Mechanics</Filter>
     </ClInclude>
@@ -811,6 +796,15 @@
       <Filter>src\World\WorldNodes</Filter>
     </ClInclude>
     <ClInclude Include="src\World\WorldNodes\BlockChainNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\ShadowMapBakerPool.h">
+      <Filter>src\World</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Global\BaseHandle.h">
+      <Filter>src\Global</Filter>
+    </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\AmbientNode.h">
       <Filter>src\World\WorldNodes</Filter>
     </ClInclude>
   </ItemGroup>
@@ -1208,18 +1202,6 @@
     <ClCompile Include="src\ThirdParty\mikktspace.c">
       <Filter>src\ThirdParty</Filter>
     </ClCompile>
-    <ClCompile Include="src\Game\ECS\Component.cpp">
-      <Filter>src\Game\ECS</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Game\ECS\Entity.cpp">
-      <Filter>src\Game\ECS</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Game\ECS\Lot.cpp">
-      <Filter>src\Game\ECS</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Game\ECS\LotManager.cpp">
-      <Filter>src\Game\ECS</Filter>
-    </ClCompile>
     <ClCompile Include="src\Game\Mechanics\ActiveMechanics.cpp">
       <Filter>src\Game\Mechanics</Filter>
     </ClCompile>
@@ -1401,6 +1383,12 @@
       <Filter>src\World\WorldNodes</Filter>
     </ClCompile>
     <ClCompile Include="src\World\WorldNodes\BlockChainNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\ShadowMapBakerPool.cpp">
+      <Filter>src\World</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\AmbientNode.cpp">
       <Filter>src\World\WorldNodes</Filter>
     </ClCompile>
   </ItemGroup>
@@ -1589,6 +1577,12 @@
       <Filter>src\Shaders</Filter>
     </None>
     <None Include="src\Shaders\DS_Ambient.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_AmbientNode.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_AmbientNode.inc.hlsl">
       <Filter>src\Shaders</Filter>
     </None>
   </ItemGroup>

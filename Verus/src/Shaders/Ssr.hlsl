@@ -1,6 +1,7 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
 #include "Lib.hlsl"
+#include "LibColor.hlsl"
 #include "LibDeferredShading.hlsl"
 #include "LibDepth.hlsl"
 #include "LibLighting.hlsl"
@@ -17,12 +18,14 @@ Texture2D    g_texGBuffer2 : REG(t3, space1, t2);
 SamplerState g_samGBuffer2 : REG(s3, space1, s2);
 Texture2D    g_texGBuffer3 : REG(t4, space1, t3);
 SamplerState g_samGBuffer3 : REG(s4, space1, s3);
-Texture2D    g_texScene    : REG(t5, space1, t4);
-SamplerState g_samScene    : REG(s5, space1, s4);
-Texture2D    g_texDepth    : REG(t6, space1, t5);
-SamplerState g_samDepth    : REG(s6, space1, s5);
+Texture2D    g_texDepth    : REG(t5, space1, t4);
+SamplerState g_samDepth    : REG(s5, space1, s4);
+Texture2D    g_texAccAmb   : REG(t6, space1, t5);
+SamplerState g_samAccAmb   : REG(s6, space1, s5);
 TextureCube  g_texImage    : REG(t7, space1, t6);
 SamplerState g_samImage    : REG(s7, space1, s6);
+Texture2D    g_texScene    : REG(t8, space1, t7);
+SamplerState g_samScene    : REG(s8, space1, s7);
 
 struct VSI
 {
@@ -95,6 +98,8 @@ FSO mainFS(VSO si)
 
 	const float depthSam = g_texDepth.SampleLevel(g_samDepth, si.tc0.zw, 0.0).r;
 	const float3 posWV = DS_GetPosition(depthSam, g_ubSsrFS._matInvP, ndcPos);
+
+	const float4 accAmbSam = g_texAccAmb.SampleLevel(g_samAccAmb, si.tc0.zw, 0.0);
 	// </Sample>
 
 	const float originDepth = -posWV.z;
@@ -116,7 +121,13 @@ FSO mainFS(VSO si)
 	const float3 envColor = lerp(imageLo, imageHi, 1.0 / 3.0); // Smoother image.
 	// </ImageBasedLighting>
 
-	float4 color = float4(envColor * occlusion, 0);
+	// Match intensities:
+	const float envIntensity = Grayscale(envColor);
+	const float ambIntensity = Grayscale(accAmbSam.rgb);
+	const float intensityScale = ambIntensity / max(envIntensity, _SINGULARITY_FIX);
+	const float smartIntensityScale = lerp(1.0, intensityScale, saturate(1.0 - intensityScale * 3.0));
+
+	float4 color = float4(envColor * smartIntensityScale * occlusion, 0);
 
 #ifdef DEF_SSR
 	const float nDosV = saturate(dot(normalWV, -rayFromEye));

@@ -23,17 +23,21 @@ namespace verus
 			MainCamera                  _passCamera;
 			PCamera                     _pPrevPassCamera = nullptr;
 			int                         _side = 0;
+			bool                        _baking = false;
 
 		public:
 			CubeMapBaker();
 			~CubeMapBaker();
 
-			void Init(int side);
+			void Init(int side = 512);
 			void Done();
 
-			CGI::RPHandle GetRenderPassHandle() const { return _rph; }
+			// <Bake>
 			void BeginEnvMap(CGI::CubeMapFace cubeMapFace, RcPoint3 center);
 			void EndEnvMap();
+			bool IsBaking() const { return _baking; }
+			CGI::RPHandle GetRenderPassHandle() const { return _rph; }
+			// </Bake>
 
 			CGI::TexturePtr GetColorTexture();
 			CGI::TexturePtr GetDepthTexture();

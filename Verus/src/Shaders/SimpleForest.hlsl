@@ -160,12 +160,12 @@ FSO mainFS(VSO si)
 	// <Shadow>
 	float shadowMask;
 	{
-		const float3 posForShadow = AdjustPosForShadow(si.posW_depth.xyz, normal, dirToLight, depth);
+		const float3 biasedPosW = ApplyShadowBiasing(si.posW_depth.xyz, normal, dirToLight, depth);
 		shadowMask = SimpleShadowMapCSM(
 			g_texShadowCmp,
 			g_samShadowCmp,
 			si.posW_depth.xyz,
-			posForShadow,
+			biasedPosW,
 			g_ubSimpleForestFS._matShadow,
 			g_ubSimpleForestFS._matShadowCSM1,
 			g_ubSimpleForestFS._matShadowCSM2,

@@ -1,6 +1,6 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-VERUS_UBUFFER UB_SimpleTerrainVS
+VERUS_UBUFFER_STRUCT UB_SimpleTerrainVS
 {
 	mataff _matW;
 	matrix _matVP;
@@ -9,7 +9,7 @@ VERUS_UBUFFER UB_SimpleTerrainVS
 	float4 _invMapSide_clipDistanceOffset;
 };
 
-VERUS_UBUFFER UB_SimpleTerrainFS
+VERUS_UBUFFER_STRUCT UB_SimpleTerrainFS
 {
 	float4 _ambientColor;
 	float4 _fogColor;

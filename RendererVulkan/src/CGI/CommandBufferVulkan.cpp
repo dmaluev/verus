@@ -29,11 +29,10 @@ void CommandBufferVulkan::Done()
 
 void CommandBufferVulkan::InitOneTimeSubmit()
 {
-	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_VULKAN;
 
 	_oneTimeSubmit = true;
-	auto commandPool = pRendererVulkan->GetVkCommandPool(renderer->GetRingBufferIndex());
+	auto commandPool = pRendererVulkan->GetVkCommandPool(pRendererVulkan->GetRingBufferIndex());
 	auto commandBuffer = pRendererVulkan->CreateVkCommandBuffer(commandPool);
 	VERUS_FOR(i, BaseRenderer::s_ringBufferSize)
 		_commandBuffers[i] = commandBuffer;
@@ -42,7 +41,6 @@ void CommandBufferVulkan::InitOneTimeSubmit()
 
 void CommandBufferVulkan::DoneOneTimeSubmit()
 {
-	VERUS_QREF_RENDERER;
 	VERUS_QREF_RENDERER_VULKAN;
 
 	End();
@@ -51,7 +49,7 @@ void CommandBufferVulkan::DoneOneTimeSubmit()
 	submitInfo.pCommandBuffers = _commandBuffers;
 	vkQueueSubmit(pRendererVulkan->GetVkGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
 	vkQueueWaitIdle(pRendererVulkan->GetVkGraphicsQueue());
-	auto commandPool = pRendererVulkan->GetVkCommandPool(renderer->GetRingBufferIndex());
+	auto commandPool = pRendererVulkan->GetVkCommandPool(pRendererVulkan->GetRingBufferIndex());
 	vkFreeCommandBuffers(pRendererVulkan->GetVkDevice(), commandPool, 1, _commandBuffers);
 	_oneTimeSubmit = false;
 }
@@ -290,7 +288,8 @@ void CommandBufferVulkan::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilt
 			filteredCount++;
 		}
 	}
-	vkCmdBindVertexBuffers(GetVkCommandBuffer(), 0, filteredCount, buffers, offsets);
+	if (filteredCount)
+		vkCmdBindVertexBuffers(GetVkCommandBuffer(), 0, filteredCount, buffers, offsets);
 }
 
 void CommandBufferVulkan::BindIndexBuffer(GeometryPtr geo)
@@ -304,6 +303,7 @@ void CommandBufferVulkan::BindIndexBuffer(GeometryPtr geo)
 bool CommandBufferVulkan::BindDescriptors(ShaderPtr shader, int setNumber, CSHandle complexSetHandle)
 {
 	auto& shaderVulkan = static_cast<RShaderVulkan>(*shader);
+
 	if (shaderVulkan.TryPushConstants(setNumber, *this))
 		return true;
 
@@ -314,11 +314,28 @@ bool CommandBufferVulkan::BindDescriptors(ShaderPtr shader, int setNumber, CSHan
 	const VkDescriptorSet descriptorSet = complexSetHandle.IsSet() ?
 		shaderVulkan.GetComplexVkDescriptorSet(complexSetHandle) : shaderVulkan.GetVkDescriptorSet(setNumber);
 	const uint32_t dynamicOffset = offset;
-	const uint32_t dynamicOffsetCount = 1;
+
 	vkCmdBindDescriptorSets(GetVkCommandBuffer(),
 		shaderVulkan.IsCompute() ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
 		shaderVulkan.GetVkPipelineLayout(),
-		setNumber, 1, &descriptorSet, dynamicOffsetCount, &dynamicOffset);
+		setNumber, 1, &descriptorSet, 1, &dynamicOffset);
+
+	return true;
+}
+
+bool CommandBufferVulkan::BindDescriptors(ShaderPtr shader, int setNumber, GeometryPtr geo, int sbIndex)
+{
+	auto& shaderVulkan = static_cast<RShaderVulkan>(*shader);
+	auto& geoVulkan = static_cast<RGeometryVulkan>(*geo);
+
+	const VkDescriptorSet descriptorSet = geoVulkan.GetVkDescriptorSet(sbIndex);
+	const uint32_t dynamicOffset = static_cast<uint32_t>(geoVulkan.GetVkStorageBufferOffset(sbIndex));
+
+	vkCmdBindDescriptorSets(GetVkCommandBuffer(),
+		shaderVulkan.IsCompute() ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
+		shaderVulkan.GetVkPipelineLayout(),
+		setNumber, 1, &descriptorSet, 1, &dynamicOffset);
+
 	return true;
 }
 

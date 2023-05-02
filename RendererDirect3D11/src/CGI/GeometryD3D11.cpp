@@ -64,6 +64,12 @@ void GeometryD3D11::Done()
 {
 	ForceScheduled();
 
+	for (auto& x : _vStructuredBuffers)
+	{
+		x._pSRV.Reset();
+		x._pBuffer.Reset();
+	}
+	_vStructuredBuffers.clear();
 	_indexBuffer._pBuffer.Reset();
 	for (auto& x : _vVertexBuffers)
 		x._pBuffer.Reset();
@@ -92,13 +98,13 @@ void GeometryD3D11::CreateVertexBuffer(int count, int binding)
 		vbDesc.Usage = D3D11_USAGE_DYNAMIC;
 		vbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 		if (FAILED(hr = pRendererD3D11->GetD3DDevice()->CreateBuffer(&vbDesc, nullptr, &vb._pBuffer)))
-			throw VERUS_RUNTIME_ERROR << "CreateBuffer(D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC), " << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateBuffer(D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC); hr=" << VERUS_HR(hr);
 		SetDebugObjectName(vb._pBuffer.Get(), _C(_name + " (Dynamic VB, " + std::to_string(binding) + ")"));
 	}
 	else
 	{
 		if (FAILED(hr = pRendererD3D11->GetD3DDevice()->CreateBuffer(&vbDesc, nullptr, &vb._pBuffer)))
-			throw VERUS_RUNTIME_ERROR << "CreateBuffer(D3D11_BIND_VERTEX_BUFFER), " << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateBuffer(D3D11_BIND_VERTEX_BUFFER); hr=" << VERUS_HR(hr);
 		SetDebugObjectName(vb._pBuffer.Get(), _C(_name + " (VB, " + std::to_string(binding) + ")"));
 	}
 }
@@ -151,13 +157,13 @@ void GeometryD3D11::CreateIndexBuffer(int count)
 		ibDesc.Usage = D3D11_USAGE_DYNAMIC;
 		ibDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 		if (FAILED(hr = pRendererD3D11->GetD3DDevice()->CreateBuffer(&ibDesc, nullptr, &_indexBuffer._pBuffer)))
-			throw VERUS_RUNTIME_ERROR << "CreateBuffer(D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC), " << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateBuffer(D3D11_BIND_INDEX_BUFFER, D3D11_USAGE_DYNAMIC); hr=" << VERUS_HR(hr);
 		SetDebugObjectName(_indexBuffer._pBuffer.Get(), _C(_name + " (Dynamic IB)"));
 	}
 	else
 	{
 		if (FAILED(hr = pRendererD3D11->GetD3DDevice()->CreateBuffer(&ibDesc, nullptr, &_indexBuffer._pBuffer)))
-			throw VERUS_RUNTIME_ERROR << "CreateBuffer(D3D11_BIND_VERTEX_BUFFER), " << VERUS_HR(hr);
+			throw VERUS_RUNTIME_ERROR << "CreateBuffer(D3D11_BIND_INDEX_BUFFER); hr=" << VERUS_HR(hr);
 		SetDebugObjectName(_indexBuffer._pBuffer.Get(), _C(_name + " (IB)"));
 	}
 }
@@ -192,6 +198,64 @@ void GeometryD3D11::UpdateIndexBuffer(const void* p, PBaseCommandBuffer pCB, INT
 	}
 }
 
+void GeometryD3D11::CreateStorageBuffer(int count, int structSize, int sbIndex, ShaderStageFlags stageFlags)
+{
+	VERUS_QREF_RENDERER_D3D11;
+	HRESULT hr = 0;
+
+	if (_vStructuredBuffers.size() <= sbIndex)
+		_vStructuredBuffers.resize(sbIndex + 1);
+
+	auto& sb = _vStructuredBuffers[sbIndex];
+	sb._structSize = structSize;
+	sb._bufferSize = count * sb._structSize;
+
+	D3D11_BUFFER_DESC sbDesc = {};
+	sbDesc.ByteWidth = Utils::Cast32(sb._bufferSize);
+	sbDesc.Usage = D3D11_USAGE_DYNAMIC;
+	sbDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	sbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	sbDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	sbDesc.StructureByteStride = sb._structSize;
+	if (FAILED(hr = pRendererD3D11->GetD3DDevice()->CreateBuffer(&sbDesc, nullptr, &sb._pBuffer)))
+		throw VERUS_RUNTIME_ERROR << "CreateBuffer(D3D11_BIND_SHADER_RESOURCE); hr=" << VERUS_HR(hr);
+	SetDebugObjectName(sb._pBuffer.Get(), _C(_name + " (SB, " + std::to_string(sbIndex) + ")"));
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+	srvDesc.Buffer.FirstElement = 0;
+	srvDesc.Buffer.NumElements = count;
+	if (FAILED(hr = pRendererD3D11->GetD3DDevice()->CreateShaderResourceView(sb._pBuffer.Get(), &srvDesc, &sb._pSRV)))
+		throw VERUS_RUNTIME_ERROR << "CreateShaderResourceView(); hr=" << VERUS_HR(hr);
+}
+
+void GeometryD3D11::UpdateStorageBuffer(const void* p, int sbIndex, PBaseCommandBuffer pCB, INT64 size, INT64 offset)
+{
+	VERUS_QREF_RENDERER;
+	HRESULT hr = 0;
+
+	if (!pCB)
+		pCB = renderer.GetCommandBuffer().Get();
+	auto pDeviceContext = static_cast<PCommandBufferD3D11>(pCB)->GetD3DDeviceContext();
+
+	auto& sb = _vStructuredBuffers[sbIndex];
+	size = size ? size * sb._structSize : sb._bufferSize;
+
+	const D3D11_MAP mapType = (size == sb._bufferSize) ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE_NO_OVERWRITE;
+	D3D11_MAPPED_SUBRESOURCE ms = {};
+	if (FAILED(hr = pDeviceContext->Map(sb._pBuffer.Get(), 0, mapType, 0, &ms)))
+		throw VERUS_RUNTIME_ERROR << "Map(); hr=" << VERUS_HR(hr);
+	BYTE* pMappedData = static_cast<BYTE*>(ms.pData);
+	memcpy(pMappedData + offset * sb._structSize, p, size);
+	pDeviceContext->Unmap(sb._pBuffer.Get(), 0);
+}
+
+int GeometryD3D11::GetStorageBufferStructSize(int sbIndex) const
+{
+	return _vStructuredBuffers[sbIndex]._structSize;
+}
+
 Continue GeometryD3D11::Scheduled_Update()
 {
 	return Continue::yes;
@@ -217,14 +281,4 @@ void GeometryD3D11::GetD3DInputElementDescs(UINT32 bindingsFilter, Vector<D3D11_
 			vInputElementDescs.back().InputSlot = replaceBinding[x.InputSlot];
 		}
 	}
-}
-
-ID3D11Buffer* GeometryD3D11::GetD3DVertexBuffer(int binding) const
-{
-	return _vVertexBuffers[binding]._pBuffer.Get();
-}
-
-ID3D11Buffer* GeometryD3D11::GetD3DIndexBuffer() const
-{
-	return _indexBuffer._pBuffer.Get();
 }

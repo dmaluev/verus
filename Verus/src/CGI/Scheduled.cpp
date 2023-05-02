@@ -4,18 +4,18 @@
 using namespace verus;
 using namespace verus::CGI;
 
-void Scheduled::Schedule(INT64 frameCount)
+void Scheduled::Schedule(INT64 extraFrameCount)
 {
-	const INT64 add = (frameCount >= 0) ? frameCount : (Utils::I().GetRandom().Next() & 0xFF);
-	const INT64 frame = Renderer::I().GetFrameCount() + BaseRenderer::s_ringBufferSize + add;
-	_frame = Math::Max(_frame, frame);
+	const UINT64 addExtra = (extraFrameCount >= 0) ? extraFrameCount : (Utils::I().GetRandom().Next() & 0xFF);
+	const UINT64 newDoneFrame = Renderer::I().GetFrameCount() + BaseRenderer::s_ringBufferSize + 1 + addExtra;
+	_doneFrame = (UINT64_MAX == _doneFrame) ? newDoneFrame : Math::Max(_doneFrame, newDoneFrame);
 	VERUS_QREF_RENDERER;
 	renderer->Schedule(this);
 }
 
 void Scheduled::ForceScheduled()
 {
-	_frame = 0;
+	_doneFrame = 0;
 	Scheduled_Update();
 	VERUS_QREF_RENDERER;
 	renderer->Unschedule(this);
@@ -23,10 +23,8 @@ void Scheduled::ForceScheduled()
 
 bool Scheduled::IsScheduledAllowed()
 {
-	if (-1 == _frame)
+	if (Renderer::I().GetFrameCount() < _doneFrame)
 		return false;
-	if (static_cast<INT64>(Renderer::I().GetFrameCount()) < _frame)
-		return false;
-	_frame = -1;
+	_doneFrame = UINT64_MAX;
 	return true;
 }

@@ -25,11 +25,25 @@ namespace verus
 		};
 		VERUS_TYPEDEFS(DeferredLights);
 
+		// Managed by DeferredShading:
+		class AmbientNodeMeshes
+		{
+			Mesh _meshBox;
+
+		public:
+			RMesh Get()
+			{
+				return _meshBox;
+			}
+		};
+		VERUS_TYPEDEFS(AmbientNodeMeshes);
+
 		class WorldUtils : public Singleton<WorldUtils>, public Object
 		{
 		private:
-			DeferredLights _deferredLights;
-			bool           _editorMode = false;
+			DeferredLights    _deferredLights;
+			AmbientNodeMeshes _ambientNodeMeshes;
+			bool              _editorMode = false;
 
 		public:
 			WorldUtils();
@@ -39,6 +53,7 @@ namespace verus
 			void Done();
 
 			RDeferredLights GetDeferredLights() { return _deferredLights; }
+			RAmbientNodeMeshes GetAmbientNodeMeshes() { return _ambientNodeMeshes; }
 
 			bool IsEditorMode() const { return _editorMode; }
 			void SetEditorMode(bool b = true) { _editorMode = b; }

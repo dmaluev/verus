@@ -38,6 +38,10 @@ namespace verus
 			virtual void CreateIndexBuffer(int count) = 0;
 			virtual void UpdateIndexBuffer(const void* p, BaseCommandBuffer* pCB = nullptr, INT64 size = 0, INT64 offset = 0) = 0;
 
+			virtual void CreateStorageBuffer(int count, int structSize, int sbIndex, ShaderStageFlags stageFlags) = 0;
+			virtual void UpdateStorageBuffer(const void* p, int sbIndex, BaseCommandBuffer* pCB = nullptr, INT64 size = 0, INT64 offset = 0) = 0;
+			virtual int GetStorageBufferStructSize(int sbIndex) const = 0;
+
 			static int GetVertexInputAttrDescCount(PcVertexInputAttrDesc p);
 			static int GetBindingCount(PcVertexInputAttrDesc p);
 

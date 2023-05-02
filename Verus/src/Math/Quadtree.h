@@ -8,7 +8,7 @@ namespace verus
 		class QuadtreeDelegate
 		{
 		public:
-			virtual Continue Quadtree_ProcessNode(void* pToken, void* pUser) = 0;
+			virtual Continue Quadtree_OnElementDetected(void* pToken, void* pUser) = 0;
 		};
 		VERUS_TYPEDEFS(QuadtreeDelegate);
 
@@ -83,7 +83,7 @@ namespace verus
 			void UpdateDynamicBounds(RcElement element);
 			VERUS_P(bool MustBind(int currentNode, RcBounds bounds) const);
 
-			Continue TraverseVisible(RcPoint3 point, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr);
+			Continue DetectElements(RcPoint3 point, PResult pResult = nullptr, int currentNode = 0, void* pUser = nullptr);
 
 			VERUS_P(static void RemapChildIndices(RcPoint3 point, RcPoint3 center, BYTE childIndices[4]));
 

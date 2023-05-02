@@ -63,6 +63,9 @@
     <ClInclude Include="src\CGI\ExtRealityVulkan.h">
       <Filter>src\CGI</Filter>
     </ClInclude>
+    <ClInclude Include="src\CGI\Descriptors.h">
+      <Filter>src\CGI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -99,6 +102,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\CGI\ExtRealityVulkan.cpp">
+      <Filter>src\CGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CGI\Descriptors.cpp">
       <Filter>src\CGI</Filter>
     </ClCompile>
   </ItemGroup>

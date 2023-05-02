@@ -146,7 +146,7 @@ namespace verus
 			bool IsDebugDrawEnabled() const { return _debugDraw; }
 			void EnableDebugDraw(bool b = true) { _debugDraw = b; }
 
-			virtual Continue Quadtree_ProcessNode(void* pToken, void* pUser) override;
+			virtual Continue Quadtree_OnElementDetected(void* pToken, void* pUser) override;
 
 			Str GetPathname() const { return _C(_pathname); }
 			RcStats GetStats() const { return _stats; }
@@ -156,7 +156,7 @@ namespace verus
 			void Save();
 
 			void BindPipeline(RcMesh mesh, CGI::CommandBufferPtr cb);
-			void SetViewportFor(CGI::CubeMapFace cubeMapFace, CGI::CommandBufferPtr cb);
+			void SetViewportAndScissorFor(CGI::CubeMapFace cubeMapFace, CGI::CommandBufferPtr cb);
 		};
 		VERUS_TYPEDEFS(LightMapBaker);
 	}

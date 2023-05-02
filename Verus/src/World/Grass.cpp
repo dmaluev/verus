@@ -215,7 +215,7 @@ void Grass::Layout()
 
 	Math::RQuadtreeIntegral quadtree = _pTerrain->GetQuadtree();
 	quadtree.SetDelegate(this);
-	quadtree.TraverseVisible();
+	quadtree.DetectElements();
 	quadtree.SetDelegate(_pTerrain);
 
 	wm.GetPassCamera()->SetZFar(zFar);
@@ -301,7 +301,7 @@ void Grass::Draw()
 	_geo->UpdateVertexBuffer(&_vInstanceBuffer[offset], 1, cb.Get(), _instanceCount - offset, offset);
 }
 
-void Grass::QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center)
+void Grass::QuadtreeIntegral_OnElementDetected(const short ij[2], RcPoint3 center)
 {
 	VERUS_QREF_WM;
 

@@ -283,17 +283,17 @@ void BaseNode::Select(bool select)
 		VERUS_BITMASK_UNSET(_flags, Flags::selected);
 }
 
-bool BaseNode::IsShadowCaster() const
+bool BaseNode::HasShadow() const
 {
-	return !!(_flags & Flags::shadowCaster);
+	return !!(_flags & Flags::shadow);
 }
 
-void BaseNode::SetShadowCasterFlag(bool shadowCaster)
+void BaseNode::SetShadowFlag(bool shadow)
 {
-	if (shadowCaster)
-		VERUS_BITMASK_SET(_flags, Flags::shadowCaster);
+	if (shadow)
+		VERUS_BITMASK_SET(_flags, Flags::shadow);
 	else
-		VERUS_BITMASK_UNSET(_flags, Flags::shadowCaster);
+		VERUS_BITMASK_UNSET(_flags, Flags::shadow);
 }
 
 bool BaseNode::IsInGroup(int index) const

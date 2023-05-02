@@ -6,6 +6,7 @@ using namespace verus::World;
 
 WorldManager::WorldManager()
 {
+	VERUS_ZERO_MEM(_pSmbpDynamic);
 	VERUS_ZERO_MEM(_visibleCountPerType);
 }
 
@@ -18,8 +19,8 @@ void WorldManager::Init(RcDesc desc)
 {
 	VERUS_INIT();
 
-	_vNodes.reserve(1024);
-	_vVisibleNodes.reserve(1024);
+	_vNodes.reserve(2000);
+	_vVisibleNodes.reserve(2000);
 
 	SetAllCameras(desc._pCamera);
 
@@ -60,9 +61,51 @@ void WorldManager::ResetInstanceCount()
 void WorldManager::Update()
 {
 	VERUS_UPDATE_ONCE_CHECK;
+	VERUS_QREF_RENDERER;
+
+	if (!_async_loaded)
+	{
+		bool allModelsLoaded = true;
+		for (auto& x : TStoreModelNodes::_map)
+		{
+			if (!x.second.IsLoaded())
+			{
+				allModelsLoaded = false;
+				break;
+			}
+		}
+		if (allModelsLoaded)
+			_async_loaded = true;
+	}
+
+	const RcPoint3 headPos = _pHeadCamera->GetEyePosition();
 
 	VERUS_FOR(i, _vNodes.size()) // Must check size every loop iteration.
 		_vNodes[i]->Update(); // Can add/remove child nodes.
+
+	// <ShadowMaps>
+	_pSmbpStatic = nullptr;
+	if (_async_loaded)
+	{
+		float minDistToLightSq = FLT_MAX;
+		const float lightsReserveShadowDistSq = _lightsReserveShadowDist * _lightsReserveShadowDist;
+		const float lightsFreeShadowDistSq = _lightsFreeShadowDist * _lightsFreeShadowDist;
+		for (auto& lightNode : TStoreLightNodes::_list)
+		{
+			const float distSq = VMath::distSqr(lightNode.GetPosition(), headPos);
+			if (distSq < lightsReserveShadowDistSq)
+				lightNode.SetReserveShadowFlag(true);
+			else if (distSq >= lightsFreeShadowDistSq)
+				lightNode.SetReserveShadowFlag(false); // Invalidates shadow map handle.
+
+			if (lightNode.CanBeSmbpStatic() && lightNode.GetDistToHeadSq() < minDistToLightSq)
+			{
+				minDistToLightSq = lightNode.GetDistToHeadSq();
+				_pSmbpStatic = &lightNode;
+			}
+		}
+	}
+	// </ShadowMaps>
 }
 
 void WorldManager::UpdateParts()
@@ -70,7 +113,7 @@ void WorldManager::UpdateParts()
 	const RcPoint3 headPos = _pHeadCamera->GetEyePosition();
 	for (auto& blockNode : TStoreBlockNodes::_list)
 	{
-		const float distSq = VMath::distSqr(blockNode.GetPosition(), headPos);
+		const float distSq = VMath::distSqr(blockNode.GetBounds().GetCenter(), headPos);
 		const float part = MaterialManager::ComputePart(distSq, blockNode.GetBounds().GetAverageSize() * 0.5f);
 		blockNode.GetMaterial()->IncludePart(part);
 	}
@@ -88,7 +131,7 @@ void WorldManager::Layout()
 	_visibleCount = 0;
 	VERUS_ZERO_MEM(_visibleCountPerType);
 
-	_octree.TraverseVisible(_pPassCamera->GetFrustum());
+	_octree.DetectElements(_pPassCamera->GetFrustum());
 
 	SortVisible();
 
@@ -106,6 +149,16 @@ void WorldManager::SortVisible()
 			const NodeType typeB = pB->GetType();
 			if (typeA != typeB)
 				return typeA < typeB;
+
+			// Both are ambient?
+			if (NodeType::ambient == typeA)
+			{
+				PAmbientNode pAmbientNodeA = static_cast<PAmbientNode>(pA);
+				PAmbientNode pAmbientNodeB = static_cast<PAmbientNode>(pB);
+
+				if (pAmbientNodeA->GetPriority() != pAmbientNodeB->GetPriority())
+					return pAmbientNodeA->GetPriority() < pAmbientNodeB->GetPriority();
+			}
 
 			// Both are blocks?
 			if (NodeType::block == typeA)
@@ -143,10 +196,31 @@ void WorldManager::SortVisible()
 			{
 				PLightNode pLightNodeA = static_cast<PLightNode>(pA);
 				PLightNode pLightNodeB = static_cast<PLightNode>(pB);
+
 				const CGI::LightType lightTypeA = pLightNodeA->GetLightType();
 				const CGI::LightType lightTypeB = pLightNodeB->GetLightType();
 				if (lightTypeA != lightTypeB)
 					return lightTypeA < lightTypeB;
+
+				const UINT16 shadowMapBlockA = pLightNodeA->GetShadowMapHandle().GetBlockIndex();
+				const UINT16 shadowMapBlockB = pLightNodeB->GetShadowMapHandle().GetBlockIndex();
+
+				// Similar to material comparison above:
+				if (shadowMapBlockA != UINT16_MAX && shadowMapBlockB != UINT16_MAX)
+				{
+					const bool ab = shadowMapBlockA < shadowMapBlockB;
+					const bool ba = shadowMapBlockB < shadowMapBlockA;
+					if (ab || ba)
+						return ab;
+				}
+				else if (shadowMapBlockA != UINT16_MAX)
+				{
+					return true;
+				}
+				else if (shadowMapBlockB != UINT16_MAX)
+				{
+					return false;
+				}
 			}
 
 			// Draw same node types front-to-back:
@@ -198,7 +272,7 @@ void WorldManager::Draw()
 		if (changeModelNode)
 		{
 			modelNode = nextModelNode;
-			modelNode->MarkFirstInstance();
+			modelNode->MarkInstance();
 			if (bindPipeline)
 			{
 				bindPipeline = false;
@@ -210,7 +284,7 @@ void WorldManager::Draw()
 		}
 		if (changeMaterial)
 		{
-			modelNode->MarkFirstInstance();
+			modelNode->MarkInstance();
 			material = nextMaterial;
 			material->UpdateMeshUniformBuffer();
 			cb->BindDescriptors(shader, 1, material->GetComplexSetHandle());
@@ -266,7 +340,7 @@ void WorldManager::DrawSimple(DrawSimpleMode mode)
 		if (changeModelNode)
 		{
 			modelNode = nextModelNode;
-			modelNode->MarkFirstInstance();
+			modelNode->MarkInstance();
 			if (bindPipeline)
 			{
 				bindPipeline = false;
@@ -278,7 +352,7 @@ void WorldManager::DrawSimple(DrawSimpleMode mode)
 		}
 		if (changeMaterial)
 		{
-			modelNode->MarkFirstInstance();
+			modelNode->MarkInstance();
 			material = nextMaterial;
 			material->UpdateMeshUniformBufferSimple();
 			cb->BindDescriptors(shader, 1, material->GetComplexSetHandleSimple());
@@ -314,11 +388,12 @@ void WorldManager::DrawLights()
 		return;
 
 	VERUS_QREF_RENDERER;
+	VERUS_QREF_SMBP;
 	VERUS_QREF_WU;
 
 	CGI::LightType type = CGI::LightType::none;
+	ShadowMapHandle shadowMapHandle;
 	PMesh pMesh = nullptr;
-	bool bindPipeline = true;
 
 	auto& ds = renderer.GetDS();
 	auto cb = renderer.GetCommandBuffer();
@@ -327,8 +402,9 @@ void WorldManager::DrawLights()
 	{
 		if (pMesh && !pMesh->IsInstanceBufferEmpty(true))
 		{
+			pMesh->UpdateStorageBuffer(0);
 			pMesh->UpdateInstanceBuffer();
-			cb->DrawIndexed(pMesh->GetIndexCount(), pMesh->GetInstanceCount(true), 0, 0, pMesh->GetFirstInstance());
+			cb->DrawIndexed(pMesh->GetIndexCount(), pMesh->GetInstanceCount(true), 0, 0, pMesh->GetMarkedInstance());
 		}
 	};
 
@@ -338,18 +414,23 @@ void WorldManager::DrawLights()
 	{
 		if (i == end)
 		{
-			DrawMesh(pMesh);
+			DrawMesh(pMesh); // Finish with this one.
 			break;
 		}
 
 		PBaseNode pNode = _vVisibleNodes[i];
 		PLightNode pLightNode = static_cast<PLightNode>(pNode);
 		const CGI::LightType nextType = pLightNode->GetLightType();
+		const ShadowMapHandle nextShadowMapHandle = pLightNode->GetShadowMapHandle();
 
-		if (nextType != type)
+		const bool changeType = nextType != type;
+		const bool changeShadowMapHandle = nextShadowMapHandle.GetBlockIndex() != shadowMapHandle.GetBlockIndex();
+		if (changeType || changeShadowMapHandle)
 		{
-			DrawMesh(pMesh);
-
+			DrawMesh(pMesh); // Finish with this one.
+		}
+		if (changeType)
+		{
 			type = nextType;
 			ds.OnNewLightType(cb, type);
 
@@ -357,11 +438,24 @@ void WorldManager::DrawLights()
 
 			if (pMesh)
 			{
-				pMesh->MarkFirstInstance();
+				pMesh->MarkInstance();
 				pMesh->BindGeo(cb, (1 << 0) | (1 << 4));
 				pMesh->CopyPosDeqScale(&ds.GetUbPerMeshVS()._posDeqScale.x);
 				pMesh->CopyPosDeqBias(&ds.GetUbPerMeshVS()._posDeqBias.x);
 				ds.BindDescriptorsPerMeshVS(cb);
+			}
+		}
+		if (changeType || changeShadowMapHandle) // New type binds new pipeline.
+		{
+			if (pMesh)
+				pMesh->MarkInstance();
+			shadowMapHandle = nextShadowMapHandle;
+			if (type != CGI::LightType::dir)
+			{
+				if (shadowMapHandle.IsSet())
+					renderer.GetDS().BindDescriptorsForVSM(cb, pMesh->GetMarkedInstance(), smbp.GetComplexSetHandle(shadowMapHandle), smbp.GetPresence(shadowMapHandle));
+				else
+					renderer.GetDS().BindDescriptorsForVSM(cb, pMesh->GetMarkedInstance(), CGI::CSHandle(), 0);
 			}
 		}
 
@@ -375,8 +469,90 @@ void WorldManager::DrawLights()
 #endif
 
 		if (pMesh)
+		{
+			SB_PerInstanceData pid;
+			pid._matShadow = pLightNode->GetShadowMatrixForDS().UniformBufferFormat();
+			pMesh->PushStorageBufferData(0, &pid);
 			pMesh->PushInstance(pLightNode->GetTransform(), pLightNode->GetInstData());
+		}
 	}
+}
+
+void WorldManager::DrawAmbient()
+{
+	if (!_visibleCountPerType[+NodeType::ambient])
+		return;
+
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_WM;
+	VERUS_QREF_WU;
+
+	int priority = -1;
+	PMesh pMesh = nullptr;
+
+	auto& ds = renderer.GetDS();
+	auto cb = renderer.GetCommandBuffer();
+	auto shader = ds.GetAmbientNodeShader();
+
+	auto DrawMesh = [cb](PMesh pMesh)
+	{
+		if (pMesh && !pMesh->IsInstanceBufferEmpty(true))
+		{
+			pMesh->UpdateStorageBuffer(0);
+			pMesh->UpdateInstanceBuffer();
+			cb->DrawIndexed(pMesh->GetIndexCount(), pMesh->GetInstanceCount(true), 0, 0, pMesh->GetMarkedInstance());
+		}
+	};
+
+	const int begin = FindOffsetFor(NodeType::ambient);
+	const int end = begin + _visibleCountPerType[+NodeType::ambient];
+	shader->BeginBindDescriptors();
+	for (int i = begin; i <= end; ++i)
+	{
+		if (i == end)
+		{
+			DrawMesh(pMesh); // Finish with this one.
+			break;
+		}
+
+		PBaseNode pNode = _vVisibleNodes[i];
+		PAmbientNode pAmbientNode = static_cast<PAmbientNode>(pNode);
+		const int nextPriority = (AmbientNode::Priority::add == pAmbientNode->GetPriority()) ? 1 : 0;
+
+		const bool changePriority = nextPriority != priority;
+		if (changePriority)
+		{
+			DrawMesh(pMesh); // Finish with this one.
+		}
+		if (changePriority)
+		{
+			priority = nextPriority;
+
+			pMesh = &wu.GetAmbientNodeMeshes().Get();
+			pMesh->MarkInstance();
+
+			ds.OnNewAmbientNodePriority(cb, pMesh->GetMarkedInstance(), 1 == priority);
+
+			pMesh->BindGeo(cb, (1 << 0) | (1 << 4));
+			pMesh->CopyPosDeqScale(&ds.GetUbAmbientNodePerMeshVS()._posDeqScale.x);
+			pMesh->CopyPosDeqBias(&ds.GetUbAmbientNodePerMeshVS()._posDeqBias.x);
+			ds.BindDescriptorsAmbientNodePerMeshVS(cb);
+		}
+
+		if (pMesh)
+		{
+			SB_AmbientNodePerInstanceData pid;
+			const Transform3 tr = pAmbientNode->GetToBoxSpaceTransform() * wm.GetPassCamera()->GetMatrixInvV();
+			pid._matToBoxSpace = tr.UniformBufferFormat();
+			pid._wall_wallScale_cylinder_sphere.x = pAmbientNode->GetWall();
+			pid._wall_wallScale_cylinder_sphere.y = 1 / Math::Max(VERUS_FLOAT_THRESHOLD, 1 - pid._wall_wallScale_cylinder_sphere.x);
+			pid._wall_wallScale_cylinder_sphere.z = pAmbientNode->GetCylindrical();
+			pid._wall_wallScale_cylinder_sphere.w = pAmbientNode->GetSpherical();
+			pMesh->PushStorageBufferData(0, &pid);
+			pMesh->PushInstance(pAmbientNode->GetTransform(), pAmbientNode->GetInstData());
+		}
+	}
+	shader->EndBindDescriptors();
 }
 
 void WorldManager::DrawTransparent()
@@ -422,8 +598,9 @@ bool WorldManager::IsDrawingDepth(DrawDepth dd)
 {
 	if (DrawDepth::automatic == dd)
 	{
-		VERUS_QREF_ATMO;
-		return atmo.GetShadowMapBaker().IsBaking();
+		VERUS_QREF_CSMB;
+		VERUS_QREF_SMBP;
+		return csmb.IsBaking() || smbp.IsBaking();
 	}
 	else
 		return DrawDepth::yes == dd;
@@ -435,12 +612,116 @@ int WorldManager::GetEditorOverlaysAlpha(int originalAlpha, float distSq, float 
 	return static_cast<int>(originalAlpha * alpha);
 }
 
-Continue WorldManager::Octree_ProcessNode(void* pToken, void* pUser)
+bool WorldManager::IsSmbpDynamic(PcLightNode pLightNode) const
+{
+	VERUS_FOR(i, _smbpDynamicCount)
+	{
+		if (pLightNode == _pSmbpDynamic[i])
+			return true;
+	}
+	return false;
+}
+
+int WorldManager::GetInfluentialLightsAt(Math::RcSphere sphere, PLightNode lightNodes[], int maxLights, bool forShadow, bool incDir)
+{
+	int count = 0;
+	for (auto& lightNode : TStoreLightNodes::_list)
+	{
+		if (forShadow && !lightNode.CanBeSmbpDynamic())
+			continue;
+		if (!incDir && CGI::LightType::dir == lightNode.GetLightType())
+			continue;
+		const float influence = lightNode.GetInfluenceAt(sphere);
+		if (influence < 1)
+			continue; // This light is too weak.
+		if (count < maxLights)
+		{
+			lightNodes[count++] = &lightNode;
+		}
+		else
+		{
+			float minInfluence = FLT_MAX;
+			int index = 0;
+			VERUS_FOR(i, maxLights)
+			{
+				if (lightNodes[i]->GetCachedInfluence() < minInfluence)
+				{
+					minInfluence = lightNodes[i]->GetCachedInfluence();
+					index = i;
+				}
+			}
+			if (influence > minInfluence)
+				lightNodes[index] = &lightNode; // Replace the weakest light.
+		}
+	}
+	std::sort(lightNodes, lightNodes + count, [](PLightNode pA, PLightNode pB)
+		{
+			return pA->GetCachedInfluence() > pB->GetCachedInfluence();
+		});
+	return count;
+}
+
+void WorldManager::InfluentialLightsToSmbpDynamic(Math::RcSphere sphere)
+{
+	PLightNode newSmbpDynamic[VERUS_COUNT_OF(_pSmbpDynamic)];
+	const int newCount = _async_loaded ?
+		GetInfluentialLightsAt(sphere, newSmbpDynamic, VERUS_COUNT_OF(_pSmbpDynamic)) : 0;
+
+	VERUS_FOR(i, _smbpDynamicCount)
+	{
+		bool found = false;
+		VERUS_FOR(j, newCount)
+		{
+			if (_pSmbpDynamic[i] == newSmbpDynamic[j])
+			{
+				found = true;
+				break;
+			}
+		}
+		if (!found) // This light will be removed:
+			_pSmbpDynamic[i]->RequestShadowMapUpdate(false); // Treat it as new static light.
+	}
+
+	// <Clean>
+	{
+		PLightNode cleanedSmbpDynamic[VERUS_COUNT_OF(_pSmbpDynamic)];
+		int cleanedCount = 0;
+		VERUS_FOR(i, _smbpDynamicCount)
+		{
+			if (_pSmbpDynamic[i]->CanBeSmbpDynamic()) // Keep this light?
+				cleanedSmbpDynamic[cleanedCount++] = _pSmbpDynamic[i];
+		}
+		_smbpDynamicCount = cleanedCount;
+		if (_smbpDynamicCount)
+			memcpy(_pSmbpDynamic, cleanedSmbpDynamic, _smbpDynamicCount * sizeof(PLightNode));
+	}
+	// </Clean>
+
+	VERUS_FOR(i, newCount)
+	{
+		bool found = false;
+		VERUS_FOR(j, _smbpDynamicCount)
+		{
+			if (newSmbpDynamic[i] == _pSmbpDynamic[j])
+			{
+				found = true;
+				break;
+			}
+		}
+		if (!found) // This light will be added:
+		{
+			if (_smbpDynamicCount < VERUS_COUNT_OF(_pSmbpDynamic)) // If there is room for it.
+				_pSmbpDynamic[_smbpDynamicCount++] = newSmbpDynamic[i];
+		}
+	}
+}
+
+Continue WorldManager::Octree_OnElementDetected(void* pToken, void* pUser)
 {
 	PBaseNode pNode = static_cast<PBaseNode>(pToken);
 	if (pNode->IsDisabled())
 		return Continue::yes;
-	if (IsDrawingDepth(DrawDepth::automatic) && !pNode->IsShadowCaster())
+	if (IsDrawingDepth(DrawDepth::automatic) && !pNode->HasShadow())
 		return Continue::yes;
 	_vVisibleNodes[_visibleCount++] = pNode;
 	_visibleCountPerType[+pNode->GetType()]++;
@@ -785,6 +1066,7 @@ void WorldManager::DeleteNode(NodeType type, CSZ name, bool hierarchy)
 			case NodeType::base:         TStoreBaseNodes::Delete(static_cast<PBlockNode>(&node)); break;
 			case NodeType::model:        deleted = TStoreModelNodes::Delete(_C(static_cast<RModelNode>(node).GetURL())); break;
 			case NodeType::particles:    deleted = TStoreParticlesNodes::Delete(_C(static_cast<RParticlesNode>(node).GetURL())); break;
+			case NodeType::ambient:      TStoreAmbientNodes::Delete(static_cast<PAmbientNode>(&node)); break;
 			case NodeType::block:        TStoreBlockNodes::Delete(static_cast<PBlockNode>(&node)); break;
 			case NodeType::blockChain:   TStoreBlockChainNodes::Delete(static_cast<PBlockChainNode>(&node)); break;
 			case NodeType::controlPoint: TStoreControlPointNodes::Delete(static_cast<PControlPointNode>(&node)); break;
@@ -837,6 +1119,7 @@ PBaseNode WorldManager::DuplicateNode(PBaseNode pTargetNode, HierarchyDuplicatio
 	switch (pTargetNode->GetType())
 	{
 	case NodeType::base: {BaseNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
+	case NodeType::ambient: {AmbientNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
 	case NodeType::block: {BlockNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
 	case NodeType::blockChain: {BlockChainNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
 	case NodeType::controlPoint: {ControlPointNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
@@ -1088,8 +1371,8 @@ void WorldManager::GenerateBlockChainNodes(PBlockChainNode pBlockChainNode)
 			genBlockNode->SetGeneratedFlag();
 			genBlockNode->SetParent(pBlockChainNode);
 			genBlockNode->MoveTo(pivotPos + Vector3(pBlockChainNode->GetPosition(true)));
-			if (pSourceModel && pSourceModel->_noShadowCaster)
-				genBlockNode->SetShadowCasterFlag(false);
+			if (pSourceModel && pSourceModel->_noShadow)
+				genBlockNode->SetShadowFlag(false);
 
 			if (pSourceModel && !pSourceModel->_noPhysicsNode)
 			{
@@ -1351,6 +1634,13 @@ PBaseNode WorldManager::InsertBaseNode()
 	return p;
 }
 
+PAmbientNode WorldManager::InsertAmbientNode()
+{
+	auto p = TStoreAmbientNodes::Insert();
+	_vNodes.push_back(p);
+	return p;
+}
+
 PBlockNode WorldManager::InsertBlockNode()
 {
 	auto p = TStoreBlockNodes::Insert();
@@ -1545,6 +1835,7 @@ void WorldManager::Deserialize(IO::RStream stream)
 		case NodeType::base:         InsertBaseNode()->Deserialize(stream); break;
 		case NodeType::model:        InsertModelNode(_C(url))->Deserialize(stream); break;
 		case NodeType::particles:    InsertParticlesNode(_C(url))->Deserialize(stream); break;
+		case NodeType::ambient:      InsertAmbientNode()->Deserialize(stream); break;
 		case NodeType::block:        InsertBlockNode()->Deserialize(stream); break;
 		case NodeType::blockChain:   InsertBlockChainNode()->Deserialize(stream); break;
 		case NodeType::controlPoint: InsertControlPointNode()->Deserialize(stream); break;
@@ -1646,6 +1937,7 @@ UINT32 WorldManager::NodeTypeToHash(NodeType type)
 	case NodeType::base:         return 'ESAB';
 	case NodeType::model:        return 'EDOM';
 	case NodeType::particles:    return 'TRAP';
+	case NodeType::ambient:      return 'IBMA';
 	case NodeType::block:        return 'COLB';
 	case NodeType::blockChain:   return 'HCLB';
 	case NodeType::controlPoint: return 'TNOC';
@@ -1670,6 +1962,7 @@ NodeType WorldManager::HashToNodeType(UINT32 hash)
 	case 'ESAB': return NodeType::base;
 	case 'EDOM': return NodeType::model;
 	case 'TRAP': return NodeType::particles;
+	case 'IBMA': return NodeType::ambient;
 	case 'COLB': return NodeType::block;
 	case 'HCLB': return NodeType::blockChain;
 	case 'TNOC': return NodeType::controlPoint;
@@ -1712,6 +2005,10 @@ UINT32 WorldManager::NodeTypeToColor(NodeType type, int alpha)
 		VERUS_COLOR_RGBA(255, 171, 85, alpha), // 13, sound
 		VERUS_COLOR_RGBA(85, 255, 171, alpha), // 14, shaker
 		VERUS_COLOR_RGBA(171, 85, 255, alpha), // 15, blockChain
+
+		VERUS_COLOR_RGBA(255, 85, 171, alpha), // 16
+		VERUS_COLOR_RGBA(171, 255, 85, alpha), // 17
+		VERUS_COLOR_RGBA(85, 171, 255, alpha), // 18, ambient
 	};
 
 	switch (type)
@@ -1719,6 +2016,7 @@ UINT32 WorldManager::NodeTypeToColor(NodeType type, int alpha)
 	case NodeType::base:         return colors[9];
 	case NodeType::model:        return colors[8];
 	case NodeType::particles:    return colors[7];
+	case NodeType::ambient:      return colors[18];
 	case NodeType::block:        return colors[2];
 	case NodeType::blockChain:   return colors[15];
 	case NodeType::controlPoint: return colors[4];

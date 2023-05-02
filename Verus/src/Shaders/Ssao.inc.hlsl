@@ -1,6 +1,6 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-VERUS_UBUFFER UB_SsaoVS
+VERUS_UBUFFER_STRUCT UB_SsaoVS
 {
 	mataff _matW;
 	mataff _matV;
@@ -8,7 +8,7 @@ VERUS_UBUFFER UB_SsaoVS
 	float4 _tcViewScaleBias;
 };
 
-VERUS_UBUFFER UB_SsaoFS
+VERUS_UBUFFER_STRUCT UB_SsaoFS
 {
 	float4 _tcViewScaleBias;
 	float4 _zNearFarEx;

@@ -1,35 +1,49 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-#define VERUS_CRNL       "\r\n"
-#define VERUS_WHITESPACE " \t\r\n"
-
-#define VERUS_COUNT_OF(x)       ((sizeof(x)/sizeof(0[x]))/(size_t(!(sizeof(x)%sizeof(0[x])))))
-#define VERUS_LITERAL_LENGTH(x) (sizeof(x)-1)
-#define VERUS_ZERO_MEM(x)       memset(&x, 0, sizeof(x))
-
-#define VERUS_BUFFER_OFFSET(x) ((char*)nullptr+(x))
-
-#define VERUS_BITMASK_SET(flags, mask)   ((flags) |= (mask))
-#define VERUS_BITMASK_UNSET(flags, mask) ((flags) &= ~(mask))
-
+// main:
 #define VERUS_MAIN_DEFAULT_ARGS int argc, char* argv[]
 
+// class:
 #define VERUS_P(x)            private: x; public:
 #define VERUS_PD(x)           protected: x; private:
 #define VERUS_FRIEND(c, type) friend c type; type
 
+#define VERUS_TYPEDEFS(x)\
+	typedef x& R##x;\
+	typedef const x& Rc##x;\
+	typedef x* P##x;\
+	typedef const x* Pc##x
+
+// chars:
+#define VERUS_CRNL       "\r\n"
+#define VERUS_WHITESPACE " \t\r\n"
+#define _C(x) ((x).c_str())
+
+#define VERUS_MAX_PATH 800
+
+// count:
+#define VERUS_COUNT_OF(x)       ((sizeof(x)/sizeof(0[x]))/(size_t(!(sizeof(x)%sizeof(0[x])))))
+#define VERUS_LITERAL_LENGTH(x) (sizeof(x)-1)
+
+// bits:
+#define VERUS_BITMASK_SET(flags, mask)   ((flags) |= (mask))
+#define VERUS_BITMASK_UNSET(flags, mask) ((flags) &= ~(mask))
+
+#define VERUS_ZERO_MEM(x) memset(&x, 0, sizeof(x))
+
+// new/delete:
 #define VERUS_SMART_DELETE(p)       {if(p) {delete p;     p = nullptr;}}
 #define VERUS_SMART_DELETE_ARRAY(p) {if(p) {delete [] p;  p = nullptr;}}
 #define VERUS_SMART_RELEASE(p)      {if(p) {p->Release(); p = nullptr;}}
 
-#define _C(x) ((x).c_str())
-
+// Version (8+12+12):
 #define VERUS_MAKE_VERSION(major, minor, patch) (((major)<<24)|((minor)<<12)|(patch))
 #define VERUS_VERSION_MAJOR(version) ((version >> 24) & 0xFF)
 #define VERUS_VERSION_MINOR(version) ((version >> 12) & 0xFFF)
 #define VERUS_VERSION_PATCH(version) ((version) & 0xFFF)
 
+// Loops:
 #define VERUS_P_FOR(i, to)                      Parallel::For(0, to, [&](int i)
 #define VERUS_U_FOR(i, to)                      for(UINT32 i = 0; i < to; ++i)
 #define VERUS_FOR(i, to)                        for(int i = 0; i < to; ++i)
@@ -48,12 +62,6 @@
 	auto it = map.find(x);\
 	if(it != map.end())
 
-#define VERUS_TYPEDEFS(x)\
-	typedef x& R##x;\
-	typedef const x& Rc##x;\
-	typedef x* P##x;\
-	typedef const x* Pc##x
-
 // Circular buffer's size must be power of two:
 #define VERUS_CIRCULAR_ADD(x, mx)\
 	x++;\
@@ -66,23 +74,6 @@
 #define VERUS_COLOR_TO_D3D(color) (((color)&0xFF00FF00)|(((color)>>16)&0xFF)|(((color)&0xFF)<<16))
 #define VERUS_COLOR_WHITE         VERUS_COLOR_RGBA(255, 255, 255, 255)
 #define VERUS_COLOR_BLACK         VERUS_COLOR_RGBA(0, 0, 0, 255)
-
-#ifdef _WIN32
-#	define VERUS_DLL_EXPORT __declspec(dllexport)
-#else
-#	define VERUS_DLL_EXPORT __attribute__ ((visibility("default")))
-#endif
-
-#define VERUS_MAX_PATH 800
-
-#define VERUS_HR(hr) std::hex << std::uppercase << "0x" << hr
-
-#define VERUS_UBUFFER struct alignas(VERUS_MEMORY_ALIGNMENT)
-
-#define VERUS_MAX_BONES     128
-#define VERUS_MAX_CA        8  // Maximum number of color attachments per subpass, similar to D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT.
-#define VERUS_MAX_FB_ATTACH 32 // Maximum number of attachments per framebuffer. Includes color and other attachments for all subpasses.
-#define VERUS_MAX_VB        8  // Maximum number of vertex buffer bindings per draw call.
 
 #define VERUS_COLOR_BLEND_OFF          "off"
 #define VERUS_COLOR_BLEND_ALPHA        "s*(sa)+d*(1-sa)"
@@ -97,6 +88,25 @@
 #define VERUS_COLOR_BLEND_MIN          "min(s, d)"
 #define VERUS_COLOR_BLEND_MAX          "max(s, d)"
 
+// Shaders:
+#define VERUS_UBUFFER_STRUCT struct alignas(VERUS_MEMORY_ALIGNMENT)
+#define VERUS_SBUFFER_STRUCT struct
+
+#define VERUS_MAX_BONES     128
+#define VERUS_MAX_CA        8  // Maximum number of color attachments per subpass, similar to D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT.
+#define VERUS_MAX_FB_ATTACH 32 // Maximum number of attachments per framebuffer. Includes color and other attachments for all subpasses.
+#define VERUS_MAX_VB        8  // Maximum number of vertex buffer bindings per draw call.
+
+#define VERUS_HR(hr) std::hex << std::uppercase << "0x" << hr
+
+// DLL:
+#ifdef _WIN32
+#	define VERUS_DLL_EXPORT __declspec(dllexport)
+#else
+#	define VERUS_DLL_EXPORT __attribute__ ((visibility("default")))
+#endif
+
+// Profiler (PIX):
 #ifdef VERUS_PROFILER_CALLS
 #	pragma message("VERUS_PROFILER_CALLS is defined")
 #	define VERUS_PROFILER_BEGIN_EVENT(cb, color, text) cb->ProfilerBeginEvent(color, text)

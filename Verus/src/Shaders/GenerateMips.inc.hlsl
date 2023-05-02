@@ -1,6 +1,6 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-VERUS_UBUFFER UB_GenerateMips
+VERUS_UBUFFER_STRUCT UB_GenerateMips
 {
 	int    _srcMipLevel;
 	int    _mipLevelCount;

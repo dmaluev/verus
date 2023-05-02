@@ -75,7 +75,7 @@ namespace verus
 				float   _speed = 0;
 			};
 
-			static UB_PerFrame      s_ubPerFrame;
+			static UB_PerView       s_ubPerView;
 			static UB_PerMaterialFS s_ubPerMaterialFS;
 			static UB_PerMeshVS     s_ubPerMeshVS;
 			static UB_PerObject     s_ubPerObject;
@@ -92,7 +92,6 @@ namespace verus
 			Vector3                       _ambientColorY0 = Vector3(0);
 			Vector3                       _ambientColorY1 = Vector3(0);
 			CubeMapBaker                  _cubeMapBaker;
-			CascadedShadowMapBaker        _shadowMapBaker;
 			Mesh                          _skyDome;
 			CGI::TextureRAM               _texSky;
 			float                         _time = 0.5f;
@@ -150,6 +149,7 @@ namespace verus
 
 			// Sun:
 			RcVector3 GetDirToSun() const;
+			Vector3 GetSunShadowMapUpDir() const;
 			RcVector3 GetSunColor() const;
 			float GetSunAlpha() const;
 			void OnWorldResetInitSunLight();
@@ -165,11 +165,6 @@ namespace verus
 
 			// CubeMap:
 			RCubeMapBaker GetCubeMapBaker() { return _cubeMapBaker; }
-
-			// ShadowMap:
-			void BeginShadow(int slice);
-			void EndShadow(int slice);
-			RCascadedShadowMapBaker GetShadowMapBaker() { return _shadowMapBaker; }
 
 			void CreateCelestialBodyMesh();
 

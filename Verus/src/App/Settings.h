@@ -85,19 +85,21 @@ namespace verus
 		class Limits
 		{
 		public:
-			int _d3d12_dhViewsCapacity = 10000; // D3D limit is one million.
+			int _d3d12_dhViewsCapacity = 50000; // D3D limit is one million.
 			int _d3d12_dhSamplersCapacity = 500; // D3D limit is 2048.
-			int _ds_ubPerFrameCapacity = 16;
-			int _ds_ubTexturesFSCapacity = 16;
-			int _ds_ubPerMeshVSCapacity = 16;
-			int _ds_ubShadowFSCapacity = 16;
+			int _ds_ubPerViewCapacity = 20;
+			int _ds_ubTexturesFSCapacity = 20;
+			int _ds_ubPerMeshVSCapacity = 20;
+			int _ds_ubShadowFSCapacity = 50;
+			int _forest_ubVSCapacity = 200;
+			int _forest_ubFSCapacity = 200;
 			int _generateMips_ubCapacity = 50;
 			int _generateCubeMapMips_ubCapacity = 50;
-			int _grass_ubVSCapacity = 16;
-			int _grass_ubFSCapacity = 16;
+			int _grass_ubVSCapacity = 20;
+			int _grass_ubFSCapacity = 20;
 			int _gui_ubGuiCapacity = 100;
 			int _gui_ubGuiFSCapacity = 100;
-			int _mesh_ubPerFrameCapacity = 200;
+			int _mesh_ubPerViewCapacity = 800;
 			int _mesh_ubPerMaterialFSCapacity = 1000;
 			int _mesh_ubPerMeshVSCapacity = 2000;
 			int _mesh_ubSkinningVSCapacity = 200;
@@ -105,14 +107,14 @@ namespace verus
 			int _particles_ubFSCapacity = 100;
 			int _quad_ubVSCapacity = 20;
 			int _quad_ubFSCapacity = 20;
-			int _sky_ubPerFrameCapacity = 50;
-			int _sky_ubPerMaterialFSCapacity = 50;
-			int _sky_ubPerMeshVSCapacity = 50;
-			int _sky_ubPerObjectCapacity = 50;
-			int _terrain_ubVSCapacity = 20;
-			int _terrain_ubFSCapacity = 20;
-			int _water_ubVSCapacity = 16;
-			int _water_ubFSCapacity = 16;
+			int _sky_ubPerViewCapacity = 80;
+			int _sky_ubPerMaterialFSCapacity = 80;
+			int _sky_ubPerMeshVSCapacity = 80;
+			int _sky_ubPerObjectCapacity = 80;
+			int _terrain_ubVSCapacity = 40;
+			int _terrain_ubFSCapacity = 40;
+			int _water_ubVSCapacity = 20;
+			int _water_ubFSCapacity = 20;
 		};
 		VERUS_TYPEDEFS(Limits);
 

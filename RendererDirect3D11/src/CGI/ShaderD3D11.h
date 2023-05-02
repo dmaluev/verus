@@ -94,13 +94,14 @@ namespace verus
 
 			RcCompiled GetCompiled(CSZ branch) const { return _mapCompiled.at(branch); }
 
-			ID3D11Buffer* UpdateUniformBuffer(int setNumber, ShaderStageFlags& stageFlags);
-			void GetShaderResources(int setNumber, int complexSetHandle, RShaderResources shaderResources);
-			void GetSamplers(int setNumber, int complexSetHandle, RShaderResources shaderResources);
+			ID3D11Buffer* UpdateConstantBuffer(int setNumber) const;
+			ShaderStageFlags GetShaderStageFlags(int setNumber) const;
+			void GetShaderResources(int setNumber, int complexSetHandle, RShaderResources shaderResources)  const;
+			void GetSamplers(int setNumber, int complexSetHandle, RShaderResources shaderResources)  const;
 			int GetDescriptorSetCount() const { return static_cast<int>(_vDescriptorSetDesc.size()); }
 			bool IsCompute() const { return _compute; }
 
-			void OnError(CSZ s);
+			void OnError(CSZ s) const;
 		};
 		VERUS_TYPEDEFS(ShaderD3D11);
 	}

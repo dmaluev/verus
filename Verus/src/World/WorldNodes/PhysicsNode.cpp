@@ -112,7 +112,7 @@ void PhysicsNode::GetEditorCommands(Vector<EditorCommand>& v)
 	BaseNode::GetEditorCommands(v);
 
 	v.push_back(EditorCommand(nullptr, EditorCommandCode::separator));
-	v.push_back(EditorCommand(nullptr, EditorCommandCode::physics_takeSizeFromParentBlock));
+	v.push_back(EditorCommand(nullptr, EditorCommandCode::node_special_fitParentBlock));
 	v.push_back(EditorCommand(nullptr, EditorCommandCode::physics_loadShapeFromFile));
 	v.push_back(EditorCommand(nullptr, EditorCommandCode::separator));
 	v.push_back(EditorCommand(nullptr, EditorCommandCode::physics_quickDynamicBox));
@@ -125,9 +125,9 @@ void PhysicsNode::ExecuteEditorCommand(RcEditorCommand command)
 
 	switch (command._code)
 	{
-	case EditorCommandCode::physics_takeSizeFromParentBlock:
+	case EditorCommandCode::node_special_fitParentBlock:
 	{
-		TakeSizeFromParentBlock();
+		FitParentBlock();
 	}
 	break;
 	case EditorCommandCode::physics_quickDynamicBox:
@@ -135,8 +135,7 @@ void PhysicsNode::ExecuteEditorCommand(RcEditorCommand command)
 		_friction = 1;
 		_restitution = 0;
 		SetShapeType(ShapeType::box);
-		TakeSizeFromParentBlock();
-		MoveTo(Point3(0, _size.getY(), 0), true);
+		FitParentBlock();
 		SetBodyType(BodyType::dynamicBody);
 	}
 	break;
@@ -482,7 +481,7 @@ void PhysicsNode::Resize(RcVector3 size)
 	}
 }
 
-void PhysicsNode::TakeSizeFromParentBlock()
+void PhysicsNode::FitParentBlock()
 {
 	PBlockNode pBlockNode = nullptr;
 	if (_pParent && NodeType::block == _pParent->GetType())
@@ -502,6 +501,7 @@ void PhysicsNode::TakeSizeFromParentBlock()
 			break;
 		default: dim *= 0.5f;
 		}
+		MoveTo(bounds.GetCenter(), true);
 		Resize(dim);
 	}
 }

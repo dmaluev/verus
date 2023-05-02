@@ -8,7 +8,7 @@
 #include "LibVertex.hlsl"
 #include "DS_Mesh.inc.hlsl"
 
-CBUFFER(0, UB_PerFrame, g_ubPerFrame)
+CBUFFER(0, UB_PerView, g_ubPerView)
 CBUFFER(1, UB_PerMaterialFS, g_ubPerMaterialFS)
 CBUFFER(2, UB_PerMeshVS, g_ubPerMeshVS)
 CBUFFER(3, UB_SkeletonVS, g_ubSkeletonVS)
@@ -47,7 +47,7 @@ struct VSI
 	VK_LOCATION(9)     int2 tc1     : TEXCOORD1;
 	VK_LOCATION_COLOR0 float4 color : COLOR0;
 #endif
-	_PER_INSTANCE_DATA
+	_PER_INSTANCE_DATA_0
 };
 
 struct VSO
@@ -79,10 +79,10 @@ VSO mainVS(VSI si)
 	// <TheMatrix>
 #ifdef DEF_INSTANCED
 	mataff matW = GetInstMatrix(
-		si.matPart0,
-		si.matPart1,
-		si.matPart2);
-	const float4 userColor = si.instData;
+		si.pid0_matPart0,
+		si.pid0_matPart1,
+		si.pid0_matPart2);
+	const float4 userColor = si.pid0_instData;
 #else
 	mataff matW = g_ubPerObject._matW;
 	const float4 userColor = g_ubPerObject._userColor;
@@ -129,7 +129,7 @@ VSO mainVS(VSI si)
 	const float3 pos = inPos;
 #endif
 
-	const matrix matWV = mul(ToFloat4x4(matW), ToFloat4x4(g_ubPerFrame._matV));
+	const matrix matWV = mul(ToFloat4x4(matW), ToFloat4x4(g_ubPerView._matV));
 	// </TheMatrix>
 
 	float3 posW;
@@ -181,7 +181,7 @@ VSO mainVS(VSI si)
 #endif
 	}
 
-	so.pos = MulTessPos(float4(posW, 1), g_ubPerFrame._matV, g_ubPerFrame._matVP);
+	so.pos = MulTessPos(float4(posW, 1), g_ubPerView._matV, g_ubPerView._matVP);
 	so.tc0 = inTc0;
 	so.matTBN2 = float4(nrmWV, posW.z);
 #ifdef DEF_TESS
@@ -210,7 +210,7 @@ _HSO_STRUCT;
 PCFO PatchConstFunc(const OutputPatch<HSO, 3> outputPatch)
 {
 	PCFO so;
-	_HS_PCF_BODY(g_ubPerFrame._matP);
+	_HS_PCF_BODY(g_ubPerView._matP);
 	return so;
 }
 
@@ -224,7 +224,7 @@ HSO mainHS(InputPatch<VSO, 3> inputPatch, uint id : SV_OutputControlPointID)
 {
 	HSO so;
 
-	_HS_PN_BODY(matTBN2, g_ubPerFrame._matP, g_ubPerFrame._viewportSize);
+	_HS_PN_BODY(matTBN2, g_ubPerView._matP, g_ubPerView._viewportSize);
 
 	_HS_COPY(pos);
 	_HS_COPY(tc0);
@@ -250,11 +250,11 @@ VSO mainDS(_IN_DS)
 	_DS_INIT_FLAT_POS;
 	_DS_INIT_SMOOTH_POS;
 
-	const float3 toEyeWV = g_ubPerFrame._eyePosWV_invTessDistSq.xyz - flatPosWV;
+	const float3 toEyeWV = g_ubPerView._eyePosWV_invTessDistSq.xyz - flatPosWV;
 	const float distToEyeSq = dot(toEyeWV, toEyeWV);
-	const float tessStrength = 1.0 - saturate(distToEyeSq * g_ubPerFrame._eyePosWV_invTessDistSq.w * 1.1 - 0.1);
+	const float tessStrength = 1.0 - saturate(distToEyeSq * g_ubPerView._eyePosWV_invTessDistSq.w * 1.1 - 0.1);
 	const float3 posWV = lerp(flatPosWV, smoothPosWV, tessStrength);
-	so.pos = ApplyProjection(posWV, g_ubPerFrame._matP);
+	so.pos = ApplyProjection(posWV, g_ubPerView._matP);
 	_DS_COPY(tc0);
 	_DS_COPY(matTBN2);
 #if !defined(DEF_DEPTH)

@@ -97,20 +97,20 @@ namespace verus
 			ID3D12RootSignature* GetD3DRootSignature() const { return _pRootSignature.Get(); }
 
 			UINT ToRootParameterIndex(int setNumber) const;
-			bool TryRootConstants(int setNumber, RBaseCommandBuffer cb);
-			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateUniformBuffer(int setNumber, int complexSetHandle);
-			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateSamplers(int setNumber, int complexSetHandle);
+			bool TryRootConstants(int setNumber, RBaseCommandBuffer cb) const;
+			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateConstantBuffer(int setNumber, int complexSetHandle);
+			CD3DX12_GPU_DESCRIPTOR_HANDLE UpdateSamplers(int setNumber, int complexSetHandle) const;
 			int GetDescriptorSetCount() const { return static_cast<int>(_vDescriptorSetDesc.size()); }
 			bool IsCompute() const { return _compute; }
 
-			void OnError(CSZ s);
+			void OnError(CSZ s) const;
 
 			void UpdateDebugInfo(
 				const Vector<CD3DX12_ROOT_PARAMETER1>& vRootParams,
 				const Vector<D3D12_STATIC_SAMPLER_DESC>& vStaticSamplers,
 				D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags);
 
-			void UpdateUtilization();
+			void UpdateUtilization() const;
 		};
 		VERUS_TYPEDEFS(ShaderD3D12);
 	}

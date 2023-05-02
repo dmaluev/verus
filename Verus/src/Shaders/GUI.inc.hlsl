@@ -1,6 +1,6 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-VERUS_UBUFFER UB_Gui
+VERUS_UBUFFER_STRUCT UB_Gui
 {
 	matrix _matWVP;
 	mataff _matTex;
@@ -8,7 +8,7 @@ VERUS_UBUFFER UB_Gui
 	float4 _tcMaskScaleBias;
 };
 
-VERUS_UBUFFER UB_GuiFS
+VERUS_UBUFFER_STRUCT UB_GuiFS
 {
 	float4 _color;
 };

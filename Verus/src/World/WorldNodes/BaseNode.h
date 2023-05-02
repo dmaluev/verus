@@ -23,10 +23,11 @@ namespace verus
 				generated = (1 << 3), // Created by some other node.
 				disabled = (1 << 4), // Draw method will not be called.
 				selected = (1 << 5),
-				shadowCaster = (1 << 6),
+				shadow = (1 << 6),
+				reserveShadow = (1 << 7),
 
 				readOnlyFlags = (1u << 31),
-				serializedMask = ~(octreeBindOnce | generated | selected)
+				serializedMask = ~(octreeBindOnce | generated | selected | reserveShadow)
 			};
 
 			Transform3     _trLocal = Transform3::identity();
@@ -109,8 +110,8 @@ namespace verus
 			bool IsSelected() const;
 			void Select(bool select = true);
 
-			bool IsShadowCaster() const;
-			void SetShadowCasterFlag(bool shadowCaster = true);
+			bool HasShadow() const;
+			virtual void SetShadowFlag(bool shadow = true);
 			// </Flags>
 
 			// <Groups>

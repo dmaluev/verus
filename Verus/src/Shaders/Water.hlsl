@@ -291,14 +291,14 @@ FSO mainFS(VSO si)
 	{
 		float4 shadowConfig = g_ubWaterFS._shadowConfig;
 		shadowConfig.y = 0.5;
-		const float3 posForShadow = AdjustPosForShadow(si.posW, normal, g_ubWaterFS._dirToSun.xyz, depth);
+		const float3 biasedPosW = ApplyShadowBiasing(si.posW, normal, g_ubWaterFS._dirToSun.xyz, depth);
 		shadowMask = ShadowMapCSM(
 			g_texShadowCmp,
 			g_samShadowCmp,
 			g_texShadow,
 			g_samShadow,
 			si.posW,
-			posForShadow,
+			biasedPosW,
 			g_ubWaterFS._matShadow,
 			g_ubWaterFS._matShadowCSM1,
 			g_ubWaterFS._matShadowCSM2,

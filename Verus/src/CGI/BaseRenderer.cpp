@@ -77,11 +77,11 @@ RPHandle BaseRenderer::CreateSimpleRenderPass(Format format, RP::Attachment::Loa
 		{});
 }
 
-RPHandle BaseRenderer::CreateShadowRenderPass(Format format)
+RPHandle BaseRenderer::CreateShadowRenderPass(Format format, RP::Attachment::LoadOp loadOp)
 {
 	return CreateRenderPass(
 		{
-			RP::Attachment("Depth", format).LoadOpClear().Layout(ImageLayout::depthStencilReadOnly),
+			RP::Attachment("Depth", format).SetLoadOp(loadOp).Layout(ImageLayout::depthStencilReadOnly),
 		},
 		{
 			RP::Subpass("Sp0").Color({}).DepthStencil(RP::Ref("Depth", ImageLayout::depthStencilAttachment)),

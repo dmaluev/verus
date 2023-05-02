@@ -27,6 +27,11 @@ float Contrast(float gray, float contrast)
 	return saturate(((gray - 0.5) * contrast) + 0.5);
 }
 
+float Screen(float colorA, float colorB)
+{
+	return 1.0 - (1.0 - colorA) * (1.0 - colorB);
+}
+
 float3 Overlay(float3 colorA, float3 colorB)
 {
 	const float3 x = step(0.5, colorA);

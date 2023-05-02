@@ -7,6 +7,7 @@
 #include "AlignedAllocator.h"
 #include "STL.h"
 #include "Store.h"
+#include "BaseHandle.h"
 #include "Blob.h"
 #include "Random.h"
 #include "Str.h"

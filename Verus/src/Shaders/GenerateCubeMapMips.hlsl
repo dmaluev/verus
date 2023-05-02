@@ -19,7 +19,6 @@ RWTexture2DArray<float4> g_uavOutFaceNegZ : REG(u7, space0, u5);
 struct CSI
 {
 	uint3 dispatchThreadID : SV_DispatchThreadID;
-	uint  groupIndex       : SV_GroupIndex;
 };
 
 #define THREAD_GROUP_SIZE 8

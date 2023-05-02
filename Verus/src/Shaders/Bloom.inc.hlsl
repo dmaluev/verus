@@ -1,18 +1,18 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-VERUS_UBUFFER UB_BloomVS
+VERUS_UBUFFER_STRUCT UB_BloomVS
 {
 	mataff _matW;
 	mataff _matV;
 	float4 _tcViewScaleBias;
 };
 
-VERUS_UBUFFER UB_BloomFS
+VERUS_UBUFFER_STRUCT UB_BloomFS
 {
 	float4 _colorScale_colorBias_exposure;
 };
 
-VERUS_UBUFFER UB_BloomLightShaftsFS
+VERUS_UBUFFER_STRUCT UB_BloomLightShaftsFS
 {
 	matrix _matInvVP;
 	float4 _dirToSun;

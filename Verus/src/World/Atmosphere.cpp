@@ -4,7 +4,7 @@
 using namespace verus;
 using namespace verus::World;
 
-Atmosphere::UB_PerFrame      Atmosphere::s_ubPerFrame;
+Atmosphere::UB_PerView       Atmosphere::s_ubPerView;
 Atmosphere::UB_PerMaterialFS Atmosphere::s_ubPerMaterialFS;
 Atmosphere::UB_PerMeshVS     Atmosphere::s_ubPerMeshVS;
 Atmosphere::UB_PerObject     Atmosphere::s_ubPerObject;
@@ -21,15 +21,14 @@ Atmosphere::~Atmosphere()
 void Atmosphere::Init()
 {
 	VERUS_INIT();
-	VERUS_QREF_RENDERER;
 	VERUS_QREF_CONST_SETTINGS;
+	VERUS_QREF_RENDERER;
 	VERUS_QREF_UTILS;
-	VERUS_QREF_BLOOM;
 
 	_skyDome.Init("[Models]:SkyDome.x3d");
 
 	_shader.Init("[Shaders]:Sky.hlsl");
-	_shader->CreateDescriptorSet(0, &s_ubPerFrame, sizeof(s_ubPerFrame), settings.GetLimits()._sky_ubPerFrameCapacity);
+	_shader->CreateDescriptorSet(0, &s_ubPerView, sizeof(s_ubPerView), settings.GetLimits()._sky_ubPerViewCapacity);
 	_shader->CreateDescriptorSet(1, &s_ubPerMaterialFS, sizeof(s_ubPerMaterialFS), settings.GetLimits()._sky_ubPerMaterialFSCapacity,
 		{
 			CGI::Sampler::linearMipL,
@@ -41,12 +40,7 @@ void Atmosphere::Init()
 	_shader->CreateDescriptorSet(3, &s_ubPerObject, sizeof(s_ubPerObject), settings.GetLimits()._sky_ubPerObjectCapacity);
 	_shader->CreatePipelineLayout();
 
-	_cubeMapBaker.Init(512);
-	_shadowMapBaker.Init(4096);
-
-	renderer.GetDS().InitByAtmosphere(_shadowMapBaker.GetTexture());
-	renderer.GetDS().InitByAtmosphere(_shadowMapBaker.GetTexture());
-	bloom.InitByAtmosphere(_shadowMapBaker.GetTexture());
+	_cubeMapBaker.Init();
 
 	CreateCelestialBodyMesh();
 
@@ -170,7 +164,10 @@ void Atmosphere::Update()
 		VERUS_FOR(i, TEX_COUNT)
 		{
 			if (!_tex[i]->IsLoaded())
+			{
 				allTexLoaded = false;
+				break;
+			}
 		}
 		if (_skyDome.IsLoaded() && allTexLoaded)
 		{
@@ -223,7 +220,7 @@ void Atmosphere::Update()
 	VERUS_FOR(i, count)
 	{
 		const float time = (count > 1) ? (i / 256.f) : _time;
-		_ambientMagnitude = GetMagnitude(time, 25000, 5000, 1000) * cloudScaleAmb;
+		_ambientMagnitude = GetMagnitude(time, 28000, 5000, 1000) * cloudScaleAmb;
 		float color[3];
 		SampleSkyColor(time, 200, color); _ambientColorY1 = Vector3::MakeFromPointer(color) * _ambientMagnitude;
 		SampleSkyColor(time, 216, color); _ambientColorY0 = Vector3::MakeFromPointer(color) * _ambientMagnitude;
@@ -249,8 +246,8 @@ void Atmosphere::Update()
 	UpdateSun(_time);
 
 	// <Fog>
-	_fog._color = VMath::lerp(0.1f, _ambientColor, _sun._color);
-	_fog._color = glm::saturation(0.9f - 0.4f * cloudinessSq, _fog._color.GLM());
+	_fog._color = VMath::lerp(0.1f, _ambientColor, _sun._color) * 0.75f;
+	_fog._color = glm::saturation(1 - 0.2f * cloudinessSq, _fog._color.GLM());
 	_fog._density[0] = _fog._density[1] * (1 + 9 * cloudinessSq);
 	// </Fog>
 }
@@ -273,13 +270,13 @@ void Atmosphere::DrawSky(bool reflection)
 
 	auto cb = renderer.GetCommandBuffer();
 
-	s_ubPerFrame._time_cloudiness.x = _time;
-	s_ubPerFrame._time_cloudiness.y = _clouds._cloudiness;
-	s_ubPerFrame._ambientColor = float4(_ambientColor.GLM(), _ambientMagnitude);
-	s_ubPerFrame._fogColor = float4(_fog._color.GLM(), _fog._density[0]);
-	s_ubPerFrame._dirToSun = float4(_sun._dirTo.GLM(), 0);
-	s_ubPerFrame._sunColor = float4(_sun._color.GLM(), _sun._alpha);
-	s_ubPerFrame._phaseAB = float4(
+	s_ubPerView._time_cloudiness.x = _time;
+	s_ubPerView._time_cloudiness.y = _clouds._cloudiness;
+	s_ubPerView._ambientColor = float4(_ambientColor.GLM(), _ambientMagnitude);
+	s_ubPerView._fogColor = float4(_fog._color.GLM(), _fog._density[0]);
+	s_ubPerView._dirToSun = float4(_sun._dirTo.GLM(), 0);
+	s_ubPerView._sunColor = float4(_sun._color.GLM(), _sun._alpha);
+	s_ubPerView._phaseAB = float4(
 		_clouds._phaseA.getX(),
 		_clouds._phaseA.getY(),
 		_clouds._phaseB.getX(),
@@ -408,6 +405,11 @@ RcVector3 Atmosphere::GetDirToSun() const
 	return _sun._dirTo;
 }
 
+Vector3 Atmosphere::GetSunShadowMapUpDir() const
+{
+	return _sun._matTilt.getCol2();
+}
+
 RcVector3 Atmosphere::GetSunColor() const
 {
 	return _sun._color;
@@ -470,17 +472,6 @@ RcVector3 Atmosphere::GetWindDirection() const
 float Atmosphere::GetWindSpeed() const
 {
 	return _wind._speed;
-}
-
-void Atmosphere::BeginShadow(int slice)
-{
-	const Vector3 up = _sun._matTilt * Vector3(0, 0, 1);
-	_shadowMapBaker.Begin(_sun._dirTo, slice, up);
-}
-
-void Atmosphere::EndShadow(int slice)
-{
-	_shadowMapBaker.End(slice);
 }
 
 void Atmosphere::CreateCelestialBodyMesh()

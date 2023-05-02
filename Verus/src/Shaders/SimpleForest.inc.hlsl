@@ -1,6 +1,6 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-VERUS_UBUFFER UB_SimpleForestVS
+VERUS_UBUFFER_STRUCT UB_SimpleForestVS
 {
 	matrix _matP;
 	matrix _matWVP;
@@ -9,7 +9,7 @@ VERUS_UBUFFER UB_SimpleForestVS
 	float4 _mainCameraEyePos_pointSpriteFlipY;
 };
 
-VERUS_UBUFFER UB_SimpleForestFS
+VERUS_UBUFFER_STRUCT UB_SimpleForestFS
 {
 	mataff _matInvV;
 	float4 _normalFlip;

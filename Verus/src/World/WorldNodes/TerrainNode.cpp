@@ -20,10 +20,12 @@ void TerrainNode::Init(RcDesc desc)
 {
 	if (!(_flags & Flags::readOnlyFlags))
 	{
-		SetShadowCasterFlag();
+		SetShadowFlag();
 	}
 	BaseNode::Init(desc._name ? desc._name : "Terrain");
-	SetShadowCasterFlag();
+#ifdef VERUS_WORLD_FORCE_FLAGS
+	SetShadowFlag();
+#endif
 
 	if (desc._terrainDesc._mapSide)
 		_terrain.Init(desc._terrainDesc);

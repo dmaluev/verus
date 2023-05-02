@@ -65,6 +65,7 @@ namespace verus
 
 			// <Descriptors>
 			virtual bool BindDescriptors(ShaderPtr shader, int setNumber, CSHandle complexSetHandle = CSHandle()) = 0;
+			virtual bool BindDescriptors(ShaderPtr shader, int setNumber, GeometryPtr geo, int sbIndex) = 0;
 			virtual void PushConstants(ShaderPtr shader, int offset, int size, const void* p, ShaderStageFlags stageFlags = ShaderStageFlags::vs_fs) = 0;
 			// </Descriptors>
 

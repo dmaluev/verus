@@ -178,7 +178,8 @@ void CommandBufferD3D11::BindVertexBuffers(GeometryPtr geo, UINT32 bindingsFilte
 			filteredCount++;
 		}
 	}
-	_pDeviceContext->IASetVertexBuffers(0, filteredCount, buffers, strides, offsets);
+	if (filteredCount)
+		_pDeviceContext->IASetVertexBuffers(0, filteredCount, buffers, strides, offsets);
 }
 
 void CommandBufferD3D11::BindIndexBuffer(GeometryPtr geo)
@@ -191,9 +192,10 @@ bool CommandBufferD3D11::BindDescriptors(ShaderPtr shader, int setNumber, CSHand
 {
 	auto& shaderD3D11 = static_cast<RShaderD3D11>(*shader);
 
-	ShaderStageFlags stageFlags;
+	const ShaderStageFlags stageFlags = shaderD3D11.GetShaderStageFlags(setNumber);
+	ID3D11Buffer* pBuffer = shaderD3D11.UpdateConstantBuffer(setNumber);
+
 	ShaderResources shaderResources;
-	ID3D11Buffer* pBuffer = shaderD3D11.UpdateUniformBuffer(setNumber, stageFlags);
 	if (complexSetHandle.IsSet())
 	{
 		shaderD3D11.GetShaderResources(setNumber, complexSetHandle.Get(), shaderResources);
@@ -256,6 +258,33 @@ bool CommandBufferD3D11::BindDescriptors(ShaderPtr shader, int setNumber, CSHand
 		if (shaderResources._uavCount)
 			_pDeviceContext->CSSetUnorderedAccessViews(shaderResources._uavStartSlot, shaderResources._uavCount, shaderResources._uavs, nullptr);
 	}
+
+	return true;
+}
+
+bool CommandBufferD3D11::BindDescriptors(ShaderPtr shader, int setNumber, GeometryPtr geo, int sbIndex)
+{
+	auto& shaderD3D11 = static_cast<RShaderD3D11>(*shader);
+	auto& geoD3D11 = static_cast<RGeometryD3D11>(*geo);
+
+	const ShaderStageFlags stageFlags = shaderD3D11.GetShaderStageFlags(setNumber);
+	ID3D11ShaderResourceView* pSRV = geoD3D11.GetD3DStructuredBufferSRV(sbIndex);
+
+	ShaderResources shaderResources;
+	shaderD3D11.GetShaderResources(setNumber, -1, shaderResources);
+
+	if (stageFlags & ShaderStageFlags::vs)
+		_pDeviceContext->VSSetShaderResources(shaderResources._srvStartSlot, 1, &pSRV);
+	if (stageFlags & ShaderStageFlags::hs)
+		_pDeviceContext->HSSetShaderResources(shaderResources._srvStartSlot, 1, &pSRV);
+	if (stageFlags & ShaderStageFlags::ds)
+		_pDeviceContext->DSSetShaderResources(shaderResources._srvStartSlot, 1, &pSRV);
+	if (stageFlags & ShaderStageFlags::gs)
+		_pDeviceContext->GSSetShaderResources(shaderResources._srvStartSlot, 1, &pSRV);
+	if (stageFlags & ShaderStageFlags::fs)
+		_pDeviceContext->PSSetShaderResources(shaderResources._srvStartSlot, 1, &pSRV);
+	if (stageFlags & ShaderStageFlags::cs)
+		_pDeviceContext->CSSetShaderResources(shaderResources._srvStartSlot, 1, &pSRV);
 
 	return true;
 }

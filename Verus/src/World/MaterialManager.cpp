@@ -63,11 +63,10 @@ void Texture::UpdateStreaming()
 	{
 		_loading = false;
 		_currentHuge = nextHuge; // Use it.
-		_nextSafeFrame = renderer.GetFrameCount() + CGI::BaseRenderer::s_ringBufferSize + 1;
+		_doneFrame = renderer.GetFrameCount() + CGI::BaseRenderer::s_ringBufferSize + 1;
 	}
 
-	const bool safeFrame = !_loading && (renderer.GetFrameCount() >= _nextSafeFrame);
-	if (safeFrame)
+	if (!_loading && renderer.GetFrameCount() >= _doneFrame)
 	{
 		const int prevHuge = (_currentHuge + 1) & 0x1;
 		if (_texHuge[prevHuge]) // Garbage collection (next huge texture must be empty).
@@ -92,7 +91,7 @@ void Texture::UpdateStreaming()
 			if (_texHuge[_currentHuge] && (newPart == maxPart)) // Unload huge texture, use tiny?
 			{
 				_currentHuge = (_currentHuge + 1) & 0x1; // Go to empty huge texture.
-				_nextSafeFrame = renderer.GetFrameCount() + CGI::BaseRenderer::s_ringBufferSize;
+				_doneFrame = renderer.GetFrameCount() + CGI::BaseRenderer::s_ringBufferSize + 1;
 			}
 			else if (newPart != currentPart) // Change part?
 			{
@@ -400,8 +399,8 @@ void Material::BindDescriptorSetTextures()
 {
 	VERUS_RT_ASSERT(!_csh.IsSet());
 	VERUS_RT_ASSERT(IsLoaded());
+	VERUS_QREF_CSMB;
 	VERUS_QREF_MM;
-	VERUS_QREF_ATMO;
 	if (!_cshTiny.IsSet())
 	{
 		_cshTiny = Mesh::GetShader()->BindDescriptorSetTextures(1,
@@ -420,7 +419,7 @@ void Material::BindDescriptorSetTextures()
 			{
 				_texA->GetTinyTex(),
 				_texX->GetTinyTex(),
-				atmo.GetShadowMapBaker().GetTexture()
+				csmb.GetTexture()
 			});
 	}
 	_csh = Mesh::GetShader()->BindDescriptorSetTextures(1,
@@ -685,15 +684,15 @@ float MaterialManager::ComputePart(float distSq, float objectRadius)
 {
 	// PART | DIST
 	// 0    | 0
-	// 1    | 25
-	// 2    | 50
-	// 3    | 100
-	// 4    | 200
+	// 1    | 20
+	// 2    | 40
+	// 3    | 80
+	// 4    | 160
 
-	if (distSq < 200 * 200)
+	if (distSq < 160 * 160)
 	{
 		const float dist = Math::Max<float>(0, sqrt(distSq) - objectRadius);
-		return glm::log2(Math::Clamp<float>(dist * (2 / 25.f), 1, 18));
+		return glm::log2(Math::Clamp<float>(dist * (2 / 20.f), 1, 16));
 	}
 	return 4;
 }

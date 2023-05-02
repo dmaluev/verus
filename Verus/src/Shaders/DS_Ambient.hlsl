@@ -64,7 +64,7 @@ DS_ACC_FSO mainFS(VSO si)
 	// GBuffer2:
 	const float4 gBuffer2Sam = VK_SUBPASS_LOAD(g_texGBuffer2, g_samGBuffer2, si.tc0.zw);
 	const float roughness = gBuffer2Sam.g;
-	const float metallic = gBuffer2Sam.b;
+	const float metallic = 0.0; // Treat everything as non-metallic.
 
 	// GBuffer3:
 	const float4 gBuffer3Sam = VK_SUBPASS_LOAD(g_texGBuffer3, g_samGBuffer3, si.tc0.zw);
@@ -97,7 +97,6 @@ DS_ACC_FSO mainFS(VSO si)
 		gBuffer0Sam.rgb, ambientColor,
 		roughness, metallic,
 		float2(-1, 1));
-	so.target0.rgb *= (1.0 - metallic);
 
 	so.target0.rgb *= max(occlusion, g_ubAmbientFS._invMapSide_minOcclusion.y);
 

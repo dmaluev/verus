@@ -1,6 +1,6 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-VERUS_UBUFFER UB_PerFrame
+VERUS_UBUFFER_STRUCT UB_PerView
 {
 	mataff _matV;
 	matrix _matVP;
@@ -9,7 +9,7 @@ VERUS_UBUFFER UB_PerFrame
 	float4 _eyePosWV_invTessDistSq;
 };
 
-VERUS_UBUFFER UB_PerMaterialFS
+VERUS_UBUFFER_STRUCT UB_PerMaterialFS
 {
 	float4 _anisoSpecDir_detail_emission;
 	float4 _motionBlur_nmContrast_roughDiffuse_sssHue;
@@ -25,7 +25,7 @@ VERUS_UBUFFER UB_PerMaterialFS
 	float4 _xRoughnessScaleBias_xWrapDiffuseScaleBias;
 };
 
-VERUS_UBUFFER UB_PerMeshVS
+VERUS_UBUFFER_STRUCT UB_PerMeshVS
 {
 	float4 _posDeqScale;
 	float4 _posDeqBias;
@@ -33,13 +33,13 @@ VERUS_UBUFFER UB_PerMeshVS
 	float4 _tc1DeqScaleBias;
 };
 
-VERUS_UBUFFER UB_SkeletonVS
+VERUS_UBUFFER_STRUCT UB_SkeletonVS
 {
 	float4 _vWarpZones[32];
 	mataff _vMatBones[VERUS_MAX_BONES];
 };
 
-VERUS_UBUFFER UB_PerObject
+VERUS_UBUFFER_STRUCT UB_PerObject
 {
 	mataff _matW;
 	float4 _userColor;

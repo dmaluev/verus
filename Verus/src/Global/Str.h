@@ -15,9 +15,9 @@ namespace verus
 		bool operator!=(const Str& that) const { return 0 != strcmp(_sz, that._sz); }
 		bool operator<(const Str& that) const { return strcmp(_sz, that._sz) < 0; }
 
-		size_t Size()	const { return strlen(_sz) + 1; }
-		size_t Length()	const { return strlen(_sz); }
-		bool IsEmpty()	const { return !_sz || !(*_sz); }
+		size_t Size()   const { return strlen(_sz) + 1; }
+		size_t Length() const { return strlen(_sz); }
+		bool IsEmpty()  const { return !_sz || !(*_sz); }
 
 		CSZ Find(CSZ sz) const { return strstr(_sz, sz); }
 

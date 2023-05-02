@@ -71,19 +71,21 @@ namespace verus
 
 			enum class InstanceBufferFormat : int
 			{
-				mataff_float4,
-				mataff_2float4
+				pid0_mataff_float4,
+				pid0_mataff_float4_pid1_float4,
+				pid0_mataff_float4_pid1_mataff_float4,
+				pid0_mataff_float4_pid1_matrix_float4
 			};
 
 		private:
 			static CGI::ShaderPwns<SHADER_COUNT> s_shader;
 			static CGI::PipelinePwns<PIPE_COUNT> s_pipe;
-			static UB_PerFrame                   s_ubPerFrame;
+			static UB_PerView                    s_ubPerView;
 			static UB_PerMaterialFS              s_ubPerMaterialFS;
 			static UB_PerMeshVS                  s_ubPerMeshVS;
 			static UB_SkeletonVS                 s_ubSkeletonVS;
 			static UB_PerObject                  s_ubPerObject;
-			static UB_SimplePerFrame             s_ubSimplePerFrame;
+			static UB_SimplePerView              s_ubSimplePerView;
 			static UB_SimplePerMaterialFS        s_ubSimplePerMaterialFS;
 			static UB_SimplePerMeshVS            s_ubSimplePerMeshVS;
 			static UB_SimpleSkeletonVS           s_ubSimpleSkeletonVS;
@@ -91,10 +93,11 @@ namespace verus
 
 			CGI::GeometryPwn     _geo;
 			Vector<BYTE>         _vInstanceBuffer;
+			Vector<Vector<BYTE>> _vStorageBuffers;
 			int                  _instanceCapacity = 0;
 			int                  _instanceCount = 0;
-			int                  _firstInstance = 0;
-			InstanceBufferFormat _instanceBufferFormat = InstanceBufferFormat::mataff_float4;
+			int                  _markedInstance = 0;
+			InstanceBufferFormat _instanceBufferFormat = InstanceBufferFormat::pid0_mataff_float4;
 			UINT32               _bindingsMask = 0;
 
 		public:
@@ -103,7 +106,7 @@ namespace verus
 				CSZ                  _url = nullptr;
 				CSZ                  _warpURL = nullptr;
 				int                  _instanceCapacity = 0;
-				InstanceBufferFormat _instanceBufferFormat = InstanceBufferFormat::mataff_float4;
+				InstanceBufferFormat _instanceBufferFormat = InstanceBufferFormat::pid0_mataff_float4;
 				bool                 _initShape = false;
 
 				Desc(CSZ url = nullptr) : _url(url) {}
@@ -144,32 +147,39 @@ namespace verus
 
 			static CGI::ShaderPtr GetShader() { return s_shader[SHADER_MAIN]; }
 			static UB_PerMaterialFS& GetUbPerMaterialFS() { return s_ubPerMaterialFS; }
-			void UpdateUniformBufferPerFrame(float invTessDist = 0);
+			void UpdateUniformBufferPerView(float invTessDist = 0);
 			void UpdateUniformBufferPerMeshVS();
 			void UpdateUniformBufferSkeletonVS();
 			void UpdateUniformBufferPerObject(RcTransform3 tr, RcVector4 color = Vector4(0.5f, 0.5f, 0.5f, 1));
 
 			static CGI::ShaderPtr GetSimpleShader() { return s_shader[SHADER_SIMPLE]; }
 			static UB_SimplePerMaterialFS& GetUbSimplePerMaterialFS() { return s_ubSimplePerMaterialFS; }
-			void UpdateUniformBufferSimplePerFrame(DrawSimpleMode mode);
+			void UpdateUniformBufferSimplePerView(DrawSimpleMode mode);
 			void UpdateUniformBufferSimpleSkeletonVS();
 
 			CGI::GeometryPtr GetGeometry() const { return _geo; }
 			virtual void CreateDeviceBuffers() override;
 			virtual void UpdateVertexBuffer(const void* p, int binding) override;
+			void CreateStorageBuffer(int count, int structSize, int sbIndex, CGI::ShaderStageFlags stageFlags);
 
-			// Instancing:
+			// <Instancing>
 			void ResetInstanceCount();
-			void MarkFirstInstance() { _firstInstance = _instanceCount; }
-			void PushInstance(RcTransform3 matW, RcVector4 instData, PcVector4 pInstData1 = nullptr);
-			bool IsInstanceBufferFull();
-			bool IsInstanceBufferEmpty(bool fromFirstInstance = false);
+			void MarkInstance() { _markedInstance = _instanceCount; }
+			int GetMarkedInstance() const { return _markedInstance; }
 			int GetInstanceSize() const;
-
-			void UpdateInstanceBuffer();
-			int GetInstanceCount(bool fromFirstInstance = false) const { return fromFirstInstance ? _instanceCount - _firstInstance : _instanceCount; }
+			int GetInstanceCount(bool fromMarkedInstance = false) const { return fromMarkedInstance ? _instanceCount - _markedInstance : _instanceCount; }
 			int GetInstanceCapacity() const { return _instanceCapacity; }
-			int GetFirstInstance() const { return _firstInstance; }
+			bool IsInstanceBufferEmpty(bool fromMarkedInstance = false) const;
+			bool IsInstanceBufferFull() const;
+			VERUS_P(bool PushInstanceCheck() const);
+			void PushStorageBufferData(int sbIndex, const void* p, bool incInstanceCount = false);
+			void PushInstance(RcTransform3 matW, RcVector4 instData);
+			void PushInstance(RcTransform3 matW, RcVector4 instData, RcVector4 pid1_instData);
+			void PushInstance(RcTransform3 matW, RcVector4 instData, RcTransform3 pid1_mat, RcVector4 pid1_instData);
+			void PushInstance(RcTransform3 matW, RcVector4 instData, RcMatrix4 pid1_mat, RcVector4 pid1_instData);
+			void UpdateStorageBuffer(int sbIndex);
+			void UpdateInstanceBuffer();
+			// </Instancing>
 
 			UINT32 GetBindingsMask() const { return _bindingsMask; }
 		};

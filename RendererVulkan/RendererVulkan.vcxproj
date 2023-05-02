@@ -97,6 +97,7 @@
   <ItemGroup>
     <ClInclude Include="src\CGI\CGI.h" />
     <ClInclude Include="src\CGI\CommandBufferVulkan.h" />
+    <ClInclude Include="src\CGI\Descriptors.h" />
     <ClInclude Include="src\CGI\ExtRealityVulkan.h" />
     <ClInclude Include="src\CGI\GeometryVulkan.h" />
     <ClInclude Include="src\CGI\Native.h" />
@@ -110,6 +111,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\CommandBufferVulkan.cpp" />
+    <ClCompile Include="src\CGI\Descriptors.cpp" />
     <ClCompile Include="src\CGI\ExtRealityVulkan.cpp" />
     <ClCompile Include="src\CGI\GeometryVulkan.cpp" />
     <ClCompile Include="src\CGI\Native.cpp" />

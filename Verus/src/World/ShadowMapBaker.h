@@ -19,14 +19,14 @@ namespace verus
 
 		protected:
 			Matrix4         _matShadow = Matrix4::identity();
-			Matrix4         _matShadowDS = Matrix4::identity(); // For WV positions in Deferred Shading.
+			Matrix4         _matShadowForDS = Matrix4::identity(); // For WV positions in Deferred Shading.
 			Config          _config;
 			CGI::TexturePwn _tex;
+			CGI::RPHandle   _rph;
+			CGI::FBHandle   _fbh;
 			Camera          _passCamera;
 			PCamera         _pPrevPassCamera = nullptr;
 			int             _side = 0;
-			CGI::RPHandle   _rph;
-			CGI::FBHandle   _fbh;
 			bool            _baking = false;
 			bool            _snapToTexels = true;
 
@@ -37,26 +37,27 @@ namespace verus
 			void Init(int side);
 			void Done();
 
-			void UpdateMatrixForCurrentView();
-
-			void SetSnapToTexels(bool b) { _snapToTexels = b; }
-			bool IsBaking() const { return _baking; }
-
-			CGI::RPHandle GetRenderPassHandle() const { return _rph; }
-
+			// <Bake>
 			void Begin(RcVector3 dirToSun, RcVector3 up = Vector3(0, 1, 0));
 			void End();
+			bool IsBaking() const { return _baking; }
+			CGI::RPHandle GetRenderPassHandle() const { return _rph; }
+			// </Bake>
+
+			void UpdateMatrixForCurrentView();
 
 			RcMatrix4 GetShadowMatrix() const;
-			RcMatrix4 GetShadowMatrixDS() const;
+			RcMatrix4 GetShadowMatrixForDS() const;
+
+			CGI::TexturePtr GetTexture() const;
 
 			RConfig GetConfig() { return _config; }
 
-			CGI::TexturePtr GetTexture() const;
+			void SetSnapToTexels(bool b) { _snapToTexels = b; }
 		};
 		VERUS_TYPEDEFS(ShadowMapBaker);
 
-		class CascadedShadowMapBaker : public ShadowMapBaker
+		class CascadedShadowMapBaker : public Singleton<CascadedShadowMapBaker>, public ShadowMapBaker
 		{
 			Matrix4 _matShadowCSM[4];
 			Matrix4 _matShadowCSM_DS[4]; // For WV positions in Deferred Shading.
@@ -72,16 +73,18 @@ namespace verus
 			CascadedShadowMapBaker();
 			~CascadedShadowMapBaker();
 
-			void Init(int side);
+			void Init(int side = 4096);
 			void Done();
+
+			// <Bake>
+			void Begin(RcVector3 dirToSun, int slice, RcVector3 up = Vector3(0, 1, 0));
+			void End(int slice);
+			// </Bake>
 
 			void UpdateMatrixForCurrentView();
 
-			void Begin(RcVector3 dirToSun, int slice, RcVector3 up = Vector3(0, 1, 0));
-			void End(int slice);
-
-			RcMatrix4 GetShadowMatrix(int slice = 0) const;
-			RcMatrix4 GetShadowMatrixDS(int slice = 0) const;
+			RcMatrix4 GetShadowMatrix(int slice) const;
+			RcMatrix4 GetShadowMatrixForDS(int slice) const;
 
 			RcMatrix4 GetScreenMatrixVP() const { return _matScreenVP; }
 			RcMatrix4 GetScreenMatrixP() const { return _matScreenP; }

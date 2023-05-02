@@ -1,6 +1,12 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
+//#define VERUS_WORLD_FORCE_FLAGS
+
+#ifdef VERUS_WORLD_FORCE_FLAGS
+#	pragma message("VERUS_WORLD_FORCE_FLAGS is defined")
+#endif
+
 namespace verus
 {
 	namespace World
@@ -33,26 +39,42 @@ namespace verus
 			withProbability = (1 << 1),
 			generated = (1 << 2)
 		};
+
+		class ShadowMapHandle : public BaseHandle<ShadowMapHandle>
+		{
+		public:
+			static ShadowMapHandle Make(int value) { return BaseHandle::Make(value); }
+
+			UINT32 GetBlockIndex() const { return Get() >> 16; }
+			UINT32 GetCellIndex() const { return Get() & 0xFFFF; }
+		};
 	}
 }
 
 #include "Camera.h"
 #include "OrbitingCamera.h"
+
 #include "BaseMesh.h"
 #include "Mesh.h"
-#include "CubeMapBaker.h"
-#include "LightMapBaker.h"
-#include "ShadowMapBaker.h"
+
 #include "Terrain.h"
 #include "EditorTerrain.h"
+
 #include "MaterialManager.h"
 #include "WorldNodes/WorldNodes.h"
 #include "WorldManager.h"
+
+#include "CubeMapBaker.h"
+#include "LightMapBaker.h"
+#include "ShadowMapBaker.h"
+#include "ShadowMapBakerPool.h"
+
 #include "Atmosphere.h"
 #include "Scatter.h"
 #include "Forest.h"
 #include "Grass.h"
 #include "Water.h"
+
 #include "WorldUtils.h"
 #include "EditorOverlays.h"
 

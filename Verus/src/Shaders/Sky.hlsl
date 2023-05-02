@@ -6,7 +6,7 @@
 #include "LibVertex.hlsl"
 #include "Sky.inc.hlsl"
 
-CBUFFER(0, UB_PerFrame, g_ubPerFrame)
+CBUFFER(0, UB_PerView, g_ubPerView)
 CBUFFER(1, UB_PerMaterialFS, g_ubPerMaterialFS)
 CBUFFER(2, UB_PerMeshVS, g_ubPerMeshVS)
 CBUFFER(3, UB_PerObject, g_ubPerObject)
@@ -65,12 +65,12 @@ VSO mainVS(VSI si)
 	const float3 inPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMeshVS._posDeqScale.xyz, g_ubPerMeshVS._posDeqBias.xyz);
 
 	so.pos = mul(float4(inPos, 1), g_ubPerObject._matWVP).xyww; // Peg the depth. (c) ATI
-	so.color0 = pow(saturate(dot(normalize(inPos * float3(1, 0.25, 1)), g_ubPerFrame._dirToSun.xyz)), 4.0);
-	so.tc0 = float2(g_ubPerFrame._time_cloudiness.x, 0.5 - inPos.y);
+	so.color0 = pow(saturate(dot(normalize(inPos * float3(1, 0.25, 1)), g_ubPerView._dirToSun.xyz)), 4.0);
+	so.tc0 = float2(g_ubPerView._time_cloudiness.x, 0.5 - inPos.y);
 	so.tcStars = inPos.xz * 16.0; // Stars.
 #ifdef DEF_CLOUDS
-	so.tcPhaseA = inPos.xz * (4.0 - 4.0 * inPos.y) + g_ubPerFrame._phaseAB.xy;
-	so.tcPhaseB = inPos.xz * (2.0 - 2.0 * inPos.y) + g_ubPerFrame._phaseAB.zw;
+	so.tcPhaseA = inPos.xz * (2.0 - 2.0 * inPos.y) + g_ubPerView._phaseAB.xy;
+	so.tcPhaseB = inPos.xz * (1.0 - 1.0 * inPos.y) + g_ubPerView._phaseAB.zw;
 #endif
 
 	return so;
@@ -95,9 +95,9 @@ FSO mainFS(VSO si)
 
 	const float3 rand = Rand(si.pos.xy);
 
-	const float time = g_ubPerFrame._time_cloudiness.x;
-	const float cloudiness = g_ubPerFrame._time_cloudiness.y;
-	const float sunAlpha = g_ubPerFrame._sunColor.a;
+	const float time = g_ubPerView._time_cloudiness.x;
+	const float cloudiness = g_ubPerView._time_cloudiness.y;
+	const float sunAlpha = g_ubPerView._sunColor.a;
 
 #ifdef DEF_CLOUDS
 	const float3 sunSam = g_texSky.Sample(g_samSky, float2(time, 248.0 / 256.0)).rgb;
@@ -108,7 +108,7 @@ FSO mainFS(VSO si)
 	const float4 normalA = g_texCloudsNM.Sample(g_samCloudsNM, si.tcPhaseA);
 	const float4 normalB = g_texCloudsNM.Sample(g_samCloudsNM, si.tcPhaseB);
 
-	const float noon = saturate(g_ubPerFrame._dirToSun.y);
+	const float noon = saturate(g_ubPerView._dirToSun.y);
 	const float noonHalf = noon * 0.5;
 	const float avgColor = (colorA + colorB) * 0.5;
 	const float negative = 1.0 - avgColor;
@@ -124,13 +124,13 @@ FSO mainFS(VSO si)
 	// <Alpha>
 	const float clearSky = 1.0 - cloudiness;
 	const float clearSkySoft = 0.6 + 0.4 * clearSky;
-	const float alpha = saturate((avgColor - clearSky) * 3.0);
+	const float alpha = saturate((avgColor - clearSky) * 2.0);
 	// </Alpha>
 
 	const float dayRatio = (1.0 - abs(0.5 - time) * 1.99);
 	const float3 sunBoost = si.color0.r * sunAlpha * sunSam;
 
-	const float nDosL = saturate(dot(normal, g_ubPerFrame._dirToSun.xyz)) * sunAlpha;
+	const float nDosL = saturate(dot(normal, g_ubPerView._dirToSun.xyz)) * sunAlpha;
 	const float edgeMask = saturate((0.9 - alpha) * 2.0);
 	const float3 glowAmbient = edgeMask * 0.1 + noonHalf * 0.2 + sunBoost * dayRatio;
 	const float3 glow = saturate(lerp(nDosL * nDosL, edgeMask, noonHalf) + glowAmbient);
@@ -138,18 +138,18 @@ FSO mainFS(VSO si)
 
 	const float3 finalColor = saturate(diff * cloudColor + glow * rimColor * clearSkySoft * 0.25);
 
-	const float3 hdrScale = g_ubPerFrame._ambientColor.w * (1.5 + 1.5 * sunBoost);
+	const float3 hdrScale = g_ubPerView._ambientColor.w * (1.5 + 1.5 * sunBoost);
 	so.color.rgb = finalColor * hdrScale;
 	so.color.a = alpha;
 
 	// <Fog>
 	{
-		const float strengthA = saturate(cloudiness + 40.0 * g_ubPerFrame._fogColor.a);
+		const float strengthA = saturate(cloudiness + 40.0 * g_ubPerView._fogColor.a);
 		const float strengthB = strengthA * strengthA * strengthA;
 		const float fogBias = 0.05 + 0.45 * strengthB;
 		const float fogContrast = 1.0 + 2.0 * strengthB;
 		const float fog = saturate((si.tc0.y - 0.5 + fogBias) * (fogContrast / fogBias));
-		so.color.rgb = lerp(so.color.rgb, g_ubPerFrame._fogColor.rgb, fog);
+		so.color.rgb = lerp(so.color.rgb, g_ubPerView._fogColor.rgb, fog);
 		so.color.a = max(so.color.a, fog);
 	}
 	// </Fog>
@@ -160,8 +160,8 @@ FSO mainFS(VSO si)
 
 	const float sunBoost = si.color0.r * sunAlpha;
 
-	const float hdrScale = g_ubPerFrame._ambientColor.w * (1.0 + sunBoost);
-	so.color = float4(skyColor.rgb * hdrScale + starsSam.rgb * 25.0, 1);
+	const float hdrScale = g_ubPerView._ambientColor.w * (1.0 + sunBoost);
+	so.color = float4(skyColor.rgb * hdrScale + starsSam.rgb * 20.0, 1);
 #endif
 
 	so.color.rgb = SaturateHDR(so.color.rgb);
@@ -181,7 +181,7 @@ FSO mainSkyBodyFS(VSO_SKY_BODY si)
 	so.color.rgb = SaturateHDR(so.color.rgb);
 #endif
 #ifdef DEF_MOON
-	const float hdrScale = Grayscale(g_ubPerFrame._ambientColor.xyz) * 50.0;
+	const float hdrScale = Grayscale(g_ubPerView._ambientColor.xyz) * 50.0;
 	so.color.rgb *= lerp(float3(1.0, 0.9, 0.8), 1.0, mask);
 	so.color.rgb *= max(100.0, hdrScale);
 	so.color.a *= mask;

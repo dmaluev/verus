@@ -1,6 +1,6 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-VERUS_UBUFFER UB_GrassVS
+VERUS_UBUFFER_STRUCT UB_GrassVS
 {
 	mataff _matW;
 	mataff _matWV;
@@ -13,7 +13,7 @@ VERUS_UBUFFER UB_GrassVS
 	float4 _matRoll;
 };
 
-VERUS_UBUFFER UB_GrassFS
+VERUS_UBUFFER_STRUCT UB_GrassFS
 {
 	float4 _dummy;
 };

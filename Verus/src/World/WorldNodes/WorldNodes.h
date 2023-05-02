@@ -19,6 +19,8 @@ namespace verus
 			node_resetLocalTransformKeepGlobal,
 			node_pointAt,
 			node_moveTo,
+			node_special_fitParentBlock,
+			node_special_fillTheRoom,
 			model_insertBlockNode,
 			model_insertBlockAndPhysicsNodes,
 			model_selectAllBlocks,
@@ -29,7 +31,6 @@ namespace verus
 			controlPoint_insertControlPoint,
 			path_insertBlockChain,
 			path_insertControlPoint,
-			physics_takeSizeFromParentBlock,
 			physics_loadShapeFromFile,
 			physics_quickDynamicBox,
 			physics_quickStaticParentBlock,
@@ -56,6 +57,7 @@ namespace verus
 #include "ModelNode.h"
 #include "ParticlesNode.h"
 
+#include "AmbientNode.h"
 #include "BlockNode.h"
 #include "BlockChainNode.h"
 #include "ControlPointNode.h"

@@ -4,6 +4,7 @@
 #define VERUS_VULKAN_DESTROY(vk, fn) {if (VK_NULL_HANDLE != vk) {fn; vk = VK_NULL_HANDLE;}}
 
 #include "Native.h"
+#include "Descriptors.h"
 #include "GeometryVulkan.h"
 #include "TextureVulkan.h"
 #include "ShaderVulkan.h"

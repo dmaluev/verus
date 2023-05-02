@@ -19,12 +19,12 @@ namespace verus
 			};
 			VERUS_TYPEDEFS(Vertex);
 
-			VERUS_UBUFFER UB_ShaderVS
+			VERUS_UBUFFER_STRUCT UB_ShaderVS
 			{
 				matrix _matWVP;
 			};
 
-			VERUS_UBUFFER UB_ShaderFS
+			VERUS_UBUFFER_STRUCT UB_ShaderFS
 			{
 				float _phase;
 			};

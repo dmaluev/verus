@@ -81,8 +81,8 @@ namespace verus
 		enum class Sampler : int
 		{
 			custom, // Not immutable, not static sampler.
-			input,
-			storage, // Also known as UAV.
+			inputAttach, // SubpassInput<>, which is Vulkan-specific, nearestMipN elsewhere.
+			storageImage, // RWTexture2D<>, UAV.
 			lodBias,
 			shadow,
 			aniso, // Most common sampler for 3D.
@@ -164,24 +164,6 @@ namespace verus
 			static constexpr VertexInputAttrDesc End() { return { -1, -1, ViaType::floats, 0, ViaUsage::position, 0 }; }
 		};
 		VERUS_TYPEDEFS(VertexInputAttrDesc);
-
-		template<typename T>
-		class BaseHandle
-		{
-			int _h = -1;
-
-		protected:
-			static T Make(int value)
-			{
-				T ret;
-				ret._h = value;
-				return ret;
-			}
-
-		public:
-			int Get() const { return _h; }
-			bool IsSet() const { return _h >= 0; }
-		};
 
 		class RPHandle : public BaseHandle<RPHandle>
 		{

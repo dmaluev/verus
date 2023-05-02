@@ -21,10 +21,12 @@ void BlockNode::Init(RcDesc desc)
 	if (!(_flags & Flags::readOnlyFlags))
 	{
 		SetOctreeElementFlag();
-		SetShadowCasterFlag();
+		SetShadowFlag();
 	}
 	BaseNode::Init(desc._name ? desc._name : desc._modelURL);
-	SetShadowCasterFlag();
+#ifdef VERUS_WORLD_FORCE_FLAGS
+	SetShadowFlag();
+#endif
 
 	ModelNode::Desc modelDesc;
 	modelDesc._url = desc._modelURL;

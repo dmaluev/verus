@@ -260,8 +260,8 @@ namespace verus
 
 			void SetLayer(int layer, RcLayerDesc desc);
 			VERUS_P(int FindPlant(CSZ url) const);
-			VERUS_P(void BakeChunks(RPlant plant));
-			VERUS_P(void UpdateOcclusion(RPlant plant));
+			VERUS_P(void BakeChunksFor(RPlant plant));
+			VERUS_P(void UpdateOcclusionFor(RPlant plant));
 			VERUS_P(void AddOcclusionAt(const int ij[2], int layer, int radius));
 
 			bool LoadSprite(RPlant plant);
@@ -271,7 +271,7 @@ namespace verus
 			virtual void Scatter_AddInstance(const int ij[2], int type, float x, float z,
 				float scale, float angle, UINT32 r) override;
 
-			virtual Continue Octree_ProcessNode(void* pToken, void* pUser) override;
+			virtual Continue Octree_OnElementDetected(void* pToken, void* pUser) override;
 
 			BYTE GetOcclusionAt(const int ij[2], int layer) const;
 		};

@@ -1,6 +1,6 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 
-VERUS_UBUFFER UB_PerFrame
+VERUS_UBUFFER_STRUCT UB_PerView
 {
 	mataff _matToUV;
 	mataff _matV;
@@ -8,20 +8,21 @@ VERUS_UBUFFER UB_PerFrame
 	matrix _matVP;
 	matrix _matInvP;
 	float4 _tcViewScaleBias;
+	float4 _ambientColor;
 };
 
-VERUS_UBUFFER UB_TexturesFS
+VERUS_UBUFFER_STRUCT UB_TexturesFS
 {
 	float4 _dummy;
 };
 
-VERUS_UBUFFER UB_PerMeshVS
+VERUS_UBUFFER_STRUCT UB_PerMeshVS
 {
 	float4 _posDeqScale;
 	float4 _posDeqBias;
 };
 
-VERUS_UBUFFER UB_ShadowFS
+VERUS_UBUFFER_STRUCT UB_ShadowFS
 {
 	matrix _matShadow;
 	matrix _matShadowCSM1;
@@ -32,7 +33,12 @@ VERUS_UBUFFER UB_ShadowFS
 	float4 _shadowConfig;
 };
 
-VERUS_UBUFFER UB_PerObject
+VERUS_SBUFFER_STRUCT SB_PerInstanceData
+{
+	matrix _matShadow;
+};
+
+VERUS_UBUFFER_STRUCT UB_PerObject
 {
 	mataff _matW;
 	float4 _color;

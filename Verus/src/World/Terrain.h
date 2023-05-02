@@ -231,7 +231,7 @@ namespace verus
 
 			// Quadtree:
 			Math::RQuadtreeIntegral GetQuadtree() { return _quadtree; }
-			virtual void QuadtreeIntegral_ProcessVisibleNode(const short ij[2], RcPoint3 center) override;
+			virtual void QuadtreeIntegral_OnElementDetected(const short ij[2], RcPoint3 center) override;
 			virtual void QuadtreeIntegral_GetHeights(const short ij[2], float height[2]) override;
 			void FattenQuadtreeNodesBy(float x);
 
