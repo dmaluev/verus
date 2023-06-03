@@ -80,16 +80,18 @@ namespace verus
 		private:
 			static CGI::ShaderPwns<SHADER_COUNT> s_shader;
 			static CGI::PipelinePwns<PIPE_COUNT> s_pipe;
-			static UB_PerView                    s_ubPerView;
-			static UB_PerMaterialFS              s_ubPerMaterialFS;
-			static UB_PerMeshVS                  s_ubPerMeshVS;
+
+			static UB_View                       s_ubView;
+			static UB_MaterialFS                 s_ubMaterialFS;
+			static UB_MeshVS                     s_ubMeshVS;
 			static UB_SkeletonVS                 s_ubSkeletonVS;
-			static UB_PerObject                  s_ubPerObject;
-			static UB_SimplePerView              s_ubSimplePerView;
-			static UB_SimplePerMaterialFS        s_ubSimplePerMaterialFS;
-			static UB_SimplePerMeshVS            s_ubSimplePerMeshVS;
+			static UB_Object                     s_ubObject;
+
+			static UB_SimpleView                 s_ubSimpleView;
+			static UB_SimpleMaterialFS           s_ubSimpleMaterialFS;
+			static UB_SimpleMeshVS               s_ubSimpleMeshVS;
 			static UB_SimpleSkeletonVS           s_ubSimpleSkeletonVS;
-			static UB_SimplePerObject            s_ubSimplePerObject;
+			static UB_SimpleObject               s_ubSimpleObject;
 
 			CGI::GeometryPwn     _geo;
 			Vector<BYTE>         _vInstanceBuffer;
@@ -146,16 +148,16 @@ namespace verus
 			void BindGeo(CGI::CommandBufferPtr cb, UINT32 bindingsFilter = 0);
 
 			static CGI::ShaderPtr GetShader() { return s_shader[SHADER_MAIN]; }
-			static UB_PerMaterialFS& GetUbPerMaterialFS() { return s_ubPerMaterialFS; }
-			void UpdateUniformBufferPerView(float invTessDist = 0);
-			void UpdateUniformBufferPerMeshVS();
-			void UpdateUniformBufferSkeletonVS();
-			void UpdateUniformBufferPerObject(RcTransform3 tr, RcVector4 color = Vector4(0.5f, 0.5f, 0.5f, 1));
+			static UB_MaterialFS& GetUbMaterialFS() { return s_ubMaterialFS; }
+			void UpdateUniformBuffer_View(float invTessDist = 0);
+			void UpdateUniformBuffer_MeshVS();
+			void UpdateUniformBuffer_SkeletonVS();
+			void UpdateUniformBuffer_Object(RcTransform3 tr, RcVector4 color = Vector4(0.5f, 0.5f, 0.5f, 1));
 
 			static CGI::ShaderPtr GetSimpleShader() { return s_shader[SHADER_SIMPLE]; }
-			static UB_SimplePerMaterialFS& GetUbSimplePerMaterialFS() { return s_ubSimplePerMaterialFS; }
-			void UpdateUniformBufferSimplePerView(DrawSimpleMode mode);
-			void UpdateUniformBufferSimpleSkeletonVS();
+			static UB_SimpleMaterialFS& GetUbSimpleMaterialFS() { return s_ubSimpleMaterialFS; }
+			void UpdateUniformBuffer_SimpleView(DrawSimpleMode mode);
+			void UpdateUniformBuffer_SimpleSkeletonVS();
 
 			CGI::GeometryPtr GetGeometry() const { return _geo; }
 			virtual void CreateDeviceBuffers() override;

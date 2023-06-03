@@ -19,6 +19,7 @@ namespace verus
 #include "../Shaders/DS_Ambient.inc.hlsl"
 #include "../Shaders/DS_AmbientNode.inc.hlsl"
 #include "../Shaders/DS_Compose.inc.hlsl"
+#include "../Shaders/DS_ProjectNode.inc.hlsl"
 #include "../Shaders/DS_Reflection.inc.hlsl"
 #include "../Shaders/DS_BakeSprites.inc.hlsl"
 
@@ -27,6 +28,7 @@ namespace verus
 				SHADER_LIGHT,
 				SHADER_AMBIENT,
 				SHADER_AMBIENT_NODE,
+				SHADER_PROJECT_NODE,
 				SHADER_COMPOSE,
 				SHADER_REFLECTION,
 				SHADER_BAKE_SPRITES,
@@ -41,6 +43,7 @@ namespace verus
 				PIPE_AMBIENT,
 				PIPE_AMBIENT_NODE_MUL,
 				PIPE_AMBIENT_NODE_ADD,
+				PIPE_PROJECT_NODE,
 				PIPE_COMPOSE,
 				PIPE_REFLECTION,
 				PIPE_REFLECTION_DEBUG,
@@ -67,28 +70,34 @@ namespace verus
 				TEX_COUNT
 			};
 
-			static UB_PerView               s_ubPerView;
-			static UB_TexturesFS            s_ubTexturesFS;
-			static UB_PerMeshVS             s_ubPerMeshVS;
-			static UB_ShadowFS              s_ubShadowFS;
-			static UB_PerObject             s_ubPerObject;
+			static UB_View                 s_ubView;
+			static UB_SubpassFS            s_ubSubpassFS;
+			static UB_ShadowFS             s_ubShadowFS;
+			static UB_MeshVS               s_ubMeshVS;
+			static UB_Object               s_ubObject;
 
-			static UB_AmbientVS             s_ubAmbientVS;
-			static UB_AmbientFS             s_ubAmbientFS;
+			static UB_AmbientVS            s_ubAmbientVS;
+			static UB_AmbientFS            s_ubAmbientFS;
 
-			static UB_AmbientNodePerView    s_ubAmbientNodePerView;
-			static UB_AmbientNodeTexturesFS s_ubAmbientNodeTexturesFS;
-			static UB_AmbientNodePerMeshVS  s_ubAmbientNodePerMeshVS;
-			static UB_AmbientNodePerObject  s_ubAmbientNodePerObject;
+			static UB_AmbientNodeView      s_ubAmbientNodeView;
+			static UB_AmbientNodeSubpassFS s_ubAmbientNodeSubpassFS;
+			static UB_AmbientNodeMeshVS    s_ubAmbientNodeMeshVS;
+			static UB_AmbientNodeObject    s_ubAmbientNodeObject;
 
-			static UB_ComposeVS             s_ubComposeVS;
-			static UB_ComposeFS             s_ubComposeFS;
+			static UB_ProjectNodeView      s_ubProjectNodeView;
+			static UB_ProjectNodeSubpassFS s_ubProjectNodeSubpassFS;
+			static UB_ProjectNodeMeshVS    s_ubProjectNodeMeshVS;
+			static UB_ProjectNodeTextureFS s_ubProjectNodeTextureFS;
+			static UB_ProjectNodeObject    s_ubProjectNodeObject;
 
-			static UB_ReflectionVS          s_ubReflectionVS;
-			static UB_ReflectionFS          s_ubReflectionFS;
+			static UB_ComposeVS            s_ubComposeVS;
+			static UB_ComposeFS            s_ubComposeFS;
 
-			static UB_BakeSpritesVS         s_ubBakeSpritesVS;
-			static UB_BakeSpritesFS         s_ubBakeSpritesFS;
+			static UB_ReflectionVS         s_ubReflectionVS;
+			static UB_ReflectionFS         s_ubReflectionFS;
+
+			static UB_BakeSpritesVS        s_ubBakeSpritesVS;
+			static UB_BakeSpritesFS        s_ubBakeSpritesFS;
 
 			Vector4                  _backgroundColor = Vector4(0);
 			ShaderPwns<SHADER_COUNT> _shader;
@@ -114,6 +123,7 @@ namespace verus
 			CSHandle                 _cshLightShadow;
 			CSHandle                 _cshAmbient;
 			CSHandle                 _cshAmbientNode;
+			CSHandle                 _cshProjectNode;
 			CSHandle                 _cshCompose;
 			CSHandle                 _cshReflection;
 			CSHandle                 _cshToneMapping;
@@ -153,7 +163,7 @@ namespace verus
 			RPHandle GetRenderPassHandle() const { return _rph; }
 			RPHandle GetRenderPassHandle_ForwardRendering() const { return _rphForwardRendering; }
 
-			// Steps:
+			// <Steps>
 			void BeginGeometryPass();
 			void EndGeometryPass();
 			bool BeginLightingPass(bool ambient = true, bool terrainOcclusion = true);
@@ -165,24 +175,37 @@ namespace verus
 			bool IsActiveGeometryPass() const { return _activeGeometryPass; }
 			bool IsActiveLightingPass() const { return _activeLightingPass; }
 			bool IsActiveForwardRendering() const { return _activeForwardRendering; }
+			// </Steps>
 
-			// Lighting:
-			static bool IsLightUrl(CSZ url);
-			void OnNewLightType(CommandBufferPtr cb, LightType type, bool wireframe = false);
-			void BindDescriptorsPerMeshVS(CommandBufferPtr cb);
-			static UB_PerMeshVS& GetUbPerMeshVS() { return s_ubPerMeshVS; }
+			// <Lighting>
+			static bool IsLightURL(CSZ url);
+			void BindPipeline_NewLightType(CommandBufferPtr cb, LightType type, bool wireframe = false);
+			void BindDescriptors_MeshVS(CommandBufferPtr cb);
+			static UB_MeshVS& GetUbMeshVS() { return s_ubMeshVS; }
 			CSHandle BindDescriptorSetTexturesForVSM(TexturePtr texShadow);
 			void BindDescriptorsForVSM(CommandBufferPtr cb, int firstInstance, CSHandle complexSetHandle, float presence);
+			// </Lighting>
 
-			// Ambient:
-			void OnNewAmbientNodePriority(CommandBufferPtr cb, int firstInstance, bool add);
-			void BindDescriptorsAmbientNodePerMeshVS(CommandBufferPtr cb);
-			static UB_AmbientNodePerMeshVS& GetUbAmbientNodePerMeshVS() { return s_ubAmbientNodePerMeshVS; }
+			// <AmbientNode>
+			void BindPipeline_NewAmbientNodePriority(CommandBufferPtr cb, int firstInstance, bool add);
+			void BindDescriptors_AmbientNodeMeshVS(CommandBufferPtr cb);
+			static UB_AmbientNodeMeshVS& GetUbAmbientNodeMeshVS() { return s_ubAmbientNodeMeshVS; }
+			// </AmbientNode>
+
+			// <ProjectNode>
+			void BindPipeline_ProjectNode(CommandBufferPtr cb);
+			void BindDescriptors_ProjectNodeMeshVS(CommandBufferPtr cb);
+			static UB_ProjectNodeMeshVS& GetUbProjectNodeMeshVS() { return s_ubProjectNodeMeshVS; }
+			void BindDescriptors_ProjectNodeTextureFS(CommandBufferPtr cb, CSHandle csh);
+			void BindDescriptors_ProjectNodeObject(CommandBufferPtr cb);
+			static UB_ProjectNodeObject& GetUbProjectNodeObject() { return s_ubProjectNodeObject; }
+			// </ProjectNode>
 
 			void Load();
 
 			ShaderPtr GetLightShader() const;
 			ShaderPtr GetAmbientNodeShader() const;
+			ShaderPtr GetProjectNodeShader() const;
 
 			TexturePtr GetGBuffer(int index) const;
 			TexturePtr GetLightAccAmbientTexture() const;

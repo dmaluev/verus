@@ -185,7 +185,7 @@ void Forest::Update()
 		{
 			Mesh::Desc meshDesc;
 			meshDesc._url = _C(plant._url);
-			meshDesc._instanceCapacity = _capacity;
+			meshDesc._instanceCapacity = _capacity * 2 / 3;
 			plant._mesh.Init(meshDesc);
 
 			Material::Desc matDesc;
@@ -473,24 +473,24 @@ void Forest::DrawModels(bool allowTess)
 				{
 					bindPipelineStage = (nextTess && allowTess && settings._gpuTessellation) ? 1 : 0;
 					pMesh->BindPipelineInstanced(cb, 1 == bindPipelineStage, true);
-					pMesh->UpdateUniformBufferPerView(1 / (_tessDist - 10));
+					pMesh->UpdateUniformBuffer_View(1 / (_tessDist - 10));
 					cb->BindDescriptors(shader, 0);
-					pMesh->UpdateUniformBufferPerObject(trBending, Vector4(_phaseY, _phaseXZ));
+					pMesh->UpdateUniformBuffer_Object(trBending, Vector4(_phaseY, _phaseXZ));
 					cb->BindDescriptors(shader, 4);
 				}
 				else if (1 == bindPipelineStage && !nextTess)
 				{
 					bindPipelineStage = 0;
 					pMesh->BindPipelineInstanced(cb, false, true);
-					pMesh->UpdateUniformBufferPerView();
+					pMesh->UpdateUniformBuffer_View();
 					cb->BindDescriptors(shader, 0);
-					pMesh->UpdateUniformBufferPerObject(trBending, Vector4(_phaseY, _phaseXZ));
+					pMesh->UpdateUniformBuffer_Object(trBending, Vector4(_phaseY, _phaseXZ));
 					cb->BindDescriptors(shader, 4);
 				}
 			}
 			tess = nextTess;
 			pMesh->BindGeo(cb);
-			pMesh->UpdateUniformBufferPerMeshVS();
+			pMesh->UpdateUniformBuffer_MeshVS();
 			cb->BindDescriptors(shader, 2);
 		}
 		if (nextMaterial != material)
@@ -1105,11 +1105,11 @@ void Forest::BakeSprite(RPlant plant, CSZ url)
 	Mesh::GetShader()->BeginBindDescriptors();
 	plant._material->UpdateMeshUniformBuffer(1, false);
 	cb->BindDescriptors(Mesh::GetShader(), 1, plant._material->GetComplexSetHandle());
-	plant._mesh.UpdateUniformBufferPerMeshVS();
+	plant._mesh.UpdateUniformBuffer_MeshVS();
 	cb->BindDescriptors(Mesh::GetShader(), 2);
-	plant._mesh.UpdateUniformBufferSkeletonVS();
+	plant._mesh.UpdateUniformBuffer_SkeletonVS();
 	cb->BindDescriptors(Mesh::GetShader(), 3);
-	plant._mesh.UpdateUniformBufferPerObject(Transform3::identity());
+	plant._mesh.UpdateUniformBuffer_Object(Transform3::identity());
 	cb->BindDescriptors(Mesh::GetShader(), 4);
 	VERUS_FOR(i, frameCountV)
 	{
@@ -1140,7 +1140,7 @@ void Forest::BakeSprite(RPlant plant, CSZ url)
 			cam.Update();
 			PCamera pPrevCamera = wm.SetPassCamera(&cam);
 
-			plant._mesh.UpdateUniformBufferPerView();
+			plant._mesh.UpdateUniformBuffer_View();
 			cb->BindDescriptors(Mesh::GetShader(), 0);
 			cb->DrawIndexed(plant._mesh.GetIndexCount());
 

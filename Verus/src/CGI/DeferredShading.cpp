@@ -4,28 +4,34 @@
 using namespace verus;
 using namespace verus::CGI;
 
-DeferredShading::UB_PerView               DeferredShading::s_ubPerView;
-DeferredShading::UB_TexturesFS            DeferredShading::s_ubTexturesFS;
-DeferredShading::UB_PerMeshVS             DeferredShading::s_ubPerMeshVS;
-DeferredShading::UB_ShadowFS              DeferredShading::s_ubShadowFS;
-DeferredShading::UB_PerObject             DeferredShading::s_ubPerObject;
+DeferredShading::UB_View                 DeferredShading::s_ubView;
+DeferredShading::UB_SubpassFS            DeferredShading::s_ubSubpassFS;
+DeferredShading::UB_ShadowFS             DeferredShading::s_ubShadowFS;
+DeferredShading::UB_MeshVS               DeferredShading::s_ubMeshVS;
+DeferredShading::UB_Object               DeferredShading::s_ubObject;
 
-DeferredShading::UB_AmbientVS             DeferredShading::s_ubAmbientVS;
-DeferredShading::UB_AmbientFS             DeferredShading::s_ubAmbientFS;
+DeferredShading::UB_AmbientVS            DeferredShading::s_ubAmbientVS;
+DeferredShading::UB_AmbientFS            DeferredShading::s_ubAmbientFS;
 
-DeferredShading::UB_AmbientNodePerView    DeferredShading::s_ubAmbientNodePerView;
-DeferredShading::UB_AmbientNodeTexturesFS DeferredShading::s_ubAmbientNodeTexturesFS;
-DeferredShading::UB_AmbientNodePerMeshVS  DeferredShading::s_ubAmbientNodePerMeshVS;
-DeferredShading::UB_AmbientNodePerObject  DeferredShading::s_ubAmbientNodePerObject;
+DeferredShading::UB_AmbientNodeView      DeferredShading::s_ubAmbientNodeView;
+DeferredShading::UB_AmbientNodeSubpassFS DeferredShading::s_ubAmbientNodeSubpassFS;
+DeferredShading::UB_AmbientNodeMeshVS    DeferredShading::s_ubAmbientNodeMeshVS;
+DeferredShading::UB_AmbientNodeObject    DeferredShading::s_ubAmbientNodeObject;
 
-DeferredShading::UB_ComposeVS             DeferredShading::s_ubComposeVS;
-DeferredShading::UB_ComposeFS             DeferredShading::s_ubComposeFS;
+DeferredShading::UB_ProjectNodeView      DeferredShading::s_ubProjectNodeView;
+DeferredShading::UB_ProjectNodeSubpassFS DeferredShading::s_ubProjectNodeSubpassFS;
+DeferredShading::UB_ProjectNodeMeshVS    DeferredShading::s_ubProjectNodeMeshVS;
+DeferredShading::UB_ProjectNodeTextureFS DeferredShading::s_ubProjectNodeTextureFS;
+DeferredShading::UB_ProjectNodeObject    DeferredShading::s_ubProjectNodeObject;
 
-DeferredShading::UB_ReflectionVS          DeferredShading::s_ubReflectionVS;
-DeferredShading::UB_ReflectionFS          DeferredShading::s_ubReflectionFS;
+DeferredShading::UB_ComposeVS            DeferredShading::s_ubComposeVS;
+DeferredShading::UB_ComposeFS            DeferredShading::s_ubComposeFS;
 
-DeferredShading::UB_BakeSpritesVS         DeferredShading::s_ubBakeSpritesVS;
-DeferredShading::UB_BakeSpritesFS         DeferredShading::s_ubBakeSpritesFS;
+DeferredShading::UB_ReflectionVS         DeferredShading::s_ubReflectionVS;
+DeferredShading::UB_ReflectionFS         DeferredShading::s_ubReflectionFS;
+
+DeferredShading::UB_BakeSpritesVS        DeferredShading::s_ubBakeSpritesVS;
+DeferredShading::UB_BakeSpritesFS        DeferredShading::s_ubBakeSpritesFS;
 
 DeferredShading::DeferredShading()
 {
@@ -111,8 +117,8 @@ void DeferredShading::Init()
 	_rphReflection = renderer->CreateSimpleRenderPass(Format::floatR11G11B10, RP::Attachment::LoadOp::load);
 
 	_shader[SHADER_LIGHT].Init("[Shaders]:DS.hlsl");
-	_shader[SHADER_LIGHT]->CreateDescriptorSet(0, &s_ubPerView, sizeof(s_ubPerView), settings._limits._ds_ubPerViewCapacity);
-	_shader[SHADER_LIGHT]->CreateDescriptorSet(1, &s_ubTexturesFS, sizeof(s_ubTexturesFS), settings._limits._ds_ubTexturesFSCapacity,
+	_shader[SHADER_LIGHT]->CreateDescriptorSet(0, &s_ubView, sizeof(s_ubView), settings._limits._ds_ubViewCapacity);
+	_shader[SHADER_LIGHT]->CreateDescriptorSet(1, &s_ubSubpassFS, sizeof(s_ubSubpassFS), settings._limits._ds_ubSubpassFSCapacity,
 		{
 			Sampler::inputAttach, // GBuffer0
 			Sampler::inputAttach, // GBuffer1
@@ -120,14 +126,14 @@ void DeferredShading::Init()
 			Sampler::inputAttach, // GBuffer3
 			Sampler::inputAttach // Depth
 		}, ShaderStageFlags::fs);
-	_shader[SHADER_LIGHT]->CreateDescriptorSet(2, &s_ubPerMeshVS, sizeof(s_ubPerMeshVS), settings._limits._ds_ubPerMeshVSCapacity, {}, ShaderStageFlags::vs);
-	_shader[SHADER_LIGHT]->CreateDescriptorSet(3, &s_ubShadowFS, sizeof(s_ubShadowFS), settings._limits._ds_ubShadowFSCapacity,
+	_shader[SHADER_LIGHT]->CreateDescriptorSet(2, &s_ubShadowFS, sizeof(s_ubShadowFS), settings._limits._ds_ubShadowFSCapacity,
 		{
 			Sampler::shadow, // ShadowCmp
 			Sampler::linearClampMipN // Shadow
 		}, ShaderStageFlags::fs);
+	_shader[SHADER_LIGHT]->CreateDescriptorSet(3, &s_ubMeshVS, sizeof(s_ubMeshVS), settings._limits._ds_ubMeshVSCapacity, {}, ShaderStageFlags::vs);
 	_shader[SHADER_LIGHT]->CreateDescriptorSet(4, nullptr, 0, 0, {}, ShaderStageFlags::fs);
-	_shader[SHADER_LIGHT]->CreateDescriptorSet(5, &s_ubPerObject, sizeof(s_ubPerObject), 0);
+	_shader[SHADER_LIGHT]->CreateDescriptorSet(5, &s_ubObject, sizeof(s_ubObject), 0);
 	_shader[SHADER_LIGHT]->CreatePipelineLayout();
 
 	_shader[SHADER_AMBIENT].Init("[Shaders]:DS_Ambient.hlsl");
@@ -145,8 +151,8 @@ void DeferredShading::Init()
 	_shader[SHADER_AMBIENT]->CreatePipelineLayout();
 
 	_shader[SHADER_AMBIENT_NODE].Init("[Shaders]:DS_AmbientNode.hlsl");
-	_shader[SHADER_AMBIENT_NODE]->CreateDescriptorSet(0, &s_ubAmbientNodePerView, sizeof(s_ubAmbientNodePerView), settings._limits._ds_ubPerViewCapacity);
-	_shader[SHADER_AMBIENT_NODE]->CreateDescriptorSet(1, &s_ubAmbientNodeTexturesFS, sizeof(s_ubAmbientNodeTexturesFS), settings._limits._ds_ubTexturesFSCapacity,
+	_shader[SHADER_AMBIENT_NODE]->CreateDescriptorSet(0, &s_ubAmbientNodeView, sizeof(s_ubAmbientNodeView), settings._limits._ds_ubViewCapacity);
+	_shader[SHADER_AMBIENT_NODE]->CreateDescriptorSet(1, &s_ubAmbientNodeSubpassFS, sizeof(s_ubAmbientNodeSubpassFS), settings._limits._ds_ubSubpassFSCapacity,
 		{
 			Sampler::inputAttach, // GBuffer0
 			Sampler::inputAttach, // GBuffer1
@@ -154,10 +160,28 @@ void DeferredShading::Init()
 			Sampler::inputAttach, // GBuffer3
 			Sampler::inputAttach // Depth
 		}, ShaderStageFlags::fs);
-	_shader[SHADER_AMBIENT_NODE]->CreateDescriptorSet(2, &s_ubAmbientNodePerMeshVS, sizeof(s_ubAmbientNodePerMeshVS), settings._limits._ds_ubPerMeshVSCapacity, {}, ShaderStageFlags::vs);
+	_shader[SHADER_AMBIENT_NODE]->CreateDescriptorSet(2, &s_ubAmbientNodeMeshVS, sizeof(s_ubAmbientNodeMeshVS), settings._limits._ds_ubMeshVSCapacity, {}, ShaderStageFlags::vs);
 	_shader[SHADER_AMBIENT_NODE]->CreateDescriptorSet(3, nullptr, 0, 0, {}, ShaderStageFlags::fs);
-	_shader[SHADER_AMBIENT_NODE]->CreateDescriptorSet(4, &s_ubAmbientNodePerObject, sizeof(s_ubAmbientNodePerObject), 0);
+	_shader[SHADER_AMBIENT_NODE]->CreateDescriptorSet(4, &s_ubAmbientNodeObject, sizeof(s_ubAmbientNodeObject), 0);
 	_shader[SHADER_AMBIENT_NODE]->CreatePipelineLayout();
+
+	_shader[SHADER_PROJECT_NODE].Init("[Shaders]:DS_ProjectNode.hlsl");
+	_shader[SHADER_PROJECT_NODE]->CreateDescriptorSet(0, &s_ubProjectNodeView, sizeof(s_ubProjectNodeView), settings._limits._ds_ubViewCapacity);
+	_shader[SHADER_PROJECT_NODE]->CreateDescriptorSet(1, &s_ubProjectNodeSubpassFS, sizeof(s_ubProjectNodeSubpassFS), settings._limits._ds_ubSubpassFSCapacity,
+		{
+			Sampler::inputAttach, // GBuffer0
+			Sampler::inputAttach, // GBuffer1
+			Sampler::inputAttach, // GBuffer2
+			Sampler::inputAttach, // GBuffer3
+			Sampler::inputAttach // Depth
+		}, ShaderStageFlags::fs);
+	_shader[SHADER_PROJECT_NODE]->CreateDescriptorSet(2, &s_ubProjectNodeMeshVS, sizeof(s_ubProjectNodeMeshVS), settings._limits._ds_ubMeshVSCapacity, {}, ShaderStageFlags::vs);
+	_shader[SHADER_PROJECT_NODE]->CreateDescriptorSet(3, &s_ubProjectNodeTextureFS, sizeof(s_ubProjectNodeTextureFS), 1000,
+		{
+			Sampler::anisoClamp
+		}, ShaderStageFlags::fs);
+	_shader[SHADER_PROJECT_NODE]->CreateDescriptorSet(4, &s_ubProjectNodeObject, sizeof(s_ubProjectNodeObject), 1000);
+	_shader[SHADER_PROJECT_NODE]->CreatePipelineLayout();
 
 	ShaderDesc shaderDesc("[Shaders]:DS_Compose.hlsl");
 	String userDefines;
@@ -323,7 +347,7 @@ void DeferredShading::InitByCascadedShadowMapBaker(TexturePtr texShadow)
 	VERUS_QREF_RENDERER;
 
 	_shader[SHADER_LIGHT]->FreeDescriptorSet(_cshLightShadow);
-	_cshLightShadow = _shader[SHADER_LIGHT]->BindDescriptorSetTextures(3,
+	_cshLightShadow = _shader[SHADER_LIGHT]->BindDescriptorSetTextures(2,
 		{
 			texShadow,
 			texShadow
@@ -371,6 +395,7 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 		_shader[SHADER_COMPOSE]->FreeDescriptorSet(_cshToneMapping);
 		_shader[SHADER_REFLECTION]->FreeDescriptorSet(_cshReflection);
 		_shader[SHADER_COMPOSE]->FreeDescriptorSet(_cshCompose);
+		_shader[SHADER_PROJECT_NODE]->FreeDescriptorSet(_cshProjectNode);
 		_shader[SHADER_AMBIENT_NODE]->FreeDescriptorSet(_cshAmbientNode);
 		_shader[SHADER_AMBIENT]->FreeDescriptorSet(_cshAmbient);
 		_shader[SHADER_LIGHT]->FreeDescriptorSet(_cshLight);
@@ -464,6 +489,14 @@ void DeferredShading::OnSwapChainResized(bool init, bool done)
 				_tex[TEX_GBUFFER_3],
 				renderer.GetTexDepthStencil()
 			});
+		_cshProjectNode = _shader[SHADER_PROJECT_NODE]->BindDescriptorSetTextures(1,
+			{
+				_tex[TEX_GBUFFER_0],
+				_tex[TEX_GBUFFER_1],
+				_tex[TEX_GBUFFER_2],
+				_tex[TEX_GBUFFER_3],
+				renderer.GetTexDepthStencil()
+			});
 		_cshCompose = _shader[SHADER_COMPOSE]->BindDescriptorSetTextures(1,
 			{
 				_tex[TEX_GBUFFER_0],
@@ -501,26 +534,23 @@ bool DeferredShading::IsLoaded()
 {
 	VERUS_QREF_WU;
 
-	World::RDeferredLights dl = wu.GetDeferredLights();
-	World::RAmbientNodeMeshes anm = wu.GetAmbientNodeMeshes();
+	World::RDeferredShadingMeshes dsm = wu.GetDeferredShadingMeshes();
 	return
-		dl.Get(LightType::dir).IsLoaded() &&
-		dl.Get(LightType::omni).IsLoaded() &&
-		dl.Get(LightType::spot).IsLoaded() &&
-		anm.Get().IsLoaded();
+		dsm.Get(LightType::dir).IsLoaded() &&
+		dsm.Get(LightType::omni).IsLoaded() &&
+		dsm.Get(LightType::spot).IsLoaded() &&
+		dsm.GetBox().IsLoaded();
 }
 
 void DeferredShading::ResetInstanceCount()
 {
 	VERUS_QREF_WU;
 
-	World::RDeferredLights dl = wu.GetDeferredLights();
-	dl.Get(LightType::dir).ResetInstanceCount();
-	dl.Get(LightType::omni).ResetInstanceCount();
-	dl.Get(LightType::spot).ResetInstanceCount();
-
-	World::RAmbientNodeMeshes anm = wu.GetAmbientNodeMeshes();
-	anm.Get().ResetInstanceCount();
+	World::RDeferredShadingMeshes dsm = wu.GetDeferredShadingMeshes();
+	dsm.Get(LightType::dir).ResetInstanceCount();
+	dsm.Get(LightType::omni).ResetInstanceCount();
+	dsm.Get(LightType::spot).ResetInstanceCount();
+	dsm.GetBox().ResetInstanceCount();
 }
 
 void DeferredShading::Draw(int gbuffer,
@@ -676,10 +706,10 @@ bool DeferredShading::BeginLightingPass(bool ambient, bool terrainOcclusion)
 
 		VERUS_QREF_WU;
 
-		World::RDeferredLights dl = wu.GetDeferredLights();
+		World::RDeferredShadingMeshes dsm = wu.GetDeferredShadingMeshes();
 
 		{
-			PipelineDesc pipeDesc(dl.Get(LightType::dir).GetGeometry(), _shader[SHADER_LIGHT], "#InstancedDir", _rph, 1);
+			PipelineDesc pipeDesc(dsm.Get(LightType::dir).GetGeometry(), _shader[SHADER_LIGHT], "#InstancedDir", _rph, 1);
 			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
 			pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_ADD;
 			pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_ADD;
@@ -691,7 +721,7 @@ bool DeferredShading::BeginLightingPass(bool ambient, bool terrainOcclusion)
 			_pipe[PIPE_INSTANCED_DIR].Init(pipeDesc);
 		}
 		{
-			PipelineDesc pipeDesc(dl.Get(LightType::omni).GetGeometry(), _shader[SHADER_LIGHT], "#InstancedOmni", _rph, 1);
+			PipelineDesc pipeDesc(dsm.Get(LightType::omni).GetGeometry(), _shader[SHADER_LIGHT], "#InstancedOmni", _rph, 1);
 			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
 			pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_ADD;
 			pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_ADD;
@@ -705,7 +735,7 @@ bool DeferredShading::BeginLightingPass(bool ambient, bool terrainOcclusion)
 			_pipe[PIPE_INSTANCED_OMNI].Init(pipeDesc);
 		}
 		{
-			PipelineDesc pipeDesc(dl.Get(LightType::spot).GetGeometry(), _shader[SHADER_LIGHT], "#InstancedSpot", _rph, 1);
+			PipelineDesc pipeDesc(dsm.Get(LightType::spot).GetGeometry(), _shader[SHADER_LIGHT], "#InstancedSpot", _rph, 1);
 			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
 			pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_ADD;
 			pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_ADD;
@@ -718,15 +748,12 @@ bool DeferredShading::BeginLightingPass(bool ambient, bool terrainOcclusion)
 			pipeDesc._depthWriteEnable = false;
 			_pipe[PIPE_INSTANCED_SPOT].Init(pipeDesc);
 		}
-
-		dl.Get(LightType::dir).CreateStorageBuffer(0, sizeof(SB_PerInstanceData), 0, CGI::ShaderStageFlags::fs);
-		dl.Get(LightType::omni).CreateStorageBuffer(0, sizeof(SB_PerInstanceData), 0, CGI::ShaderStageFlags::fs);
-		dl.Get(LightType::spot).CreateStorageBuffer(0, sizeof(SB_PerInstanceData), 0, CGI::ShaderStageFlags::fs);
-
-		World::RAmbientNodeMeshes anm = wu.GetAmbientNodeMeshes();
+		dsm.Get(LightType::dir).CreateStorageBuffer(0, sizeof(SB_InstanceData), 0, ShaderStageFlags::fs);
+		dsm.Get(LightType::omni).CreateStorageBuffer(0, sizeof(SB_InstanceData), 0, ShaderStageFlags::fs);
+		dsm.Get(LightType::spot).CreateStorageBuffer(0, sizeof(SB_InstanceData), 0, ShaderStageFlags::fs);
 
 		{
-			PipelineDesc pipeDesc(anm.Get().GetGeometry(), _shader[SHADER_AMBIENT_NODE], "#Instanced", _rph, 1);
+			PipelineDesc pipeDesc(dsm.GetBox().GetGeometry(), _shader[SHADER_AMBIENT_NODE], "#Instanced", _rph, 1);
 			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_MUL;
 			pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_OFF;
 			pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_OFF;
@@ -742,8 +769,22 @@ bool DeferredShading::BeginLightingPass(bool ambient, bool terrainOcclusion)
 			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
 			_pipe[PIPE_AMBIENT_NODE_ADD].Init(pipeDesc);
 		}
+		dsm.GetBox().CreateStorageBuffer(0, sizeof(SB_AmbientNodeInstanceData), 0, ShaderStageFlags::fs);
 
-		anm.Get().CreateStorageBuffer(0, sizeof(SB_AmbientNodePerInstanceData), 0, CGI::ShaderStageFlags::fs);
+		{
+			PipelineDesc pipeDesc(dsm.GetBox().GetGeometry(), _shader[SHADER_PROJECT_NODE], "#", _rph, 1);
+			pipeDesc._colorAttachBlendEqs[0] = VERUS_COLOR_BLEND_ADD;
+			pipeDesc._colorAttachBlendEqs[1] = VERUS_COLOR_BLEND_ADD;
+			pipeDesc._colorAttachBlendEqs[2] = VERUS_COLOR_BLEND_ADD;
+			pipeDesc._colorAttachWriteMasks[0] = "rgb";
+			pipeDesc._colorAttachWriteMasks[1] = "rgb";
+			pipeDesc._colorAttachWriteMasks[2] = "rgb";
+			pipeDesc._rasterizationState._cullMode = CullMode::front;
+			pipeDesc._vertexInputBindingsFilter = (1 << 0) | (1 << 4);
+			pipeDesc._depthCompareOp = CompareOp::greater;
+			pipeDesc._depthWriteEnable = false;
+			_pipe[PIPE_PROJECT_NODE].Init(pipeDesc);
+		}
 	}
 
 	return true;
@@ -883,7 +924,7 @@ void DeferredShading::ToneMapping()
 	VERUS_PROFILER_END_EVENT(cb);
 }
 
-bool DeferredShading::IsLightUrl(CSZ url)
+bool DeferredShading::IsLightURL(CSZ url)
 {
 	return
 		!strcmp(url, "DIR") ||
@@ -891,46 +932,23 @@ bool DeferredShading::IsLightUrl(CSZ url)
 		!strcmp(url, "SPOT");
 }
 
-void DeferredShading::OnNewLightType(CommandBufferPtr cb, LightType type, bool wireframe)
+void DeferredShading::BindPipeline_NewLightType(CommandBufferPtr cb, LightType type, bool wireframe)
 {
 	VERUS_QREF_ATMO;
 	VERUS_QREF_CSMB;
 	VERUS_QREF_WM;
 	VERUS_QREF_WU;
 
-	World::RDeferredLights dl = wu.GetDeferredLights();
+	World::RDeferredShadingMeshes dsm = wu.GetDeferredShadingMeshes();
 
-	s_ubPerView._matToUV = Math::ToUVMatrix().UniformBufferFormat();
-	s_ubPerView._matV = wm.GetViewCamera()->GetMatrixV().UniformBufferFormat();
-	s_ubPerView._matInvV = wm.GetViewCamera()->GetMatrixInvV().UniformBufferFormat();
-	s_ubPerView._matVP = wm.GetViewCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubPerView._matInvP = wm.GetViewCamera()->GetMatrixInvP().UniformBufferFormat();
-	s_ubPerView._tcViewScaleBias = cb->GetViewScaleBias().GLM();
-	s_ubPerView._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0); // Use ambient color when intensity is negative.
+	s_ubView._matToUV = Math::ToUVMatrix().UniformBufferFormat();
+	s_ubView._matV = wm.GetViewCamera()->GetMatrixV().UniformBufferFormat();
+	s_ubView._matInvV = wm.GetViewCamera()->GetMatrixInvV().UniformBufferFormat();
+	s_ubView._matVP = wm.GetViewCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubView._matInvP = wm.GetViewCamera()->GetMatrixInvP().UniformBufferFormat();
+	s_ubView._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+	s_ubView._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0); // Use ambient color when intensity is negative.
 
-	switch (type)
-	{
-	case LightType::dir:
-	{
-		cb->BindPipeline(_pipe[PIPE_INSTANCED_DIR]);
-	}
-	break;
-	case LightType::omni:
-	{
-		cb->BindPipeline(_pipe[PIPE_INSTANCED_OMNI]);
-	}
-	break;
-	case LightType::spot:
-	{
-		cb->BindPipeline(_pipe[PIPE_INSTANCED_SPOT]);
-	}
-	break;
-	}
-
-	cb->BindDescriptors(_shader[SHADER_LIGHT], 0);
-	cb->BindDescriptors(_shader[SHADER_LIGHT], 1, _cshLight);
-
-	// Shadow:
 	s_ubShadowFS._matShadow = csmb.GetShadowMatrixForDS(0).UniformBufferFormat();
 	s_ubShadowFS._matShadowCSM1 = csmb.GetShadowMatrixForDS(1).UniformBufferFormat();
 	s_ubShadowFS._matShadowCSM2 = csmb.GetShadowMatrixForDS(2).UniformBufferFormat();
@@ -938,14 +956,23 @@ void DeferredShading::OnNewLightType(CommandBufferPtr cb, LightType type, bool w
 	s_ubShadowFS._matScreenCSM = csmb.GetScreenMatrixP().UniformBufferFormat();
 	s_ubShadowFS._csmSliceBounds = csmb.GetSliceBounds().GLM();
 	memcpy(&s_ubShadowFS._shadowConfig, &csmb.GetConfig(), sizeof(s_ubShadowFS._shadowConfig));
-	cb->BindDescriptors(_shader[SHADER_LIGHT], 3, _cshLightShadow);
 
-	cb->BindDescriptors(_shader[SHADER_LIGHT], 4, dl.Get(type).GetGeometry(), 0);
+	switch (type)
+	{
+	case LightType::dir:  cb->BindPipeline(_pipe[PIPE_INSTANCED_DIR]); break;
+	case LightType::omni: cb->BindPipeline(_pipe[PIPE_INSTANCED_OMNI]); break;
+	case LightType::spot: cb->BindPipeline(_pipe[PIPE_INSTANCED_SPOT]); break;
+	}
+
+	cb->BindDescriptors(_shader[SHADER_LIGHT], 0);
+	cb->BindDescriptors(_shader[SHADER_LIGHT], 1, _cshLight);
+	cb->BindDescriptors(_shader[SHADER_LIGHT], 2, _cshLightShadow);
+	cb->BindDescriptors(_shader[SHADER_LIGHT], 4, dsm.Get(type).GetGeometry(), 0);
 }
 
-void DeferredShading::BindDescriptorsPerMeshVS(CommandBufferPtr cb)
+void DeferredShading::BindDescriptors_MeshVS(CommandBufferPtr cb)
 {
-	cb->BindDescriptors(_shader[SHADER_LIGHT], 2);
+	cb->BindDescriptors(_shader[SHADER_LIGHT], 3);
 }
 
 CSHandle DeferredShading::BindDescriptorSetTexturesForVSM(TexturePtr texShadow)
@@ -953,7 +980,7 @@ CSHandle DeferredShading::BindDescriptorSetTexturesForVSM(TexturePtr texShadow)
 	VERUS_QREF_CSMB;
 	VERUS_QREF_RENDERER;
 
-	return _shader[SHADER_LIGHT]->BindDescriptorSetTextures(3,
+	return _shader[SHADER_LIGHT]->BindDescriptorSetTextures(2,
 		{
 			csmb.GetTexture(),
 			texShadow
@@ -964,62 +991,89 @@ void DeferredShading::BindDescriptorsForVSM(CommandBufferPtr cb, int firstInstan
 {
 	s_ubShadowFS._shadowConfig.x = static_cast<float>(firstInstance);
 	s_ubShadowFS._shadowConfig.y = Math::Max(complexSetHandle.IsSet() ? 0.f : 1.f, 1 - presence);
-	cb->BindDescriptors(_shader[SHADER_LIGHT], 3, complexSetHandle.IsSet() ? complexSetHandle : _cshLightShadow);
+	cb->BindDescriptors(_shader[SHADER_LIGHT], 2, complexSetHandle.IsSet() ? complexSetHandle : _cshLightShadow);
 }
 
-void DeferredShading::OnNewAmbientNodePriority(CommandBufferPtr cb, int firstInstance, bool add)
+void DeferredShading::BindPipeline_NewAmbientNodePriority(CommandBufferPtr cb, int firstInstance, bool add)
 {
 	VERUS_QREF_WM;
 	VERUS_QREF_WU;
 
-	World::RAmbientNodeMeshes anm = wu.GetAmbientNodeMeshes();
+	World::RDeferredShadingMeshes dsm = wu.GetDeferredShadingMeshes();
 
-	s_ubAmbientNodePerView._matToUV = Math::ToUVMatrix().UniformBufferFormat();
-	s_ubAmbientNodePerView._matV = wm.GetViewCamera()->GetMatrixV().UniformBufferFormat();
-	s_ubAmbientNodePerView._matVP = wm.GetViewCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubAmbientNodePerView._matInvP = wm.GetViewCamera()->GetMatrixInvP().UniformBufferFormat();
-	s_ubAmbientNodePerView._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+	s_ubAmbientNodeView._matToUV = Math::ToUVMatrix().UniformBufferFormat();
+	s_ubAmbientNodeView._matV = wm.GetViewCamera()->GetMatrixV().UniformBufferFormat();
+	s_ubAmbientNodeView._matVP = wm.GetViewCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubAmbientNodeView._matInvP = wm.GetViewCamera()->GetMatrixInvP().UniformBufferFormat();
+	s_ubAmbientNodeView._tcViewScaleBias = cb->GetViewScaleBias().GLM();
 
-	s_ubAmbientNodeTexturesFS._firstInstance.x = static_cast<float>(firstInstance);
+	s_ubAmbientNodeSubpassFS._firstInstance.x = static_cast<float>(firstInstance);
 
 	cb->BindPipeline(_pipe[add ? PIPE_AMBIENT_NODE_ADD : PIPE_AMBIENT_NODE_MUL]);
 
 	cb->BindDescriptors(_shader[SHADER_AMBIENT_NODE], 0);
 	cb->BindDescriptors(_shader[SHADER_AMBIENT_NODE], 1, _cshAmbientNode);
-
-	cb->BindDescriptors(_shader[SHADER_AMBIENT_NODE], 3, anm.Get().GetGeometry(), 0);
+	cb->BindDescriptors(_shader[SHADER_AMBIENT_NODE], 3, dsm.GetBox().GetGeometry(), 0);
 }
 
-void DeferredShading::BindDescriptorsAmbientNodePerMeshVS(CommandBufferPtr cb)
+void DeferredShading::BindDescriptors_AmbientNodeMeshVS(CommandBufferPtr cb)
 {
 	cb->BindDescriptors(_shader[SHADER_AMBIENT_NODE], 2);
+}
+
+void DeferredShading::BindPipeline_ProjectNode(CommandBufferPtr cb)
+{
+	VERUS_QREF_WM;
+
+	s_ubProjectNodeView._matToUV = Math::ToUVMatrix().UniformBufferFormat();
+	s_ubProjectNodeView._matVP = wm.GetViewCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubProjectNodeView._matInvP = wm.GetViewCamera()->GetMatrixInvP().UniformBufferFormat();
+	s_ubProjectNodeView._tcViewScaleBias = cb->GetViewScaleBias().GLM();
+
+	cb->BindPipeline(_pipe[PIPE_PROJECT_NODE]);
+
+	cb->BindDescriptors(_shader[SHADER_PROJECT_NODE], 0);
+	cb->BindDescriptors(_shader[SHADER_PROJECT_NODE], 1, _cshProjectNode);
+}
+
+void DeferredShading::BindDescriptors_ProjectNodeMeshVS(CommandBufferPtr cb)
+{
+	cb->BindDescriptors(_shader[SHADER_PROJECT_NODE], 2);
+}
+
+void DeferredShading::BindDescriptors_ProjectNodeTextureFS(CommandBufferPtr cb, CSHandle csh)
+{
+	cb->BindDescriptors(_shader[SHADER_PROJECT_NODE], 3, csh);
+}
+
+void DeferredShading::BindDescriptors_ProjectNodeObject(CommandBufferPtr cb)
+{
+	cb->BindDescriptors(_shader[SHADER_PROJECT_NODE], 4);
 }
 
 void DeferredShading::Load()
 {
 	VERUS_QREF_WU;
 
-	World::RDeferredLights dl = wu.GetDeferredLights();
+	World::RDeferredShadingMeshes dsm = wu.GetDeferredShadingMeshes();
 
 	World::Mesh::Desc meshDesc;
 
 	meshDesc._url = "[Models]:DS/Dir.x3d";
 	meshDesc._instanceCapacity = 10;
-	dl.Get(LightType::dir).Init(meshDesc);
+	dsm.Get(LightType::dir).Init(meshDesc);
 
 	meshDesc._url = "[Models]:DS/Omni.x3d";
 	meshDesc._instanceCapacity = 10000;
-	dl.Get(LightType::omni).Init(meshDesc);
+	dsm.Get(LightType::omni).Init(meshDesc);
 
 	meshDesc._url = "[Models]:DS/Spot.x3d";
 	meshDesc._instanceCapacity = 10000;
-	dl.Get(LightType::spot).Init(meshDesc);
+	dsm.Get(LightType::spot).Init(meshDesc);
 
-	World::RAmbientNodeMeshes anm = wu.GetAmbientNodeMeshes();
-
-	meshDesc._url = "[Models]:DS/AmbBox.x3d";
+	meshDesc._url = "[Models]:DS/Box.x3d";
 	meshDesc._instanceCapacity = 10000;
-	anm.Get().Init(meshDesc);
+	dsm.GetBox().Init(meshDesc);
 }
 
 ShaderPtr DeferredShading::GetLightShader() const
@@ -1030,6 +1084,11 @@ ShaderPtr DeferredShading::GetLightShader() const
 ShaderPtr DeferredShading::GetAmbientNodeShader() const
 {
 	return _shader[SHADER_AMBIENT_NODE];
+}
+
+ShaderPtr DeferredShading::GetProjectNodeShader() const
+{
+	return _shader[SHADER_PROJECT_NODE];
 }
 
 TexturePtr DeferredShading::GetGBuffer(int index) const

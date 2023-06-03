@@ -75,10 +75,10 @@ namespace verus
 				float   _speed = 0;
 			};
 
-			static UB_PerView       s_ubPerView;
-			static UB_PerMaterialFS s_ubPerMaterialFS;
-			static UB_PerMeshVS     s_ubPerMeshVS;
-			static UB_PerObject     s_ubPerObject;
+			static UB_View       s_ubView;
+			static UB_MaterialFS s_ubMaterialFS;
+			static UB_MeshVS     s_ubMeshVS;
+			static UB_Object     s_ubObject;
 
 			CGI::GeometryPwn              _geo;
 			CGI::ShaderPwn                _shader;

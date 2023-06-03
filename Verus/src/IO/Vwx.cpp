@@ -135,7 +135,14 @@ void Vwx::Deserialize_LegacyXXX(CSZ url, RcBlob blob)
 		}
 	}
 
-	if (!vTerrain.empty() && wm.IsInitialized())
+	if (!wm.IsInitialized())
+	{
+		World::WorldManager::Desc desc;
+		desc._worldSide = 4096;
+		wm.Init(desc);
+	}
+
+	if (!vTerrain.empty())
 	{
 		IO::StreamPtr sp(Blob(vTerrain.data(), vTerrain.size()));
 		World::TerrainNode::Desc desc;

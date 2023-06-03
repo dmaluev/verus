@@ -6,11 +6,12 @@ namespace verus
 	namespace World
 	{
 		// Managed by DeferredShading:
-		class DeferredLights
+		class DeferredShadingMeshes
 		{
 			Mesh _meshDir;
 			Mesh _meshOmni;
 			Mesh _meshSpot;
+			Mesh _meshBox;
 
 		public:
 			RMesh Get(CGI::LightType type)
@@ -22,28 +23,18 @@ namespace verus
 				}
 				return _meshDir;
 			}
-		};
-		VERUS_TYPEDEFS(DeferredLights);
-
-		// Managed by DeferredShading:
-		class AmbientNodeMeshes
-		{
-			Mesh _meshBox;
-
-		public:
-			RMesh Get()
+			RMesh GetBox()
 			{
 				return _meshBox;
 			}
 		};
-		VERUS_TYPEDEFS(AmbientNodeMeshes);
+		VERUS_TYPEDEFS(DeferredShadingMeshes);
 
 		class WorldUtils : public Singleton<WorldUtils>, public Object
 		{
 		private:
-			DeferredLights    _deferredLights;
-			AmbientNodeMeshes _ambientNodeMeshes;
-			bool              _editorMode = false;
+			DeferredShadingMeshes _deferredShadingMeshes;
+			bool                  _editorMode = false;
 
 		public:
 			WorldUtils();
@@ -52,8 +43,7 @@ namespace verus
 			void Init();
 			void Done();
 
-			RDeferredLights GetDeferredLights() { return _deferredLights; }
-			RAmbientNodeMeshes GetAmbientNodeMeshes() { return _ambientNodeMeshes; }
+			RDeferredShadingMeshes GetDeferredShadingMeshes() { return _deferredShadingMeshes; }
 
 			bool IsEditorMode() const { return _editorMode; }
 			void SetEditorMode(bool b = true) { _editorMode = b; }

@@ -807,6 +807,9 @@
     <ClInclude Include="src\World\WorldNodes\AmbientNode.h">
       <Filter>src\World\WorldNodes</Filter>
     </ClInclude>
+    <ClInclude Include="src\World\WorldNodes\ProjectNode.h">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CGI\BaseGeometry.cpp">
@@ -1391,6 +1394,9 @@
     <ClCompile Include="src\World\WorldNodes\AmbientNode.cpp">
       <Filter>src\World\WorldNodes</Filter>
     </ClCompile>
+    <ClCompile Include="src\World\WorldNodes\ProjectNode.cpp">
+      <Filter>src\World\WorldNodes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\Shaders\Lib.hlsl">
@@ -1583,6 +1589,12 @@
       <Filter>src\Shaders</Filter>
     </None>
     <None Include="src\Shaders\DS_AmbientNode.inc.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_ProjectNode.hlsl">
+      <Filter>src\Shaders</Filter>
+    </None>
+    <None Include="src\Shaders\DS_ProjectNode.inc.hlsl">
       <Filter>src\Shaders</Filter>
     </None>
   </ItemGroup>

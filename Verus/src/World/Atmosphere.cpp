@@ -4,10 +4,10 @@
 using namespace verus;
 using namespace verus::World;
 
-Atmosphere::UB_PerView       Atmosphere::s_ubPerView;
-Atmosphere::UB_PerMaterialFS Atmosphere::s_ubPerMaterialFS;
-Atmosphere::UB_PerMeshVS     Atmosphere::s_ubPerMeshVS;
-Atmosphere::UB_PerObject     Atmosphere::s_ubPerObject;
+Atmosphere::UB_View       Atmosphere::s_ubView;
+Atmosphere::UB_MaterialFS Atmosphere::s_ubMaterialFS;
+Atmosphere::UB_MeshVS     Atmosphere::s_ubMeshVS;
+Atmosphere::UB_Object     Atmosphere::s_ubObject;
 
 Atmosphere::Atmosphere()
 {
@@ -28,16 +28,16 @@ void Atmosphere::Init()
 	_skyDome.Init("[Models]:SkyDome.x3d");
 
 	_shader.Init("[Shaders]:Sky.hlsl");
-	_shader->CreateDescriptorSet(0, &s_ubPerView, sizeof(s_ubPerView), settings.GetLimits()._sky_ubPerViewCapacity);
-	_shader->CreateDescriptorSet(1, &s_ubPerMaterialFS, sizeof(s_ubPerMaterialFS), settings.GetLimits()._sky_ubPerMaterialFSCapacity,
+	_shader->CreateDescriptorSet(0, &s_ubView, sizeof(s_ubView), settings.GetLimits()._sky_ubViewCapacity);
+	_shader->CreateDescriptorSet(1, &s_ubMaterialFS, sizeof(s_ubMaterialFS), settings.GetLimits()._sky_ubMaterialFSCapacity,
 		{
 			CGI::Sampler::linearMipL,
 			CGI::Sampler::linearMipL,
 			CGI::Sampler::linearMipL,
 			CGI::Sampler::linearMipL
 		}, CGI::ShaderStageFlags::fs);
-	_shader->CreateDescriptorSet(2, &s_ubPerMeshVS, sizeof(s_ubPerMeshVS), settings.GetLimits()._sky_ubPerMeshVSCapacity, {}, CGI::ShaderStageFlags::vs);
-	_shader->CreateDescriptorSet(3, &s_ubPerObject, sizeof(s_ubPerObject), settings.GetLimits()._sky_ubPerObjectCapacity);
+	_shader->CreateDescriptorSet(2, &s_ubMeshVS, sizeof(s_ubMeshVS), settings.GetLimits()._sky_ubMeshVSCapacity, {}, CGI::ShaderStageFlags::vs);
+	_shader->CreateDescriptorSet(3, &s_ubObject, sizeof(s_ubObject), settings.GetLimits()._sky_ubObjectCapacity);
 	_shader->CreatePipelineLayout();
 
 	_cubeMapBaker.Init();
@@ -270,23 +270,23 @@ void Atmosphere::DrawSky(bool reflection)
 
 	auto cb = renderer.GetCommandBuffer();
 
-	s_ubPerView._time_cloudiness.x = _time;
-	s_ubPerView._time_cloudiness.y = _clouds._cloudiness;
-	s_ubPerView._ambientColor = float4(_ambientColor.GLM(), _ambientMagnitude);
-	s_ubPerView._fogColor = float4(_fog._color.GLM(), _fog._density[0]);
-	s_ubPerView._dirToSun = float4(_sun._dirTo.GLM(), 0);
-	s_ubPerView._sunColor = float4(_sun._color.GLM(), _sun._alpha);
-	s_ubPerView._phaseAB = float4(
+	s_ubView._time_cloudiness.x = _time;
+	s_ubView._time_cloudiness.y = _clouds._cloudiness;
+	s_ubView._ambientColor = float4(_ambientColor.GLM(), _ambientMagnitude);
+	s_ubView._fogColor = float4(_fog._color.GLM(), _fog._density[0]);
+	s_ubView._dirToSun = float4(_sun._dirTo.GLM(), 0);
+	s_ubView._sunColor = float4(_sun._color.GLM(), _sun._alpha);
+	s_ubView._phaseAB = float4(
 		_clouds._phaseA.getX(),
 		_clouds._phaseA.getY(),
 		_clouds._phaseB.getX(),
 		_clouds._phaseB.getY());
 
-	_skyDome.CopyPosDeqScale(&s_ubPerMeshVS._posDeqScale.x);
-	_skyDome.CopyPosDeqBias(&s_ubPerMeshVS._posDeqBias.x);
+	_skyDome.CopyPosDeqScale(&s_ubMeshVS._posDeqScale.x);
+	_skyDome.CopyPosDeqBias(&s_ubMeshVS._posDeqBias.x);
 
 	// <Sky>
-	s_ubPerObject._matWVP = matSkyDome.UniformBufferFormat();
+	s_ubObject._matWVP = matSkyDome.UniformBufferFormat();
 	cb->BindPipeline(_pipe[reflection ? PIPE_SKY_REFLECTION : PIPE_SKY]);
 	_skyDome.BindGeo(cb);
 	_shader->BeginBindDescriptors();
@@ -305,8 +305,8 @@ void Atmosphere::DrawSky(bool reflection)
 	{
 		const Matrix3 matR = Matrix3::rotationZ(_time * VERUS_2PI);
 		const Transform3 matW = Transform3(_sun._matTilt * matR * matS, Vector3(cam.GetEyePosition()));
-		s_ubPerObject._matW = matW.UniformBufferFormat();
-		s_ubPerObject._matWVP = Matrix4(cam.GetMatrixVP() * matW).UniformBufferFormat();
+		s_ubObject._matW = matW.UniformBufferFormat();
+		s_ubObject._matWVP = Matrix4(cam.GetMatrixVP() * matW).UniformBufferFormat();
 
 		cb->BindPipeline(_pipe[PIPE_SUN]);
 		cb->BindVertexBuffers(_geo);
@@ -324,8 +324,8 @@ void Atmosphere::DrawSky(bool reflection)
 	{
 		const Matrix3 matR = Matrix3::rotationZ(_time * VERUS_2PI + VERUS_PI);
 		const Transform3 matW = Transform3(_sun._matTilt * matR * matS, Vector3(cam.GetEyePosition()));
-		s_ubPerObject._matW = matW.UniformBufferFormat();
-		s_ubPerObject._matWVP = Matrix4(cam.GetMatrixVP() * matW).UniformBufferFormat();
+		s_ubObject._matW = matW.UniformBufferFormat();
+		s_ubObject._matWVP = Matrix4(cam.GetMatrixVP() * matW).UniformBufferFormat();
 
 		cb->BindPipeline(_pipe[PIPE_MOON]);
 		cb->BindVertexBuffers(_geo);
@@ -340,7 +340,7 @@ void Atmosphere::DrawSky(bool reflection)
 	// </Moon>
 
 	// <Clouds>
-	s_ubPerObject._matWVP = matSkyDome.UniformBufferFormat();
+	s_ubObject._matWVP = matSkyDome.UniformBufferFormat();
 	cb->BindPipeline(_pipe[reflection ? PIPE_CLOUDS_REFLECTION : PIPE_CLOUDS]);
 	_skyDome.BindGeo(cb);
 	_shader->BeginBindDescriptors();

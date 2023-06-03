@@ -435,9 +435,9 @@ void Material::BindDescriptorSetTextures()
 
 bool Material::UpdateMeshUniformBuffer(float motionBlur, bool resolveDitheringMaskEnabled)
 {
-	Mesh::UB_PerMaterialFS& ub = Mesh::GetUbPerMaterialFS();
-	Mesh::UB_PerMaterialFS ubPrev;
-	memcpy(&ubPrev, &ub, sizeof(Mesh::UB_PerMaterialFS));
+	Mesh::UB_MaterialFS& ub = Mesh::GetUbMaterialFS();
+	Mesh::UB_MaterialFS ubPrev;
+	memcpy(&ubPrev, &ub, sizeof(Mesh::UB_MaterialFS));
 
 	ub._anisoSpecDir_detail_emission = float4(_anisoSpecDir, _detail, _emission);
 	ub._motionBlur_nmContrast_roughDiffuse_sssHue.x = motionBlur;
@@ -463,14 +463,14 @@ bool Material::UpdateMeshUniformBuffer(float motionBlur, bool resolveDitheringMa
 			_texA->GetTex()->GetSize().getY() / 256 * 8);
 	}
 
-	return 0 != memcmp(&ubPrev, &ub, sizeof(Mesh::UB_PerMaterialFS));
+	return 0 != memcmp(&ubPrev, &ub, sizeof(Mesh::UB_MaterialFS));
 }
 
 bool Material::UpdateMeshUniformBufferSimple()
 {
-	Mesh::UB_SimplePerMaterialFS& ub = Mesh::GetUbSimplePerMaterialFS();
-	Mesh::UB_SimplePerMaterialFS ubPrev;
-	memcpy(&ubPrev, &ub, sizeof(Mesh::UB_SimplePerMaterialFS));
+	Mesh::UB_SimpleMaterialFS& ub = Mesh::GetUbSimpleMaterialFS();
+	Mesh::UB_SimpleMaterialFS ubPrev;
+	memcpy(&ubPrev, &ub, sizeof(Mesh::UB_SimpleMaterialFS));
 
 	ub._anisoSpecDir_detail_emission = float4(_anisoSpecDir, _detail, _emission);
 	ub._motionBlur_nmContrast_roughDiffuse_sssHue.x = 0;
@@ -496,7 +496,7 @@ bool Material::UpdateMeshUniformBufferSimple()
 			_texA->GetTex()->GetSize().getY() / 256 * 8);
 	}
 
-	return 0 != memcmp(&ubPrev, &ub, sizeof(Mesh::UB_SimplePerMaterialFS));
+	return 0 != memcmp(&ubPrev, &ub, sizeof(Mesh::UB_SimpleMaterialFS));
 }
 
 void Material::IncludePart(float part)

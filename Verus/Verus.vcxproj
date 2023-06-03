@@ -314,6 +314,7 @@
     <ClInclude Include="src\World\WorldNodes\PathNode.h" />
     <ClInclude Include="src\World\WorldNodes\PhysicsNode.h" />
     <ClInclude Include="src\World\WorldNodes\PrefabNode.h" />
+    <ClInclude Include="src\World\WorldNodes\ProjectNode.h" />
     <ClInclude Include="src\World\WorldNodes\ShakerNode.h" />
     <ClInclude Include="src\World\WorldNodes\SoundNode.h" />
     <ClInclude Include="src\World\WorldNodes\TerrainNode.h" />
@@ -646,6 +647,7 @@
     <ClCompile Include="src\World\WorldNodes\PhysicsNode.cpp" />
     <ClCompile Include="src\World\WorldNodes\BaseNode.cpp" />
     <ClCompile Include="src\World\WorldNodes\PrefabNode.cpp" />
+    <ClCompile Include="src\World\WorldNodes\ProjectNode.cpp" />
     <ClCompile Include="src\World\WorldNodes\ShakerNode.cpp" />
     <ClCompile Include="src\World\WorldNodes\SoundNode.cpp" />
     <ClCompile Include="src\World\WorldNodes\TerrainNode.cpp" />
@@ -917,6 +919,14 @@
       <FileType>Document</FileType>
     </None>
     <None Include="src\Shaders\DS_AmbientNode.inc.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Shaders\DS_ProjectNode.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="src\Shaders\DS_ProjectNode.inc.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

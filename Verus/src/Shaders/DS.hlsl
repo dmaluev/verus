@@ -8,23 +8,23 @@
 #include "LibVertex.hlsl"
 #include "DS.inc.hlsl"
 
-CBUFFER(0, UB_PerView, g_ubPerView)
-CBUFFER(1, UB_TexturesFS, g_ubTexturesFS)
-CBUFFER(2, UB_PerMeshVS, g_ubPerMeshVS)
-CBUFFER(3, UB_ShadowFS, g_ubShadowFS)
-SBUFFER(4, SB_PerInstanceData, g_sbPerInstanceData, t7)
+CBUFFER(0, UB_View, g_ubView)
+CBUFFER(1, UB_SubpassFS, g_ubSubpassFS)
+CBUFFER(2, UB_ShadowFS, g_ubShadowFS)
+CBUFFER(3, UB_MeshVS, g_ubMeshVS)
+SBUFFER(4, SB_InstanceData, g_sbInstanceData, t7)
 VK_PUSH_CONSTANT
-CBUFFER(5, UB_PerObject, g_ubPerObject)
+CBUFFER(5, UB_Object, g_ubObject)
 
 VK_SUBPASS_INPUT(0, g_texGBuffer0, g_samGBuffer0, 1, space1);
 VK_SUBPASS_INPUT(1, g_texGBuffer1, g_samGBuffer1, 2, space1);
 VK_SUBPASS_INPUT(2, g_texGBuffer2, g_samGBuffer2, 3, space1);
 VK_SUBPASS_INPUT(3, g_texGBuffer3, g_samGBuffer3, 4, space1);
 VK_SUBPASS_INPUT(4, g_texDepth, g_samDepth, 5, space1);
-Texture2D              g_texShadowCmp : REG(t1, space3, t5);
-SamplerComparisonState g_samShadowCmp : REG(s1, space3, s5);
-Texture2D              g_texShadow    : REG(t2, space3, t6);
-SamplerState           g_samShadow    : REG(s2, space3, s6);
+Texture2D              g_texShadowCmp : REG(t1, space2, t5);
+SamplerComparisonState g_samShadowCmp : REG(s1, space2, s5);
+Texture2D              g_texShadow    : REG(t2, space2, t6);
+SamplerState           g_samShadow    : REG(s2, space2, s6);
 
 struct VSI
 {
@@ -53,7 +53,7 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
-	const float3 inPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMeshVS._posDeqScale.xyz, g_ubPerMeshVS._posDeqBias.xyz);
+	const float3 inPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubMeshVS._posDeqScale.xyz, g_ubMeshVS._posDeqBias.xyz);
 
 	// <TheMatrix>
 #ifdef DEF_INSTANCED
@@ -64,11 +64,11 @@ VSO mainVS(VSI si)
 	const float3 color = si.pid0_instData.rgb;
 	const float coneIn = si.pid0_instData.a;
 #else
-	const mataff matW = g_ubPerObject._matW;
-	const float3 color = g_ubPerObject._color.rgb;
-	const float coneIn = g_ubPerObject._color.a;
+	const mataff matW = g_ubObject._matW;
+	const float3 color = g_ubObject._color.rgb;
+	const float coneIn = g_ubObject._color.a;
 #endif
-	const matrix matWV = mul(ToFloat4x4(matW), ToFloat4x4(g_ubPerView._matV));
+	const matrix matWV = mul(ToFloat4x4(matW), ToFloat4x4(g_ubView._matV));
 	const float3x3 matWV33 = (float3x3)matWV;
 	// </TheMatrix>
 
@@ -76,7 +76,7 @@ VSO mainVS(VSI si)
 	so.pos = float4(inPos, 1);
 #else
 	const float3 posW = mul(float4(inPos, 1), matW);
-	so.pos = mul(float4(posW, 1), g_ubPerView._matVP);
+	so.pos = mul(float4(posW, 1), g_ubView._matVP);
 #endif
 	so.clipSpacePos = so.pos;
 
@@ -135,8 +135,8 @@ DS_ACC_FSO mainFS(VSO si)
 #else
 	const float3 ndcPos = si.clipSpacePos.xyz / si.clipSpacePos.w;
 #endif
-	const float2 tc0 = mul(float4(ndcPos.xy, 0, 1), g_ubPerView._matToUV).xy *
-		g_ubPerView._tcViewScaleBias.xy + g_ubPerView._tcViewScaleBias.zw;
+	const float2 tc0 = mul(float4(ndcPos.xy, 0, 1), g_ubView._matToUV).xy *
+		g_ubView._tcViewScaleBias.xy + g_ubView._tcViewScaleBias.zw;
 
 	// Direction and cone shape for spot:
 	const float3 lightDirWV = si.lightDirWV_invConeDelta.xyz;
@@ -157,7 +157,7 @@ DS_ACC_FSO mainFS(VSO si)
 
 	// Depth:
 	const float depthSam = VK_SUBPASS_LOAD(g_texDepth, g_samDepth, tc0).r;
-	const float3 posWV = DS_GetPosition(depthSam, g_ubPerView._matInvP, ndcPos.xy);
+	const float3 posWV = DS_GetPosition(depthSam, g_ubView._matInvP, ndcPos.xy);
 
 #if defined(DEF_OMNI) || defined(DEF_SPOT)
 	if (posWV.z <= lightPosWV.z + radius)
@@ -205,7 +205,7 @@ DS_ACC_FSO mainFS(VSO si)
 		const float lightFalloffWithCone = lightFalloff * coneIntensity;
 		const float distToEye = length(posWV);
 		const float3 dirToEyeWV = -posWV / distToEye;
-		const float3 lightColor = (si.color_coneOut.r >= 0.0) ? si.color_coneOut.rgb : g_ubPerView._ambientColor.rgb;
+		const float3 lightColor = (si.color_coneOut.r >= 0.0) ? si.color_coneOut.rgb : g_ubView._ambientColor.rgb;
 		// </LightData>
 
 		// <Shadow>
@@ -247,7 +247,7 @@ DS_ACC_FSO mainFS(VSO si)
 					g_texShadow,
 					g_samShadow,
 					biasedPosWV,
-					g_sbPerInstanceData[realInstanceID]._matShadow);
+					g_sbInstanceData[realInstanceID]._matShadow);
 				shadowMask = max(shadowMask, g_ubShadowFS._shadowConfig.y);
 #ifdef DEF_OMNI
 				shadowMask = max(shadowMask, saturate(1.0 - (dp - 0.5) * (1.0 / 0.2071))); // Fade edges.

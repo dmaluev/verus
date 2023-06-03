@@ -18,6 +18,7 @@ WorldManager::~WorldManager()
 void WorldManager::Init(RcDesc desc)
 {
 	VERUS_INIT();
+	VERUS_QREF_CONST_SETTINGS;
 
 	_vNodes.reserve(2000);
 	_vVisibleNodes.reserve(2000);
@@ -39,6 +40,21 @@ void WorldManager::Init(RcDesc desc)
 	_octree.Done();
 	_octree.Init(bounds, limit);
 	_octree.SetDelegate(this);
+
+	_smbpDynamicMax = 0;
+	switch (settings._sceneShadowQuality)
+	{
+	case App::Settings::Quality::low:
+	case App::Settings::Quality::medium:
+		_smbpDynamicMax = 0;
+		break;
+	case App::Settings::Quality::high:
+		_smbpDynamicMax = VERUS_COUNT_OF(_pSmbpDynamic) / 2;
+		break;
+	case App::Settings::Quality::ultra:
+		_smbpDynamicMax = VERUS_COUNT_OF(_pSmbpDynamic);
+		break;
+	}
 }
 
 void WorldManager::Done()
@@ -235,12 +251,12 @@ void WorldManager::Draw()
 
 	VERUS_QREF_RENDERER;
 
+	auto cb = renderer.GetCommandBuffer();
+	auto shader = Mesh::GetShader();
+
 	ModelNodePtr modelNode;
 	MaterialPtr material;
 	bool bindPipeline = true;
-
-	auto cb = renderer.GetCommandBuffer();
-	auto shader = Mesh::GetShader();
 
 	const int begin = FindOffsetFor(NodeType::block);
 	const int end = begin + _visibleCountPerType[+NodeType::block];
@@ -303,12 +319,12 @@ void WorldManager::DrawSimple(DrawSimpleMode mode)
 
 	VERUS_QREF_RENDERER;
 
+	auto cb = renderer.GetCommandBuffer();
+	auto shader = Mesh::GetSimpleShader();
+
 	ModelNodePtr modelNode;
 	MaterialPtr material;
 	bool bindPipeline = true;
-
-	auto cb = renderer.GetCommandBuffer();
-	auto shader = Mesh::GetSimpleShader();
 
 	const int begin = FindOffsetFor(NodeType::block);
 	const int end = begin + _visibleCountPerType[+NodeType::block];
@@ -391,12 +407,12 @@ void WorldManager::DrawLights()
 	VERUS_QREF_SMBP;
 	VERUS_QREF_WU;
 
+	auto& ds = renderer.GetDS();
+	auto cb = renderer.GetCommandBuffer();
+
 	CGI::LightType type = CGI::LightType::none;
 	ShadowMapHandle shadowMapHandle;
 	PMesh pMesh = nullptr;
-
-	auto& ds = renderer.GetDS();
-	auto cb = renderer.GetCommandBuffer();
 
 	auto DrawMesh = [cb](PMesh pMesh)
 	{
@@ -432,17 +448,17 @@ void WorldManager::DrawLights()
 		if (changeType)
 		{
 			type = nextType;
-			ds.OnNewLightType(cb, type);
+			ds.BindPipeline_NewLightType(cb, type);
 
-			pMesh = (type != CGI::LightType::none) ? &wu.GetDeferredLights().Get(type) : nullptr;
+			pMesh = (type != CGI::LightType::none) ? &wu.GetDeferredShadingMeshes().Get(type) : nullptr;
 
 			if (pMesh)
 			{
 				pMesh->MarkInstance();
 				pMesh->BindGeo(cb, (1 << 0) | (1 << 4));
-				pMesh->CopyPosDeqScale(&ds.GetUbPerMeshVS()._posDeqScale.x);
-				pMesh->CopyPosDeqBias(&ds.GetUbPerMeshVS()._posDeqBias.x);
-				ds.BindDescriptorsPerMeshVS(cb);
+				pMesh->CopyPosDeqScale(&ds.GetUbMeshVS()._posDeqScale.x);
+				pMesh->CopyPosDeqBias(&ds.GetUbMeshVS()._posDeqBias.x);
+				ds.BindDescriptors_MeshVS(cb);
 			}
 		}
 		if (changeType || changeShadowMapHandle) // New type binds new pipeline.
@@ -470,9 +486,9 @@ void WorldManager::DrawLights()
 
 		if (pMesh)
 		{
-			SB_PerInstanceData pid;
-			pid._matShadow = pLightNode->GetShadowMatrixForDS().UniformBufferFormat();
-			pMesh->PushStorageBufferData(0, &pid);
+			SB_InstanceData instData;
+			instData._matShadow = pLightNode->GetShadowMatrixForDS().UniformBufferFormat();
+			pMesh->PushStorageBufferData(0, &instData);
 			pMesh->PushInstance(pLightNode->GetTransform(), pLightNode->GetInstData());
 		}
 	}
@@ -480,6 +496,10 @@ void WorldManager::DrawLights()
 
 void WorldManager::DrawAmbient()
 {
+	VERUS_QREF_CONST_SETTINGS;
+	if (!settings._sceneAmbientOcclusion)
+		return;
+
 	if (!_visibleCountPerType[+NodeType::ambient])
 		return;
 
@@ -487,12 +507,12 @@ void WorldManager::DrawAmbient()
 	VERUS_QREF_WM;
 	VERUS_QREF_WU;
 
-	int priority = -1;
-	PMesh pMesh = nullptr;
-
 	auto& ds = renderer.GetDS();
 	auto cb = renderer.GetCommandBuffer();
 	auto shader = ds.GetAmbientNodeShader();
+
+	int priority = -1;
+	PMesh pMesh = nullptr;
 
 	auto DrawMesh = [cb](PMesh pMesh)
 	{
@@ -528,29 +548,81 @@ void WorldManager::DrawAmbient()
 		{
 			priority = nextPriority;
 
-			pMesh = &wu.GetAmbientNodeMeshes().Get();
+			pMesh = &wu.GetDeferredShadingMeshes().GetBox();
 			pMesh->MarkInstance();
 
-			ds.OnNewAmbientNodePriority(cb, pMesh->GetMarkedInstance(), 1 == priority);
+			ds.BindPipeline_NewAmbientNodePriority(cb, pMesh->GetMarkedInstance(), 1 == priority);
 
 			pMesh->BindGeo(cb, (1 << 0) | (1 << 4));
-			pMesh->CopyPosDeqScale(&ds.GetUbAmbientNodePerMeshVS()._posDeqScale.x);
-			pMesh->CopyPosDeqBias(&ds.GetUbAmbientNodePerMeshVS()._posDeqBias.x);
-			ds.BindDescriptorsAmbientNodePerMeshVS(cb);
+			pMesh->CopyPosDeqScale(&ds.GetUbAmbientNodeMeshVS()._posDeqScale.x);
+			pMesh->CopyPosDeqBias(&ds.GetUbAmbientNodeMeshVS()._posDeqBias.x);
+			ds.BindDescriptors_AmbientNodeMeshVS(cb);
 		}
 
 		if (pMesh)
 		{
-			SB_AmbientNodePerInstanceData pid;
+			SB_AmbientNodeInstanceData instData;
 			const Transform3 tr = pAmbientNode->GetToBoxSpaceTransform() * wm.GetPassCamera()->GetMatrixInvV();
-			pid._matToBoxSpace = tr.UniformBufferFormat();
-			pid._wall_wallScale_cylinder_sphere.x = pAmbientNode->GetWall();
-			pid._wall_wallScale_cylinder_sphere.y = 1 / Math::Max(VERUS_FLOAT_THRESHOLD, 1 - pid._wall_wallScale_cylinder_sphere.x);
-			pid._wall_wallScale_cylinder_sphere.z = pAmbientNode->GetCylindrical();
-			pid._wall_wallScale_cylinder_sphere.w = pAmbientNode->GetSpherical();
-			pMesh->PushStorageBufferData(0, &pid);
+			instData._matToBoxSpace = tr.UniformBufferFormat();
+			instData._wall_wallScale_cylinder_sphere.x = pAmbientNode->GetWall();
+			instData._wall_wallScale_cylinder_sphere.y = 1 / Math::Max(VERUS_FLOAT_THRESHOLD, 1 - instData._wall_wallScale_cylinder_sphere.x);
+			instData._wall_wallScale_cylinder_sphere.z = pAmbientNode->GetCylindrical();
+			instData._wall_wallScale_cylinder_sphere.w = pAmbientNode->GetSpherical();
+			pMesh->PushStorageBufferData(0, &instData);
 			pMesh->PushInstance(pAmbientNode->GetTransform(), pAmbientNode->GetInstData());
 		}
+	}
+	shader->EndBindDescriptors();
+}
+
+void WorldManager::DrawProjectNodes()
+{
+	if (!_visibleCountPerType[+NodeType::project])
+		return;
+
+	VERUS_QREF_RENDERER;
+	VERUS_QREF_WM;
+	VERUS_QREF_WU;
+
+	auto& ds = renderer.GetDS();
+	auto cb = renderer.GetCommandBuffer();
+	auto shader = ds.GetProjectNodeShader();
+
+	PMesh pMesh = &wu.GetDeferredShadingMeshes().GetBox();
+	bool bindPipeline = true;
+
+	const int begin = FindOffsetFor(NodeType::project);
+	const int end = begin + _visibleCountPerType[+NodeType::project];
+	shader->BeginBindDescriptors();
+	for (int i = begin; i < end; ++i)
+	{
+		PBaseNode pNode = _vVisibleNodes[i];
+		PProjectNode pProjectNode = static_cast<PProjectNode>(pNode);
+
+		if (!pProjectNode->GetComplexSetHandle().IsSet())
+			continue;
+
+		if (bindPipeline)
+		{
+			bindPipeline = false;
+			ds.BindPipeline_ProjectNode(cb);
+
+			pMesh->BindGeo(cb, (1 << 0) | (1 << 4));
+			pMesh->CopyPosDeqScale(&ds.GetUbProjectNodeMeshVS()._posDeqScale.x);
+			pMesh->CopyPosDeqBias(&ds.GetUbProjectNodeMeshVS()._posDeqBias.x);
+			ds.BindDescriptors_ProjectNodeMeshVS(cb);
+		}
+
+		ds.BindDescriptors_ProjectNodeTextureFS(cb, pProjectNode->GetComplexSetHandle());
+
+		auto& ubObject = ds.GetUbProjectNodeObject();
+		ubObject._matW = pProjectNode->GetTransform().UniformBufferFormat();
+		ubObject._levels = pProjectNode->GetLevels().GLM();
+		const Transform3 tr = pProjectNode->GetToBoxSpaceTransform() * wm.GetPassCamera()->GetMatrixInvV();
+		ubObject._matToBoxSpace = tr.UniformBufferFormat();
+		ds.BindDescriptors_ProjectNodeObject(cb);
+
+		cb->DrawIndexed(pMesh->GetIndexCount());
 	}
 	shader->EndBindDescriptors();
 }
@@ -664,8 +736,7 @@ int WorldManager::GetInfluentialLightsAt(Math::RcSphere sphere, PLightNode light
 void WorldManager::InfluentialLightsToSmbpDynamic(Math::RcSphere sphere)
 {
 	PLightNode newSmbpDynamic[VERUS_COUNT_OF(_pSmbpDynamic)];
-	const int newCount = _async_loaded ?
-		GetInfluentialLightsAt(sphere, newSmbpDynamic, VERUS_COUNT_OF(_pSmbpDynamic)) : 0;
+	const int newCount = _async_loaded ? GetInfluentialLightsAt(sphere, newSmbpDynamic, _smbpDynamicMax) : 0;
 
 	VERUS_FOR(i, _smbpDynamicCount)
 	{
@@ -710,7 +781,7 @@ void WorldManager::InfluentialLightsToSmbpDynamic(Math::RcSphere sphere)
 		}
 		if (!found) // This light will be added:
 		{
-			if (_smbpDynamicCount < VERUS_COUNT_OF(_pSmbpDynamic)) // If there is room for it.
+			if (_smbpDynamicCount < _smbpDynamicMax) // If there is room for it.
 				_pSmbpDynamic[_smbpDynamicCount++] = newSmbpDynamic[i];
 		}
 	}
@@ -1076,6 +1147,7 @@ void WorldManager::DeleteNode(NodeType type, CSZ name, bool hierarchy)
 			case NodeType::path:         TStorePathNodes::Delete(static_cast<PPathNode>(&node)); break;
 			case NodeType::physics:      TStorePhysicsNodes::Delete(static_cast<PPhysicsNode>(&node)); break;
 			case NodeType::prefab:       TStorePrefabNodes::Delete(static_cast<PPrefabNode>(&node)); break;
+			case NodeType::project:      TStoreProjectNodes::Delete(static_cast<PProjectNode>(&node)); break;
 			case NodeType::shaker:       TStoreShakerNodes::Delete(static_cast<PShakerNode>(&node)); break;
 			case NodeType::sound:        TStoreSoundNodes::Delete(static_cast<PSoundNode>(&node)); break;
 			case NodeType::terrain:      TStoreTerrainNodes::Delete(static_cast<PTerrainNode>(&node)); break;
@@ -1129,6 +1201,7 @@ PBaseNode WorldManager::DuplicateNode(PBaseNode pTargetNode, HierarchyDuplicatio
 	case NodeType::path: {PathNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
 	case NodeType::physics: {PhysicsNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
 	case NodeType::prefab: {PrefabNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
+	case NodeType::project: {ProjectNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
 	case NodeType::shaker: {ShakerNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
 	case NodeType::sound: {SoundNodePtr node; node.Duplicate(*pTargetNode, hierarchyDuplication); pNewNode = node.Get(); break; }
 	}
@@ -1360,7 +1433,7 @@ void WorldManager::GenerateBlockChainNodes(PBlockChainNode pBlockChainNode)
 			genModelNode->SetGeneratedFlag();
 			genModelNode->SetParent(pBlockChainNode);
 			Mesh::Desc meshDesc;
-			meshDesc._instanceCapacity = 1000;
+			meshDesc._instanceCapacity = 50;
 			meshDesc._initShape = true;
 			genModelNode->GetMesh().Init(sourceBuffers, meshDesc);
 
@@ -1704,6 +1777,13 @@ PPrefabNode WorldManager::InsertPrefabNode()
 	return p;
 }
 
+PProjectNode WorldManager::InsertProjectNode()
+{
+	auto p = TStoreProjectNodes::Insert();
+	_vNodes.push_back(p);
+	return p;
+}
+
 PShakerNode WorldManager::InsertShakerNode()
 {
 	auto p = TStoreShakerNodes::Insert();
@@ -1845,6 +1925,7 @@ void WorldManager::Deserialize(IO::RStream stream)
 		case NodeType::path:         InsertPathNode()->Deserialize(stream); break;
 		case NodeType::physics:      InsertPhysicsNode()->Deserialize(stream); break;
 		case NodeType::prefab:       InsertPrefabNode()->Deserialize(stream); break;
+		case NodeType::project:      InsertProjectNode()->Deserialize(stream); break;
 		case NodeType::shaker:       InsertShakerNode()->Deserialize(stream); break;
 		case NodeType::sound:        InsertSoundNode()->Deserialize(stream); break;
 		case NodeType::terrain:      InsertTerrainNode()->Deserialize(stream); break;
@@ -1947,6 +2028,7 @@ UINT32 WorldManager::NodeTypeToHash(NodeType type)
 	case NodeType::path:         return 'HTAP';
 	case NodeType::physics:      return 'SYHP';
 	case NodeType::prefab:       return 'FERP';
+	case NodeType::project:      return 'JORP';
 	case NodeType::shaker:       return 'KAHS';
 	case NodeType::sound:        return 'NUOS';
 	case NodeType::terrain:      return 'RRET';
@@ -1972,6 +2054,7 @@ NodeType WorldManager::HashToNodeType(UINT32 hash)
 	case 'HTAP': return NodeType::path;
 	case 'SYHP': return NodeType::physics;
 	case 'FERP': return NodeType::prefab;
+	case 'JORP': return NodeType::project;
 	case 'KAHS': return NodeType::shaker;
 	case 'NUOS': return NodeType::sound;
 	case 'RRET': return NodeType::terrain;
@@ -2006,7 +2089,7 @@ UINT32 WorldManager::NodeTypeToColor(NodeType type, int alpha)
 		VERUS_COLOR_RGBA(85, 255, 171, alpha), // 14, shaker
 		VERUS_COLOR_RGBA(171, 85, 255, alpha), // 15, blockChain
 
-		VERUS_COLOR_RGBA(255, 85, 171, alpha), // 16
+		VERUS_COLOR_RGBA(255, 85, 171, alpha), // 16, project
 		VERUS_COLOR_RGBA(171, 255, 85, alpha), // 17
 		VERUS_COLOR_RGBA(85, 171, 255, alpha), // 18, ambient
 	};
@@ -2026,6 +2109,7 @@ UINT32 WorldManager::NodeTypeToColor(NodeType type, int alpha)
 	case NodeType::path:         return colors[10];
 	case NodeType::physics:      return colors[3];
 	case NodeType::prefab:       return colors[11];
+	case NodeType::project:      return colors[16];
 	case NodeType::shaker:       return colors[14];
 	case NodeType::sound:        return colors[13];
 	case NodeType::terrain:      return colors[12];

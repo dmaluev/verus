@@ -26,7 +26,7 @@ void ModelNode::Init(RcDesc desc)
 
 	Mesh::Desc meshDesc;
 	meshDesc._url = desc._url;
-	meshDesc._instanceCapacity = 1000;
+	meshDesc._instanceCapacity = desc._instanceCapacity;
 	meshDesc._initShape = true;
 	_mesh.Init(meshDesc);
 
@@ -128,7 +128,7 @@ void ModelNode::LoadMaterial(CSZ url)
 void ModelNode::BindPipeline(CGI::CommandBufferPtr cb)
 {
 	_mesh.BindPipelineInstanced(cb, false);
-	_mesh.UpdateUniformBufferPerView();
+	_mesh.UpdateUniformBuffer_View();
 }
 
 void ModelNode::BindPipelineSimple(DrawSimpleMode mode, CGI::CommandBufferPtr cb)
@@ -138,13 +138,13 @@ void ModelNode::BindPipelineSimple(DrawSimpleMode mode, CGI::CommandBufferPtr cb
 	case DrawSimpleMode::envMap:           _mesh.BindPipeline(Mesh::PIPE_SIMPLE_ENV_MAP_INSTANCED, cb); break;
 	case DrawSimpleMode::planarReflection: _mesh.BindPipeline(Mesh::PIPE_SIMPLE_PLANAR_REF_INSTANCED, cb); break;
 	}
-	_mesh.UpdateUniformBufferSimplePerView(mode);
+	_mesh.UpdateUniformBuffer_SimpleView(mode);
 }
 
 void ModelNode::BindGeo(CGI::CommandBufferPtr cb)
 {
 	_mesh.BindGeo(cb);
-	_mesh.UpdateUniformBufferPerMeshVS();
+	_mesh.UpdateUniformBuffer_MeshVS();
 }
 
 void ModelNode::MarkInstance()

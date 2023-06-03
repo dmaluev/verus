@@ -7,16 +7,17 @@ using namespace verus::World;
 CGI::ShaderPwns<Mesh::SHADER_COUNT> Mesh::s_shader;
 CGI::PipelinePwns<Mesh::PIPE_COUNT> Mesh::s_pipe;
 
-Mesh::UB_PerView             Mesh::s_ubPerView;
-Mesh::UB_PerMaterialFS       Mesh::s_ubPerMaterialFS;
-Mesh::UB_PerMeshVS           Mesh::s_ubPerMeshVS;
-Mesh::UB_SkeletonVS          Mesh::s_ubSkeletonVS;
-Mesh::UB_PerObject           Mesh::s_ubPerObject;
-Mesh::UB_SimplePerView       Mesh::s_ubSimplePerView;
-Mesh::UB_SimplePerMaterialFS Mesh::s_ubSimplePerMaterialFS;
-Mesh::UB_SimplePerMeshVS     Mesh::s_ubSimplePerMeshVS;
-Mesh::UB_SimpleSkeletonVS    Mesh::s_ubSimpleSkeletonVS;
-Mesh::UB_SimplePerObject     Mesh::s_ubSimplePerObject;
+Mesh::UB_View                       Mesh::s_ubView;
+Mesh::UB_MaterialFS                 Mesh::s_ubMaterialFS;
+Mesh::UB_MeshVS                     Mesh::s_ubMeshVS;
+Mesh::UB_SkeletonVS                 Mesh::s_ubSkeletonVS;
+Mesh::UB_Object                     Mesh::s_ubObject;
+
+Mesh::UB_SimpleView                 Mesh::s_ubSimpleView;
+Mesh::UB_SimpleMaterialFS           Mesh::s_ubSimpleMaterialFS;
+Mesh::UB_SimpleMeshVS               Mesh::s_ubSimpleMeshVS;
+Mesh::UB_SimpleSkeletonVS           Mesh::s_ubSimpleSkeletonVS;
+Mesh::UB_SimpleObject               Mesh::s_ubSimpleObject;
 
 // Mesh:
 
@@ -34,8 +35,8 @@ void Mesh::InitStatic()
 	VERUS_QREF_CONST_SETTINGS;
 
 	s_shader[SHADER_MAIN].Init("[Shaders]:DS_Mesh.hlsl");
-	s_shader[SHADER_MAIN]->CreateDescriptorSet(0, &s_ubPerView, sizeof(s_ubPerView), settings.GetLimits()._mesh_ubPerViewCapacity, {}, CGI::ShaderStageFlags::vs_hs_ds_fs);
-	s_shader[SHADER_MAIN]->CreateDescriptorSet(1, &s_ubPerMaterialFS, sizeof(s_ubPerMaterialFS), settings.GetLimits()._mesh_ubPerMaterialFSCapacity,
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(0, &s_ubView, sizeof(s_ubView), settings.GetLimits()._mesh_ubViewCapacity, {}, CGI::ShaderStageFlags::vs_hs_ds_fs);
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(1, &s_ubMaterialFS, sizeof(s_ubMaterialFS), settings.GetLimits()._mesh_ubMaterialFSCapacity,
 		{
 			CGI::Sampler::aniso, // A
 			CGI::Sampler::aniso, // N
@@ -44,22 +45,22 @@ void Mesh::InitStatic()
 			CGI::Sampler::aniso, // DetailN
 			CGI::Sampler::lodBias // Strass
 		}, CGI::ShaderStageFlags::fs);
-	s_shader[SHADER_MAIN]->CreateDescriptorSet(2, &s_ubPerMeshVS, sizeof(s_ubPerMeshVS), settings.GetLimits()._mesh_ubPerMeshVSCapacity, {}, CGI::ShaderStageFlags::vs);
-	s_shader[SHADER_MAIN]->CreateDescriptorSet(3, &s_ubSkeletonVS, sizeof(s_ubSkeletonVS), settings.GetLimits()._mesh_ubSkinningVSCapacity, {}, CGI::ShaderStageFlags::vs);
-	s_shader[SHADER_MAIN]->CreateDescriptorSet(4, &s_ubPerObject, sizeof(s_ubPerObject), 0);
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(2, &s_ubMeshVS, sizeof(s_ubMeshVS), settings.GetLimits()._mesh_ubMeshVSCapacity, {}, CGI::ShaderStageFlags::vs);
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(3, &s_ubSkeletonVS, sizeof(s_ubSkeletonVS), settings.GetLimits()._mesh_ubSkeletonVSCapacity, {}, CGI::ShaderStageFlags::vs);
+	s_shader[SHADER_MAIN]->CreateDescriptorSet(4, &s_ubObject, sizeof(s_ubObject), 0);
 	s_shader[SHADER_MAIN]->CreatePipelineLayout();
 
 	s_shader[SHADER_SIMPLE].Init("[Shaders]:SimpleMesh.hlsl");
-	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(0, &s_ubSimplePerView, sizeof(s_ubSimplePerView), settings.GetLimits()._mesh_ubPerViewCapacity);
-	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(1, &s_ubSimplePerMaterialFS, sizeof(s_ubSimplePerMaterialFS), settings.GetLimits()._mesh_ubPerMaterialFSCapacity,
+	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(0, &s_ubSimpleView, sizeof(s_ubSimpleView), settings.GetLimits()._mesh_ubViewCapacity);
+	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(1, &s_ubSimpleMaterialFS, sizeof(s_ubSimpleMaterialFS), settings.GetLimits()._mesh_ubMaterialFSCapacity,
 		{
 			CGI::Sampler::linearMipN,
 			CGI::Sampler::linearMipN,
 			CGI::Sampler::shadow
 		}, CGI::ShaderStageFlags::fs);
-	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(2, &s_ubSimplePerMeshVS, sizeof(s_ubSimplePerMeshVS), settings.GetLimits()._mesh_ubPerMeshVSCapacity, {}, CGI::ShaderStageFlags::vs);
-	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(3, &s_ubSimpleSkeletonVS, sizeof(s_ubSimpleSkeletonVS), settings.GetLimits()._mesh_ubSkinningVSCapacity, {}, CGI::ShaderStageFlags::vs);
-	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(4, &s_ubSimplePerObject, sizeof(s_ubSimplePerObject), 0);
+	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(2, &s_ubSimpleMeshVS, sizeof(s_ubSimpleMeshVS), settings.GetLimits()._mesh_ubMeshVSCapacity, {}, CGI::ShaderStageFlags::vs);
+	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(3, &s_ubSimpleSkeletonVS, sizeof(s_ubSimpleSkeletonVS), settings.GetLimits()._mesh_ubSkeletonVSCapacity, {}, CGI::ShaderStageFlags::vs);
+	s_shader[SHADER_SIMPLE]->CreateDescriptorSet(4, &s_ubSimpleObject, sizeof(s_ubSimpleObject), 0);
 	s_shader[SHADER_SIMPLE]->CreatePipelineLayout();
 }
 
@@ -114,9 +115,9 @@ void Mesh::Draw(RcDrawDesc drawDesc, CGI::CommandBufferPtr cb)
 	BindGeo(cb);
 
 	// Set 0:
-	UpdateUniformBufferPerView();
+	UpdateUniformBuffer_View();
 	if (drawDesc._pOverrideFogColor)
-		s_ubSimplePerView._fogColor = drawDesc._pOverrideFogColor->GLM();
+		s_ubSimpleView._fogColor = drawDesc._pOverrideFogColor->GLM();
 	cb->BindDescriptors(shader, 0);
 
 	// Set 1:
@@ -127,18 +128,18 @@ void Mesh::Draw(RcDrawDesc drawDesc, CGI::CommandBufferPtr cb)
 	}
 
 	// Set 2:
-	UpdateUniformBufferPerMeshVS();
+	UpdateUniformBuffer_MeshVS();
 	cb->BindDescriptors(shader, 2);
 
 	// Set 3:
 	if (drawDesc._bindSkeleton && _skeleton.IsInitialized())
 	{
-		UpdateUniformBufferSkeletonVS();
+		UpdateUniformBuffer_SkeletonVS();
 		cb->BindDescriptors(shader, 3);
 	}
 
 	// Set 4:
-	UpdateUniformBufferPerObject(drawDesc._matW, drawDesc._userColor);
+	UpdateUniformBuffer_Object(drawDesc._matW, drawDesc._userColor);
 	cb->BindDescriptors(shader, 4);
 
 	cb->DrawIndexed(GetIndexCount());
@@ -157,9 +158,9 @@ void Mesh::DrawSimple(RcDrawDesc drawDesc, CGI::CommandBufferPtr cb)
 	BindGeo(cb);
 
 	// Set 0:
-	UpdateUniformBufferSimplePerView(mode);
+	UpdateUniformBuffer_SimpleView(mode);
 	if (drawDesc._pOverrideFogColor)
-		s_ubSimplePerView._fogColor = drawDesc._pOverrideFogColor->GLM();
+		s_ubSimpleView._fogColor = drawDesc._pOverrideFogColor->GLM();
 	cb->BindDescriptors(shader, 0);
 
 	// Set 1:
@@ -170,18 +171,18 @@ void Mesh::DrawSimple(RcDrawDesc drawDesc, CGI::CommandBufferPtr cb)
 	}
 
 	// Set 2:
-	UpdateUniformBufferPerMeshVS();
+	UpdateUniformBuffer_MeshVS();
 	cb->BindDescriptors(shader, 2);
 
 	// Set 3:
 	if (drawDesc._bindSkeleton && _skeleton.IsInitialized())
 	{
-		UpdateUniformBufferSimpleSkeletonVS();
+		UpdateUniformBuffer_SimpleSkeletonVS();
 		cb->BindDescriptors(shader, 3);
 	}
 
 	// Set 4:
-	UpdateUniformBufferPerObject(drawDesc._matW, drawDesc._userColor);
+	UpdateUniformBuffer_Object(drawDesc._matW, drawDesc._userColor);
 	cb->BindDescriptors(shader, 4);
 
 	cb->DrawIndexed(GetIndexCount());
@@ -446,7 +447,7 @@ void Mesh::BindGeo(CGI::CommandBufferPtr cb, UINT32 bindingsFilter)
 	cb->BindIndexBuffer(_geo);
 }
 
-void Mesh::UpdateUniformBufferPerView(float invTessDist)
+void Mesh::UpdateUniformBuffer_View(float invTessDist)
 {
 	VERUS_QREF_RENDERER;
 	VERUS_QREF_WM;
@@ -454,27 +455,27 @@ void Mesh::UpdateUniformBufferPerView(float invTessDist)
 	RcPoint3 headPos = wm.GetHeadCamera()->GetEyePosition();
 	Point3 headPosWV = wm.GetPassCamera()->GetMatrixV() * headPos;
 
-	s_ubPerView._matV = wm.GetPassCamera()->GetMatrixV().UniformBufferFormat();
-	s_ubPerView._matVP = wm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubPerView._matP = wm.GetPassCamera()->GetMatrixP().UniformBufferFormat();
-	s_ubPerView._viewportSize = renderer.GetCommandBuffer()->GetViewportSize().GLM();
-	s_ubPerView._eyePosWV_invTessDistSq = float4(headPosWV.GLM(), invTessDist * invTessDist);
+	s_ubView._matV = wm.GetPassCamera()->GetMatrixV().UniformBufferFormat();
+	s_ubView._matVP = wm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubView._matP = wm.GetPassCamera()->GetMatrixP().UniformBufferFormat();
+	s_ubView._viewportSize = renderer.GetCommandBuffer()->GetViewportSize().GLM();
+	s_ubView._eyePosWV_invTessDistSq = float4(headPosWV.GLM(), invTessDist * invTessDist);
 }
 
-void Mesh::UpdateUniformBufferPerMeshVS()
+void Mesh::UpdateUniformBuffer_MeshVS()
 {
-	memcpy(&s_ubPerMeshVS._posDeqScale, _posDeq + 0, 12);
-	memcpy(&s_ubPerMeshVS._posDeqBias, _posDeq + 3, 12);
-	memcpy(&s_ubPerMeshVS._tc0DeqScaleBias, _tc0Deq, 16);
-	memcpy(&s_ubPerMeshVS._tc1DeqScaleBias, _tc1Deq, 16);
+	memcpy(&s_ubMeshVS._posDeqScale, _posDeq + 0, 12);
+	memcpy(&s_ubMeshVS._posDeqBias, _posDeq + 3, 12);
+	memcpy(&s_ubMeshVS._tc0DeqScaleBias, _tc0Deq, 16);
+	memcpy(&s_ubMeshVS._tc1DeqScaleBias, _tc1Deq, 16);
 
-	memcpy(&s_ubSimplePerMeshVS._posDeqScale, _posDeq + 0, 12);
-	memcpy(&s_ubSimplePerMeshVS._posDeqBias, _posDeq + 3, 12);
-	memcpy(&s_ubSimplePerMeshVS._tc0DeqScaleBias, _tc0Deq, 16);
-	memcpy(&s_ubSimplePerMeshVS._tc1DeqScaleBias, _tc1Deq, 16);
+	memcpy(&s_ubSimpleMeshVS._posDeqScale, _posDeq + 0, 12);
+	memcpy(&s_ubSimpleMeshVS._posDeqBias, _posDeq + 3, 12);
+	memcpy(&s_ubSimpleMeshVS._tc0DeqScaleBias, _tc0Deq, 16);
+	memcpy(&s_ubSimpleMeshVS._tc1DeqScaleBias, _tc1Deq, 16);
 }
 
-void Mesh::UpdateUniformBufferSkeletonVS()
+void Mesh::UpdateUniformBuffer_SkeletonVS()
 {
 	VERUS_ZERO_MEM(s_ubSkeletonVS._vWarpZones);
 	s_ubSkeletonVS._vWarpZones[1].w = FLT_MAX;
@@ -488,16 +489,16 @@ void Mesh::UpdateUniformBufferSkeletonVS()
 	_skeleton.UpdateUniformBufferArray(s_ubSkeletonVS._vMatBones);
 }
 
-void Mesh::UpdateUniformBufferPerObject(RcTransform3 tr, RcVector4 color)
+void Mesh::UpdateUniformBuffer_Object(RcTransform3 tr, RcVector4 color)
 {
-	s_ubPerObject._matW = tr.UniformBufferFormat();
-	s_ubPerObject._userColor = color.GLM();
+	s_ubObject._matW = tr.UniformBufferFormat();
+	s_ubObject._userColor = color.GLM();
 
-	s_ubSimplePerObject._matW = s_ubPerObject._matW;
-	s_ubSimplePerObject._userColor = s_ubPerObject._userColor;
+	s_ubSimpleObject._matW = s_ubObject._matW;
+	s_ubSimpleObject._userColor = s_ubObject._userColor;
 }
 
-void Mesh::UpdateUniformBufferSimplePerView(DrawSimpleMode mode)
+void Mesh::UpdateUniformBuffer_SimpleView(DrawSimpleMode mode)
 {
 	VERUS_QREF_ATMO;
 	VERUS_QREF_CSMB;
@@ -510,22 +511,22 @@ void Mesh::UpdateUniformBufferSimplePerView(DrawSimpleMode mode)
 
 	const float occlusion = 0.1f;
 
-	s_ubSimplePerView._matVP = wm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
-	s_ubSimplePerView._eyePos_clipDistanceOffset = float4(headPos.GLM(), clipDistanceOffset);
-	s_ubSimplePerView._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0) * occlusion;
-	s_ubSimplePerView._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
-	s_ubSimplePerView._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
-	s_ubSimplePerView._sunColor = float4(atmo.GetSunColor().GLM(), 0);
-	s_ubSimplePerView._matShadow = csmb.GetShadowMatrix(0).UniformBufferFormat();
-	s_ubSimplePerView._matShadowCSM1 = csmb.GetShadowMatrix(1).UniformBufferFormat();
-	s_ubSimplePerView._matShadowCSM2 = csmb.GetShadowMatrix(2).UniformBufferFormat();
-	s_ubSimplePerView._matShadowCSM3 = csmb.GetShadowMatrix(3).UniformBufferFormat();
-	s_ubSimplePerView._matScreenCSM = csmb.GetScreenMatrixVP().UniformBufferFormat();
-	s_ubSimplePerView._csmSliceBounds = csmb.GetSliceBounds().GLM();
-	memcpy(&s_ubSimplePerView._shadowConfig, &csmb.GetConfig(), sizeof(s_ubSimplePerView._shadowConfig));
+	s_ubSimpleView._matVP = wm.GetPassCamera()->GetMatrixVP().UniformBufferFormat();
+	s_ubSimpleView._eyePos_clipDistanceOffset = float4(headPos.GLM(), clipDistanceOffset);
+	s_ubSimpleView._ambientColor = float4(atmo.GetAmbientColor().GLM(), 0) * occlusion;
+	s_ubSimpleView._fogColor = Vector4(atmo.GetFogColor(), atmo.GetFogDensity()).GLM();
+	s_ubSimpleView._dirToSun = float4(atmo.GetDirToSun().GLM(), 0);
+	s_ubSimpleView._sunColor = float4(atmo.GetSunColor().GLM(), 0);
+	s_ubSimpleView._matShadow = csmb.GetShadowMatrix(0).UniformBufferFormat();
+	s_ubSimpleView._matShadowCSM1 = csmb.GetShadowMatrix(1).UniformBufferFormat();
+	s_ubSimpleView._matShadowCSM2 = csmb.GetShadowMatrix(2).UniformBufferFormat();
+	s_ubSimpleView._matShadowCSM3 = csmb.GetShadowMatrix(3).UniformBufferFormat();
+	s_ubSimpleView._matScreenCSM = csmb.GetScreenMatrixVP().UniformBufferFormat();
+	s_ubSimpleView._csmSliceBounds = csmb.GetSliceBounds().GLM();
+	memcpy(&s_ubSimpleView._shadowConfig, &csmb.GetConfig(), sizeof(s_ubSimpleView._shadowConfig));
 }
 
-void Mesh::UpdateUniformBufferSimpleSkeletonVS()
+void Mesh::UpdateUniformBuffer_SimpleSkeletonVS()
 {
 	_skeleton.UpdateUniformBufferArray(s_ubSimpleSkeletonVS._vMatBones);
 }

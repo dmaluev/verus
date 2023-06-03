@@ -24,6 +24,7 @@ namespace verus
 			path,
 			physics,
 			prefab,
+			project,
 			shaker,
 			sound,
 			terrain,

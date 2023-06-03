@@ -579,7 +579,7 @@ void ShaderVulkan::UpdateUtilization() const
 	{
 		StringStream ss;
 		ss << "set=" << setNumber << ", " << _sourceName;
-		renderer.AddUtilization(_C(ss.str()), dsd._offset / dsd._alignedSize, dsd._capacity);
+		renderer.AddUtilization(_C(ss.str()), dsd._offset / Math::Max(1, dsd._alignedSize), dsd._capacity);
 		setNumber++;
 	}
 }

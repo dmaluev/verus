@@ -188,7 +188,7 @@ namespace verus
 			float                            _maxSizeAll = 0;
 			float                            _phaseY = 0;
 			float                            _phaseXZ = 0;
-			int                              _capacity = 4000;
+			int                              _capacity = 10000;
 			int                              _visibleCount = 0;
 			int                              _totalPlantCount = 0;
 			bool                             _async_initPlants = false;

@@ -8,12 +8,12 @@
 #include "LibVertex.hlsl"
 #include "DS_Mesh.inc.hlsl"
 
-CBUFFER(0, UB_PerView, g_ubPerView)
-CBUFFER(1, UB_PerMaterialFS, g_ubPerMaterialFS)
-CBUFFER(2, UB_PerMeshVS, g_ubPerMeshVS)
+CBUFFER(0, UB_View, g_ubView)
+CBUFFER(1, UB_MaterialFS, g_ubMaterialFS)
+CBUFFER(2, UB_MeshVS, g_ubMeshVS)
 CBUFFER(3, UB_SkeletonVS, g_ubSkeletonVS)
 VK_PUSH_CONSTANT
-CBUFFER(4, UB_PerObject, g_ubPerObject)
+CBUFFER(4, UB_Object, g_ubObject)
 
 Texture2D    g_texA       : REG(t1, space1, t0);
 SamplerState g_samA       : REG(s1, space1, s0);
@@ -70,8 +70,8 @@ VSO mainVS(VSI si)
 	VSO so;
 
 	// Dequantize:
-	const float3 inPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubPerMeshVS._posDeqScale.xyz, g_ubPerMeshVS._posDeqBias.xyz);
-	const float2 inTc0 = DequantizeUsingDeq2D(si.tc0, g_ubPerMeshVS._tc0DeqScaleBias.xy, g_ubPerMeshVS._tc0DeqScaleBias.zw);
+	const float3 inPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubMeshVS._posDeqScale.xyz, g_ubMeshVS._posDeqBias.xyz);
+	const float2 inTc0 = DequantizeUsingDeq2D(si.tc0, g_ubMeshVS._tc0DeqScaleBias.xy, g_ubMeshVS._tc0DeqScaleBias.zw);
 	const float3 inNrm = si.nrm.xyz;
 	const float3 inTan = si.tan.xyz;
 	const float3 inBin = si.bin.xyz;
@@ -84,8 +84,8 @@ VSO mainVS(VSI si)
 		si.pid0_matPart2);
 	const float4 userColor = si.pid0_instData;
 #else
-	mataff matW = g_ubPerObject._matW;
-	const float4 userColor = g_ubPerObject._userColor;
+	mataff matW = g_ubObject._matW;
+	const float4 userColor = g_ubObject._userColor;
 #endif
 
 #if defined(DEF_SKINNED) || defined(DEF_ROBOTIC)
@@ -105,10 +105,10 @@ VSO mainVS(VSI si)
 		const float phaseShiftY = frac(userColor.x + userColor.z);
 		const float phaseShiftXZ = frac(phaseShiftY + inPos.x + inPos.z);
 		const float2 bending = (float2(0.7, 0.5) + float2(0.3, 0.5) *
-			sin((g_ubPerObject._userColor.rg + float2(phaseShiftY, phaseShiftXZ)) * (_PI * 2.0))) * float2(weightY, weightXZ);
+			sin((g_ubObject._userColor.rg + float2(phaseShiftY, phaseShiftXZ)) * (_PI * 2.0))) * float2(weightY, weightXZ);
 
 		const float3x3 matW33 = (float3x3)matW;
-		const float3x3 matBending = (float3x3)g_ubPerObject._matW;
+		const float3x3 matBending = (float3x3)g_ubObject._matW;
 		const float3x3 matBentW33 = mul(matW33, matBending);
 		const float3x3 matRandW33 = mul(matBending, matW33);
 		float3x3 matNewW33;
@@ -129,7 +129,7 @@ VSO mainVS(VSI si)
 	const float3 pos = inPos;
 #endif
 
-	const matrix matWV = mul(ToFloat4x4(matW), ToFloat4x4(g_ubPerView._matV));
+	const matrix matWV = mul(ToFloat4x4(matW), ToFloat4x4(g_ubView._matV));
 	// </TheMatrix>
 
 	float3 posW;
@@ -181,7 +181,7 @@ VSO mainVS(VSI si)
 #endif
 	}
 
-	so.pos = MulTessPos(float4(posW, 1), g_ubPerView._matV, g_ubPerView._matVP);
+	so.pos = MulTessPos(float4(posW, 1), g_ubView._matV, g_ubView._matVP);
 	so.tc0 = inTc0;
 	so.matTBN2 = float4(nrmWV, posW.z);
 #ifdef DEF_TESS
@@ -210,7 +210,7 @@ _HSO_STRUCT;
 PCFO PatchConstFunc(const OutputPatch<HSO, 3> outputPatch)
 {
 	PCFO so;
-	_HS_PCF_BODY(g_ubPerView._matP);
+	_HS_PCF_BODY(g_ubView._matP);
 	return so;
 }
 
@@ -224,7 +224,7 @@ HSO mainHS(InputPatch<VSO, 3> inputPatch, uint id : SV_OutputControlPointID)
 {
 	HSO so;
 
-	_HS_PN_BODY(matTBN2, g_ubPerView._matP, g_ubPerView._viewportSize);
+	_HS_PN_BODY(matTBN2, g_ubView._matP, g_ubView._viewportSize);
 
 	_HS_COPY(pos);
 	_HS_COPY(tc0);
@@ -250,11 +250,11 @@ VSO mainDS(_IN_DS)
 	_DS_INIT_FLAT_POS;
 	_DS_INIT_SMOOTH_POS;
 
-	const float3 toEyeWV = g_ubPerView._eyePosWV_invTessDistSq.xyz - flatPosWV;
+	const float3 toEyeWV = g_ubView._eyePosWV_invTessDistSq.xyz - flatPosWV;
 	const float distToEyeSq = dot(toEyeWV, toEyeWV);
-	const float tessStrength = 1.0 - saturate(distToEyeSq * g_ubPerView._eyePosWV_invTessDistSq.w * 1.1 - 0.1);
+	const float tessStrength = 1.0 - saturate(distToEyeSq * g_ubView._eyePosWV_invTessDistSq.w * 1.1 - 0.1);
 	const float3 posWV = lerp(flatPosWV, smoothPosWV, tessStrength);
-	so.pos = ApplyProjection(posWV, g_ubPerView._matP);
+	so.pos = ApplyProjection(posWV, g_ubView._matP);
 	_DS_COPY(tc0);
 	_DS_COPY(matTBN2);
 #if !defined(DEF_DEPTH)
@@ -293,29 +293,29 @@ DS_FSO mainFS(VSO si)
 		si.matTBN2.xyz);
 
 	// <Material>
-	const float2 mm_anisoSpecDir = g_ubPerMaterialFS._anisoSpecDir_detail_emission.xy;
-	const float mm_detail = g_ubPerMaterialFS._anisoSpecDir_detail_emission.z;
-	const float mm_emission = g_ubPerMaterialFS._anisoSpecDir_detail_emission.w;
-	const float mm_motionBlur = g_ubPerMaterialFS._motionBlur_nmContrast_roughDiffuse_sssHue.x;
-	const float mm_nmContrast = g_ubPerMaterialFS._motionBlur_nmContrast_roughDiffuse_sssHue.y;
-	const float mm_roughDiffuse = frac(g_ubPerMaterialFS._motionBlur_nmContrast_roughDiffuse_sssHue.z);
-	const float mm_sssHue = g_ubPerMaterialFS._motionBlur_nmContrast_roughDiffuse_sssHue.w;
-	const float2 mm_detailScale = g_ubPerMaterialFS._detailScale_strassScale.xy;
-	const float2 mm_strassScale = g_ubPerMaterialFS._detailScale_strassScale.zw;
-	const float4 mm_solidA = g_ubPerMaterialFS._solidA;
-	const float4 mm_solidN = g_ubPerMaterialFS._solidN;
-	const float4 mm_solidX = g_ubPerMaterialFS._solidX;
-	const float4 mm_sssPick = g_ubPerMaterialFS._sssPick;
-	const float4 mm_tc0ScaleBias = g_ubPerMaterialFS._tc0ScaleBias;
-	const float4 mm_userPick = g_ubPerMaterialFS._userPick;
-	const float2 mm_xAnisoSpecScaleBias = g_ubPerMaterialFS._xAnisoSpecScaleBias_xMetallicScaleBias.xy;
-	const float2 mm_xMetallicScaleBias = g_ubPerMaterialFS._xAnisoSpecScaleBias_xMetallicScaleBias.zw;
-	const float2 mm_xRoughnessScaleBias = g_ubPerMaterialFS._xRoughnessScaleBias_xWrapDiffuseScaleBias.xy;
-	const float2 mm_xWrapDiffuseScaleBias = g_ubPerMaterialFS._xRoughnessScaleBias_xWrapDiffuseScaleBias.zw;
+	const float2 mm_anisoSpecDir = g_ubMaterialFS._anisoSpecDir_detail_emission.xy;
+	const float mm_detail = g_ubMaterialFS._anisoSpecDir_detail_emission.z;
+	const float mm_emission = g_ubMaterialFS._anisoSpecDir_detail_emission.w;
+	const float mm_motionBlur = g_ubMaterialFS._motionBlur_nmContrast_roughDiffuse_sssHue.x;
+	const float mm_nmContrast = g_ubMaterialFS._motionBlur_nmContrast_roughDiffuse_sssHue.y;
+	const float mm_roughDiffuse = frac(g_ubMaterialFS._motionBlur_nmContrast_roughDiffuse_sssHue.z);
+	const float mm_sssHue = g_ubMaterialFS._motionBlur_nmContrast_roughDiffuse_sssHue.w;
+	const float2 mm_detailScale = g_ubMaterialFS._detailScale_strassScale.xy;
+	const float2 mm_strassScale = g_ubMaterialFS._detailScale_strassScale.zw;
+	const float4 mm_solidA = g_ubMaterialFS._solidA;
+	const float4 mm_solidN = g_ubMaterialFS._solidN;
+	const float4 mm_solidX = g_ubMaterialFS._solidX;
+	const float4 mm_sssPick = g_ubMaterialFS._sssPick;
+	const float4 mm_tc0ScaleBias = g_ubMaterialFS._tc0ScaleBias;
+	const float4 mm_userPick = g_ubMaterialFS._userPick;
+	const float2 mm_xAnisoSpecScaleBias = g_ubMaterialFS._xAnisoSpecScaleBias_xMetallicScaleBias.xy;
+	const float2 mm_xMetallicScaleBias = g_ubMaterialFS._xAnisoSpecScaleBias_xMetallicScaleBias.zw;
+	const float2 mm_xRoughnessScaleBias = g_ubMaterialFS._xRoughnessScaleBias_xWrapDiffuseScaleBias.xy;
+	const float2 mm_xWrapDiffuseScaleBias = g_ubMaterialFS._xRoughnessScaleBias_xWrapDiffuseScaleBias.zw;
 	// </Material>
 
 	const float2 tc0 = si.tc0 * mm_tc0ScaleBias.xy + mm_tc0ScaleBias.zw;
-	const float resolveDitheringMaskEnabled = step(g_ubPerMaterialFS._motionBlur_nmContrast_roughDiffuse_sssHue.z, 1.0);
+	const float resolveDitheringMaskEnabled = step(g_ubMaterialFS._motionBlur_nmContrast_roughDiffuse_sssHue.z, 1.0);
 
 	// <Albedo>
 	float4 albedo;

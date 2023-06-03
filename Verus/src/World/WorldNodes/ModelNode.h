@@ -19,6 +19,7 @@ namespace verus
 			{
 				CSZ _url = nullptr;
 				CSZ _materialURL = nullptr;
+				int _instanceCapacity = 1000;
 
 				Desc(CSZ url = nullptr) : _url(url) {}
 			};

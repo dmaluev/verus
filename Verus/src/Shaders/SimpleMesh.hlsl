@@ -7,12 +7,12 @@
 #include "LibVertex.hlsl"
 #include "SimpleMesh.inc.hlsl"
 
-CBUFFER(0, UB_SimplePerView, g_ubSimplePerView)
-CBUFFER(1, UB_SimplePerMaterialFS, g_ubSimplePerMaterialFS)
-CBUFFER(2, UB_SimplePerMeshVS, g_ubSimplePerMeshVS)
+CBUFFER(0, UB_SimpleView, g_ubSimpleView)
+CBUFFER(1, UB_SimpleMaterialFS, g_ubSimpleMaterialFS)
+CBUFFER(2, UB_SimpleMeshVS, g_ubSimpleMeshVS)
 CBUFFER(3, UB_SimpleSkeletonVS, g_ubSimpleSkeletonVS)
 VK_PUSH_CONSTANT
-CBUFFER(4, UB_SimplePerObject, g_ubSimplePerObject)
+CBUFFER(4, UB_SimpleObject, g_ubSimpleObject)
 
 Texture2D              g_texA         : REG(t1, space1, t0);
 SamplerState           g_samA         : REG(s1, space1, s0);
@@ -58,12 +58,12 @@ VSO mainVS(VSI si)
 {
 	VSO so;
 
-	const float3 eyePos = g_ubSimplePerView._eyePos_clipDistanceOffset.xyz;
-	const float clipDistanceOffset = g_ubSimplePerView._eyePos_clipDistanceOffset.w;
+	const float3 eyePos = g_ubSimpleView._eyePos_clipDistanceOffset.xyz;
+	const float clipDistanceOffset = g_ubSimpleView._eyePos_clipDistanceOffset.w;
 
 	// Dequantize:
-	const float3 inPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubSimplePerMeshVS._posDeqScale.xyz, g_ubSimplePerMeshVS._posDeqBias.xyz);
-	const float2 inTc0 = DequantizeUsingDeq2D(si.tc0, g_ubSimplePerMeshVS._tc0DeqScaleBias.xy, g_ubSimplePerMeshVS._tc0DeqScaleBias.zw);
+	const float3 inPos = DequantizeUsingDeq3D(si.pos.xyz, g_ubSimpleMeshVS._posDeqScale.xyz, g_ubSimpleMeshVS._posDeqBias.xyz);
+	const float2 inTc0 = DequantizeUsingDeq2D(si.tc0, g_ubSimpleMeshVS._tc0DeqScaleBias.xy, g_ubSimpleMeshVS._tc0DeqScaleBias.zw);
 	const float3 inNrm = si.nrm.xyz;
 
 	// <TheMatrix>
@@ -74,8 +74,8 @@ VSO mainVS(VSI si)
 		si.pid0_matPart2);
 	const float4 userColor = si.pid0_instData;
 #else
-	mataff matW = g_ubSimplePerObject._matW;
-	const float4 userColor = g_ubSimplePerObject._userColor;
+	mataff matW = g_ubSimpleObject._matW;
+	const float4 userColor = g_ubSimpleObject._userColor;
 #endif
 
 	const float3 pos = inPos;
@@ -116,7 +116,7 @@ VSO mainVS(VSI si)
 #endif
 	}
 
-	so.pos = mul(float4(posW, 1), g_ubSimplePerView._matVP);
+	so.pos = mul(float4(posW, 1), g_ubSimpleView._matVP);
 	so.posW_depth = float4(posW, so.pos.w);
 	so.color0 = userColor;
 	so.tc0 = inTc0;
@@ -147,13 +147,13 @@ FSO mainFS(VSO si)
 
 	const float4 albedo = g_texA.Sample(g_samA, tc0);
 
-	const float alpha = max(saturate(dot(normal, dirToEye)), g_ubSimplePerView._fogColor.a);
+	const float alpha = max(saturate(dot(normal, dirToEye)), g_ubSimpleView._fogColor.a);
 
 	so.color.rgb = albedo.rgb * (alpha * alpha) * si.color0.rgb;
 	so.color.a = 1.0;
 #elif defined(DEF_BAKE_AO)
 	// <Material>
-	const float4 mm_tc0ScaleBias = g_ubSimplePerMaterialFS._tc0ScaleBias;
+	const float4 mm_tc0ScaleBias = g_ubSimpleMaterialFS._tc0ScaleBias;
 	// </Material>
 
 	const float2 tc0 = si.tc0 * mm_tc0ScaleBias.xy + mm_tc0ScaleBias.zw;
@@ -164,8 +164,8 @@ FSO mainFS(VSO si)
 
 	so.color.rgb = albedo.rgb * si.color0.rgb;
 
-	const float fog = saturate(si.posW_depth.w * g_ubSimplePerView._fogColor.a);
-	so.color.rgb = lerp(so.color.rgb, g_ubSimplePerView._fogColor.rgb, fog);
+	const float fog = saturate(si.posW_depth.w * g_ubSimpleView._fogColor.a);
+	so.color.rgb = lerp(so.color.rgb, g_ubSimpleView._fogColor.rgb, fog);
 
 	so.color.rgb = SaturateHDR(so.color.rgb);
 	so.color.a = 1.0;
@@ -173,13 +173,13 @@ FSO mainFS(VSO si)
 	clip(albedo.a - 0.5);
 #else
 	// <Material>
-	const float mm_emission = g_ubSimplePerMaterialFS._anisoSpecDir_detail_emission.w;
-	const float4 mm_solidA = g_ubSimplePerMaterialFS._solidA;
-	const float4 mm_solidX = g_ubSimplePerMaterialFS._solidX;
-	const float4 mm_tc0ScaleBias = g_ubSimplePerMaterialFS._tc0ScaleBias;
-	const float4 mm_userPick = g_ubSimplePerMaterialFS._userPick;
-	const float2 mm_xMetallicScaleBias = g_ubSimplePerMaterialFS._xAnisoSpecScaleBias_xMetallicScaleBias.zw;
-	const float2 mm_xRoughnessScaleBias = g_ubSimplePerMaterialFS._xRoughnessScaleBias_xWrapDiffuseScaleBias.xy;
+	const float mm_emission = g_ubSimpleMaterialFS._anisoSpecDir_detail_emission.w;
+	const float4 mm_solidA = g_ubSimpleMaterialFS._solidA;
+	const float4 mm_solidX = g_ubSimpleMaterialFS._solidX;
+	const float4 mm_tc0ScaleBias = g_ubSimpleMaterialFS._tc0ScaleBias;
+	const float4 mm_userPick = g_ubSimpleMaterialFS._userPick;
+	const float2 mm_xMetallicScaleBias = g_ubSimpleMaterialFS._xAnisoSpecScaleBias_xMetallicScaleBias.zw;
+	const float2 mm_xRoughnessScaleBias = g_ubSimpleMaterialFS._xRoughnessScaleBias_xWrapDiffuseScaleBias.xy;
 	// </Material>
 
 	const float2 tc0 = si.tc0 * mm_tc0ScaleBias.xy + mm_tc0ScaleBias.zw;
@@ -227,7 +227,7 @@ FSO mainFS(VSO si)
 	// </X>
 
 	const float3 normal = normalize(si.nrmW);
-	const float3 dirToLight = g_ubSimplePerView._dirToSun.xyz;
+	const float3 dirToLight = g_ubSimpleView._dirToSun.xyz;
 	const float3 dirToEye = normalize(si.dirToEye.xyz);
 	const float depth = si.posW_depth.w;
 
@@ -240,13 +240,13 @@ FSO mainFS(VSO si)
 			g_samShadowCmp,
 			si.posW_depth.xyz,
 			biasedPosW,
-			g_ubSimplePerView._matShadow,
-			g_ubSimplePerView._matShadowCSM1,
-			g_ubSimplePerView._matShadowCSM2,
-			g_ubSimplePerView._matShadowCSM3,
-			g_ubSimplePerView._matScreenCSM,
-			g_ubSimplePerView._csmSliceBounds,
-			g_ubSimplePerView._shadowConfig);
+			g_ubSimpleView._matShadow,
+			g_ubSimpleView._matShadowCSM1,
+			g_ubSimpleView._matShadowCSM2,
+			g_ubSimpleView._matShadowCSM3,
+			g_ubSimpleView._matScreenCSM,
+			g_ubSimpleView._csmSliceBounds,
+			g_ubSimpleView._shadowConfig);
 	}
 	// </Shadow>
 
@@ -256,14 +256,14 @@ FSO mainFS(VSO si)
 		roughness, metallic,
 		punctualDiff, punctualSpec);
 
-	punctualDiff *= g_ubSimplePerView._sunColor.rgb * shadowMask;
-	punctualSpec *= g_ubSimplePerView._sunColor.rgb * shadowMask;
+	punctualDiff *= g_ubSimpleView._sunColor.rgb * shadowMask;
+	punctualSpec *= g_ubSimpleView._sunColor.rgb * shadowMask;
 
-	so.color.rgb = albedo.rgb * (g_ubSimplePerView._ambientColor.rgb * occlusion + punctualDiff + emission) + punctualSpec;
+	so.color.rgb = albedo.rgb * (g_ubSimpleView._ambientColor.rgb * occlusion + punctualDiff + emission) + punctualSpec;
 	so.color.a = 1.0;
 
-	const float fog = ComputeFog(depth, g_ubSimplePerView._fogColor.a, si.posW_depth.y);
-	so.color.rgb = lerp(so.color.rgb, g_ubSimplePerView._fogColor.rgb, fog);
+	const float fog = ComputeFog(depth, g_ubSimpleView._fogColor.a, si.posW_depth.y);
+	so.color.rgb = lerp(so.color.rgb, g_ubSimpleView._fogColor.rgb, fog);
 
 	so.color.rgb = SaturateHDR(so.color.rgb);
 

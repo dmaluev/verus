@@ -67,6 +67,7 @@ namespace verus
 #include "PathNode.h"
 #include "PhysicsNode.h"
 #include "PrefabNode.h"
+#include "ProjectNode.h"
 #include "ShakerNode.h"
 #include "SoundNode.h"
 #include "TerrainNode.h"

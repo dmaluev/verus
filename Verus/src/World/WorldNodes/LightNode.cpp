@@ -61,7 +61,7 @@ void LightNode::Update()
 	if (!_async_loadedMesh)
 	{
 		VERUS_QREF_WU;
-		RMesh mesh = wu.GetDeferredLights().Get(_data._lightType);
+		RMesh mesh = wu.GetDeferredShadingMeshes().Get(_data._lightType);
 		if (mesh.IsLoaded())
 		{
 			_async_loadedMesh = true;
@@ -197,7 +197,7 @@ void LightNode::UpdateBounds()
 	const bool octreeRoot = (IsDynamic() || dir);
 
 	VERUS_QREF_WU;
-	RMesh mesh = wu.GetDeferredLights().Get(_data._lightType);
+	RMesh mesh = wu.GetDeferredShadingMeshes().Get(_data._lightType);
 	if (mesh.IsLoaded())
 	{
 		if (!IsOctreeBindOnce())

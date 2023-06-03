@@ -23,6 +23,7 @@ namespace verus
 		typedef Store<PathNode> TStorePathNodes;
 		typedef Store<PhysicsNode> TStorePhysicsNodes;
 		typedef Store<PrefabNode> TStorePrefabNodes;
+		typedef Store<ProjectNode> TStoreProjectNodes;
 		typedef Store<ShakerNode> TStoreShakerNodes;
 		typedef Store<SoundNode> TStoreSoundNodes;
 		typedef Store<TerrainNode> TStoreTerrainNodes;
@@ -31,8 +32,8 @@ namespace verus
 			private TStoreBaseNodes, private TStoreAmbientNodes, private TStoreBlockNodes,
 			private TStoreBlockChainNodes, private TStoreControlPointNodes, private TStoreEmitterNodes,
 			private TStoreInstanceNodes, private TStoreLightNodes, private TStorePathNodes,
-			private TStorePhysicsNodes, private TStorePrefabNodes, private TStoreShakerNodes,
-			private TStoreSoundNodes, private TStoreTerrainNodes
+			private TStorePhysicsNodes, private TStorePrefabNodes, private TStoreProjectNodes,
+			private TStoreShakerNodes, private TStoreSoundNodes, private TStoreTerrainNodes
 		{
 #include "../Shaders/DS.inc.hlsl"
 #include "../Shaders/DS_AmbientNode.inc.hlsl"
@@ -43,7 +44,7 @@ namespace verus
 			PMainCamera          _pHeadCamera = nullptr; // Head camera which is located between the eyes.
 			PMainCamera          _pViewCamera = nullptr; // Current view camera which is valid only inside DrawView method (eye camera).
 			PLightNode           _pSmbpStatic = nullptr;
-			PLightNode           _pSmbpDynamic[4];
+			PLightNode           _pSmbpDynamic[8];
 			Vector<PBaseNode>    _vNodes;
 			Vector<PBaseNode>    _vVisibleNodes;
 			Random               _random;
@@ -52,6 +53,7 @@ namespace verus
 			int                  _worldSide = 0;
 			int                  _recursionDepth = 0;
 			int                  _smbpDynamicCount = 0;
+			int                  _smbpDynamicMax = 0;
 			float                _pickingShapeHalfExtent = 0.05f;
 			float                _lightsReserveShadowDist = 100;
 			float                _lightsFreeShadowDist = 150;
@@ -98,6 +100,7 @@ namespace verus
 			void DrawTerrainNodesSimple(DrawSimpleMode mode);
 			void DrawLights();
 			void DrawAmbient();
+			void DrawProjectNodes();
 			void DrawTransparent();
 			void DrawSelectedBounds();
 			void DrawSelectedRelationshipLines();
@@ -359,6 +362,20 @@ namespace verus
 					}
 				}
 
+				if (NodeType::unknown == query._type || NodeType::project == query._type)
+				{
+					VERUS_FOREACH_X(TStoreProjectNodes::TList, TStoreProjectNodes::_list, it)
+					{
+						auto& project = *it++;
+						if (
+							MatchName(project) &&
+							MatchSelected(project) &&
+							MatchParent(project))
+							if (Continue::no == fn(project))
+								return;
+					}
+				}
+
 				if (NodeType::unknown == query._type || NodeType::shaker == query._type)
 				{
 					VERUS_FOREACH_X(TStoreShakerNodes::TList, TStoreShakerNodes::_list, it)
@@ -489,6 +506,8 @@ namespace verus
 			PPhysicsNode InsertPhysicsNode();
 
 			PPrefabNode InsertPrefabNode();
+
+			PProjectNode InsertProjectNode();
 
 			PShakerNode InsertShakerNode();
 
