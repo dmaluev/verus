@@ -8,48 +8,41 @@
 #include "Singleton.h"
 #include "QuickRefs.h"
 
-namespace verus
+namespace verus::Math
 {
-	namespace Math
+	// Minimum & maximum:
+	template<typename T>
+	T Min(T a, T b)
 	{
-		// Clamp:
-		template<typename T>
-		T Clamp(T x, T mn, T mx)
-		{
-			if (x <= mn)
-				return mn;
-			else if (x >= mx)
-				return mx;
-			return x;
-		}
+		return std::min(a, b);
+	}
+	template<typename T>
+	T Max(T a, T b)
+	{
+		return std::max(a, b);
+	}
 
-		// Minimum & maximum:
-		template<typename T>
-		T Min(T a, T b)
-		{
-			return a < b ? a : b;
-		}
-		template<typename T>
-		T Max(T a, T b)
-		{
-			return a > b ? a : b;
-		}
+	// Clamp:
+	template<typename T>
+	T Clamp(T x, T min, T max)
+	{
+		return std::clamp(x, min, max);
+	}
 
-		// Memory alignment:
-		template<typename T>
-		T AlignUp(T val, T align)
-		{
-			return (val + align - 1) / align * align;
-		}
-		template<typename T>
-		T AlignDown(T val, T align)
-		{
-			return val / align * align;
-		}
-		template<typename T>
-		T DivideByMultiple(T value, T alignment)
-		{
-			return (value + alignment - 1) / alignment;
-		}
+	// Memory alignment:
+	template<typename T>
+	T AlignUp(T value, T alignment)
+	{
+		return (value + alignment - 1) / alignment * alignment;
+	}
+	template<typename T>
+	T AlignDown(T value, T alignment)
+	{
+		return value / alignment * alignment;
+	}
+	template<typename T>
+	T DivideByMultiple(T value, T alignment)
+	{
+		return (value + alignment - 1) / alignment;
 	}
 }

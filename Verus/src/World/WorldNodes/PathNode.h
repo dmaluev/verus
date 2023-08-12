@@ -1,50 +1,47 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::World
 {
-	namespace World
+	// PathNode defines a curve or multiple curves, which can be used for different purposes.
+	// * can have child ControlPointNodes, which define the shape of the curve.
+	class PathNode : public BaseNode
 	{
-		// PathNode defines a curve or multiple curves, which can be used for different purposes.
-		// * can have child ControlPointNodes, which define the shape of the curve.
-		class PathNode : public BaseNode
+	public:
+		struct Desc : BaseNode::Desc
 		{
-		public:
-			struct Desc : BaseNode::Desc
-			{
-				Desc(CSZ name = nullptr) : BaseNode::Desc(name) {}
-			};
-			VERUS_TYPEDEFS(Desc);
-
-			PathNode();
-			virtual ~PathNode();
-
-			void Init(RcDesc desc);
-			void Done();
-
-			virtual void Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication) override;
-
-			virtual void GetEditorCommands(Vector<EditorCommand>& v) override;
-
-			virtual void Serialize(IO::RSeekableStream stream) override;
-			virtual void Deserialize(IO::RStream stream) override;
+			Desc(CSZ name = nullptr) : BaseNode::Desc(name) {}
 		};
-		VERUS_TYPEDEFS(PathNode);
+		VERUS_TYPEDEFS(Desc);
 
-		class PathNodePtr : public Ptr<PathNode>
-		{
-		public:
-			void Init(PathNode::RcDesc desc);
-			void Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication);
-		};
-		VERUS_TYPEDEFS(PathNodePtr);
+		PathNode();
+		virtual ~PathNode();
 
-		class PathNodePwn : public PathNodePtr
-		{
-		public:
-			~PathNodePwn() { Done(); }
-			void Done();
-		};
-		VERUS_TYPEDEFS(PathNodePwn);
-	}
+		void Init(RcDesc desc);
+		void Done();
+
+		virtual void Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication) override;
+
+		virtual void GetEditorCommands(Vector<EditorCommand>& v) override;
+
+		virtual void Serialize(IO::RSeekableStream stream) override;
+		virtual void Deserialize(IO::RStream stream) override;
+	};
+	VERUS_TYPEDEFS(PathNode);
+
+	class PathNodePtr : public Ptr<PathNode>
+	{
+	public:
+		void Init(PathNode::RcDesc desc);
+		void Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication);
+	};
+	VERUS_TYPEDEFS(PathNodePtr);
+
+	class PathNodePwn : public PathNodePtr
+	{
+	public:
+		~PathNodePwn() { Done(); }
+		void Done();
+	};
+	VERUS_TYPEDEFS(PathNodePwn);
 }

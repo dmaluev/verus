@@ -1,113 +1,110 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::CGI
 {
-	namespace CGI
+	enum class Gapi : int
 	{
-		enum class Gapi : int
+		unknown,
+		vulkan,
+		direct3D11,
+		direct3D12
+	};
+
+	struct BaseRendererDesc
+	{
+		GlobalVarsClipboard _gvc;
+
+		BaseRendererDesc()
 		{
-			unknown,
-			vulkan,
-			direct3D11,
-			direct3D12
-		};
+			_gvc.Copy();
+		}
+	};
+	VERUS_TYPEDEFS(BaseRendererDesc);
 
-		struct BaseRendererDesc
-		{
-			GlobalVarsClipboard _gvc;
+	class BaseRenderer : public Object
+	{
+	protected:
+		Vector<PScheduled> _vScheduled;
+		BaseRendererDesc   _desc;
+		int                _swapChainBufferCount = 0;
+		int                _swapChainBufferIndex = 0;
+		int                _ringBufferIndex = 0;
 
-			BaseRendererDesc()
-			{
-				_gvc.Copy();
-			}
-		};
-		VERUS_TYPEDEFS(BaseRendererDesc);
+		BaseRenderer();
+		virtual ~BaseRenderer();
 
-		class BaseRenderer : public Object
-		{
-		protected:
-			Vector<PScheduled> _vScheduled;
-			BaseRendererDesc   _desc;
-			int                _swapChainBufferCount = 0;
-			int                _swapChainBufferIndex = 0;
-			int                _ringBufferIndex = 0;
+	public:
+		static const int s_ringBufferSize = 3;
 
-			BaseRenderer();
-			virtual ~BaseRenderer();
+		static BaseRenderer* Load(CSZ dll, RBaseRendererDesc desc);
+		virtual void ReleaseMe() = 0;
 
-		public:
-			static const int s_ringBufferSize = 3;
+		void SetDesc(RBaseRendererDesc desc) { _desc = desc; }
 
-			static BaseRenderer* Load(CSZ dll, RBaseRendererDesc desc);
-			virtual void ReleaseMe() = 0;
+		int GetSwapChainBufferCount() const { return _swapChainBufferCount; }
+		int GetSwapChainBufferIndex() const { return _swapChainBufferIndex; }
+		int GetRingBufferIndex() const { return _ringBufferIndex; }
 
-			void SetDesc(RBaseRendererDesc desc) { _desc = desc; }
+		void Schedule(PScheduled p);
+		void Unschedule(PScheduled p);
+		void UpdateScheduled();
 
-			int GetSwapChainBufferCount() const { return _swapChainBufferCount; }
-			int GetSwapChainBufferIndex() const { return _swapChainBufferIndex; }
-			int GetRingBufferIndex() const { return _ringBufferIndex; }
+		virtual void ImGuiInit(RPHandle renderPassHandle) = 0;
+		virtual void ImGuiRenderDrawData() = 0;
 
-			void Schedule(PScheduled p);
-			void Unschedule(PScheduled p);
-			void UpdateScheduled();
+		virtual void ResizeSwapChain() = 0;
 
-			virtual void ImGuiInit(RPHandle renderPassHandle) = 0;
-			virtual void ImGuiRenderDrawData() = 0;
+		virtual PBaseExtReality GetExtReality() { return nullptr; }
 
-			virtual void ResizeSwapChain() = 0;
+		// Which graphics API?
+		virtual Gapi GetGapi() = 0;
 
-			virtual PBaseExtReality GetExtReality() { return nullptr; }
+		// <FrameCycle>
+		virtual void BeginFrame() = 0;
+		virtual void AcquireSwapChainImage() = 0;
+		virtual void EndFrame() = 0;
+		virtual void WaitIdle() = 0;
+		virtual void OnMinimized() = 0;
+		// </FrameCycle>
 
-			// Which graphics API?
-			virtual Gapi GetGapi() = 0;
+		// <Resources>
+		virtual PBaseCommandBuffer InsertCommandBuffer() = 0;
+		virtual PBaseGeometry      InsertGeometry() = 0;
+		virtual PBasePipeline      InsertPipeline() = 0;
+		virtual PBaseShader        InsertShader() = 0;
+		virtual PBaseTexture       InsertTexture() = 0;
 
-			// <FrameCycle>
-			virtual void BeginFrame() = 0;
-			virtual void AcquireSwapChainImage() = 0;
-			virtual void EndFrame() = 0;
-			virtual void WaitIdle() = 0;
-			virtual void OnMinimized() = 0;
-			// </FrameCycle>
+		virtual void DeleteCommandBuffer(PBaseCommandBuffer p) = 0;
+		virtual void DeleteGeometry(PBaseGeometry p) = 0;
+		virtual void DeletePipeline(PBasePipeline p) = 0;
+		virtual void DeleteShader(PBaseShader p) = 0;
+		virtual void DeleteTexture(PBaseTexture p) = 0;
 
-			// <Resources>
-			virtual PBaseCommandBuffer InsertCommandBuffer() = 0;
-			virtual PBaseGeometry      InsertGeometry() = 0;
-			virtual PBasePipeline      InsertPipeline() = 0;
-			virtual PBaseShader        InsertShader() = 0;
-			virtual PBaseTexture       InsertTexture() = 0;
+		RPHandle CreateSimpleRenderPass(Format format, RP::Attachment::LoadOp loadOp = RP::Attachment::LoadOp::dontCare, ImageLayout layout = ImageLayout::fsReadOnly);
+		RPHandle CreateShadowRenderPass(Format format, RP::Attachment::LoadOp loadOp = RP::Attachment::LoadOp::clear);
+		virtual RPHandle CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) = 0;
+		virtual FBHandle CreateFramebuffer(RPHandle renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h,
+			int swapChainBufferIndex = -1, CubeMapFace cubeMapFace = CubeMapFace::none) = 0;
+		virtual void DeleteRenderPass(RPHandle handle) = 0;
+		virtual void DeleteFramebuffer(FBHandle handle) = 0;
+		// </Resources>
 
-			virtual void DeleteCommandBuffer(PBaseCommandBuffer p) = 0;
-			virtual void DeleteGeometry(PBaseGeometry p) = 0;
-			virtual void DeletePipeline(PBasePipeline p) = 0;
-			virtual void DeleteShader(PBaseShader p) = 0;
-			virtual void DeleteTexture(PBaseTexture p) = 0;
+		static void SetAlphaBlendHelper(
+			CSZ sz,
+			int& colorBlendOp,
+			int& alphaBlendOp,
+			int& srcColorBlendFactor,
+			int& dstColorBlendFactor,
+			int& srcAlphaBlendFactor,
+			int& dstAlphaBlendFactor);
 
-			RPHandle CreateSimpleRenderPass(Format format, RP::Attachment::LoadOp loadOp = RP::Attachment::LoadOp::dontCare, ImageLayout layout = ImageLayout::fsReadOnly);
-			RPHandle CreateShadowRenderPass(Format format, RP::Attachment::LoadOp loadOp = RP::Attachment::LoadOp::clear);
-			virtual RPHandle CreateRenderPass(std::initializer_list<RP::Attachment> ilA, std::initializer_list<RP::Subpass> ilS, std::initializer_list<RP::Dependency> ilD) = 0;
-			virtual FBHandle CreateFramebuffer(RPHandle renderPassHandle, std::initializer_list<TexturePtr> il, int w, int h,
-				int swapChainBufferIndex = -1, CubeMapFace cubeMapFace = CubeMapFace::none) = 0;
-			virtual void DeleteRenderPass(RPHandle handle) = 0;
-			virtual void DeleteFramebuffer(FBHandle handle) = 0;
-			// </Resources>
-
-			static void SetAlphaBlendHelper(
-				CSZ sz,
-				int& colorBlendOp,
-				int& alphaBlendOp,
-				int& srcColorBlendFactor,
-				int& dstColorBlendFactor,
-				int& srcAlphaBlendFactor,
-				int& dstAlphaBlendFactor);
-
-			virtual void UpdateUtilization() {}
-		};
-		VERUS_TYPEDEFS(BaseRenderer);
-	}
+		virtual void UpdateUtilization() {}
+	};
+	VERUS_TYPEDEFS(BaseRenderer);
 
 	extern "C"
 	{
-		typedef CGI::PBaseRenderer(*PFNCREATERENDERER)(UINT32 version, CGI::BaseRendererDesc* pDesc);
+		typedef PBaseRenderer(*PFNCREATERENDERER)(UINT32 version, BaseRendererDesc* pDesc);
 	}
 }

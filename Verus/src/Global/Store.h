@@ -128,9 +128,9 @@ namespace verus
 
 		void DeleteAll()
 		{
-			for (auto& x : _map)
+			for (auto& [key, value] : _map)
 			{
-				while (!x.second.Done());
+				while (!value.Done());
 			}
 			_map.clear();
 		}

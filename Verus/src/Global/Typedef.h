@@ -33,6 +33,8 @@ namespace verus
 
 	typedef std::string       String;
 	typedef std::wstring      WideString;
+	typedef std::string_view  StringView;
+	typedef std::wstring_view WideStringView;
 	typedef std::stringstream StringStream;
 
 	typedef glm::quat   Quaternion;

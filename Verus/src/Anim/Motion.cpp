@@ -462,16 +462,16 @@ void Motion::Bone::DeleteRedundantKeyframes(float boneAccLength)
 			// Which keyframe can be removed with the least error?
 			float leastError = threshold;
 			int frameWithLeastError = -1;
-			for (const auto& kv : mapSaved)
+			for (const auto& [key, value] : mapSaved)
 			{
-				const int excludeFrame = kv.first;
+				const int excludeFrame = key;
 				if (!excludeFrame || _pMotion->GetFrameCount() == excludeFrame)
 					continue;
 				_mapRot.clear();
-				for (const auto& kv2 : mapSaved)
+				for (const auto& [key2, value2] : mapSaved)
 				{
-					if (kv2.first != excludeFrame)
-						_mapRot[kv2.first] = kv2.second;
+					if (key2 != excludeFrame)
+						_mapRot[key2] = value2;
 				}
 
 				float accError = 0;
@@ -523,16 +523,16 @@ void Motion::Bone::DeleteRedundantKeyframes(float boneAccLength)
 			// Which keyframe can be removed with the least error?
 			float leastError = threshold;
 			int frameWithLeastError = -1;
-			for (const auto& kv : mapSaved)
+			for (const auto& [key, value] : mapSaved)
 			{
-				const int excludeFrame = kv.first;
+				const int excludeFrame = key;
 				if (!excludeFrame || _pMotion->GetFrameCount() == excludeFrame)
 					continue;
 				_mapPos.clear();
-				for (const auto& kv2 : mapSaved)
+				for (const auto& [key2, value2] : mapSaved)
 				{
-					if (kv2.first != excludeFrame)
-						_mapPos[kv2.first] = kv2.second;
+					if (key2 != excludeFrame)
+						_mapPos[key2] = value2;
 				}
 
 				float accError = 0;
@@ -584,16 +584,16 @@ void Motion::Bone::DeleteRedundantKeyframes(float boneAccLength)
 			// Which keyframe can be removed with the least error?
 			float leastError = threshold;
 			int frameWithLeastError = -1;
-			for (const auto& kv : mapSaved)
+			for (const auto& [key, value] : mapSaved)
 			{
-				const int excludeFrame = kv.first;
+				const int excludeFrame = key;
 				if (!excludeFrame || _pMotion->GetFrameCount() == excludeFrame)
 					continue;
 				_mapScale.clear();
-				for (const auto& kv2 : mapSaved)
+				for (const auto& [key2, value2] : mapSaved)
 				{
-					if (kv2.first != excludeFrame)
-						_mapScale[kv2.first] = kv2.second;
+					if (key2 != excludeFrame)
+						_mapScale[key2] = value2;
 				}
 
 				float accError = 0;
@@ -927,10 +927,10 @@ void Motion::Done()
 Motion::PBone Motion::GetBoneByIndex(int index)
 {
 	int i = 0;
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
 		if (i == index)
-			return &kv.second;
+			return &value;
 		i++;
 	}
 	return nullptr;
@@ -989,9 +989,9 @@ void Motion::Serialize(IO::RStream stream)
 	stream << _fps;
 	stream << GetBoneCount();
 
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		RBone bone = kv.second;
+		RBone bone = value;
 		stream.WriteString(_C(bone.GetName()));
 		bone.Serialize(stream, version);
 	}
@@ -1078,27 +1078,27 @@ void Motion::DeleteRedundantKeyframes(Map<String, float>& mapBoneAccLengths)
 
 void Motion::DeleteOddKeyframes()
 {
-	for (auto& kv : _mapBones)
-		kv.second.DeleteOddKeyframes();
+	for (auto& [key, value] : _mapBones)
+		value.DeleteOddKeyframes();
 }
 
 void Motion::InsertLoopKeyframes()
 {
-	for (auto& kv : _mapBones)
-		kv.second.InsertLoopKeyframes();
+	for (auto& [key, value] : _mapBones)
+		value.InsertLoopKeyframes();
 }
 
 void Motion::Cut(int frame, bool before)
 {
-	for (auto& kv : _mapBones)
-		kv.second.Cut(frame, before);
+	for (auto& [key, value] : _mapBones)
+		value.Cut(frame, before);
 	_frameCount = before ? _frameCount - frame : frame + 1;
 }
 
 void Motion::Fix(bool speedLimit)
 {
-	for (auto& kv : _mapBones)
-		kv.second.Fix(speedLimit);
+	for (auto& [key, value] : _mapBones)
+		value.Fix(speedLimit);
 }
 
 void Motion::ProcessTriggers(float time, PMotionDelegate p, int* pUserTriggerStates)
@@ -1110,9 +1110,9 @@ void Motion::ProcessTriggers(float time, PMotionDelegate p, int* pUserTriggerSta
 		nativeTime = GetNativeDuration() - nativeTime;
 
 	int i = 0;
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		PBone pBone = &kv.second;
+		PBone pBone = &value;
 		int state = 0;
 		if (!(_reversed && nativeTime < _fpsInv * 0.5f)) // Avoid edge case for the first frame in reverse.
 			pBone->ComputeTriggerAt(nativeTime, state);
@@ -1132,9 +1132,9 @@ void Motion::ProcessTriggers(float time, PMotionDelegate p, int* pUserTriggerSta
 void Motion::ResetTriggers(int* pUserTriggerStates)
 {
 	int i = 0;
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		PBone pBone = &kv.second;
+		PBone pBone = &value;
 		int state = 0;
 		if (_reversed)
 			pBone->ComputeTriggerAt(GetNativeDuration(), state);
@@ -1153,9 +1153,9 @@ void Motion::SkipTriggers(float time, int* pUserTriggerStates)
 		nativeTime = GetNativeDuration() - nativeTime;
 
 	int i = 0;
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		PBone pBone = &kv.second;
+		PBone pBone = &value;
 		int state;
 		pBone->ComputeTriggerAt(nativeTime, state);
 		if (pUserTriggerStates)
@@ -1242,14 +1242,14 @@ void Motion::Exec(CSZ code, PBone pBone, Bone::Channel channel)
 		}
 		else
 		{
-			for (auto& bone : _mapBones)
+			for (auto& [key, value] : _mapBones)
 			{
 				if (!strcmp(what, "rot"))
-					bone.second._mapRot.clear();
+					value._mapRot.clear();
 				if (!strcmp(what, "pos"))
-					bone.second._mapPos.clear();
+					value._mapPos.clear();
 				if (!strcmp(what, "scale"))
-					bone.second._mapScale.clear();
+					value._mapScale.clear();
 			}
 		}
 	}

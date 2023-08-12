@@ -1,58 +1,41 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::Game
 {
-	namespace Game
+	class QuestSystem : public Singleton<QuestSystem>, public Object
 	{
-		class QuestSystem : public Singleton<QuestSystem>, public Object
+	public:
+		class Quest
 		{
 		public:
-			class Quest
+			class Req
 			{
 			public:
-				class Req
+				enum class Type : int
 				{
-				public:
-					enum class Type : int
-					{
-						quest,
-						xp,
-						count
-					};
-
-				private:
-					String _id;
-					Type   _type = Type::quest;
+					quest,
+					xp,
+					count
 				};
-				VERUS_TYPEDEFS(Req);
 
-				class Task
+			private:
+				String _id;
+				Type   _type = Type::quest;
+			};
+			VERUS_TYPEDEFS(Req);
+
+			class Task
+			{
+			public:
+				enum class Type : int
 				{
-				public:
-					enum class Type : int
-					{
-						destroy,
-						gather,
-						protect,
-						trigger,
-						count
-					};
-
-					class Reward
-					{
-						String _id;
-						int    _count = 0;
-					};
-					VERUS_TYPEDEFS(Reward);
-
-				private:
-					Vector<Reward> _vRewards;
-					String         _desc;
-					Type           _type = Type::destroy;
-					int            _count = 0;
+					destroy,
+					gather,
+					protect,
+					trigger,
+					count
 				};
-				VERUS_TYPEDEFS(Task);
 
 				class Reward
 				{
@@ -62,24 +45,38 @@ namespace verus
 				VERUS_TYPEDEFS(Reward);
 
 			private:
-				Vector<Req>    _vReqs;
-				Vector<Task>   _vTasks;
 				Vector<Reward> _vRewards;
-				String         _id;
 				String         _desc;
+				Type           _type = Type::destroy;
+				int            _count = 0;
 			};
-			VERUS_TYPEDEFS(Quest);
+			VERUS_TYPEDEFS(Task);
+
+			class Reward
+			{
+				String _id;
+				int    _count = 0;
+			};
+			VERUS_TYPEDEFS(Reward);
 
 		private:
-			Vector<Quest> _vQuests;
-
-		public:
-			QuestSystem();
-			~QuestSystem();
-
-			void Init();
-			void Done();
+			Vector<Req>    _vReqs;
+			Vector<Task>   _vTasks;
+			Vector<Reward> _vRewards;
+			String         _id;
+			String         _desc;
 		};
-		VERUS_TYPEDEFS(QuestSystem);
-	}
+		VERUS_TYPEDEFS(Quest);
+
+	private:
+		Vector<Quest> _vQuests;
+
+	public:
+		QuestSystem();
+		~QuestSystem();
+
+		void Init();
+		void Done();
+	};
+	VERUS_TYPEDEFS(QuestSystem);
 }

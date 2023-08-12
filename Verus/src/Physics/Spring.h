@@ -1,24 +1,21 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::Physics
 {
-	namespace Physics
+	class Spring
 	{
-		class Spring
-		{
-			Vector3 _offset = Vector3(0);
-			Vector3 _velocity = Vector3(0);
-			float   _stiffness = 50;
-			float   _damping = 2;
+		Vector3 _offset = Vector3(0);
+		Vector3 _velocity = Vector3(0);
+		float   _stiffness = 50;
+		float   _damping = 2;
 
-		public:
-			Spring(float stiffness = 50, float damping = 2);
+	public:
+		Spring(float stiffness = 50, float damping = 2);
 
-			void Update(RcVector3 appliedForce);
+		void Update(RcVector3 appliedForce);
 
-			RcVector3 GetOffset() const { return _offset; }
-		};
-		VERUS_TYPEDEFS(Spring);
-	}
+		RcVector3 GetOffset() const { return _offset; }
+	};
+	VERUS_TYPEDEFS(Spring);
 }

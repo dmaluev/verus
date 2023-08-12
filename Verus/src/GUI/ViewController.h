@@ -1,51 +1,48 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::GUI
 {
-	namespace GUI
+	class ViewController : public Object, public ViewDelegate
 	{
-		class ViewController : public Object, public ViewDelegate
+		PView _pView = nullptr;
+
+	public:
+		ViewController();
+		virtual ~ViewController();
+
+		void Init(CSZ url);
+		void Done();
+
+		void Reload();
+
+		PView GetView() { return _pView; }
+		PWidget GetWidgetById(CSZ id);
+
+		template<typename T>
+		T* Connect(T*& p, CSZ id)
 		{
-			PView _pView = nullptr;
+			p = dynamic_cast<T*>(GetWidgetById(id));
+			VERUS_RT_ASSERT(p);
+			return p;
+		}
 
-		public:
-			ViewController();
-			virtual ~ViewController();
+		void ConnectOnMouseEnter /**/(TFnEvent fn, CSZ id);
+		void ConnectOnMouseLeave /**/(TFnEvent fn, CSZ id);
+		void ConnectOnClick      /**/(TFnEvent fn, CSZ id);
+		void ConnectOnDoubleClick/**/(TFnEvent fn, CSZ id);
+		void ConnectOnKey        /**/(TFnEvent fn, CSZ id = nullptr);
+		void ConnectOnChar       /**/(TFnEvent fn, CSZ id = nullptr);
+		void ConnectOnTimeout    /**/(TFnEvent fn, CSZ id = nullptr);
 
-			void Init(CSZ url);
-			void Done();
+		void BeginFadeTo();
+		void Activate();
+		void Deactivate();
 
-			void Reload();
+		virtual void View_SetViewData(PView pView) override {}
+		virtual void View_GetViewData(PView pView) override {}
 
-			PView GetView() { return _pView; }
-			PWidget GetWidgetById(CSZ id);
-
-			template<typename T>
-			T* Connect(T*& p, CSZ id)
-			{
-				p = dynamic_cast<T*>(GetWidgetById(id));
-				VERUS_RT_ASSERT(p);
-				return p;
-			}
-
-			void ConnectOnMouseEnter /**/(TFnEvent fn, CSZ id);
-			void ConnectOnMouseLeave /**/(TFnEvent fn, CSZ id);
-			void ConnectOnClick      /**/(TFnEvent fn, CSZ id);
-			void ConnectOnDoubleClick/**/(TFnEvent fn, CSZ id);
-			void ConnectOnKey        /**/(TFnEvent fn, CSZ id = nullptr);
-			void ConnectOnChar       /**/(TFnEvent fn, CSZ id = nullptr);
-			void ConnectOnTimeout    /**/(TFnEvent fn, CSZ id = nullptr);
-
-			void BeginFadeTo();
-			void Activate();
-			void Deactivate();
-
-			virtual void View_SetViewData(PView pView) override {}
-			virtual void View_GetViewData(PView pView) override {}
-
-			void OnKey(RcEventArgs args);
-		};
-		VERUS_TYPEDEFS(ViewController);
-	}
+		void OnKey(RcEventArgs args);
+	};
+	VERUS_TYPEDEFS(ViewController);
 }

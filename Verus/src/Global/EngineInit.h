@@ -1,12 +1,9 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::CGI
 {
-	namespace CGI
-	{
-		struct RendererDelegate;
-	}
+	struct RendererDelegate;
 }
 
 namespace verus

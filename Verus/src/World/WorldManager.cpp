@@ -68,8 +68,8 @@ void WorldManager::Done()
 
 void WorldManager::ResetInstanceCount()
 {
-	for (auto& x : TStoreModelNodes::_map)
-		x.second.GetMesh().ResetInstanceCount();
+	for (auto& [key, value] : TStoreModelNodes::_map)
+		value.GetMesh().ResetInstanceCount();
 	for (auto& x : TStoreTerrainNodes::_list)
 		x.GetTerrain().ResetInstanceCount();
 }
@@ -82,9 +82,9 @@ void WorldManager::Update()
 	if (!_async_loaded)
 	{
 		bool allModelsLoaded = true;
-		for (auto& x : TStoreModelNodes::_map)
+		for (auto& [key, value] : TStoreModelNodes::_map)
 		{
-			if (!x.second.IsLoaded())
+			if (!value.IsLoaded())
 			{
 				allModelsLoaded = false;
 				break;
@@ -415,14 +415,14 @@ void WorldManager::DrawLights()
 	PMesh pMesh = nullptr;
 
 	auto DrawMesh = [cb](PMesh pMesh)
-	{
-		if (pMesh && !pMesh->IsInstanceBufferEmpty(true))
 		{
-			pMesh->UpdateStorageBuffer(0);
-			pMesh->UpdateInstanceBuffer();
-			cb->DrawIndexed(pMesh->GetIndexCount(), pMesh->GetInstanceCount(true), 0, 0, pMesh->GetMarkedInstance());
-		}
-	};
+			if (pMesh && !pMesh->IsInstanceBufferEmpty(true))
+			{
+				pMesh->UpdateStorageBuffer(0);
+				pMesh->UpdateInstanceBuffer();
+				cb->DrawIndexed(pMesh->GetIndexCount(), pMesh->GetInstanceCount(true), 0, 0, pMesh->GetMarkedInstance());
+			}
+		};
 
 	const int begin = FindOffsetFor(NodeType::light);
 	const int end = begin + _visibleCountPerType[+NodeType::light];
@@ -515,14 +515,14 @@ void WorldManager::DrawAmbient()
 	PMesh pMesh = nullptr;
 
 	auto DrawMesh = [cb](PMesh pMesh)
-	{
-		if (pMesh && !pMesh->IsInstanceBufferEmpty(true))
 		{
-			pMesh->UpdateStorageBuffer(0);
-			pMesh->UpdateInstanceBuffer();
-			cb->DrawIndexed(pMesh->GetIndexCount(), pMesh->GetInstanceCount(true), 0, 0, pMesh->GetMarkedInstance());
-		}
-	};
+			if (pMesh && !pMesh->IsInstanceBufferEmpty(true))
+			{
+				pMesh->UpdateStorageBuffer(0);
+				pMesh->UpdateInstanceBuffer();
+				cb->DrawIndexed(pMesh->GetIndexCount(), pMesh->GetInstanceCount(true), 0, 0, pMesh->GetMarkedInstance());
+			}
+		};
 
 	const int begin = FindOffsetFor(NodeType::ambient);
 	const int end = begin + _visibleCountPerType[+NodeType::ambient];
@@ -629,8 +629,8 @@ void WorldManager::DrawProjectNodes()
 
 void WorldManager::DrawTransparent()
 {
-	for (auto& x : TStoreParticlesNodes::_map)
-		x.second.Draw();
+	for (auto& [key, value] : TStoreParticlesNodes::_map)
+		value.Draw();
 }
 
 void WorldManager::DrawSelectedBounds()

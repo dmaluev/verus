@@ -310,15 +310,15 @@ void Material::LoadTextures(bool streamParts)
 
 	String newUrl;
 	auto ExpandPath = [this, &newUrl](CSZ url)
-	{
-		if (!strncmp(url, "./", 2))
 		{
-			newUrl = Str::GetPath(_C(_name));
-			newUrl += url + 1;
-			return _C(newUrl);
-		}
-		return url;
-	};
+			if (!strncmp(url, "./", 2))
+			{
+				newUrl = Str::GetPath(_C(_name));
+				newUrl += url + 1;
+				return _C(newUrl);
+			}
+			return url;
+		};
 
 	_texA.Init(ExpandPath(_dict.Find("texA")), streamParts);
 	_texN.Init(ExpandPath(_dict.Find("texN")), streamParts);
@@ -603,11 +603,11 @@ void MaterialManager::Update()
 {
 	VERUS_UPDATE_ONCE_CHECK;
 
-	for (auto& x : TStoreTextures::_map)
-		x.second.Update();
+	for (auto& [key, value] : TStoreTextures::_map)
+		value.Update();
 
-	for (auto& x : TStoreMaterials::_map)
-		x.second.Update();
+	for (auto& [key, value] : TStoreMaterials::_map)
+		value.Update();
 }
 
 PTexture MaterialManager::InsertTexture(CSZ url)
@@ -676,8 +676,8 @@ Vector<String> MaterialManager::GetMaterialNames() const
 
 void MaterialManager::ResetPart()
 {
-	for (auto& x : TStoreTextures::_map)
-		x.second.ResetPart();
+	for (auto& [key, value] : TStoreTextures::_map)
+		value.ResetPart();
 }
 
 float MaterialManager::ComputePart(float distSq, float objectRadius)

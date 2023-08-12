@@ -59,13 +59,13 @@ void ShaderD3D11::Init(CSZ source, CSZ sourceName, CSZ* branches)
 	ComPtr<ID3DBlob> pBlob;
 
 	auto CheckErrorMsgs = [this](ComPtr<ID3DBlob>& pErrorMsgs)
-	{
-		if (pErrorMsgs)
 		{
-			OnError(static_cast<CSZ>(pErrorMsgs->GetBufferPointer()));
-			pErrorMsgs.Reset();
-		}
-	};
+			if (pErrorMsgs)
+			{
+				OnError(static_cast<CSZ>(pErrorMsgs->GetBufferPointer()));
+				pErrorMsgs.Reset();
+			}
+		};
 
 	while (*branches)
 	{
@@ -191,10 +191,10 @@ void ShaderD3D11::Done()
 	for (auto& dsd : _vDescriptorSetDesc)
 		dsd._pConstantBuffer.Reset();
 
-	for (auto& x : _mapCompiled)
+	for (auto& [key, value] : _mapCompiled)
 	{
 		VERUS_FOR(i, +Stage::count)
-			x.second._pBlobs[i].Reset();
+			value._pBlobs[i].Reset();
 	}
 
 	VERUS_DONE(ShaderD3D11);

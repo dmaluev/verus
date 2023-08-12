@@ -16,8 +16,8 @@ Skeleton::~Skeleton()
 void Skeleton::operator=(RcSkeleton that)
 {
 	Init();
-	for (const auto& kv : that._mapBones)
-		_mapBones[kv.first] = kv.second;
+	for (const auto& [key, value] : that._mapBones)
+		_mapBones[key] = value;
 	_primaryBoneCount = that._primaryBoneCount;
 }
 
@@ -36,9 +36,9 @@ void Skeleton::Draw(bool bindPose, PcTransform3 pMat, int selected)
 {
 	VERUS_QREF_DD;
 	dd.Begin(CGI::DebugDraw::Type::lines, pMat, false);
-	for (const auto& kv : _mapBones)
+	for (const auto& [key, value] : _mapBones)
 	{
-		PcBone pBone = &kv.second;
+		PcBone pBone = &value;
 		PcBone pParent = FindBone(_C(pBone->_parentName));
 		if (pParent)
 		{
@@ -58,9 +58,9 @@ void Skeleton::Draw(bool bindPose, PcTransform3 pMat, int selected)
 			}
 		}
 	}
-	for (const auto& kv : _mapBones)
+	for (const auto& [key, value] : _mapBones)
 	{
-		PcBone pBone = &kv.second;
+		PcBone pBone = &value;
 		const Transform3 mat = bindPose ? pBone->_matFromBoneSpace : pBone->_matFinal * pBone->_matFromBoneSpace;
 
 		const float scale = 0.04f;
@@ -122,10 +122,10 @@ Skeleton::PcBone Skeleton::FindBone(CSZ name) const
 
 Skeleton::PBone Skeleton::FindBoneByIndex(int index)
 {
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		if (kv.second._shaderIndex == index)
-			return &kv.second;
+		if (value._shaderIndex == index)
+			return &value;
 	}
 	return nullptr;
 }
@@ -134,9 +134,9 @@ void Skeleton::ApplyMotion(RMotion motion, float time, int layeredMotionCount, P
 {
 	if (_ragdollMode)
 	{
-		for (auto& kv : _mapBones)
+		for (auto& [key, value] : _mapBones)
 		{
-			RBone bone = kv.second;
+			RBone bone = value;
 			if (bone._pRigidBody)
 			{
 				btTransform btr;
@@ -176,9 +176,9 @@ void Skeleton::ApplyMotion(RMotion motion, float time, int layeredMotionCount, P
 	_pLayeredMotions = pLayeredMotions;
 
 	ResetBones();
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		RBone bone = kv.second;
+		RBone bone = value;
 		if (!bone._ready)
 		{
 			_pCurrentBone = &bone;
@@ -198,9 +198,9 @@ void Skeleton::ApplyMotion(RMotion motion, float time, int layeredMotionCount, P
 
 void Skeleton::UpdateUniformBufferArray(mataff* p) const
 {
-	for (const auto& kv : _mapBones)
+	for (const auto& [key, value] : _mapBones)
 	{
-		RcBone bone = kv.second;
+		RcBone bone = value;
 		if (bone._shaderIndex >= 0 && bone._shaderIndex < VERUS_MAX_BONES)
 			p[bone._shaderIndex] = bone._matFinal.UniformBufferFormat();
 	}
@@ -208,17 +208,17 @@ void Skeleton::UpdateUniformBufferArray(mataff* p) const
 
 void Skeleton::ResetFinalPose()
 {
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		kv.second._matFinal = Transform3::identity();
-		kv.second._matFinalInv = Transform3::identity();
+		value._matFinal = Transform3::identity();
+		value._matFinalInv = Transform3::identity();
 	}
 }
 
 void Skeleton::ResetBones()
 {
-	for (auto& kv : _mapBones)
-		kv.second._ready = false;
+	for (auto& [key, value] : _mapBones)
+		value._ready = false;
 }
 
 void Skeleton::RecursiveBoneUpdate()
@@ -300,8 +300,8 @@ void Skeleton::RecursiveBoneUpdate()
 
 void Skeleton::InsertBonesIntoMotion(RMotion motion) const
 {
-	for (const auto& kv : _mapBones)
-		motion.InsertBone(_C(kv.first));
+	for (const auto& [key, value] : _mapBones)
+		motion.InsertBone(_C(key));
 }
 
 void Skeleton::DeleteOutsiders(RMotion motion) const
@@ -332,9 +332,9 @@ void Skeleton::AdjustPrimaryBones(const Vector<String>& vPrimaryBones)
 	if (inverse)
 		std::swap(addPri, addSec);
 
-	for (const auto& kv : _mapBones)
+	for (const auto& [key, value] : _mapBones)
 	{
-		RcBone bone = kv.second;
+		RcBone bone = value;
 		if (vPrimaryBones.end() != std::find(vPrimaryBones.begin(), vPrimaryBones.end(), bone._name))
 			mapSort[bone._shaderIndex + addPri] = bone._name;
 		else
@@ -343,11 +343,11 @@ void Skeleton::AdjustPrimaryBones(const Vector<String>& vPrimaryBones)
 
 	_primaryBoneCount = 0;
 
-	for (const auto& kv : mapSort)
+	for (const auto& [key, value] : mapSort)
 	{
-		if (kv.first < secondaryOffset) // Primary bone:
+		if (key < secondaryOffset) // Primary bone:
 		{
-			PBone pBone = FindBone(_C(kv.second));
+			PBone pBone = FindBone(_C(value));
 			const int newIndex = Utils::Cast32(_mapPrimary.size());
 			_mapPrimary[pBone->_shaderIndex] = newIndex;
 			pBone->_shaderIndex = newIndex;
@@ -355,7 +355,7 @@ void Skeleton::AdjustPrimaryBones(const Vector<String>& vPrimaryBones)
 		}
 		else // Secondary bone:
 		{
-			PBone pBone = FindBone(_C(kv.second));
+			PBone pBone = FindBone(_C(value));
 			PcBone pParent = FindBone(_C(pBone->_parentName));
 			bool isPrimary = false;
 			while (!isPrimary)
@@ -400,9 +400,9 @@ void Skeleton::LoadRigInfo(CSZ url)
 
 void Skeleton::LoadRigInfoFromPtr(SZ p)
 {
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		RBone bone = kv.second;
+		RBone bone = value;
 		bone._rigRot = Vector3(0);
 		bone._cRot = Vector3(0);
 		bone._cLimits = Vector3(0);
@@ -419,9 +419,9 @@ void Skeleton::LoadRigInfoFromPtr(SZ p)
 	float massCheck = 0;
 	if (p)
 	{
-		for (auto& kv : _mapBones)
+		for (auto& [key, value] : _mapBones)
 		{
-			RBone bone = kv.second;
+			RBone bone = value;
 			bone._rigBone = false;
 		}
 
@@ -498,12 +498,12 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 	const float sleepL = 1.6f;
 	const float sleepA = 2.5f;
 
-	for (auto& kv : _mapBones)
-		kv.second._ready = true;
+	for (auto& [key, value] : _mapBones)
+		value._ready = true;
 
-	for (const auto& kv : _mapBones)
+	for (const auto& [key, value] : _mapBones)
 	{
-		PcBone pBone = &kv.second;
+		PcBone pBone = &value;
 		PBone pParent = FindBone(_C(pBone->_parentName));
 
 		if (pParent && pParent->_rigBone && !pParent->_pShape) // Create a shape for parent bone:
@@ -574,9 +574,9 @@ void Skeleton::BeginRagdoll(RcTransform3 matW, RcVector3 impulse, CSZ bone)
 	const Transform3 matInitC = Transform3::rotationZYX(Vector3(-VERUS_PI / 2, 0, -VERUS_PI / 2));
 
 	// Create leaf actors and joints:
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		PBone pBone = &kv.second;
+		PBone pBone = &value;
 		PBone pParent = pBone;
 		do
 		{
@@ -667,9 +667,9 @@ void Skeleton::EndRagdoll()
 {
 	VERUS_QREF_BULLET;
 
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		RBone bone = kv.second;
+		RBone bone = value;
 		if (bone._pConstraint)
 		{
 			bullet.GetWorld()->removeConstraint(bone._pConstraint);
@@ -678,9 +678,9 @@ void Skeleton::EndRagdoll()
 		}
 	}
 
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		RBone bone = kv.second;
+		RBone bone = value;
 		if (bone._pRigidBody)
 		{
 			bullet.GetWorld()->removeRigidBody(bone._pRigidBody);
@@ -700,9 +700,9 @@ void Skeleton::EndRagdoll()
 
 void Skeleton::BakeMotion(RMotion motion, int frame, bool kinect)
 {
-	for (const auto& kv : _mapBones)
+	for (const auto& [key, value] : _mapBones)
 	{
-		RcBone bone = kv.second;
+		RcBone bone = value;
 		if (kinect && !IsKinectBone(_C(bone._name)))
 			continue;
 		PcBone pParent = FindBone(_C(bone._parentName));
@@ -792,9 +792,9 @@ void Skeleton::AdaptBindPoseOf(RcSkeleton that)
 	// TODO: improve.
 
 	const Point3 origin(0);
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		RBone boneDst = kv.second;
+		RBone boneDst = value;
 		PBone pParentDst = FindBone(_C(boneDst._parentName));
 		PcBone pBoneSrc = that.FindBone(_C(boneDst._name));
 		PcBone pParentSrc = pBoneSrc ? that.FindBone(_C(pBoneSrc->_parentName)) : nullptr;
@@ -850,10 +850,10 @@ void Skeleton::SimpleIK(CSZ boneDriven, CSZ boneDriver, RcVector3 dirDriverSpace
 
 void Skeleton::ProcessKinectData(const BYTE* p, RMotion motion, int frame)
 {
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		kv.second._matFinal = Transform3::identity();
-		kv.second._matExternal = Transform3::identity();
+		value._matFinal = Transform3::identity();
+		value._matExternal = Transform3::identity();
 	}
 
 	UINT64 timestamp;
@@ -925,9 +925,9 @@ void Skeleton::ProcessKinectData(const BYTE* p, RMotion motion, int frame)
 		shTwist *= 1 - abs(shAxis.getY());
 	}
 
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		RBone bone = kv.second;
+		RBone bone = value;
 		if (!IsKinectBone(_C(bone._name)))
 			continue;
 #if 0
@@ -970,9 +970,9 @@ void Skeleton::ProcessKinectData(const BYTE* p, RMotion motion, int frame)
 
 	VERUS_FOR(i, 4)
 	{
-		for (auto& kv : _mapBones)
+		for (auto& [key, value] : _mapBones)
 		{
-			RBone bone = kv.second;
+			RBone bone = value;
 			if (IsKinectBone(_C(bone._name)) && !IsKinectLeafBone(_C(bone._name)))
 				continue;
 			PBone pParent = FindBone(_C(bone._parentName));
@@ -985,10 +985,10 @@ void Skeleton::ProcessKinectData(const BYTE* p, RMotion motion, int frame)
 
 	BakeMotion(motion, frame, true);
 
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		kv.second._matFinal = Transform3::identity();
-		kv.second._matExternal = Transform3::identity();
+		value._matFinal = Transform3::identity();
+		value._matExternal = Transform3::identity();
 	}
 }
 
@@ -1033,9 +1033,9 @@ void Skeleton::LoadKinectBindPose(CSZ xml)
 		mapData[pElem->Attribute("n")] = pos;
 	}
 
-	for (const auto& kv : _mapBones)
+	for (const auto& [key, value] : _mapBones)
 	{
-		RBone bone = kv.second;
+		RBone bone = value;
 		if (!IsKinectBone(_C(bone._name)))
 			continue;
 		PBone pParent = FindBone(_C(bone._parentName));
@@ -1229,9 +1229,9 @@ Vector3 Skeleton::GetHighestSpeed(RMotion motion, CSZ name, RcVector3 scale, boo
 
 void Skeleton::ComputeBoneLengths(Map<String, float>& m, bool accumulated)
 {
-	for (auto& kv : _mapBones)
+	for (auto& [key, value] : _mapBones)
 	{
-		RcBone bone = kv.second;
+		RcBone bone = value;
 		PcBone pParentBone = FindBone(_C(bone._parentName));
 		float len = 0;
 		if (pParentBone)
@@ -1261,7 +1261,7 @@ void Skeleton::ComputeBoneLengths(Map<String, float>& m, bool accumulated)
 	}
 	if (accumulated) // Add leaf bone lengths?
 	{
-		for (auto& kv : m)
-			kv.second += 0.02f;
+		for (auto& [key, value] : m)
+			value += 0.02f;
 	}
 }

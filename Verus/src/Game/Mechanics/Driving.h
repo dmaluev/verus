@@ -1,16 +1,13 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::Game
 {
-	namespace Game
+	class Driving
 	{
-		class Driving
-		{
-		public:
-			Driving();
-			~Driving();
-		};
-		VERUS_TYPEDEFS(Driving);
-	}
+	public:
+		Driving();
+		~Driving();
+	};
+	VERUS_TYPEDEFS(Driving);
 }

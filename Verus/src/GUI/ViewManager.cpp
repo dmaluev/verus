@@ -123,8 +123,8 @@ bool ViewManager::Update()
 	if (!_cshDebug.IsSet() && _tex[TEX_DEBUG]->IsLoaded())
 		_cshDebug = _shader->BindDescriptorSetTextures(1, { _tex[TEX_DEBUG] });
 
-	for (auto& x : TStoreFonts::_map)
-		x.second.ResetDynamicBuffer();
+	for (auto& [key, value] : TStoreFonts::_map)
+		value.ResetDynamicBuffer();
 
 	for (const auto& p : _vViews)
 		p->Update();

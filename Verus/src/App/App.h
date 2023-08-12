@@ -11,10 +11,7 @@ namespace verus
 	void Free_App();
 }
 
-namespace verus
+namespace verus::App
 {
-	namespace App
-	{
-		void RunEventLoop();
-	}
+	void RunEventLoop();
 }

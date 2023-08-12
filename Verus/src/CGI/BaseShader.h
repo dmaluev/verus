@@ -1,103 +1,100 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::CGI
 {
-	namespace CGI
+	struct ShaderDesc
 	{
-		struct ShaderDesc
+		CSZ  _url = nullptr;
+		CSZ  _source = nullptr;
+		CSZ* _branches = nullptr;
+		CSZ* _ignoreList = nullptr;
+		CSZ  _userDefines = nullptr;
+		bool _saveCompiled = false;
+
+		ShaderDesc(CSZ url = nullptr) : _url(url) {}
+	};
+	VERUS_TYPEDEFS(ShaderDesc);
+
+	class BaseShader : public Object, public Scheduled
+	{
+		static CSZ s_branchCommentMarker;
+
+	public:
+		enum class Stage : int
 		{
-			CSZ  _url = nullptr;
-			CSZ  _source = nullptr;
-			CSZ* _branches = nullptr;
-			CSZ* _ignoreList = nullptr;
-			CSZ  _userDefines = nullptr;
-			bool _saveCompiled = false;
-
-			ShaderDesc(CSZ url = nullptr) : _url(url) {}
+			vs, // Vertex shader
+			hs, // Tessellation control shader (Hull shader)
+			ds, // Tessellation evaluation shader (Domain shader)
+			gs, // Geometry shader
+			fs, // Fragment shader (Pixel shader)
+			cs, // Compute Shader
+			count
 		};
-		VERUS_TYPEDEFS(ShaderDesc);
 
-		class BaseShader : public Object, public Scheduled
-		{
-			static CSZ s_branchCommentMarker;
+	protected:
+		String _sourceName;
+		CSZ* _ignoreList = nullptr;
+		CSZ    _userDefines = nullptr;
+		bool   _saveCompiled = false;
 
-		public:
-			enum class Stage : int
-			{
-				vs, // Vertex shader
-				hs, // Tessellation control shader (Hull shader)
-				ds, // Tessellation evaluation shader (Domain shader)
-				gs, // Geometry shader
-				fs, // Fragment shader (Pixel shader)
-				cs, // Compute Shader
-				count
-			};
+		BaseShader() = default;
+		virtual ~BaseShader() = default;
 
-		protected:
-			String _sourceName;
-			CSZ* _ignoreList = nullptr;
-			CSZ    _userDefines = nullptr;
-			bool   _saveCompiled = false;
+	public:
+		virtual void Init(CSZ source, CSZ sourceName, CSZ* branches) = 0;
+		virtual void Done() = 0;
 
-			BaseShader() = default;
-			virtual ~BaseShader() = default;
+		void Load(CSZ url);
+		static String Parse(
+			CSZ branchDesc,
+			RString entry,
+			String stageEntries[],
+			RString stages,
+			Vector<String>& vMacroName,
+			Vector<String>& vMacroValue,
+			CSZ prefix);
+		static void TestParse();
 
-		public:
-			virtual void Init(CSZ source, CSZ sourceName, CSZ* branches) = 0;
-			virtual void Done() = 0;
+		virtual void CreateDescriptorSet(int setNumber, const void* pSrc, int size,
+			int capacity = 1, std::initializer_list<Sampler> il = {}, ShaderStageFlags stageFlags = ShaderStageFlags::vs_fs) = 0;
+		virtual void CreatePipelineLayout() = 0;
+		virtual CSHandle BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il,
+			const int* pMipLevels = nullptr, const int* pArrayLayers = nullptr) = 0;
+		virtual void FreeDescriptorSet(CSHandle& complexSetHandle) = 0;
 
-			void Load(CSZ url);
-			static String Parse(
-				CSZ branchDesc,
-				RString entry,
-				String stageEntries[],
-				RString stages,
-				Vector<String>& vMacroName,
-				Vector<String>& vMacroValue,
-				CSZ prefix);
-			static void TestParse();
+		virtual void BeginBindDescriptors() = 0;
+		virtual void EndBindDescriptors() = 0;
 
-			virtual void CreateDescriptorSet(int setNumber, const void* pSrc, int size,
-				int capacity = 1, std::initializer_list<Sampler> il = {}, ShaderStageFlags stageFlags = ShaderStageFlags::vs_fs) = 0;
-			virtual void CreatePipelineLayout() = 0;
-			virtual CSHandle BindDescriptorSetTextures(int setNumber, std::initializer_list<TexturePtr> il,
-				const int* pMipLevels = nullptr, const int* pArrayLayers = nullptr) = 0;
-			virtual void FreeDescriptorSet(CSHandle& complexSetHandle) = 0;
+		Str GetSourceName() const { return _C(_sourceName); }
 
-			virtual void BeginBindDescriptors() = 0;
-			virtual void EndBindDescriptors() = 0;
+		void SetIgnoreList(CSZ* list) { _ignoreList = list; }
+		bool IsInIgnoreList(CSZ name) const;
 
-			Str GetSourceName() const { return _C(_sourceName); }
+		void SetUserDefines(CSZ def) { _userDefines = def; }
 
-			void SetIgnoreList(CSZ* list) { _ignoreList = list; }
-			bool IsInIgnoreList(CSZ name) const;
+		void SetSaveCompiled(bool b) { _saveCompiled = b; }
+		static void SaveCompiled(CSZ code, CSZ filename);
+	};
+	VERUS_TYPEDEFS(BaseShader);
 
-			void SetUserDefines(CSZ def) { _userDefines = def; }
+	class ShaderPtr : public Ptr<BaseShader>
+	{
+	public:
+		void Init(RcShaderDesc desc);
+	};
+	VERUS_TYPEDEFS(ShaderPtr);
 
-			void SetSaveCompiled(bool b) { _saveCompiled = b; }
-			static void SaveCompiled(CSZ code, CSZ filename);
-		};
-		VERUS_TYPEDEFS(BaseShader);
+	class ShaderPwn : public ShaderPtr
+	{
+	public:
+		~ShaderPwn() { Done(); }
+		void Done();
+	};
+	VERUS_TYPEDEFS(ShaderPwn);
 
-		class ShaderPtr : public Ptr<BaseShader>
-		{
-		public:
-			void Init(RcShaderDesc desc);
-		};
-		VERUS_TYPEDEFS(ShaderPtr);
-
-		class ShaderPwn : public ShaderPtr
-		{
-		public:
-			~ShaderPwn() { Done(); }
-			void Done();
-		};
-		VERUS_TYPEDEFS(ShaderPwn);
-
-		template<int COUNT>
-		class ShaderPwns : public Pwns<ShaderPwn, COUNT>
-		{
-		};
-	}
+	template<int COUNT>
+	class ShaderPwns : public Pwns<ShaderPwn, COUNT>
+	{
+	};
 }

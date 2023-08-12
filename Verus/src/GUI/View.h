@@ -1,109 +1,106 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::GUI
 {
-	namespace GUI
+	struct InputFocus
 	{
-		struct InputFocus
+		virtual bool InputFocus_KeyOnly() { return false; }
+		virtual void InputFocus_AddChar(wchar_t c) {}
+		virtual void InputFocus_DeleteChar() {}
+		virtual void InputFocus_BackspaceChar() {}
+		virtual void InputFocus_SetCursor(int pos) {}
+		virtual void InputFocus_MoveCursor(int delta) {}
+		virtual void InputFocus_Enter() {}
+		virtual void InputFocus_Tab() {}
+		virtual void InputFocus_Key(int scancode) {}
+		virtual void InputFocus_OnFocus() {}
+	};
+	VERUS_TYPEDEFS(InputFocus);
+
+	struct ViewDelegate
+	{
+		virtual void View_SetViewData(View* pView) = 0;
+		virtual void View_GetViewData(View* pView) = 0;
+	};
+	VERUS_TYPEDEFS(ViewDelegate);
+
+	// Views contain other controls.
+	// By default they have "done" state.
+	// You should call ViewManager::FadeTo() after loading.
+	class View : public Widget, public Container
+	{
+		friend class ViewManager;
+
+		enum class State : int
 		{
-			virtual bool InputFocus_KeyOnly() { return false; }
-			virtual void InputFocus_AddChar(wchar_t c) {}
-			virtual void InputFocus_DeleteChar() {}
-			virtual void InputFocus_BackspaceChar() {}
-			virtual void InputFocus_SetCursor(int pos) {}
-			virtual void InputFocus_MoveCursor(int delta) {}
-			virtual void InputFocus_Enter() {}
-			virtual void InputFocus_Tab() {}
-			virtual void InputFocus_Key(int scancode) {}
-			virtual void InputFocus_OnFocus() {}
+			fadeIn,
+			fadeOut,
+			active,
+			done
 		};
-		VERUS_TYPEDEFS(InputFocus);
 
-		struct ViewDelegate
-		{
-			virtual void View_SetViewData(View* pView) = 0;
-			virtual void View_GetViewData(View* pView) = 0;
-		};
-		VERUS_TYPEDEFS(ViewDelegate);
+		typedef Map<int, String> TMapStrings;
 
-		// Views contain other controls.
-		// By default they have "done" state.
-		// You should call ViewManager::FadeTo() after loading.
-		class View : public Widget, public Container
-		{
-			friend class ViewManager;
+		CGI::CSHandle     _csh;
+		PViewDelegate     _pDelegate = nullptr;
+		String            _url;
+		String            _name;
+		String            _locale = "RU";
+		TMapStrings       _mapStrings;
+		Vector<PWidget>   _vTabList;
+		World::TexturePwn _tex;
+		PWidget           _pLastHovered = nullptr;
+		PInputFocus       _pInputFocus = nullptr;
+		State             _state = State::done;
+		Linear<float>     _fade;
+		float             _fadeSpeed = 4;
+		bool              _cursor = true;
+		bool              _debug = false;
+		bool              _skipNextKey = false;
 
-			enum class State : int
-			{
-				fadeIn,
-				fadeOut,
-				active,
-				done
-			};
+	public:
+		View();
+		~View();
 
-			typedef Map<int, String> TMapStrings;
+		virtual void Update() override;
+		virtual void Draw() override;
+		virtual void Parse(pugi::xml_node node) override;
 
-			CGI::CSHandle     _csh;
-			PViewDelegate     _pDelegate = nullptr;
-			String            _url;
-			String            _name;
-			String            _locale = "RU";
-			TMapStrings       _mapStrings;
-			Vector<PWidget>   _vTabList;
-			World::TexturePwn _tex;
-			PWidget           _pLastHovered = nullptr;
-			PInputFocus       _pInputFocus = nullptr;
-			State             _state = State::done;
-			Linear<float>     _fade;
-			float             _fadeSpeed = 4;
-			bool              _cursor = true;
-			bool              _debug = false;
-			bool              _skipNextKey = false;
+		PViewDelegate SetDelegate(PViewDelegate p) { return Utils::Swap(_pDelegate, p); }
 
-		public:
-			View();
-			~View();
+		void ResetAnimators(float reverseTime = 0);
 
-			virtual void Update() override;
-			virtual void Draw() override;
-			virtual void Parse(pugi::xml_node node) override;
+		void SetData() { if (_pDelegate) _pDelegate->View_SetViewData(this); }
+		void GetData() { if (_pDelegate) _pDelegate->View_GetViewData(this); }
 
-			PViewDelegate SetDelegate(PViewDelegate p) { return Utils::Swap(_pDelegate, p); }
+		void OnClick();
+		void OnDoubleClick();
+		void OnKey(int scancode);
+		void OnChar(wchar_t c);
 
-			void ResetAnimators(float reverseTime = 0);
+		CSZ GetString(int id) const;
 
-			void SetData() { if (_pDelegate) _pDelegate->View_SetViewData(this); }
-			void GetData() { if (_pDelegate) _pDelegate->View_GetViewData(this); }
+		void BeginFadeIn();
+		void BeginFadeOut();
 
-			void OnClick();
-			void OnDoubleClick();
-			void OnKey(int scancode);
-			void OnChar(wchar_t c);
+		Str GetUrl() const { return _C(_url); }
+		Str GetName() const { return _C(_name); }
+		Str GetLocale() const { return _C(_locale); }
 
-			CSZ GetString(int id) const;
+		void HideCursor(bool hide = true) { _cursor = !hide; }
+		bool HasCursor() const { return _cursor; }
+		bool IsDebug() const { return _debug; }
 
-			void BeginFadeIn();
-			void BeginFadeOut();
+		State GetState() const { return _state; }
+		void SetState(State state) { _state = state; }
 
-			Str GetUrl() const { return _C(_url); }
-			Str GetName() const { return _C(_name); }
-			Str GetLocale() const { return _C(_locale); }
+		PInputFocus GetInFocus() const { return _pInputFocus; }
+		bool IsInFocus(PInputFocus p) const { return _pInputFocus == p; }
+		void SetFocus(PInputFocus p);
+		void SkipNextKey() { _skipNextKey = true; }
 
-			void HideCursor(bool hide = true) { _cursor = !hide; }
-			bool HasCursor() const { return _cursor; }
-			bool IsDebug() const { return _debug; }
-
-			State GetState() const { return _state; }
-			void SetState(State state) { _state = state; }
-
-			PInputFocus GetInFocus() const { return _pInputFocus; }
-			bool IsInFocus(PInputFocus p) const { return _pInputFocus == p; }
-			void SetFocus(PInputFocus p);
-			void SkipNextKey() { _skipNextKey = true; }
-
-			void AddControlToTabList(PWidget p) { _vTabList.push_back(p); }
-		};
-		VERUS_TYPEDEFS(View);
-	}
+		void AddControlToTabList(PWidget p) { _vTabList.push_back(p); }
+	};
+	VERUS_TYPEDEFS(View);
 }

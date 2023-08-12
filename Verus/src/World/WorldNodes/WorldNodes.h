@@ -1,54 +1,51 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::World
 {
-	namespace World
+	enum class EditorCommandCode : int
 	{
-		enum class EditorCommandCode : int
-		{
-			custom,
-			separator,
-			node_delete,
-			node_deleteHierarchy,
-			node_duplicate,
-			node_duplicateHierarchy,
-			node_goTo,
-			node_updateLocalTransform,
-			node_resetLocalTransform,
-			node_resetLocalTransformKeepGlobal,
-			node_pointAt,
-			node_moveTo,
-			node_special_fitParentBlock,
-			node_special_fillTheRoom,
-			model_insertBlockNode,
-			model_insertBlockAndPhysicsNodes,
-			model_selectAllBlocks,
-			particles_insertEmitterNode,
-			particles_insertEmitterAndSoundNodes,
-			particles_selectAllEmitters,
-			blockChain_generateNodes,
-			controlPoint_insertControlPoint,
-			path_insertBlockChain,
-			path_insertControlPoint,
-			physics_loadShapeFromFile,
-			physics_quickDynamicBox,
-			physics_quickStaticParentBlock,
-			prefab_insertInstanceNode,
-			prefab_updateInstances,
-			prefab_replaceSimilarWithInstances,
-			shaker_presetForIntensity
-		};
+		custom,
+		separator,
+		node_delete,
+		node_deleteHierarchy,
+		node_duplicate,
+		node_duplicateHierarchy,
+		node_goTo,
+		node_updateLocalTransform,
+		node_resetLocalTransform,
+		node_resetLocalTransformKeepGlobal,
+		node_pointAt,
+		node_moveTo,
+		node_special_fitParentBlock,
+		node_special_fillTheRoom,
+		model_insertBlockNode,
+		model_insertBlockAndPhysicsNodes,
+		model_selectAllBlocks,
+		particles_insertEmitterNode,
+		particles_insertEmitterAndSoundNodes,
+		particles_selectAllEmitters,
+		blockChain_generateNodes,
+		controlPoint_insertControlPoint,
+		path_insertBlockChain,
+		path_insertControlPoint,
+		physics_loadShapeFromFile,
+		physics_quickDynamicBox,
+		physics_quickStaticParentBlock,
+		prefab_insertInstanceNode,
+		prefab_updateInstances,
+		prefab_replaceSimilarWithInstances,
+		shaker_presetForIntensity
+	};
 
-		struct EditorCommand
-		{
-			CSZ               _text = nullptr;
-			EditorCommandCode _code = EditorCommandCode::custom;
+	struct EditorCommand
+	{
+		CSZ               _text = nullptr;
+		EditorCommandCode _code = EditorCommandCode::custom;
 
-			EditorCommand(CSZ text = nullptr, EditorCommandCode code = EditorCommandCode::custom) : _text(text), _code(code) {}
-		};
-		VERUS_TYPEDEFS(EditorCommand);
-	}
+		EditorCommand(CSZ text = nullptr, EditorCommandCode code = EditorCommandCode::custom) : _text(text), _code(code) {}
+	};
+	VERUS_TYPEDEFS(EditorCommand);
 }
 
 #include "Types.h"

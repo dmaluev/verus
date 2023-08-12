@@ -1,27 +1,24 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::Input
 {
-	namespace Input
+	class Gamepad
 	{
-		class Gamepad
-		{
-			SDL_GameController* _pGameController = nullptr;
-			SDL_Haptic* _pHaptic = nullptr;
-			SDL_JoystickID _joystickID = -1;
-			bool           _connected = false;
+		SDL_GameController* _pGameController = nullptr;
+		SDL_Haptic* _pHaptic = nullptr;
+		SDL_JoystickID _joystickID = -1;
+		bool           _connected = false;
 
-		public:
-			Gamepad();
-			~Gamepad();
+	public:
+		Gamepad();
+		~Gamepad();
 
-			void Open(int joystickIndex);
-			void Close();
+		void Open(int joystickIndex);
+		void Close();
 
-			SDL_JoystickID GetJoystickID() const { return _joystickID; }
-			bool IsConnected() const { return _connected; }
-		};
-		VERUS_TYPEDEFS(Gamepad);
-	}
+		SDL_JoystickID GetJoystickID() const { return _joystickID; }
+		bool IsConnected() const { return _connected; }
+	};
+	VERUS_TYPEDEFS(Gamepad);
 }

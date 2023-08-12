@@ -138,8 +138,8 @@ void Dictionary::Deserialize(RStream stream)
 String Dictionary::ToString() const
 {
 	StringStream ss;
-	for (const auto& x : TStoreValues::_map)
-		ss << x.first << ": " << x.second._s << VERUS_CRNL;
+	for (const auto& [key, value] : TStoreValues::_map)
+		ss << key << ": " << value._s << VERUS_CRNL;
 	return ss.str();
 }
 

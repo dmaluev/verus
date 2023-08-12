@@ -1,42 +1,39 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::World
 {
-	namespace World
+	enum class NodeType : int
 	{
-		enum class NodeType : int
-		{
-			unknown,
+		unknown,
 
-			base,
+		base,
 
-			model,
-			particles,
+		model,
+		particles,
 
-			ambient,
-			block,
-			blockChain,
-			controlPoint,
-			emitter,
-			instance,
-			light,
-			path,
-			physics,
-			prefab,
-			project,
-			shaker,
-			sound,
-			terrain,
+		ambient,
+		block,
+		blockChain,
+		controlPoint,
+		emitter,
+		instance,
+		light,
+		path,
+		physics,
+		prefab,
+		project,
+		shaker,
+		sound,
+		terrain,
 
-			trigger,
+		trigger,
 
-			site,
+		site,
 
-			character,
-			vehicle,
+		character,
+		vehicle,
 
-			count
-		};
-	}
+		count
+	};
 }

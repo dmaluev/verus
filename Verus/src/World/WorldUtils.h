@@ -1,53 +1,50 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::World
 {
-	namespace World
+	// Managed by DeferredShading:
+	class DeferredShadingMeshes
 	{
-		// Managed by DeferredShading:
-		class DeferredShadingMeshes
+		Mesh _meshDir;
+		Mesh _meshOmni;
+		Mesh _meshSpot;
+		Mesh _meshBox;
+
+	public:
+		RMesh Get(CGI::LightType type)
 		{
-			Mesh _meshDir;
-			Mesh _meshOmni;
-			Mesh _meshSpot;
-			Mesh _meshBox;
-
-		public:
-			RMesh Get(CGI::LightType type)
+			switch (type)
 			{
-				switch (type)
-				{
-				case CGI::LightType::omni: return _meshOmni;
-				case CGI::LightType::spot: return _meshSpot;
-				}
-				return _meshDir;
+			case CGI::LightType::omni: return _meshOmni;
+			case CGI::LightType::spot: return _meshSpot;
 			}
-			RMesh GetBox()
-			{
-				return _meshBox;
-			}
-		};
-		VERUS_TYPEDEFS(DeferredShadingMeshes);
-
-		class WorldUtils : public Singleton<WorldUtils>, public Object
+			return _meshDir;
+		}
+		RMesh GetBox()
 		{
-		private:
-			DeferredShadingMeshes _deferredShadingMeshes;
-			bool                  _editorMode = false;
+			return _meshBox;
+		}
+	};
+	VERUS_TYPEDEFS(DeferredShadingMeshes);
 
-		public:
-			WorldUtils();
-			~WorldUtils();
+	class WorldUtils : public Singleton<WorldUtils>, public Object
+	{
+	private:
+		DeferredShadingMeshes _deferredShadingMeshes;
+		bool                  _editorMode = false;
 
-			void Init();
-			void Done();
+	public:
+		WorldUtils();
+		~WorldUtils();
 
-			RDeferredShadingMeshes GetDeferredShadingMeshes() { return _deferredShadingMeshes; }
+		void Init();
+		void Done();
 
-			bool IsEditorMode() const { return _editorMode; }
-			void SetEditorMode(bool b = true) { _editorMode = b; }
-		};
-		VERUS_TYPEDEFS(WorldUtils);
-	}
+		RDeferredShadingMeshes GetDeferredShadingMeshes() { return _deferredShadingMeshes; }
+
+		bool IsEditorMode() const { return _editorMode; }
+		void SetEditorMode(bool b = true) { _editorMode = b; }
+	};
+	VERUS_TYPEDEFS(WorldUtils);
 }

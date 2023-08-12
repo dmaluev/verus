@@ -209,12 +209,12 @@ void ShaderVulkan::Done()
 	for (auto& x : _vDescriptorSetDesc)
 		VERUS_VULKAN_DESTROY(x._buffer, vmaDestroyBuffer(pRendererVulkan->GetVmaAllocator(), x._buffer, x._vmaAllocation));
 	_vDescriptorSetDesc.clear();
-	for (auto& kv : _mapCompiled)
+	for (auto& [key, value] : _mapCompiled)
 	{
 		VERUS_FOR(i, +Stage::count)
 		{
-			VERUS_VULKAN_DESTROY(kv.second._shaderModules[i],
-				vkDestroyShaderModule(pRendererVulkan->GetVkDevice(), kv.second._shaderModules[i], pRendererVulkan->GetAllocator()));
+			VERUS_VULKAN_DESTROY(value._shaderModules[i],
+				vkDestroyShaderModule(pRendererVulkan->GetVkDevice(), value._shaderModules[i], pRendererVulkan->GetAllocator()));
 		}
 	}
 	_mapCompiled.clear();

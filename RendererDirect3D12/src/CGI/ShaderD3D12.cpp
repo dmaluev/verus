@@ -58,13 +58,13 @@ void ShaderD3D12::Init(CSZ source, CSZ sourceName, CSZ* branches)
 	ComPtr<ID3DBlob> pErrorMsgs;
 
 	auto CheckErrorMsgs = [this](ComPtr<ID3DBlob>& pErrorMsgs)
-	{
-		if (pErrorMsgs)
 		{
-			OnError(static_cast<CSZ>(pErrorMsgs->GetBufferPointer()));
-			pErrorMsgs.Reset();
-		}
-	};
+			if (pErrorMsgs)
+			{
+				OnError(static_cast<CSZ>(pErrorMsgs->GetBufferPointer()));
+				pErrorMsgs.Reset();
+			}
+		};
 
 	while (*branches)
 	{
@@ -197,12 +197,12 @@ void ShaderD3D12::Done()
 
 	_pRootSignature.Reset(); // Can be shared with another shader, don't check ref count.
 
-	for (auto& x : _mapCompiled)
+	for (auto& [key, value] : _mapCompiled)
 	{
 		VERUS_FOR(i, +Stage::count)
 		{
-			VERUS_COM_RELEASE_CHECK(x.second._pBlobs[i].Get());
-			x.second._pBlobs[i].Reset();
+			VERUS_COM_RELEASE_CHECK(value._pBlobs[i].Get());
+			value._pBlobs[i].Reset();
 		}
 	}
 
@@ -693,19 +693,19 @@ void ShaderD3D12::UpdateDebugInfo(
 	StringStream ss;
 
 	auto PrintShaderVisibility = [&ss](D3D12_SHADER_VISIBILITY shaderVisibility)
-	{
-		switch (shaderVisibility)
 		{
-		case D3D12_SHADER_VISIBILITY_ALL: ss << "All"; break;
-		case D3D12_SHADER_VISIBILITY_VERTEX: ss << "V"; break;
-		case D3D12_SHADER_VISIBILITY_HULL: ss << "H"; break;
-		case D3D12_SHADER_VISIBILITY_DOMAIN: ss << "D"; break;
-		case D3D12_SHADER_VISIBILITY_GEOMETRY: ss << "G"; break;
-		case D3D12_SHADER_VISIBILITY_PIXEL: ss << "P"; break;
-		case D3D12_SHADER_VISIBILITY_AMPLIFICATION: ss << "A"; break;
-		case D3D12_SHADER_VISIBILITY_MESH: ss << "M"; break;
-		}
-	};
+			switch (shaderVisibility)
+			{
+			case D3D12_SHADER_VISIBILITY_ALL: ss << "All"; break;
+			case D3D12_SHADER_VISIBILITY_VERTEX: ss << "V"; break;
+			case D3D12_SHADER_VISIBILITY_HULL: ss << "H"; break;
+			case D3D12_SHADER_VISIBILITY_DOMAIN: ss << "D"; break;
+			case D3D12_SHADER_VISIBILITY_GEOMETRY: ss << "G"; break;
+			case D3D12_SHADER_VISIBILITY_PIXEL: ss << "P"; break;
+			case D3D12_SHADER_VISIBILITY_AMPLIFICATION: ss << "A"; break;
+			case D3D12_SHADER_VISIBILITY_MESH: ss << "M"; break;
+			}
+		};
 
 	int totalSize = 0;
 	int index = 0;

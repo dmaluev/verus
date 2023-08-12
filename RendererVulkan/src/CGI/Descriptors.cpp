@@ -98,18 +98,18 @@ bool Descriptors::CreatePool(bool freeDescriptorSet)
 	vkdpci.flags = freeDescriptorSet ? VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT : 0;
 	Vector<VkDescriptorPoolSize> vDescriptorPoolSizes;
 	vDescriptorPoolSizes.reserve(_mapTypeCount.size());
-	for (const auto& kv : _mapTypeCount)
+	for (const auto& [key, value] : _mapTypeCount)
 	{
 		VkDescriptorPoolSize vkdps;
-		vkdps.type = kv.first;
-		vkdps.descriptorCount = kv.second;
+		vkdps.type = key;
+		vkdps.descriptorCount = value;
 		vDescriptorPoolSizes.push_back(vkdps);
 
-		switch (kv.first)
+		switch (key)
 		{
 		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-			vkdpci.maxSets += kv.second;
+			vkdpci.maxSets += value;
 		}
 	}
 	vkdpci.poolSizeCount = Utils::Cast32(vDescriptorPoolSizes.size());

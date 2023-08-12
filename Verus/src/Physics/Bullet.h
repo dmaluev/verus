@@ -1,137 +1,134 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::Physics
 {
-	namespace Physics
+	class alignas(btDefaultMotionState) alignas(btRigidBody) LocalRigidBody
 	{
-		class alignas(btDefaultMotionState) alignas(btRigidBody) LocalRigidBody
+		BYTE _data[sizeof(btDefaultMotionState) + sizeof(btRigidBody)] = {};
+		btRigidBody* _p = nullptr;
+
+	public:
+		void operator=(btRigidBody* p)
 		{
-			BYTE _data[sizeof(btDefaultMotionState) + sizeof(btRigidBody)] = {};
-			btRigidBody* _p = nullptr;
+			_p = p;
+		}
 
-		public:
-			void operator=(btRigidBody* p)
-			{
-				_p = p;
-			}
-
-			btRigidBody* operator->() const
-			{
-				return _p;
-			}
-			btRigidBody* Get()
-			{
-				return _p;
-			}
-
-			BYTE* GetDefaultMotionStateData()
-			{
-				return &_data[0];
-			}
-			BYTE* GetRigidBodyData()
-			{
-				return &_data[sizeof(btDefaultMotionState)];
-			}
-
-			void Delete()
-			{
-				if (_p)
-				{
-					_p->getMotionState()->~btMotionState();
-					_p->~btRigidBody();
-					_p = nullptr;
-				}
-			}
-		};
-		VERUS_TYPEDEFS(LocalRigidBody);
-
-		enum class Material : int
+		btRigidBody* operator->() const
 		{
-			brick,
-			glass,
-			leather,
-			metal,
-			plastic,
-			rubber,
-			sand,
-			stone,
-			wood,
-			count
-		};
-
-		enum class DebugDrawMode : int
+			return _p;
+		}
+		btRigidBody* Get()
 		{
-			none,
-			basic
-		};
+			return _p;
+		}
 
-		class Bullet : public Singleton<Bullet>, public Object
+		BYTE* GetDefaultMotionStateData()
 		{
-			static const int s_defaultMaxSubSteps = 8;
+			return &_data[0];
+		}
+		BYTE* GetRigidBodyData()
+		{
+			return &_data[sizeof(btDefaultMotionState)];
+		}
 
-			LocalPtr<btDefaultCollisionConfiguration>     _pCollisionConfiguration;
-			LocalPtr<btCollisionDispatcher>               _pDispatcher;
-			LocalPtr<btAxisSweep3>                        _pBroadphaseInterface;
-			LocalPtr<btSequentialImpulseConstraintSolver> _pConstraintSolver;
-			LocalPtr<btDiscreteDynamicsWorld>             _pDiscreteDynamicsWorld;
-			LocalPtr<btStaticPlaneShape>                  _pStaticPlaneShape;
-			LocalRigidBody                                _pStaticPlaneRigidBody;
-			btGhostPairCallback                           _ghostPairCallback;
-			BulletDebugDraw                               _debugDraw;
-			Group                                         _staticMask = Group::immovable | Group::terrain | Group::forest;
-			bool                                          _pauseSimulation = false;
+		void Delete()
+		{
+			if (_p)
+			{
+				_p->getMotionState()->~btMotionState();
+				_p->~btRigidBody();
+				_p = nullptr;
+			}
+		}
+	};
+	VERUS_TYPEDEFS(LocalRigidBody);
 
-		public:
-			Bullet();
-			~Bullet();
+	enum class Material : int
+	{
+		brick,
+		glass,
+		leather,
+		metal,
+		plastic,
+		rubber,
+		sand,
+		stone,
+		wood,
+		count
+	};
 
-			void Init();
-			void Done();
+	enum class DebugDrawMode : int
+	{
+		none,
+		basic
+	};
 
-			btDefaultCollisionConfiguration* GetCollisionConfiguration() { return _pCollisionConfiguration.Get(); }
-			btCollisionDispatcher* GetDispatcher() { return _pDispatcher.Get(); }
-			btAxisSweep3* GetBroadphaseInterface() { return _pBroadphaseInterface.Get(); }
-			btSequentialImpulseConstraintSolver* GetConstraintSolver() { return _pConstraintSolver.Get(); }
-			btDiscreteDynamicsWorld* GetWorld() { return _pDiscreteDynamicsWorld.Get(); }
+	class Bullet : public Singleton<Bullet>, public Object
+	{
+		static const int s_defaultMaxSubSteps = 8;
 
-			btRigidBody* AddNewRigidBody(
-				float mass,
-				const btTransform& startTransform,
-				btCollisionShape* pShape,
-				int group = +Group::general,
-				int mask = +Group::all,
-				const btTransform* pCenterOfMassOffset = nullptr,
-				void* pPlacementMotionState = nullptr,
-				void* pPlacementRigidBody = nullptr);
-			btRigidBody* AddNewRigidBody(
-				RLocalRigidBody localRigidBody,
-				float mass,
-				const btTransform& startTransform,
-				btCollisionShape* pShape,
-				int group = +Group::general,
-				int mask = +Group::all,
-				const btTransform* pCenterOfMassOffset = nullptr);
+		LocalPtr<btDefaultCollisionConfiguration>     _pCollisionConfiguration;
+		LocalPtr<btCollisionDispatcher>               _pDispatcher;
+		LocalPtr<btAxisSweep3>                        _pBroadphaseInterface;
+		LocalPtr<btSequentialImpulseConstraintSolver> _pConstraintSolver;
+		LocalPtr<btDiscreteDynamicsWorld>             _pDiscreteDynamicsWorld;
+		LocalPtr<btStaticPlaneShape>                  _pStaticPlaneShape;
+		LocalRigidBody                                _pStaticPlaneRigidBody;
+		btGhostPairCallback                           _ghostPairCallback;
+		BulletDebugDraw                               _debugDraw;
+		Group                                         _staticMask = Group::immovable | Group::terrain | Group::forest;
+		bool                                          _pauseSimulation = false;
 
-			void DeleteAllCollisionObjects();
+	public:
+		Bullet();
+		~Bullet();
 
-			void Simulate();
-			void PauseSimualtion(bool b) { _pauseSimulation = b; }
-			bool IsSimulationPaused() const { return _pauseSimulation; }
+		void Init();
+		void Done();
 
-			void DebugDraw();
-			void SetDebugDrawMode(DebugDrawMode mode);
-			void EnableDebugPlane(bool b);
+		btDefaultCollisionConfiguration* GetCollisionConfiguration() { return _pCollisionConfiguration.Get(); }
+		btCollisionDispatcher* GetDispatcher() { return _pDispatcher.Get(); }
+		btAxisSweep3* GetBroadphaseInterface() { return _pBroadphaseInterface.Get(); }
+		btSequentialImpulseConstraintSolver* GetConstraintSolver() { return _pConstraintSolver.Get(); }
+		btDiscreteDynamicsWorld* GetWorld() { return _pDiscreteDynamicsWorld.Get(); }
 
-			static float GetFriction(Material m);
-			static float GetRestitution(Material m);
+		btRigidBody* AddNewRigidBody(
+			float mass,
+			const btTransform& startTransform,
+			btCollisionShape* pShape,
+			int group = +Group::general,
+			int mask = +Group::all,
+			const btTransform* pCenterOfMassOffset = nullptr,
+			void* pPlacementMotionState = nullptr,
+			void* pPlacementRigidBody = nullptr);
+		btRigidBody* AddNewRigidBody(
+			RLocalRigidBody localRigidBody,
+			float mass,
+			const btTransform& startTransform,
+			btCollisionShape* pShape,
+			int group = +Group::general,
+			int mask = +Group::all,
+			const btTransform* pCenterOfMassOffset = nullptr);
 
-			static CSZ GroupToString(int index);
+		void DeleteAllCollisionObjects();
 
-			Group GetStaticMask() const { return _staticMask; }
-			Group GetNonStaticMask() const { return ~_staticMask; }
-			void SetStaticMask(Group mask) { _staticMask = mask; }
-		};
-		VERUS_TYPEDEFS(Bullet);
-	}
+		void Simulate();
+		void PauseSimualtion(bool b) { _pauseSimulation = b; }
+		bool IsSimulationPaused() const { return _pauseSimulation; }
+
+		void DebugDraw();
+		void SetDebugDrawMode(DebugDrawMode mode);
+		void EnableDebugPlane(bool b);
+
+		static float GetFriction(Material m);
+		static float GetRestitution(Material m);
+
+		static CSZ GroupToString(int index);
+
+		Group GetStaticMask() const { return _staticMask; }
+		Group GetNonStaticMask() const { return ~_staticMask; }
+		void SetStaticMask(Group mask) { _staticMask = mask; }
+	};
+	VERUS_TYPEDEFS(Bullet);
 }

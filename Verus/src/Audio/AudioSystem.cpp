@@ -68,14 +68,14 @@ void AudioSystem::Update()
 		_streamPlayers[i].Update();
 
 	// Update every frame:
-	for (auto& x : TStoreSounds::_map)
-		x.second.Update();
+	for (auto& [key, value] : TStoreSounds::_map)
+		value.Update();
 
 	// Update ~15 times per second:
 	if (timer.IsEventEvery(67))
 	{
-		for (auto& x : TStoreSounds::_map)
-			x.second.UpdateHRTF();
+		for (auto& [key, value] : TStoreSounds::_map)
+			value.UpdateHRTF();
 
 		if (VMath::lengthSqr(_listenerDirection) > 0.1f &&
 			VMath::lengthSqr(_listenerUp) > 0.1f)

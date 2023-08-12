@@ -1,15 +1,12 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::Physics
 {
-	namespace Physics
+	class UserPtr
 	{
-		class UserPtr
-		{
-		public:
-			virtual int UserPtr_GetType() = 0;
-		};
-		VERUS_TYPEDEFS(UserPtr);
-	}
+	public:
+		virtual int UserPtr_GetType() = 0;
+	};
+	VERUS_TYPEDEFS(UserPtr);
 }

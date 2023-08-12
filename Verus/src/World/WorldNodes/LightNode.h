@@ -1,124 +1,121 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::World
 {
-	namespace World
+	class LightData
 	{
-		class LightData
+	public:
+		Vector4        _color = Vector4(1, 1, 1, 1000);
+		Vector3        _dir = Vector3(0, 0, 1);
+		CGI::LightType _lightType = CGI::LightType::omni;
+		float          _radius = 10;
+		float          _coneIn = cos(Math::ToRadians(20));
+		float          _coneOut = cos(Math::ToRadians(30));
+	};
+	VERUS_TYPEDEFS(LightData);
+
+	// LightNode defines a light source.
+	// LightNode's scale is tied to the radius.
+	// * has different light parameters, like color, radius, etc.
+	class LightNode : public BaseNode
+	{
+		Matrix4         _matShadow = Matrix4::identity();
+		LightData       _data;
+		ShadowMapHandle _shadowMapHandle;
+		float           _cachedInfluence = 0;
+		bool            _shadowMapUpdateRequired = false;
+		bool            _async_loadedMesh = false;
+
+	public:
+		struct Desc : BaseNode::Desc
 		{
-		public:
-			Vector4        _color = Vector4(1, 1, 1, 1000);
-			Vector3        _dir = Vector3(0, 0, 1);
-			CGI::LightType _lightType = CGI::LightType::omni;
-			float          _radius = 10;
-			float          _coneIn = cos(Math::ToRadians(20));
-			float          _coneOut = cos(Math::ToRadians(30));
+			LightData _data;
+			bool      _dynamic = false;
 		};
-		VERUS_TYPEDEFS(LightData);
+		VERUS_TYPEDEFS(Desc);
 
-		// LightNode defines a light source.
-		// LightNode's scale is tied to the radius.
-		// * has different light parameters, like color, radius, etc.
-		class LightNode : public BaseNode
-		{
-			Matrix4         _matShadow = Matrix4::identity();
-			LightData       _data;
-			ShadowMapHandle _shadowMapHandle;
-			float           _cachedInfluence = 0;
-			bool            _shadowMapUpdateRequired = false;
-			bool            _async_loadedMesh = false;
+		LightNode();
+		virtual ~LightNode();
 
-		public:
-			struct Desc : BaseNode::Desc
-			{
-				LightData _data;
-				bool      _dynamic = false;
-			};
-			VERUS_TYPEDEFS(Desc);
+		void Init(RcDesc desc);
+		void Done();
 
-			LightNode();
-			virtual ~LightNode();
+		virtual void Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication) override;
 
-			void Init(RcDesc desc);
-			void Done();
+		virtual void Update() override;
+		virtual void DrawEditorOverlays(DrawEditorOverlaysFlags flags) override;
 
-			virtual void Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication) override;
+		// <Flags>
+		virtual void SetShadowFlag(bool shadow = true) override;
+		bool CanReserveShadow() const;
+		void SetReserveShadowFlag(bool reserveShadow);
+		// </Flags>
 
-			virtual void Update() override;
-			virtual void DrawEditorOverlays(DrawEditorOverlaysFlags flags) override;
+		virtual float GetPropertyByName(CSZ name) const override;
+		virtual void SetPropertyByName(CSZ name, float value) override;
 
-			// <Flags>
-			virtual void SetShadowFlag(bool shadow = true) override;
-			bool CanReserveShadow() const;
-			void SetReserveShadowFlag(bool reserveShadow);
-			// </Flags>
+		Vector3 ComputeScale();
+		virtual void OnLocalTransformUpdated() override;
 
-			virtual float GetPropertyByName(CSZ name) const override;
-			virtual void SetPropertyByName(CSZ name, float value) override;
+		virtual void UpdateBounds() override;
 
-			Vector3 ComputeScale();
-			virtual void OnLocalTransformUpdated() override;
+		virtual void OnNodeTransformed(PBaseNode pNode, bool afterEvent) override;
 
-			virtual void UpdateBounds() override;
+		virtual void Serialize(IO::RSeekableStream stream) override;
+		virtual void Deserialize(IO::RStream stream) override;
+		void Deserialize_LegacyXXX(IO::RStream stream);
+		void DeserializeXML_LegacyXXX(pugi::xml_node node);
 
-			virtual void OnNodeTransformed(PBaseNode pNode, bool afterEvent) override;
+		CGI::LightType GetLightType() const;
+		void SetLightType(CGI::LightType type);
+		RcVector4 GetColor() const;
+		void SetColor(RcVector4 color);
+		float GetIntensity() const;
+		void SetIntensity(float i);
+		float GetRadius() const;
+		void SetRadius(float r);
+		float GetConeIn() const;
+		void SetConeIn(float coneIn);
+		float GetConeOut() const;
+		void SetConeOut(float coneOut);
+		Vector4 GetInstData() const;
+		float ComputeLampRadius() const;
 
-			virtual void Serialize(IO::RSeekableStream stream) override;
-			virtual void Deserialize(IO::RStream stream) override;
-			void Deserialize_LegacyXXX(IO::RStream stream);
-			void DeserializeXML_LegacyXXX(pugi::xml_node node);
+		// <Shadow>
+		ShadowMapHandle GetShadowMapHandle() const { return _shadowMapHandle; }
+		void UpdateShadowMapHandle(bool freeCell = false);
+		bool CanRequestShadowMapUpdate() const;
+		void RequestShadowMapUpdate(bool mustBeStatic = true);
+		bool IsShadowMapUpdateRequired() const;
+		void OnShadowMapUpdated();
+		bool CanBeSmbpStatic() const;
+		bool CanBeSmbpDynamic() const;
 
-			CGI::LightType GetLightType() const;
-			void SetLightType(CGI::LightType type);
-			RcVector4 GetColor() const;
-			void SetColor(RcVector4 color);
-			float GetIntensity() const;
-			void SetIntensity(float i);
-			float GetRadius() const;
-			void SetRadius(float r);
-			float GetConeIn() const;
-			void SetConeIn(float coneIn);
-			float GetConeOut() const;
-			void SetConeOut(float coneOut);
-			Vector4 GetInstData() const;
-			float ComputeLampRadius() const;
+		void SetupShadowMapCamera(RCamera camera);
 
-			// <Shadow>
-			ShadowMapHandle GetShadowMapHandle() const { return _shadowMapHandle; }
-			void UpdateShadowMapHandle(bool freeCell = false);
-			bool CanRequestShadowMapUpdate() const;
-			void RequestShadowMapUpdate(bool mustBeStatic = true);
-			bool IsShadowMapUpdateRequired() const;
-			void OnShadowMapUpdated();
-			bool CanBeSmbpStatic() const;
-			bool CanBeSmbpDynamic() const;
+		RcMatrix4 GetShadowMatrix() const;
+		Matrix4 GetShadowMatrixForDS() const;
+		// </Shadow>
 
-			void SetupShadowMapCamera(RCamera camera);
+		float GetInfluenceAt(Math::RcSphere sphere);
+		float GetCachedInfluence() const { return _cachedInfluence; }
+	};
+	VERUS_TYPEDEFS(LightNode);
 
-			RcMatrix4 GetShadowMatrix() const;
-			Matrix4 GetShadowMatrixForDS() const;
-			// </Shadow>
+	class LightNodePtr : public Ptr<LightNode>
+	{
+	public:
+		void Init(LightNode::RcDesc desc);
+		void Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication);
+	};
+	VERUS_TYPEDEFS(LightNodePtr);
 
-			float GetInfluenceAt(Math::RcSphere sphere);
-			float GetCachedInfluence() const { return _cachedInfluence; }
-		};
-		VERUS_TYPEDEFS(LightNode);
-
-		class LightNodePtr : public Ptr<LightNode>
-		{
-		public:
-			void Init(LightNode::RcDesc desc);
-			void Duplicate(RBaseNode node, HierarchyDuplication hierarchyDuplication);
-		};
-		VERUS_TYPEDEFS(LightNodePtr);
-
-		class LightNodePwn : public LightNodePtr
-		{
-		public:
-			~LightNodePwn() { Done(); }
-			void Done();
-		};
-		VERUS_TYPEDEFS(LightNodePwn);
-	}
+	class LightNodePwn : public LightNodePtr
+	{
+	public:
+		~LightNodePwn() { Done(); }
+		void Done();
+	};
+	VERUS_TYPEDEFS(LightNodePwn);
 }

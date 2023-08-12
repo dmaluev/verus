@@ -94,7 +94,7 @@ namespace verus
 	template<typename T> using Set = std::set                           <T, std::less<T>, AllocatorAwareSTL<T>>;
 	template<typename T> using MultiSet = std::multiset                 <T, std::less<T>, AllocatorAwareSTL<T>>;
 	template<typename T> using HashSet = std::unordered_set             <T, std::hash<T>, std::equal_to<T>, AllocatorAwareSTL<T>>;
-	template<typename T, typename U> using Map = std::map               <T, U, std::less<T>, AllocatorAwareSTL<T>>;
-	template<typename T, typename U> using MultiMap = std::multimap     <T, U, std::less<T>, AllocatorAwareSTL<T>>;
-	template<typename T, typename U> using HashMap = std::unordered_map <T, U, std::hash<T>, std::equal_to<T>, AllocatorAwareSTL<T>>;
+	template<typename T, typename U> using Map = std::map               <T, U, std::less<T>, AllocatorAwareSTL<std::pair<const T, U>>>;
+	template<typename T, typename U> using MultiMap = std::multimap     <T, U, std::less<T>, AllocatorAwareSTL<std::pair<const T, U>>>;
+	template<typename T, typename U> using HashMap = std::unordered_map <T, U, std::hash<T>, std::equal_to<T>, AllocatorAwareSTL<std::pair<const T, U>>>;
 }

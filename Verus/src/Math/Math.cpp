@@ -95,9 +95,7 @@ int Math::LowestBit(int x)
 
 bool Math::IsNaN(float x)
 {
-	// 'isnan' : is not a member of 'std' :(
-	volatile float y = x;
-	return y != y;
+	return std::isnan(x);
 }
 
 float Math::ToRadians(float deg)
@@ -144,47 +142,49 @@ float Math::ApplyEasing(Easing easing, float x)
 {
 	switch (easing)
 	{
-	case Easing::none: return x;
+		using enum Easing;
 
-	case Easing::sineIn: return glm::sineEaseIn(x);
-	case Easing::sineOut: return glm::sineEaseOut(x);
-	case Easing::sineInOut: return glm::sineEaseInOut(x);
+	case none: return x;
 
-	case Easing::quadIn: return glm::quadraticEaseIn(x);
-	case Easing::quadOut: return glm::quadraticEaseOut(x);
-	case Easing::quadInOut: return glm::quadraticEaseInOut(x);
+	case sineIn: return glm::sineEaseIn(x);
+	case sineOut: return glm::sineEaseOut(x);
+	case sineInOut: return glm::sineEaseInOut(x);
 
-	case Easing::cubicIn: return glm::cubicEaseIn(x);
-	case Easing::cubicOut: return glm::cubicEaseOut(x);
-	case Easing::cubicInOut: return glm::cubicEaseInOut(x);
+	case quadIn: return glm::quadraticEaseIn(x);
+	case quadOut: return glm::quadraticEaseOut(x);
+	case quadInOut: return glm::quadraticEaseInOut(x);
 
-	case Easing::quartIn: return glm::quarticEaseIn(x);
-	case Easing::quartOut: return glm::quarticEaseOut(x);
-	case Easing::quartInOut: return glm::quarticEaseInOut(x);
+	case cubicIn: return glm::cubicEaseIn(x);
+	case cubicOut: return glm::cubicEaseOut(x);
+	case cubicInOut: return glm::cubicEaseInOut(x);
 
-	case Easing::quintIn: return glm::quinticEaseIn(x);
-	case Easing::quintOut: return glm::quinticEaseOut(x);
-	case Easing::quintInOut: return glm::quinticEaseInOut(x);
+	case quartIn: return glm::quarticEaseIn(x);
+	case quartOut: return glm::quarticEaseOut(x);
+	case quartInOut: return glm::quarticEaseInOut(x);
 
-	case Easing::expoIn: return glm::exponentialEaseIn(x);
-	case Easing::expoOut: return glm::exponentialEaseOut(x);
-	case Easing::expoInOut: return glm::exponentialEaseInOut(x);
+	case quintIn: return glm::quinticEaseIn(x);
+	case quintOut: return glm::quinticEaseOut(x);
+	case quintInOut: return glm::quinticEaseInOut(x);
 
-	case Easing::circIn: return glm::circularEaseIn(x);
-	case Easing::circOut: return glm::circularEaseOut(x);
-	case Easing::circInOut: return glm::circularEaseInOut(x);
+	case expoIn: return glm::exponentialEaseIn(x);
+	case expoOut: return glm::exponentialEaseOut(x);
+	case expoInOut: return glm::exponentialEaseInOut(x);
 
-	case Easing::backIn: return glm::backEaseIn(x);
-	case Easing::backOut: return glm::backEaseOut(x);
-	case Easing::backInOut: return glm::backEaseInOut(x);
+	case circIn: return glm::circularEaseIn(x);
+	case circOut: return glm::circularEaseOut(x);
+	case circInOut: return glm::circularEaseInOut(x);
 
-	case Easing::elasticIn: return glm::elasticEaseIn(x);
-	case Easing::elasticOut: return glm::elasticEaseOut(x);
-	case Easing::elasticInOut: return glm::elasticEaseInOut(x);
+	case backIn: return glm::backEaseIn(x);
+	case backOut: return glm::backEaseOut(x);
+	case backInOut: return glm::backEaseInOut(x);
 
-	case Easing::bounceIn: return glm::bounceEaseIn(x);
-	case Easing::bounceOut: return glm::bounceEaseOut(x);
-	case Easing::bounceInOut: return glm::bounceEaseInOut(x);
+	case elasticIn: return glm::elasticEaseIn(x);
+	case elasticOut: return glm::elasticEaseOut(x);
+	case elasticInOut: return glm::elasticEaseInOut(x);
+
+	case bounceIn: return glm::bounceEaseIn(x);
+	case bounceOut: return glm::bounceEaseOut(x);
+	case bounceInOut: return glm::bounceEaseInOut(x);
 	}
 	VERUS_RT_FAIL("Unknown easing.");
 	return x;

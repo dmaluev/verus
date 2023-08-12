@@ -1,40 +1,37 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::Effects
 {
-	namespace Effects
+	class Cinema : public Singleton<Cinema>, public Object
 	{
-		class Cinema : public Singleton<Cinema>, public Object
-		{
 #include "../Shaders/Cinema.inc.hlsl"
 
-			static UB_CinemaVS s_ubCinemaVS;
-			static UB_CinemaFS s_ubCinemaFS;
+		static UB_CinemaVS s_ubCinemaVS;
+		static UB_CinemaFS s_ubCinemaFS;
 
-			CGI::ShaderPwn   _shader;
-			CGI::PipelinePwn _pipe;
-			CGI::TexturePwn  _texFilmGrain;
-			CGI::CSHandle    _csh;
-			float            _uOffset = 0;
-			float            _vOffset = 0;
-			float            _brightness = 1;
-			float            _flickerStrength = 0.02f;
-			float            _noiseStrength = 0.2f;
-			bool             _editMode = false;
+		CGI::ShaderPwn   _shader;
+		CGI::PipelinePwn _pipe;
+		CGI::TexturePwn  _texFilmGrain;
+		CGI::CSHandle    _csh;
+		float            _uOffset = 0;
+		float            _vOffset = 0;
+		float            _brightness = 1;
+		float            _flickerStrength = 0.02f;
+		float            _noiseStrength = 0.2f;
+		bool             _editMode = false;
 
-		public:
-			Cinema();
-			~Cinema();
+	public:
+		Cinema();
+		~Cinema();
 
-			void Init();
-			void Done();
+		void Init();
+		void Done();
 
-			void Draw();
+		void Draw();
 
-			bool IsEditMode() const { return _editMode; }
-			void ToggleEditMode() { _editMode = !_editMode; }
-		};
-		VERUS_TYPEDEFS(Cinema);
-	}
+		bool IsEditMode() const { return _editMode; }
+		void ToggleEditMode() { _editMode = !_editMode; }
+	};
+	VERUS_TYPEDEFS(Cinema);
 }

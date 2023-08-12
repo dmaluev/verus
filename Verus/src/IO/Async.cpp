@@ -47,13 +47,13 @@ void Async::Load(CSZ url, PAsyncDelegate pDelegate, RcTaskDesc desc)
 		{
 			VERUS_LOCK(*this);
 
-			for (auto& kv : _mapTasks)
+			for (auto& [key, value] : _mapTasks)
 			{
-				if (!strcmp(url, _C(kv.first) + s_orderLength))
+				if (!strcmp(url, _C(key) + s_orderLength))
 				{
 					// This resource is already scheduled.
 					// Just add a new owner, if it's not already there.
-					RTask task = kv.second;
+					RTask task = value;
 					if (std::find(task._vOwners.begin(), task._vOwners.end(), pDelegate) == task._vOwners.end())
 						task._vOwners.push_back(pDelegate);
 					return;
@@ -92,9 +92,9 @@ void Async::_Cancel(PAsyncDelegate pDelegate)
 {
 	VERUS_RT_ASSERT(IsInitialized());
 	VERUS_LOCK(*this);
-	for (auto& kv : _mapTasks)
+	for (auto& [key, value] : _mapTasks)
 	{
-		RTask task = kv.second;
+		RTask task = value;
 		VERUS_WHILE(Vector<PAsyncDelegate>, task._vOwners, it)
 		{
 			if (*it == pDelegate)

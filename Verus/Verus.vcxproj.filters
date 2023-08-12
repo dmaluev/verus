@@ -165,9 +165,6 @@
     <ClInclude Include="src\Global\STL.h">
       <Filter>src\Global</Filter>
     </ClInclude>
-    <ClInclude Include="src\Global\SyntaxHighlight.h">
-      <Filter>src\Global</Filter>
-    </ClInclude>
     <ClInclude Include="src\Global\Typedef.h">
       <Filter>src\Global</Filter>
     </ClInclude>

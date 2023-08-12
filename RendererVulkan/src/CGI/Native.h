@@ -1,29 +1,26 @@
 // Copyright (C) 2021-2022, Dmitry Maluev (dmaluev@gmail.com). All rights reserved.
 #pragma once
 
-namespace verus
+namespace verus::CGI
 {
-	namespace CGI
-	{
-		VkCompareOp ToNativeCompareOp(CompareOp compareOp);
+	VkCompareOp ToNativeCompareOp(CompareOp compareOp);
 
-		uint32_t ToNativeCubeMapFace(CubeMapFace face);
+	uint32_t ToNativeCubeMapFace(CubeMapFace face);
 
-		VkPolygonMode ToNativePolygonMode(PolygonMode polygonMode);
+	VkPolygonMode ToNativePolygonMode(PolygonMode polygonMode);
 
-		VkCullModeFlagBits ToNativeCullMode(CullMode cullMode);
+	VkCullModeFlagBits ToNativeCullMode(CullMode cullMode);
 
-		VkPrimitiveTopology ToNativePrimitiveTopology(PrimitiveTopology primitiveTopology);
+	VkPrimitiveTopology ToNativePrimitiveTopology(PrimitiveTopology primitiveTopology);
 
-		VkImageLayout ToNativeImageLayout(ImageLayout layout);
+	VkImageLayout ToNativeImageLayout(ImageLayout layout);
 
-		VkShaderStageFlags ToNativeStageFlags(ShaderStageFlags stageFlags);
+	VkShaderStageFlags ToNativeStageFlags(ShaderStageFlags stageFlags);
 
-		VkSampleCountFlagBits ToNativeSampleCount(int sampleCount);
+	VkSampleCountFlagBits ToNativeSampleCount(int sampleCount);
 
-		VkFormat ToNativeFormat(Format format);
+	VkFormat ToNativeFormat(Format format);
 
-		int ToNativeLocation(ViaUsage usage, int usageIndex);
-		VkFormat ToNativeFormat(ViaUsage usage, ViaType type, int components);
-	}
+	int ToNativeLocation(ViaUsage usage, int usageIndex);
+	VkFormat ToNativeFormat(ViaUsage usage, ViaType type, int components);
 }
