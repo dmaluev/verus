@@ -66,7 +66,7 @@ using namespace Microsoft::WRL;
 #	pragma comment(lib, "d3dcompiler.lib")
 #	pragma comment(lib, "dxgi.lib")
 #	pragma comment(lib, "dxguid.lib")
-#	include "ThirdParty/d3dx12.h" // See: https://github.com/microsoft/DirectX-Headers/tree/main/include/directx
+#	include "ThirdParty/d3dx12.h" // From Agility SDK v1.4.9
 #	ifdef _DEBUG
 #		define D3D12MA_DEBUG_MARGIN 16
 #	endif
