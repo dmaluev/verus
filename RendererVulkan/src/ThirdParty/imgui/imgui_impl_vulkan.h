@@ -24,6 +24,7 @@
 // Read comments in imgui_impl_vulkan.h.
 
 #pragma once
+#ifndef IMGUI_DISABLE
 
 // [Configuration] in order to use a custom Vulkan function loader:
 // (1) You'll need to disable default Vulkan function prototypes.
@@ -58,6 +59,12 @@ struct ImGui_ImplVulkan_InitInfo
     uint32_t                        MinImageCount;          // >= 2
     uint32_t                        ImageCount;             // >= MinImageCount
     VkSampleCountFlagBits           MSAASamples;            // >= VK_SAMPLE_COUNT_1_BIT (0 -> default to VK_SAMPLE_COUNT_1_BIT)
+
+    // Dynamic Rendering (Optional)
+    bool                            UseDynamicRendering;    // Need to explicitly enable VK_KHR_dynamic_rendering extension to use this, even for Vulkan 1.3.
+    VkFormat                        ColorAttachmentFormat;  // Required for dynamic rendering
+
+    // Allocation, Debugging
     const VkAllocationCallbacks*    Allocator;
     void                            (*CheckVkResultFn)(VkResult err);
 };
@@ -138,6 +145,7 @@ struct ImGui_ImplVulkanH_Window
     VkPresentModeKHR    PresentMode;
     VkRenderPass        RenderPass;
     VkPipeline          Pipeline;               // The window pipeline may uses a different VkRenderPass than the one passed in ImGui_ImplVulkan_InitInfo
+    bool                UseDynamicRendering;
     bool                ClearEnable;
     VkClearValue        ClearValue;
     uint32_t            FrameIndex;             // Current frame being rendered to (0 <= FrameIndex < FrameInFlightCount)
@@ -154,3 +162,4 @@ struct ImGui_ImplVulkanH_Window
     }
 };
 
+#endif // #ifndef IMGUI_DISABLE
