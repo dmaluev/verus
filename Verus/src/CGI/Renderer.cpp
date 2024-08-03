@@ -727,9 +727,9 @@ void Renderer::ImGuiUpdateStyle()
 
 	colors[ImGuiCol_Tab] = frameBgHoveredColor;
 	colors[ImGuiCol_TabHovered] = hoveredColor;
-	colors[ImGuiCol_TabActive] = titleColor;
-	colors[ImGuiCol_TabUnfocused] = frameBgColor;
-	colors[ImGuiCol_TabUnfocusedActive] = borderColor;
+	colors[ImGuiCol_TabSelected] = titleColor;
+	colors[ImGuiCol_TabDimmed] = frameBgColor;
+	colors[ImGuiCol_TabDimmedSelected] = borderColor;
 
 	colors[ImGuiCol_PlotLines] = disabledColor;
 	colors[ImGuiCol_PlotLinesHovered] = satColorB;

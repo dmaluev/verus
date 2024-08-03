@@ -633,13 +633,13 @@ void RendererVulkan::CreateSamplers()
 	init.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
 
 	auto Create = [this](const VkSamplerCreateInfo& vksci)
-	{
-		VkResult res = VK_SUCCESS;
-		VkSampler sampler = VK_NULL_HANDLE;
-		if (VK_SUCCESS != (res = vkCreateSampler(_device, &vksci, GetAllocator(), &sampler)))
-			throw VERUS_RUNTIME_ERROR << "vkCreateSampler(); res=" << res;
-		return sampler;
-	};
+		{
+			VkResult res = VK_SUCCESS;
+			VkSampler sampler = VK_NULL_HANDLE;
+			if (VK_SUCCESS != (res = vkCreateSampler(_device, &vksci, GetAllocator(), &sampler)))
+				throw VERUS_RUNTIME_ERROR << "vkCreateSampler(); res=" << res;
+			return sampler;
+		};
 
 	vksci = init;
 	vksci.mipLodBias = -2;
@@ -750,6 +750,7 @@ void RendererVulkan::ImGuiInit(RPHandle renderPassHandle)
 	VkResult res = VK_SUCCESS;
 	VkDescriptorPoolSize vkdps = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 };
 	VkDescriptorPoolCreateInfo vkdpci = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+	vkdpci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 	vkdpci.maxSets = 1;
 	vkdpci.poolSizeCount = 1;
 	vkdpci.pPoolSizes = &vkdps;
@@ -784,19 +785,18 @@ void RendererVulkan::ImGuiInit(RPHandle renderPassHandle)
 	info.Device = _device;
 	info.QueueFamily = _queueFamilyIndices._graphicsFamilyIndex;
 	info.Queue = _graphicsQueue;
-	info.PipelineCache = nullptr;
 	info.DescriptorPool = _descriptorPoolImGui;
-	info.Allocator = GetAllocator();
+	info.RenderPass = _vRenderPasses[renderPassHandle.Get()];
 	info.MinImageCount = (settings._displayVSync && !settings._openXR) ? 3 : 2;
 	info.ImageCount = s_ringBufferSize;
+	info.Allocator = GetAllocator();
 	info.CheckVkResultFn = ImGuiCheckVkResultFn;
-	ImGui_ImplVulkan_Init(&info, _vRenderPasses[renderPassHandle.Get()]);
+	ImGui_ImplVulkan_Init(&info);
 
 	CommandBufferVulkan commandBuffer;
 	commandBuffer.InitOneTimeSubmit();
-	ImGui_ImplVulkan_CreateFontsTexture(commandBuffer.GetVkCommandBuffer());
+	ImGui_ImplVulkan_CreateFontsTexture();
 	commandBuffer.DoneOneTimeSubmit();
-	ImGui_ImplVulkan_DestroyFontUploadObjects();
 }
 
 void RendererVulkan::ImGuiRenderDrawData()
@@ -990,24 +990,24 @@ RPHandle RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> 
 	VkResult res = VK_SUCCESS;
 
 	auto ToNativeLoadOp = [](RP::Attachment::LoadOp op)
-	{
-		switch (op)
 		{
-		case RP::Attachment::LoadOp::load:     return VK_ATTACHMENT_LOAD_OP_LOAD;
-		case RP::Attachment::LoadOp::clear:    return VK_ATTACHMENT_LOAD_OP_CLEAR;
-		case RP::Attachment::LoadOp::dontCare: return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		default: throw VERUS_RECOVERABLE << "CreateRenderPass(); LoadOp";
+			switch (op)
+			{
+			case RP::Attachment::LoadOp::load:     return VK_ATTACHMENT_LOAD_OP_LOAD;
+			case RP::Attachment::LoadOp::clear:    return VK_ATTACHMENT_LOAD_OP_CLEAR;
+			case RP::Attachment::LoadOp::dontCare: return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			default: throw VERUS_RECOVERABLE << "CreateRenderPass(); LoadOp";
+			};
 		};
-	};
 	auto ToNativeStoreOp = [](RP::Attachment::StoreOp op)
-	{
-		switch (op)
 		{
-		case RP::Attachment::StoreOp::store:    return VK_ATTACHMENT_STORE_OP_STORE;
-		case RP::Attachment::StoreOp::dontCare: return VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		default: throw VERUS_RECOVERABLE << "CreateRenderPass(); StoreOp";
-		}
-	};
+			switch (op)
+			{
+			case RP::Attachment::StoreOp::store:    return VK_ATTACHMENT_STORE_OP_STORE;
+			case RP::Attachment::StoreOp::dontCare: return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			default: throw VERUS_RECOVERABLE << "CreateRenderPass(); StoreOp";
+			}
+		};
 
 	Vector<VkAttachmentDescription> vAttachmentDesc;
 	vAttachmentDesc.reserve(ilA.size());
@@ -1026,18 +1026,18 @@ RPHandle RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> 
 	}
 
 	auto GetAttachmentIndexByName = [&ilA](CSZ name) -> uint32_t
-	{
-		if (!name)
-			return VK_ATTACHMENT_UNUSED;
-		uint32_t index = 0;
-		for (const auto& attachment : ilA)
 		{
-			if (!strcmp(attachment._name, name))
-				return index;
-			index++;
-		}
-		throw VERUS_RECOVERABLE << "CreateRenderPass(); Attachment not found";
-	};
+			if (!name)
+				return VK_ATTACHMENT_UNUSED;
+			uint32_t index = 0;
+			for (const auto& attachment : ilA)
+			{
+				if (!strcmp(attachment._name, name))
+					return index;
+				index++;
+			}
+			throw VERUS_RECOVERABLE << "CreateRenderPass(); Attachment not found";
+		};
 
 	struct SubpassMetadata
 	{
@@ -1123,18 +1123,18 @@ RPHandle RendererVulkan::CreateRenderPass(std::initializer_list<RP::Attachment> 
 	}
 
 	auto GetSubpassIndexByName = [&ilS](CSZ name) -> uint32_t
-	{
-		if (!name)
-			return VK_SUBPASS_EXTERNAL;
-		uint32_t index = 0;
-		for (const auto& subpass : ilS)
 		{
-			if (!strcmp(subpass._name, name))
-				return index;
-			index++;
-		}
-		throw VERUS_RECOVERABLE << "CreateRenderPass(); Subpass not found";
-	};
+			if (!name)
+				return VK_SUBPASS_EXTERNAL;
+			uint32_t index = 0;
+			for (const auto& subpass : ilS)
+			{
+				if (!strcmp(subpass._name, name))
+					return index;
+				index++;
+			}
+			throw VERUS_RECOVERABLE << "CreateRenderPass(); Subpass not found";
+		};
 
 	Vector<VkSubpassDependency> vSubpassDependency;
 	vSubpassDependency.reserve(ilD.size());
